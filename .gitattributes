@@ -1,0 +1,58 @@
+# Normalise line endings in the repository, keep the working tree native.
+* text=auto
+
+# ----- Text assets -----------------------------------------------------------
+*.cs           text diff=csharp
+*.shader       text
+*.hlsl         text
+*.cginc        text
+*.compute      text
+*.json         text
+*.asmdef       text
+*.asmref       text
+*.md           text
+
+# ----- Unity YAML assets -----------------------------------------------------
+# Unity's own merge tool (UnityYAMLMerge) can merge these semantically.
+# Register it once per machine:
+#   git config --global merge.unityyamlmerge.name "Unity SmartMerge"
+#   git config --global merge.unityyamlmerge.driver \
+#     '"<UnityEditor>/Data/Tools/UnityYAMLMerge" merge -p %O %B %A %A'
+# If it is not registered, Git falls back to a normal three-way text merge,
+# which is why it is safe to declare the driver here.
+*.unity        text merge=unityyamlmerge
+*.prefab       text merge=unityyamlmerge
+*.asset        text merge=unityyamlmerge
+*.meta         text merge=unityyamlmerge
+*.mat          text merge=unityyamlmerge
+*.anim         text merge=unityyamlmerge
+*.controller   text merge=unityyamlmerge
+*.overrideController text merge=unityyamlmerge
+
+# ----- Binary assets (never diff/merge as text) ------------------------------
+*.png          binary
+*.jpg          binary
+*.jpeg         binary
+*.gif          binary
+*.psd          binary
+*.tga          binary
+*.tif          binary
+*.exr          binary
+*.hdr          binary
+*.fbx          binary
+*.obj          binary
+*.blend        binary
+*.wav          binary
+*.mp3          binary
+*.ogg          binary
+*.aiff         binary
+*.ttf          binary
+*.otf          binary
+*.dll          binary
+*.so           binary
+*.aar          binary
+*.jar          binary
+*.apk          binary
+*.aab          binary
+*.zip          binary
+*.unitypackage binary

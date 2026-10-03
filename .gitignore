@@ -1,0 +1,55 @@
+# Unity 6 generated / machine-local directories.
+# Everything here is reproducible from Assets/, Packages/ and ProjectSettings/.
+/.utmp/
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Asset Store downloads
+/[Aa]ssets/AssetStoreTools*
+
+# Unity-generated crash report
+sysinfo.txt
+
+# Build artefacts
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Unity-generated IDE project files (regenerated on every Editor launch)
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb.meta
+*.mdb.meta
+
+# IDE / editor local state
+.vs/
+.idea/
+.vscode/
+.consulo/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Packed Addressables / AssetBundles output
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Local secrets / signing material (never commit keystores)
+*.keystore
+*.jks
