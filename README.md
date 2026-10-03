@@ -2,11 +2,30 @@
 
 Foundation repository for a professional 2D action-platformer built with Unity.
 
-> **Status: project foundation only.**
-> No gameplay has been implemented. There are no player characters, enemies, combat,
-> levels, story content, UI, art, VFX or audio in this repository — by design.
-> This commit establishes a clean, buildable, correctly configured project that future
-> work can be built on top of.
+> **Status: Milestone 1 of The Rootbound Wilds — core architecture and the player.**
+> There is still **no playable level, no enemies, no boss and no art** in this repository.
+> What exists is the foundation plus the systems the region will be assembled from.
+> See [`docs/MILESTONES.md`](docs/MILESTONES.md) for what is done and what is next, and
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the decisions behind the structure.
+
+## Milestone status
+
+| | Milestone | State |
+|---|---|---|
+| M0 | Unity 6.3 LTS project foundation (2D, URP 2D Renderer, Android) | ✅ done |
+| M1 | Core architecture, player traversal + combat, camera, progression hooks | ✅ done |
+| M2 | Level pipeline + The Greenway (next) | ⬜ |
+| M3 | Enemy archetypes + encounter integration | ⬜ |
+| M4 | Whispering Woods + shortcut | ⬜ |
+| M5 | Old Settlement + NPC hook + secrets | ⬜ |
+| M6 | Deep Forest + environmental storytelling | ⬜ |
+| M7 | Root Guardian arena + three-phase boss | ⬜ |
+| M8 | Rootbind unlock + gated backtracking | ⬜ |
+| M9 | Region exit + full audit + touch controls | ⬜ |
+
+Nothing in this repository has been run in Play Mode. No Unity Editor exists in the
+environment it was authored in, so every "verified" claim in the docs is a claim about
+static analysis, and is labelled as such.
 
 ---
 
@@ -52,8 +71,14 @@ Assets/
 ├── Aether/                     First-party project content — the only place game work goes
 │   ├── Art/                    Sprites, tilesets, materials, shaders, animation clips
 │   ├── Audio/                  Music, SFX, mixers
-│   ├── Code/                   All first-party C# (assemblies / asmdefs live here)
-│   ├── Data/                   ScriptableObject config & tuning data
+│   ├── Code/                   All first-party C# — one folder per assembly
+│   │   ├── Aether.Core/        No dependencies. Events, state machine, pooling, combat
+│   │   │                       primitives, progression, physics-query isolation
+│   │   ├── Aether.Data/        ScriptableObject configuration. Data only, no behaviour
+│   │   ├── Aether.Gameplay/    Runtime behaviour. Depends on Core + Data
+│   │   ├── Aether.Editor/      Editor-only tooling. Never ships
+│   │   └── Aether.Tests.EditMode/
+│   ├── Data/                   ScriptableObject *asset instances* (not definitions)
 │   ├── Prefabs/                Reusable composed GameObjects
 │   ├── Scenes/                 Boot.unity — the app entry scene
 │   └── Settings/               URP pipeline assets (see below)
@@ -61,11 +86,20 @@ Assets/
 Packages/
 └── manifest.json               Package + module set (see "Packages" below)
 ProjectSettings/                Unity project configuration
+docs/                           Architecture and milestone records
+tools/verify/                   Static verification. Not part of the Unity project
 ```
 
 `Assets/Aether/**` is the first-party tree: everything we author lives there, so it is always
 unambiguous which files are ours and which were imported. Keep the tree shallow — a new folder
 is only justified by real content, not by anticipation.
+
+### Code layers
+
+`Aether.Core` must never depend on gameplay; `Aether.Data` must never contain behaviour.
+Both rules are enforced mechanically by the verifier, not by convention. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §1 for the reasoning and for when to promote a
+system to its own assembly.
 
 ### URP assets — `Assets/Aether/Settings/`
 
@@ -134,15 +168,21 @@ afterwards so dependency resolution is reproducible across machines and CI.
 
 ## Architecture conventions
 
-These are the rules the foundation is built to support. None of them require code yet.
+The full reasoning is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The short version:
 
-- **One feature, one folder.** A future system (e.g. movement, combat, save) owns a folder under
-  `Assets/Aether/Code/` and, where useful, an assembly definition so it compiles independently
-  of unrelated systems and cannot take accidental dependencies on them.
-- **Data over code for tuning.** Tunables belong in `Assets/Aether/Data/` as ScriptableObjects,
-  not as constants, so designers can iterate without touching code paths.
-- **No cross-system reach-through.** Systems communicate through explicit interfaces/events;
-  `Assets/Aether/Code` must never depend on `Assets/ThirdParty` internals without a wrapper.
+- **Tuning is data, never constants.** Movement, attacks and every forgiveness window live in
+  ScriptableObjects under `Aether.Data`, so designers iterate without touching code paths.
+- **Timing is absolute, not counted down.** Forgiveness windows are `Time.time` comparisons.
+  A countdown decremented in `FixedUpdate` and read in `Update` loses time on a throttling
+  phone, and the player experiences it as an input that randomly did not register.
+- **Non-obvious constants carry their reasoning in a comment.** Where a value encodes a
+  deliberate design decision, the comment explains the decision, not the syntax.
+- **Events for state changes, direct calls for per-frame work.** `EventBus` is for ability
+  unlocks, checkpoints and boss phases — never for traffic that happens every frame.
+- **No cross-system reach-through.** Systems communicate through interfaces and the event bus;
+  nothing first-party depends on `Assets/ThirdParty` internals without a wrapper.
+- **No architecture for systems that do not exist yet.** Definitions are written when the
+  system that needs them is written, not in advance.
 - **`Assets/Aether/**` is ours.** Nothing outside it is first-party code.
 
 ---
@@ -164,12 +204,29 @@ expensive later:
    and a target device to profile.
 5. **Splash screen / branding.** Left at Unity defaults.
 
-## Verification status
+## Verification
 
-This foundation was authored and validated by structural inspection, not by launching the
-Editor — **no Unity Editor is available in the environment where it was created.** What was
-checked: asset GUID references are self-consistent across all project and pipeline assets, no
-asset references anything that is missing, `ProjectSettings` files use Unity 6.3 serialization
-versions verified against real Unity 6.3 projects, every YAML document parses, and the initial
-scene is registered in the build list. The first Editor launch should be treated as the final
-confirmation step and is expected to report no errors.
+Two gates, both runnable without a Unity licence and both suitable for CI:
+
+```bash
+python3 tools/verify/gen_meta.py --check   # every asset under Assets/ has a .meta
+python3 tools/verify/verify.py             # assets, assemblies, and project-type symbols
+```
+
+`verify.py` checks asset GUID uniqueness and reference resolution, `.meta` coverage, assembly
+definition validity (references, cycles and per-file namespace visibility), bracket balance,
+and — most usefully — that **every member accessed on a project-owned type actually exists,
+with a compatible argument count**. It is deliberately scoped to project-owned receivers only,
+so it produces no false positives; the cost is that it cannot validate Unity API calls.
+
+It is validated against **negative controls** (deliberately injected errors it must catch), so a
+green run means something. It found two real compile errors in the M1 player code.
+
+### What is *not* verified
+
+**No Unity Editor exists in the environment this project is authored in.** Therefore:
+
+- Unity API signatures are **not** validated by anything here — only a real compile can do that.
+- Play Mode behaviour is **not** tested. No claim of "play tested" is made anywhere.
+- The first Editor import is the real test and is expected to be the first place an API
+  mismatch would surface. Treat that import as a required step, not a formality.

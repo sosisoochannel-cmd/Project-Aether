@@ -1,0 +1,16 @@
+{
+    "name": "Aether.Data",
+    "rootNamespace": "Aether.Data",
+    "references": [
+        "Aether.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
