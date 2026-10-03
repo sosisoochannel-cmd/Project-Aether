@@ -56,6 +56,12 @@ namespace Aether.Gameplay.Enemies
         private Collider2D _collider;
         private EnemyDefinition _definition;
 
+        /// <summary>Supplies the layers treated as solid ground and walls.</summary>
+        public void ConfigureSolidLayers(LayerMask solidLayers)
+        {
+            _solidLayers = solidLayers;
+        }
+
         /// <summary>The physics body.</summary>
         public Rigidbody2D Body => _body;
 

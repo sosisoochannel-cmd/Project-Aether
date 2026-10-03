@@ -1,3 +1,4 @@
+using Aether.Gameplay.Controls;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -22,11 +23,12 @@ namespace Aether.Gameplay.Player
     /// the fixed step ran twice.
     /// </para>
     /// <para>
-    /// Touch controls are a separate deliverable and are not implemented here. They will feed the same
-    /// five properties, so the controller will not change when they land.
+    /// This is the <b>device</b> source: keyboard, mouse and gamepad. Touch is a second source
+    /// implementing the same interface, and <c>GameplayInputRouter</c> merges the two, so the
+    /// controller never learns which one the player is holding.
     /// </para>
     /// </remarks>
-    public sealed class PlayerInputReader : MonoBehaviour
+    public sealed class PlayerInputReader : MonoBehaviour, IGameplayInput
     {
         private InputAction _move;
         private InputAction _jump;

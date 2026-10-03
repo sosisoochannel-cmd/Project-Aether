@@ -6,7 +6,7 @@ Ordering is deliberate: **the thing that makes everything else verifiable is bui
 ```
 M0  Foundation ...................... DONE
 M1  Core architecture + player ...... DONE  <- this milestone
-M2  Level pipeline + The Greenway ... NEXT
+M2  Level pipeline + The Greenway ... DONE (see notes)
 M3  Enemies + combat integration .... DONE
 M4  Whispering Woods + shortcut
 M5  Old Settlement + NPC hook + secrets
@@ -23,7 +23,9 @@ reachability solver that has to reason about what the player can *do* — and en
 that: an encounter is a traversal obstacle as much as combat is. Building the archetypes first
 means the solver is written against real enemy behaviour instead of a placeholder abstraction.
 
-M2 is now the critical path: nothing in this region is playable until the level exists.
+M2 followed and closed the loop: the region is playable from `Boot.unity` with movement, combat,
+checkpoints, a secret and an exit, and the solver proves the level against the tuned player.
+The next region (M4) can now be authored entirely as data.
 
 ---
 
@@ -133,15 +135,46 @@ Three archetypes, one shared AI, one shared attack timeline.
   namespace are now reported as unverifiable rather than checked against the wrong type, so the
   analyser stays free of false results.
 
-## M2 — Level pipeline + The Greenway (next)
+## M2 — Level pipeline + The Greenway
 
-- Level data format (ASCII maps + structured metadata) and the deterministic builder.
-- **The reachability solver**, which is the point of the whole approach: it proves every gap
-  is jumpable with the tuned jump arc, every ledge is reachable, no jump is impossible.
-- The Greenway: ancient forest, natural paths, small elevations, gaps, natural platforms,
-  distant visible landmarks. Teach by geometry, not by pop-ups.
-- Checkpoints, camera bounds per area, the first secret.
-- Runtime bootstrap so the region actually launches from `Boot.unity`.
+The region is defined in data and every claim it makes about the player is proven before it
+ships. `Assets/Aether/Resources/Levels/region1.greenway.level.txt` is the source of truth: a
+120x26 ASCII tile map, entity declarations and a `[validation]` block that the solver must
+prove. Bake (`Aether > Bake Region 1 (Greenway)`) turns that data into Tilemaps for
+inspection; it refuses to bake a level that does not solve.
+
+**Created**
+
+| Area | What |
+|---|---|
+| Data | `LevelTileKind`, `LevelEntities`, `LevelTraversal`, `LevelData`, `LevelParser`, `PlayerTraversalSolver` |
+| Gameplay | `LevelRuntimeBuilder`, `LevelContent`, `LevelDirector`, `LevelBootstrap`, `PlayerFactory`, `EnemyFactory` |
+| Gameplay / triggers | `CheckpointTrigger`, `DiscoveryTrigger`, `LevelExitTrigger` |
+| Controls | `IGameplayInput`, `GameplayInputRouter`, `TouchInputSource`, `TouchControlsView` |
+| Editor | `LevelBaker` (bake + verify menu commands) |
+| Content | `PlayerTuning`, `Attack.Strike`, `Attack.StrikeFollowUp`, `Enemies/ForestStalker` |
+| Level | `region1.greenway.level.txt` — geometry, 3 encounters, 2 checkpoints, 1 secret, 3 story markers, exit |
+
+**Proven by the gate** (`python3 tools/verify/levelcheck.py`, and identically in Unity):
+8/8 traversal claims, including a `must=walk` route that requires zero jumps, the secret
+terrace reachable via the canopy route, and both checkpoint-to-exit retries. 0 structural
+problems. The tightest jump on the route clears 2.50 of 4.14 available, leaving 40% slack.
+
+**Deliberate scope decisions**
+
+- Only the Forest Stalker appears. Thorn Crawler and Canopy Hunter are implemented, but The
+  Greenway's job is that the player *learns the Forest Stalker* before leaving it; a second
+  and third archetype would compete with that lesson and belong in later regions.
+- `RecoveryPause` is load-bearing in all three encounters: each one leaves a real counter
+  window so the fight teaches dodge-then-punish rather than dodge-only.
+- The first secret is a small side terrace with a very quiet Master trace — no exposition, no
+  pop-up. Three environmental story markers are geometry-level details (a trail that stops, an
+  unnaturally regular growth, a weathered marker on a rock), deliberately easy to walk past.
+- No cutscenes, dialogue, final audio or VFX. Cues are referenced by id and stay silent.
+
+**Not verified in this milestone:** the first Unity Editor import, Play Mode behaviour, touch
+controls on a device, and every Unity API signature. No claim of "compiles" or "playtested" is
+made anywhere in this milestone's report; see the report's two-part structure.
 
 ## M3 — Enemies + combat integration
 

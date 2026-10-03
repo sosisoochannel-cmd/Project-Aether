@@ -94,6 +94,13 @@ namespace Aether.Gameplay.Enemies
         private Transform _player;
         private Collider2D _playerCollider;
 
+        /// <summary>
+        /// Patrol half-width for this instance, or a negative value to use the archetype's. Level
+        /// data gives each placement its own patrol so an encounter's size is authored where the
+        /// enemy is placed, not only in the shared archetype.
+        /// </summary>
+        private float _patrolDistanceOverride = -1f;
+
         private Vector2 _postPosition;
         private float _patrolTargetX;
         private float _stateTimer;
@@ -126,6 +133,25 @@ namespace Aether.Gameplay.Enemies
 
         /// <summary>Raised when an attack's hitbox becomes live.</summary>
         public event Action<AttackDefinition> HitboxActivated;
+
+        /// <summary>Supplies the layers that block sight and that attacks may damage.</summary>
+        public void ConfigureLayers(LayerMask sightBlockingLayers, LayerMask targetLayers)
+        {
+            _sightBlockingLayers = sightBlockingLayers;
+            _targetLayers = targetLayers;
+        }
+
+        /// <summary>Narrows or widens this instance's patrol. Zero or less keeps the archetype's.</summary>
+        public void ConfigurePatrol(int patrolTiles)
+        {
+            if (patrolTiles > 0) _patrolDistanceOverride = patrolTiles;
+        }
+
+        /// <summary>Half-width of this enemy's patrol, in world units.</summary>
+        private float PatrolDistance =>
+            _patrolDistanceOverride > 0f
+                ? _patrolDistanceOverride
+                : (_definition != null ? _definition.PatrolDistance : 0f);
 
         private void Awake()
         {
@@ -401,7 +427,7 @@ namespace Aether.Gameplay.Enemies
         {
             public void Enter(EnemyController c)
             {
-                c._patrolTargetX = c._postPosition.x + (c._motor.FacingSign * c._definition.PatrolDistance);
+                c._patrolTargetX = c._postPosition.x + (c._motor.FacingSign * c.PatrolDistance);
                 c._stateTimer = 0f;
             }
 
@@ -430,7 +456,7 @@ namespace Aether.Gameplay.Enemies
                 if (Mathf.Abs(toTarget) < 0.15f)
                 {
                     c._motor.FacingSign = -c._motor.FacingSign;
-                    c._patrolTargetX = c._postPosition.x + (c._motor.FacingSign * c._definition.PatrolDistance);
+                    c._patrolTargetX = c._postPosition.x + (c._motor.FacingSign * c.PatrolDistance);
                     c._stateTimer = 0f;
                     return;
                 }

@@ -126,6 +126,42 @@ real Tilemap scenes, and the runtime can then load either. **Adding that bake to
 change a single line of gameplay code.** If the director prefers the bake-tool workflow from
 the start, it can be added as an extra milestone without redoing this work.
 
+### What was actually built (M2)
+
+There are two consumers of the level data and they must never disagree, so the split is
+explicit:
+
+| Consumer | Where | Job |
+|---|---|---|
+| Runtime builder | `Aether.Gameplay/Levels/LevelRuntimeBuilder` | Turns data into colliders and gameplay objects, in play mode |
+| Editor bake | `Aether.Editor/LevelBaker` | Bakes data into Tilemaps + a scene for inspection and scene-based workflows |
+| Solver (gate) | `tools/verify/levelcheck.py` | **Authority.** Proves every `[validation]` link with the real movement model; non-zero exit on failure |
+| Solver (Unity) | `Aether.Data/Levels/PlayerTraversalSolver` | Same model in C# for the bake command and EditMode tests; single precision, so it is treated as advisory |
+
+Both solvers read their numbers from `PlayerTuningData` rather than hard-coding them, so a
+tuning change cannot silently invalidate the level.
+
+**The bake refuses to run on a level that does not solve.** A bake that produced a beautiful
+scene containing an impossible jump would be worse than no bake at all: it would hide the
+problem behind something that looks finished. Baking stops with the list of unproven links and
+a non-zero result, and the scene stays untouched.
+
+**Baked geometry is not the source of truth.** A baked scene contains the Tilemaps for the
+region, and `LevelBootstrap` has a `_buildGeometry` switch that is turned off in baked scenes
+so the geometry is not built twice. Entities — enemies, checkpoints, the secret, the exit —
+are instantiated from level data in every case, because behaviour must never exist only inside
+a scene file that nothing regenerates.
+
+### Content assets
+
+`PlayerTuning`, `Attack.Strike`, `Attack.StrikeFollowUp` and `Enemies/ForestStalker` are
+`ScriptableObject` assets written as Unity YAML with real script GUIDs and deterministically
+generated `.meta` files. They are ordinary project assets from the moment the project is
+opened and can be retuned in the Inspector. Their numbers are **identical to the tuning the
+level was designed against**; the gate proves every link against exactly these values, so
+editing one of them is a level-design change and must be followed by a solver run
+(`Aether > Verify Region 1 (Greenway)` or `python3 tools/verify/levelcheck.py`).
+
 ---
 
 ## 4. Combat model
@@ -185,15 +221,33 @@ Applying these from the start, without premature micro-optimisation:
 
 ## 7. Verification strategy
 
-Two complementary gates, both runnable in CI without a Unity licence:
+Three gates, all runnable without a Unity licence:
 
 ```
-python3 tools/verify/gen_meta.py --check   # every asset has a .meta
-python3 tools/verify/verify.py             # assets, assemblies, and project-type symbols
+python3 tools/verify/gen_meta.py --check         # every asset has a .meta
+python3 tools/verify/verify.py                   # assets, assemblies, project-type symbols
+python3 tools/verify/levelcheck.py               # the level is playable, proven by simulation
+python3 tools/verify/negative_controls.py        # the gates above actually fail when they should
 ```
 
-`verify.py` is validated against **negative controls** — injected errors it must catch — so
-that a green run means something. Its scope and its blind spots are documented in §0.
+**The gates are validated against injected faults.** `negative_controls.py` copies the
+repository to a temporary directory, injects one fault at a time — a dangling GUID, a missing
+`.meta`, a call to a member that does not exist, a wrong argument count, an empty folder, an
+illegal cross-assembly reference written both with `using` and inline, a gap widened until the
+exit is unreachable, a step added to a `must=walk` route, the canopy route to the secret
+removed, an entity inside solid rock, an unknown tile character — and asserts that the matching
+tool reports it. It touches nothing in the working tree. Twelve controls, all detected at the
+time of writing.
+
+Two checks were added to `verify.py` because those controls failed the first time they were
+run: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves
+it to nothing and the asset silently loses a field; and cross-assembly visibility is enforced
+for **fully-qualified references**, not just `using` directives. A verifier whose own holes are
+unknown is not a verifier.
+
+`verify.py`'s scope and blind spots are documented in §0. Everything the gates cannot see —
+Unity API signatures, import behaviour, Play Mode, touch on a device — is listed as
+not verified in every report rather than assumed.
 
 **The first Unity Editor import remains the real test.** No claim of "compiles" or "play
 mode tested" is made until someone has actually opened the project.

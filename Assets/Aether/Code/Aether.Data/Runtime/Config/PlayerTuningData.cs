@@ -24,6 +24,18 @@ namespace Aether.Data.Config
         order = 0)]
     public sealed class PlayerTuningData : ScriptableObject
     {
+        [Header("Body")]
+        [Tooltip("Width of the player's collision box, in world units. " +
+                 "Level geometry is designed against this value, so changing it invalidates every " +
+                 "gap and ledge in the game — run the traversal solver after adjusting it.")]
+        [SerializeField, Min(0.1f)]
+        private float _bodyWidth = 0.7f;
+
+        [Tooltip("Height of the player's collision box, in world units. Governs headroom under " +
+                 "overhangs and clearance in low corridors, and is also read by the traversal solver.")]
+        [SerializeField, Min(0.1f)]
+        private float _bodyHeight = 1.4f;
+
         [Header("Horizontal movement")]
         [Tooltip("Ground speed cap in world units per second.")]
         [SerializeField, Min(0.1f)]
@@ -111,6 +123,17 @@ namespace Aether.Data.Config
         [Tooltip("Minimum seconds between attacks when the action is not part of a defined combo.")]
         [SerializeField, Min(0f)]
         private float _attackRecoveryFloor = 0.08f;
+
+        // ---- Body ---------------------------------------------------------------------------
+
+        /// <summary>
+        /// Width of the player's collision box. Read by the runtime player factory and by the
+        /// traversal solver, so the level is always measured against the real collider.
+        /// </summary>
+        public float BodyWidth => _bodyWidth;
+
+        /// <summary>Height of the player's collision box.</summary>
+        public float BodyHeight => _bodyHeight;
 
         // ---- Movement -----------------------------------------------------------------------
 

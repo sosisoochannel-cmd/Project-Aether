@@ -45,6 +45,16 @@ namespace Aether.Gameplay.Player
         private Rigidbody2D _body;
         private Collider2D _collider;
 
+        /// <summary>
+        /// Supplies the layers that count as ground. Objects built at runtime have no inspector, and
+        /// a grounding probe pointed at the wrong mask produces the worst kind of bug: a player who
+        /// looks fine and is never grounded.
+        /// </summary>
+        public void ConfigureGrounding(LayerMask groundLayers)
+        {
+            _groundLayers = groundLayers;
+        }
+
         /// <summary>The physics body. Exposed for systems that need to read position or mass.</summary>
         public Rigidbody2D Body => _body;
 

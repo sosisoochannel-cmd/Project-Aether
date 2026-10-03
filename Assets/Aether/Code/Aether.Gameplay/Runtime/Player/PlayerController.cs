@@ -1,6 +1,7 @@
 using System;
 using Aether.Core.States;
 using Aether.Data.Config;
+using Aether.Gameplay.Controls;
 using UnityEngine;
 
 namespace Aether.Gameplay.Player
@@ -61,7 +62,7 @@ namespace Aether.Gameplay.Player
         private PlayerTuningData _tuning;
 
         private PlayerMotor _motor;
-        private PlayerInputReader _input;
+        private IGameplayInput _input;
         private PlayerHealth _health;
         private PlayerCombat _combat;
         private StateMachine<PlayerController, PlayerStateId> _machine;
@@ -103,12 +104,27 @@ namespace Aether.Gameplay.Player
         /// <summary>Legal facing direction, +1 or -1.</summary>
         public int FacingSign => _motor.FacingSign;
 
+        /// <summary>The input stream this controller reads. Null when nothing is wired up.</summary>
+        public IGameplayInput Input => _input;
+
+        /// <summary>
+        /// Supplies the tuning asset. Objects built at runtime have no inspector to assign it in, so
+        /// the player factory calls this before the first frame.
+        /// </summary>
+        public void Configure(PlayerTuningData tuning)
+        {
+            _tuning = tuning;
+        }
+
         private void Awake()
         {
             _motor = GetComponent<PlayerMotor>();
             _health = GetComponent<PlayerHealth>();
             _combat = GetComponent<PlayerCombat>();
-            _input = GetComponent<PlayerInputReader>();
+            // The router merges every input source on this object; falling back to the device
+            // reader keeps a hand-built player working without one.
+            _input = GetComponent<GameplayInputRouter>();
+            if (_input == null) _input = GetComponent<PlayerInputReader>();
 
             if (_tuning == null)
             {

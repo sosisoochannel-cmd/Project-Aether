@@ -709,7 +709,9 @@ def check_guids(report: Report) -> None:
                 # those legitimately point into the package, not into this repository.
                 if "UniversalRenderPipelineGlobalSettings" in rel:
                     continue
-                report.warn(f"guid: '{rel}' references unknown guid {guid}")
+                # A dangling reference is not a style problem: Unity resolves it to nothing and
+                # the asset silently loses a field. That is a failure, not a warning.
+                report.fail(f"guid: '{rel}' references unknown guid {guid}")
 
     report.note(f"guid: {len(declared)} unique asset guid(s); {scanned} asset(s) scanned")
 
@@ -807,6 +809,29 @@ def check_asmdefs(report: Report, project: Project) -> None:
                 report.fail(
                     f"asmdef: '{rel}' (assembly {assembly}) uses namespace '{ns}' owned by "
                     f"'{owner}', which it does not reference")
+
+        # The same rule for fully-qualified references. Without this, `using` would be the only
+        # way to cross an assembly boundary legally detected here — writing the namespace inline
+        # would slip past, which is exactly the kind of hole a verifier must not have.
+        seen_inline: set[str] = set()
+        for match in re.finditer(r"\bAether(?:\.\w+)+", entry["code"]):
+            text = match.group(0)
+            parts = text.split(".")
+            prefix = None
+            for cut in range(len(parts), 0, -1):
+                candidate = ".".join(parts[:cut])
+                if candidate in project.declared_namespaces and candidate in namespace_owner:
+                    prefix = candidate
+                    break
+            if prefix is None or prefix in seen_inline:
+                continue
+            seen_inline.add(prefix)
+            owner = namespace_owner.get(prefix)
+            if owner and owner not in visible:
+                line = entry["code"][: match.start()].count("\n") + 1
+                report.fail(
+                    f"asmdef: '{rel}' line {line} (assembly {assembly}) references namespace "
+                    f"'{prefix}' owned by '{owner}', which it does not reference")
 
     report.note(f"asmdef: {len(asmdefs)} assembly definition(s), references and cycles OK")
 

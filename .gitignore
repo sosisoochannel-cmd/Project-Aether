@@ -53,3 +53,7 @@ Thumbs.db
 # Local secrets / signing material (never commit keystores)
 *.keystore
 *.jks
+
+# Python tooling artefacts (tools/verify runs without Unity).
+__pycache__/
+*.pyc

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76beed3229c66577bbe2dbf035ed8db5, type: 3}
+  m_Name: ForestStalker
+  m_EditorClassIdentifier: 
+  _typeId: forest_stalker
+  _displayName: Forest Stalker
+  _behaviour: 0
+  _maxHealth: 3
+  _detectionRange: 5.5
+  _detectionHeight: 1.6
+  _disengageRange: 9
+  _moveSpeed: 2.1
+  _attackLungeSpeed: 3.6
+  _attackCommitTime: 0.12
+  _recoveryPause: 0.65
+  _attackRange: 1.5
+  _attackWindupDelay: 0.2
+  _patrolDistance: 3
+  _patrolPause: 1.1
+  _staggerDuration: 0.2
+  _knockbackDuration: 0.16
+  _invulnerabilityAfterHit: 0.1
+  _ledgeProbeDistance: 0.55
+  _wallProbeDistance: 0.45
+  _groundProbeOffset: 0.5
+  _dropDelay: 0.45
+  _alertCueId: enemy.alert
+  _attackCueId: enemy.attack
+  _deathCueId: enemy.death

@@ -70,6 +70,19 @@ namespace Aether.Gameplay.Cameras
         [SerializeField]
         private Vector2 _boundsMax = new Vector2(20f, 20f);
 
+        /// <summary>
+        /// Points the camera at a target and confines it to the level's rectangle. Objects built at
+        /// runtime have no inspector, and a camera that never leaves the level's bounds is what keeps
+        /// the player from seeing the edge of the world.
+        /// </summary>
+        public void Configure(Transform target, Vector2 boundsMin, Vector2 boundsMax)
+        {
+            _target = target;
+            _boundsMin = boundsMin;
+            _boundsMax = boundsMax;
+            _useBounds = true;
+        }
+
         private Camera _camera;
         private Rigidbody2D _targetBody;
         private Vector3 _followVelocity;

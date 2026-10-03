@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04887cf42e26cfb8fd8143bbd765c665, type: 3}
+  m_Name: Attack.Strike
+  m_EditorClassIdentifier: 
+  _id: attack.player.strike
+  _damage: 1
+  _knockbackSpeed: 6
+  _liftSpeed: 1.5
+  _hitboxOffset: {x: 0.9, y: 0.1}
+  _hitboxSize: {x: 1.2, y: 0.9}
+  _startup: 0.09
+  _active: 0.07
+  _recovery: 0.17
+  _lungeSpeed: 3.5
+  _comboInputWindow: 0.22
+  _nextInCombo: {fileID: 11400000, guid: 4f1ae941f1f47e81b43fd98b116aa044, type: 2}

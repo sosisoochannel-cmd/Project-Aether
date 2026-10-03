@@ -36,6 +36,16 @@ namespace Aether.Gameplay.Player
 
         private readonly AttackRunner _runner = new AttackRunner();
 
+        /// <summary>
+        /// Supplies the attack chain and the layers it may damage. Objects built at runtime have no
+        /// inspector to assign them in.
+        /// </summary>
+        public void Configure(AttackDefinition firstAttack, LayerMask targetLayers)
+        {
+            _firstAttack = firstAttack;
+            _targetLayers = targetLayers;
+        }
+
         private PlayerMotor _motor;
         private PlayerController _controller;
 
