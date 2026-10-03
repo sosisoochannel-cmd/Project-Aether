@@ -7,7 +7,7 @@ Ordering is deliberate: **the thing that makes everything else verifiable is bui
 M0  Foundation ...................... DONE
 M1  Core architecture + player ...... DONE  <- this milestone
 M2  Level pipeline + The Greenway ... NEXT
-M3  Enemies + combat integration
+M3  Enemies + combat integration .... DONE
 M4  Whispering Woods + shortcut
 M5  Old Settlement + NPC hook + secrets
 M6  Deep Forest + environmental storytelling
@@ -15,6 +15,15 @@ M7  Root Guardian arena + 3-phase boss
 M8  Rootbind unlock + gated backtracking
 M9  Region exit + audit + docs
 ```
+
+### On the order
+
+M3 (enemies) was built before M2 (the level) deliberately. The level pipeline includes a
+reachability solver that has to reason about what the player can *do* — and enemies are part of
+that: an encounter is a traversal obstacle as much as combat is. Building the archetypes first
+means the solver is written against real enemy behaviour instead of a placeholder abstraction.
+
+M2 is now the critical path: nothing in this region is playable until the level exists.
 
 ---
 
@@ -65,6 +74,64 @@ structurally sound.
 - No touch controls: keyboard/gamepad only, so the director can test in the Editor
   immediately. Touch is required before this region is declared done — tracked in M9.
 - No level, no prefabs, no scene content.
+
+## M3 — Enemy archetypes ✅
+
+Three archetypes, one shared AI, one shared attack timeline.
+
+**Created**
+
+| Area | What |
+|---|---|
+| Data | `EnemyDefinition` — the config asset for one archetype, plus the `EnemyBehaviour` enum |
+| Core | `AttackRunner` + `AttackPhase`, extracted so the player and enemies share one attack timeline |
+| Gameplay / Enemies | `EnemyController`, `EnemyMotor2D`, `EnemyHealth` |
+| Gameplay / Sound | `SoundDirector` — the placeholder audio seam (no audio system) |
+| Tests | `AttackRunnerTests` covering the timeline and combo rules |
+
+**The three archetypes and what each one teaches**
+
+| Archetype | Behaviour | Lesson |
+|---|---|---|
+| Forest Stalker | `PatrolStriker` | Timing and dodge — long, unmistakable wind-up; honest reach; leaving range ends the threat |
+| Thorn Crawler | `SurfaceCrawler` | Positioning — stays on its platform, turns at ledges, so ground is unsafe and platforms are the answer |
+| Canopy Hunter | `AmbushDropper` | Environmental awareness — perches above a route and drops after a cue the player can react to |
+
+**Design rules encoded in the implementation**
+
+- **Deterministic.** `EnemyController` contains no random selection at all; every delay comes from
+  the archetype asset. An enemy that randomly changes its rules cannot be learned, and teaching is
+  the entire purpose of these three.
+- **Telegraph before commit.** Every attack path passes through `Alert`, which fires the alert cue
+  and waits `AttackWindupDelay` before anything else happens.
+- **Perception has a facing.** The notice box sits *in front of* the enemy, and a linecast rejects
+  sight through walls. A player can therefore genuinely sneak past a patrolling enemy.
+- **The recovery pause is load-bearing.** `RecoveryPause` is the window in which the player answers.
+  Removing it turns every exchange into a trade.
+- **No stun-locking.** Stagger, knockback and invulnerability are all fixed, short durations.
+- **Terrain checks every step, not at waypoints**, so level geometry added later cannot walk an
+  enemy off a ledge it used to stop at.
+
+**Deliberate calls**
+
+- `EnemyMotor2D` is **not** merged with `PlayerMotor`. The player needs jump shaping, coyote time
+  and a dodge override; an enemy needs ledge and wall probing. Unifying them today would produce a
+  class full of capabilities each side ignores. They already share everything genuinely common:
+  `Physics2DQuery`, the state machine and the attack timeline.
+- `AttackRunner` **is** shared, because two attack implementations is how a project ends up with
+  enemy telegraphs that behave differently from the player's.
+- The audio seam is `SoundDirector.Request(cueId, position)`. It is deliberately not an audio
+  system: no mixer, no bus routing, no clip assets. Cue ids are authored in data, so a future
+  audio layer can map them to sounds without touching gameplay code.
+
+**Verified**
+
+- 28 files analysed, 58 types modelled, 673 member references resolved with arity checked;
+  no failures. Four negative controls (missing member, wrong arity, removed method, deprecated
+  API) all fire correctly.
+- Tooling improvement made during this milestone: simple type names declared in more than one
+  namespace are now reported as unverifiable rather than checked against the wrong type, so the
+  analyser stays free of false results.
 
 ## M2 — Level pipeline + The Greenway (next)
 

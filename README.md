@@ -15,7 +15,7 @@ Foundation repository for a professional 2D action-platformer built with Unity.
 | M0 | Unity 6.3 LTS project foundation (2D, URP 2D Renderer, Android) | ✅ done |
 | M1 | Core architecture, player traversal + combat, camera, progression hooks | ✅ done |
 | M2 | Level pipeline + The Greenway (next) | ⬜ |
-| M3 | Enemy archetypes + encounter integration | ⬜ |
+| M3 | Enemy archetypes + encounter integration | ✅ done |
 | M4 | Whispering Woods + shortcut | ⬜ |
 | M5 | Old Settlement + NPC hook + secrets | ⬜ |
 | M6 | Deep Forest + environmental storytelling | ⬜ |

@@ -444,12 +444,21 @@ class Project:
         self.types: dict[str, dict] = {}          # simple name -> type record
         self.by_namespace: dict[str, set[str]] = defaultdict(set)
         self.duplicate_types: list[str] = []
+        # Simple names declared in more than one namespace. Member access on these cannot be
+        # resolved without full namespace context, so checks involving them are skipped rather
+        # than guessed — a wrong guess would produce a false failure.
+        self.ambiguous: set[str] = set()
         self.declared_namespaces: set[str] = set()
 
     def type_of(self, name: str) -> dict | None:
+        if name in self.ambiguous:
+            return None
         return self.types.get(name)
 
     def members_of(self, type_name: str, seen: set[str] | None = None) -> set[str]:
+        if type_name in self.ambiguous:
+            return set()
+
         seen = seen or set()
         if type_name in seen:
             return set()
@@ -466,6 +475,8 @@ class Project:
         return names
 
     def arity_of(self, type_name: str, member: str) -> tuple[int, int] | None:
+        if type_name in self.ambiguous:
+            return None
         record = self.types.get(type_name)
         if not record:
             return None
@@ -476,13 +487,16 @@ class Project:
 
     def declared_type_of(self, type_name: str, member: str) -> str | None:
         """Simple type name a field/property holds, when that type is one of ours."""
+        if type_name in self.ambiguous:
+            return None
+
         record = self.types.get(type_name)
         if not record:
             return None
         for m in record["members"]:
             if m["name"] == member and m["type"]:
                 simple = simple_type_name(m["type"])
-                if simple in self.types:
+                if simple in self.types and simple not in self.ambiguous:
                     return simple
         return None
 
@@ -540,7 +554,14 @@ def collect_namespaces_and_types(path: str, code: str, project: Project) -> None
         }
 
         if name in project.types:
-            project.duplicate_types.append(name)
+            # Two types with the same simple name in *different* namespaces is legal C#. It is a
+            # resolution hazard rather than an error, so it is recorded as ambiguous and any
+            # member check that would have used it is skipped.
+            existing = project.types[name]
+            if set(existing["namespaces"]) != set(namespaces):
+                project.ambiguous.add(name)
+            else:
+                project.duplicate_types.append(name)
         else:
             project.types[name] = record
 
@@ -947,7 +968,16 @@ def check_namespace_hygiene(report: Report, project: Project) -> None:
 
     if project.duplicate_types:
         for name in sorted(set(project.duplicate_types)):
-            report.fail(f"symbol: type '{name}' is declared more than once")
+            report.fail(f"symbol: type '{name}' is declared more than once in the same namespace")
+
+    if project.ambiguous:
+        report.note(
+            f"symbol: {len(project.ambiguous)} simple type name(s) declared in more than one "
+            "namespace; member checks involving them are skipped (see docs/ARCHITECTURE.md)")
+        for name in sorted(project.ambiguous):
+            report.warn(
+                f"symbol: '{name}' is declared in more than one namespace; references to it are "
+                "unverifiable by this tool and rely on the real compiler")
 
 
 # ---- entry point ------------------------------------------------------------------------
