@@ -202,50 +202,76 @@ jobs:
 
           notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run $SOURCE_RUN and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
 
-          # The release API creates the tag for you when it is missing, and a tag creation that is
-          # refused looks exactly like a release that is refused - both are a 403 on /releases. So
-          # the tag is created deliberately first, through the same write path the token has already
-          # been shown to have, and the two outcomes are kept apart in the report.
-          target=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA" --jq '.sha' 2>/dev/null || true)
-          echo "tag will point at $SOURCE_SHA -> ${target:-unknown}"
-          if [ -n "$target" ]; then
-            if gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-                 -f "ref=refs/tags/$TAG" -f "sha=$target" >/tmp/tag.json 2>/tmp/tag.err; then
-              echo "::notice title=Tag created::$TAG -> $target"
-            else
-              echo "::warning title=Tag creation refused::$(printf '%s' "$(cat /tmp/tag.err)" | tr '\n' '|' | tail -c 300)"
+          # The whole release flow goes through curl and the API rather than `gh release`:
+          # `gh release create` was refused twice with a 403 while a plain POST to the same
+          # endpoint was answered 201, and the difference matters less than the result. Everything
+          # is reported, including the API's own answer when it refuses.
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          auth="Authorization: token $GH_TOKEN"
+          acc="Accept: application/vnd.github+json"
+
+          rel=$(curl -sS --max-time 120 -H "$auth" -H "$acc" "$api/releases?per_page=100" \
+                  | jq -r --arg t "$TAG" '.[] | select(.tag_name == $t) | .id' | head -1)
+          echo "release for $TAG: ${rel:-none yet}"
+          if [ -z "$rel" ]; then
+            payload=$(jq -n --arg tag "$TAG" --arg name "Aether dev build ${TAG#apk-}" \
+                        --arg body "$notes" --arg target "$SOURCE_SHA" \
+                        '{tag_name:$tag, name:$name, body:$body, draft:true, target_commitish:$target}')
+            answer=$(curl -sS --max-time 120 -X POST -H "$auth" -H "$acc" \
+                       -H 'Content-Type: application/json' -d "$payload" "$api/releases")
+            rel=$(printf '%s' "$answer" | jq -r '.id // empty')
+            if [ -z "$rel" ]; then
+              echo "::warning title=Release creation refused::$(printf '%s' "$answer" | tr '\n' '|' | head -c 400)"
             fi
           fi
 
-          published=no
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            if out=$(gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber 2>&1); then
-              published=yes
-            else
-              echo "::warning title=Release upload refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
-            fi
-          else
-            if out=$(gh release create "$TAG" --verify-tag --title "Aether dev build ${TAG#apk-}" \
-                       --notes "$notes" 2>&1); then
-              if gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber >/dev/null 2>&1; then
-                published=yes
+          if [ -n "$rel" ]; then
+            uploads="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rel/assets"
+            for f in "$asset" SHA256SUMS.txt; do
+              name=$(basename "$f")
+              old=$(curl -sS --max-time 120 -H "$auth" "$api/releases/$rel/assets" \
+                      | jq -r --arg n "$name" '.[] | select(.name == $n) | .id' | head -1)
+              if [ -n "$old" ]; then
+                curl -sS --max-time 120 -X DELETE -H "$auth" "$api/releases/assets/$old" >/dev/null 2>&1 || true
+              fi
+              answer=$(curl -sS --max-time 1800 -X POST -H "$auth" \
+                         -H 'Content-Type: application/octet-stream' --data-binary "@$f" \
+                         "$uploads?name=$name")
+              got=$(printf '%s' "$answer" | jq -r '.name // empty')
+              if [ -n "$got" ]; then
+                echo "uploaded $got ($(printf '%s' "$answer" | jq -r '.size'))"
+              else
+                echo "::warning title=Asset upload refused::$name - $(printf '%s' "$answer" | tr '\n' '|' | head -c 300)"
+              fi
+            done
+
+            payload=$(jq -n --arg name "Aether dev build ${TAG#apk-}" --arg body "$notes" \
+                        '{draft:false, name:$name, body:$body}')
+            answer=$(curl -sS --max-time 120 -X PATCH -H "$auth" -H "$acc" \
+                       -H 'Content-Type: application/json' -d "$payload" "$api/releases/$rel")
+            draft=$(printf '%s' "$answer" | jq -r '.draft')
+            echo "release $rel draft=$draft"
+            if [ "$draft" = false ]; then
+              url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
+
+              # The link is only reported as usable after it has been used: fetch the asset back
+              # through the API (the route a signed-in browser download follows) and hash it.
+              asset_id=$(curl -sS --max-time 120 -H "$auth" "$api/releases/$rel/assets" \
+                           | jq -r --arg n "$asset" '.[] | select(.name == $n) | .id' | head -1)
+              if curl -sS -L --location-trusted --max-time 1800 -H "$auth" \
+                   -H 'Accept: application/octet-stream' -o back.bin "$api/releases/assets/$asset_id"; then
+                back=$(sha256sum back.bin | cut -d' ' -f1)
+                if [ "$back" = "$SHA" ]; then
+                  echo "::notice title=Direct APK download::$url - $SIZE bytes - sha256 $SHA - verified by downloading the published asset back"
+                else
+                  echo "::warning title=Published asset mismatch::re-downloaded bytes hash to $back, not $SHA"
+                fi
+              else
+                echo "::warning title=Published asset unreadable::the asset could not be fetched back"
               fi
             else
-              echo "::warning title=Release create refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
-              # Ask the API directly, so its own answer - including the header that names the
-              # permission it wanted - is in the report instead of an interpretation of it.
-              curl -sS -i --max-time 60 -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
-                -H "Authorization: token $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
-                -H 'X-GitHub-Api-Version: 2022-11-28' \
-                -d "{\"tag_name\":\"$TAG\",\"name\":\"aether probe\",\"draft\":true}" \
-                -o /tmp/rel.out 2>/dev/null || true
-              echo "::warning title=Release API answered::$(head -c 700 /tmp/rel.out | tr -d '\r' | tr '\n' '|')"
+              echo "::warning title=Release still a draft::$(printf '%s' "$answer" | tr '\n' '|' | head -c 300)"
             fi
-          fi
-
-          if [ "$published" = yes ]; then
-            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
-            echo "::notice title=Release published::$url - $SIZE bytes - sha256 $SHA"
           fi
 
           # A link that no repository permission can block, offered only if the bytes really come
