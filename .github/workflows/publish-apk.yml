@@ -202,6 +202,21 @@ jobs:
 
           notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run $SOURCE_RUN and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
 
+          # The release API creates the tag for you when it is missing, and a tag creation that is
+          # refused looks exactly like a release that is refused - both are a 403 on /releases. So
+          # the tag is created deliberately first, through the same write path the token has already
+          # been shown to have, and the two outcomes are kept apart in the report.
+          target=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA" --jq '.sha' 2>/dev/null || true)
+          echo "tag will point at $SOURCE_SHA -> ${target:-unknown}"
+          if [ -n "$target" ]; then
+            if gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                 -f "ref=refs/tags/$TAG" -f "sha=$target" >/tmp/tag.json 2>/tmp/tag.err; then
+              echo "::notice title=Tag created::$TAG -> $target"
+            else
+              echo "::warning title=Tag creation refused::$(printf '%s' "$(cat /tmp/tag.err)" | tr '\n' '|' | tail -c 300)"
+            fi
+          fi
+
           published=no
           if gh release view "$TAG" >/dev/null 2>&1; then
             if out=$(gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber 2>&1); then
@@ -210,13 +225,21 @@ jobs:
               echo "::warning title=Release upload refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
             fi
           else
-            if out=$(gh release create "$TAG" --title "Aether dev build ${TAG#apk-}" \
-                       --target "$SOURCE_SHA" --notes "$notes" 2>&1); then
+            if out=$(gh release create "$TAG" --verify-tag --title "Aether dev build ${TAG#apk-}" \
+                       --notes "$notes" 2>&1); then
               if gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber >/dev/null 2>&1; then
                 published=yes
               fi
             else
               echo "::warning title=Release create refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
+              # Ask the API directly, so its own answer - including the header that names the
+              # permission it wanted - is in the report instead of an interpretation of it.
+              curl -sS -i --max-time 60 -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
+                -H "Authorization: token $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                -d "{\"tag_name\":\"$TAG\",\"name\":\"aether probe\",\"draft\":true}" \
+                -o /tmp/rel.out 2>/dev/null || true
+              echo "::warning title=Release API answered::$(head -c 700 /tmp/rel.out | tr -d '\r' | tr '\n' '|')"
             fi
           fi
 
@@ -247,7 +270,8 @@ jobs:
           fi
 
           if [ -z "$mirror" ]; then
-            code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -H "$UA" \
+            rm -f /tmp/h.out /tmp/h.err
+          code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -H "$UA" \
                      -F "file=@$asset" https://0x0.st 2>/tmp/h.err) || true
             body=$(head -c 160 /tmp/h.out 2>/dev/null | tr -d '\r\n')
             note "0x0.st http=${code:-none} out=${body:-empty}"
@@ -255,6 +279,7 @@ jobs:
           fi
 
           if [ -z "$mirror" ]; then
+            rm -f /tmp/h.out /tmp/h.err
             bin="aether-${SOURCE_SHA}-$(date -u +%Y%m%d%H%M%S)"
             code=$(curl -sS --max-time 300 -o /tmp/h.out -w '%{http_code}' -X DELETE \
                      "https://filebin.net/$bin" 2>/tmp/h.err) || true
@@ -269,6 +294,7 @@ jobs:
           fi
 
           if [ -z "$mirror" ]; then
+            rm -f /tmp/h.out /tmp/h.err
             code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -T "$asset" \
                      -H "$UA" "https://bashupload.com/$(basename "$asset")" 2>/tmp/h.err) || true
             body=$(head -c 300 /tmp/h.out 2>/dev/null | tr -d '\r\n')
@@ -294,7 +320,7 @@ jobs:
               echo "::warning title=Mirror unreadable::the uploaded link could not be fetched back"
             fi
           else
-            echo "::warning title=No mirror available::every host this run tried was unreachable"
+            echo "::warning title=No mirror accepted the file::the attempts line above has each host's own answer"
           fi
 
           {
