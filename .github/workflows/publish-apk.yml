@@ -226,30 +226,56 @@ jobs:
           fi
 
           # A link that no repository permission can block, offered only if the bytes really come
-          # back: the file is uploaded, fetched again, and hashed. Several hosts are tried because
-          # which of them a runner's address is allowed to reach is not something this file can know.
+          # back: the file is uploaded, fetched again, and hashed. Several hosts are tried in turn
+          # and every answer is recorded, because which of them a runner's address may reach is not
+          # something this file can know, and a silent failure here would be indistinguishable from
+          # no host at all.
+          report=""
+          note() { report="$report || $1"; }
+          UA='User-Agent: Project-Aether-CI/1.0 (+https://github.com/sosisoochannel-cmd/Project-Aether)'
           mirror=""
-          echo "--- pixeldrain"
-          id=$(curl -sS --max-time 300 -T "$asset" https://pixeldrain.com/api/file/ 2>/dev/null | sed -n 's/.*"id":"\([A-Za-z0-9]*\)".*/\1/p')
+
+          # pixeldrain: PUT the body, read the id out of the JSON answer.
+          code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -T "$asset" \
+                   https://pixeldrain.com/api/file/ 2>/tmp/h.err) || true
+          body=$(head -c 160 /tmp/h.out 2>/dev/null | tr -d '\r\n')
+          err=$(head -c 160 /tmp/h.err 2>/dev/null | tr -d '\r\n')
+          note "pixeldrain http=${code:-none} out=${body:-empty} err=${err:-none}"
+          id=$(printf '%s' "$body" | sed -n 's/.*"id":"\([A-Za-z0-9]*\)".*/\1/p')
           [ -n "$id" ] && mirror="https://pixeldrain.com/api/file/$id?download"
+
           if [ -z "$mirror" ]; then
-            echo "--- 0x0.st"
-            got=$(curl -sS --max-time 300 -H 'User-Agent: Project-Aether-CI/1.0 (+github.com/sosisoochannel-cmd/Project-Aether)' \
-                    -F "file=@$asset" https://0x0.st 2>/dev/null | tr -d '\r\n')
-            case "$got" in https://*) mirror="$got" ;; esac
+            code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -H "$UA" \
+                     -F "file=@$asset" https://0x0.st 2>/tmp/h.err) || true
+            body=$(head -c 160 /tmp/h.out 2>/dev/null | tr -d '\r\n')
+            note "0x0.st http=${code:-none} out=${body:-empty}"
+            case "$body" in https://*) mirror="$body" ;; esac
           fi
+
           if [ -z "$mirror" ]; then
-            echo "--- filebin.net"
-            bin="aether-$(date -u +%Y%m%d%H%M%S)"
-            code=$(curl -sS --max-time 600 -o /dev/null -w '%{http_code}' -X POST --data-binary "@$asset" \
-                     -H 'Content-Type: application/octet-stream' \
-                     "https://filebin.net/$bin/$(basename "$asset")" 2>/dev/null)
+            bin="aether-${SOURCE_SHA}-$(date -u +%Y%m%d%H%M%S)"
+            code=$(curl -sS --max-time 300 -o /tmp/h.out -w '%{http_code}' -X DELETE \
+                     "https://filebin.net/$bin" 2>/tmp/h.err) || true
+            code=$(curl -sS --max-time 300 -o /tmp/h.out -w '%{http_code}' -X POST \
+                     --data-binary "@$asset" -H "$UA" -H 'Content-Type: application/octet-stream' \
+                     "https://filebin.net/$bin/$(basename "$asset")" 2>/tmp/h.err) || true
+            body=$(head -c 160 /tmp/h.out 2>/dev/null | tr -d '\r\n')
+            note "filebin http=${code:-none} out=${body:-empty}"
             if [ "$code" = 201 ]; then
               mirror="https://filebin.net/$bin/$(basename "$asset")/$(basename "$asset")"
-            else
-              echo "filebin answered $code"
             fi
           fi
+
+          if [ -z "$mirror" ]; then
+            code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -T "$asset" \
+                     -H "$UA" "https://bashupload.com/$(basename "$asset")" 2>/tmp/h.err) || true
+            body=$(head -c 300 /tmp/h.out 2>/dev/null | tr -d '\r\n')
+            note "bashupload http=${code:-none} out=${body:-empty}"
+            got=$(printf '%s' "$body" | grep -o 'https://bashupload.com/[^ ]*' | head -1)
+            [ -n "$got" ] && mirror="$got"
+          fi
+
+          echo "::warning title=Mirror attempts::${report# || }"
 
           if [ -n "$mirror" ]; then
             echo "mirror candidate: $mirror"
