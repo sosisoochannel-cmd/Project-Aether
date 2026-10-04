@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Aether.Core.Combat;
+using Aether.Data.Config;
 using UnityEngine;
 
-namespace Aether.Core.Combat
+namespace Aether.Gameplay.Combat
 {
     /// <summary>Phase of an attack timeline.</summary>
     public enum AttackPhase
@@ -21,7 +23,7 @@ namespace Aether.Core.Combat
     }
 
     /// <summary>
-    /// Executes an <see cref="Data.Config.AttackDefinition"/> timeline: wind-up, hitbox, recovery,
+    /// Executes an <see cref="AttackDefinition"/> timeline: wind-up, hitbox, recovery,
     /// hit resolution and combo chaining.
     /// </summary>
     /// <remarks>

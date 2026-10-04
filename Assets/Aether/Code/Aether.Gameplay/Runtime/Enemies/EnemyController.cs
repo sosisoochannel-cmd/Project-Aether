@@ -1,6 +1,7 @@
 using System;
 using Aether.Core.Combat;
 using Aether.Core.States;
+using Aether.Gameplay.Combat;
 using Aether.Data.Config;
 using Aether.Gameplay.Sound;
 using UnityEngine;

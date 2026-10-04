@@ -1,6 +1,7 @@
 using System;
 using Aether.Core.Combat;
 using Aether.Data.Config;
+using Aether.Gameplay.Combat;
 using UnityEngine;
 
 namespace Aether.Gameplay.Player

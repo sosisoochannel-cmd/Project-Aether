@@ -96,7 +96,7 @@ Three archetypes, one shared AI, one shared attack timeline.
 | Area | What |
 |---|---|
 | Data | `EnemyDefinition` — the config asset for one archetype, plus the `EnemyBehaviour` enum |
-| Core | `AttackRunner` + `AttackPhase`, extracted so the player and enemies share one attack timeline |
+| Combat | `AttackRunner` + `AttackPhase`, extracted so the player and enemies share one attack timeline. It began in `Aether.Core`, which cannot see `Aether.Data` and therefore cannot see `AttackDefinition`; the first real Unity build caught that, and it now lives in `Aether.Gameplay` where behaviour belongs (see ARCHITECTURE §1) |
 | Gameplay / Enemies | `EnemyController`, `EnemyMotor2D`, `EnemyHealth` |
 | Gameplay / Sound | `SoundDirector` — the placeholder audio seam (no audio system) |
 | Tests | `AttackRunnerTests` covering the timeline and combo rules |
