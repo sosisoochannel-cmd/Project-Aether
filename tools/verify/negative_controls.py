@@ -166,6 +166,27 @@ def controls() -> list[Control]:
             ["VERIFICATION PASSED"],
             must_fail=False),
         Control(
+            "verify: a file names Mathf without importing UnityEngine",
+            # Exactly what the second licensed build stopped on, ten minutes into a container.
+            # A single balanced member, so the syntax check has nothing to say and the engine
+            # rule is the only thing that can catch it.
+            gate,
+            lambda root: edit(root, f"{CODE}/Aether.Data/Runtime/Levels/PlayableNode.cs",
+                              "        public PlayableNode(int col, int row)",
+                              "        private static readonly float Half = Mathf.Abs(0.5f);\n\n"
+                              "        public PlayableNode(int col, int row)"),
+            ["Mathf", "never imports UnityEngine"]),
+        Control(
+            "verify: the same name is silent in a file that does import UnityEngine",
+            gate,
+            lambda root: edit(root,
+                              f"{CODE}/Aether.Gameplay/Runtime/Support/PlaceholderVisuals.cs",
+                              "        private const int TextureSize = 64;",
+                              "        private const int TextureSize = 64;\n"
+                              "        private static readonly float HalfSize = Mathf.Abs(0.5f);"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
             "levelcheck: a wide gap makes the exit genuinely unreachable",
             solver,
             lambda root: level_rows(root, [(20, 94, 6, "......"),

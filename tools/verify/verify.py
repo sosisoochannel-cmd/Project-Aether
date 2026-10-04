@@ -1216,6 +1216,65 @@ LINT_RULES = [
 ]
 
 
+ENGINE_TYPE_NAMES = (
+    # Names that exist in UnityEngine and not in the BCL namespaces these files import by default.
+    # Deliberately excludes MonoBehaviour, Object, GameObject, Transform, Debug, Camera,
+    # Application, Random and Input: those are either declared by our own types or shared with
+    # System, and a verifier that cries wolf gets ignored.
+    "Mathf", "Vector2", "Vector3", "Vector2Int", "Vector3Int", "Quaternion", "Rect", "Color",
+    "Color32", "Collider2D", "BoxCollider2D", "CircleCollider2D", "Rigidbody2D",
+    "RigidbodyType2D", "ContactFilter2D", "RaycastHit2D", "LayerMask", "Screen", "Time",
+    "KeyCode", "AudioSource", "AudioClip", "SpriteRenderer", "Tilemap", "TilemapRenderer",
+    "TilemapCollider2D", "CompositeCollider2D", "GridLayout", "Animator", "Light2D", "Sprite",
+)
+ENGINE_USING_RE = re.compile(r"^\s*using\s+UnityEngine(?:\.[\w.]+)?\s*;", re.M)
+
+
+def check_engine_names(report: Report, project: Project) -> None:
+    """A file may not name a UnityEngine type it never imports.
+
+    The compiler catches this, but only after a container has been pulled and the editor has
+    started, which is a ten-minute round trip per name. `PlayerTraversalSolver` reached the
+    first licensed build with `Mathf` and no `using UnityEngine;` and cost exactly that.
+
+    Shadowing is respected in the same conservative way as the asmdef rule: a name the file
+    declares itself is not the engine type.
+    """
+    findings = 0
+
+    for rel, entry in project.files.items():
+        code = entry["code"]
+        if ENGINE_USING_RE.search(code):
+            continue
+
+        declared = set()
+        for pattern in (
+            DECLARED_TYPE_RE,
+            DECLARED_VARIABLE_RE,
+            DECLARED_METHOD_RE,
+            DECLARED_USING_ALIAS_RE,
+        ):
+            declared.update(pattern.findall(code))
+
+        for name in ENGINE_TYPE_NAMES:
+            if name in declared:
+                continue
+            match = re.search(r"(?<![\w.])" + name + r"(?![\w])", code)
+            if not match:
+                continue
+            line = code[: match.start()].count("\n") + 1
+            report.fail(
+                f"engine: '{rel}' line {line} names '{name}' but the file never imports "
+                f"UnityEngine (add 'using UnityEngine;' or qualify the name)")
+            findings += 1
+            break
+
+    if not findings:
+        report.note(
+            f"engine: no file names a UnityEngine type it does not import "
+            f"({len(ENGINE_TYPE_NAMES)} names checked)")
+
+
 def check_lints(report: Report, project: Project) -> None:
     found = 0
     for rel, entry in project.files.items():
@@ -1281,6 +1340,7 @@ def main() -> int:
     check_asmdefs(report, project)
     check_asset_fields(report, project)
     check_symbols(report, project)
+    check_engine_names(report, project)
     check_lints(report, project)
     check_namespace_hygiene(report, project)
 

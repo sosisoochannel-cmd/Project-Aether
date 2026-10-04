@@ -18,6 +18,7 @@ defines what "verified" is allowed to mean in this repository:
 |---|---|
 | Asset GUIDs resolve, no dangling references | **Verified** by `tools/verify/verify.py` |
 | Assemblies reference each other legally, no cycles | **Verified** by the same tool |
+| A file names only types it can actually see (assembly and namespace) | **Verified** by the same tool |
 | Members accessed on project-owned types exist, with correct arity | **Verified** by the same tool |
 | Unity API signatures are used correctly | **NOT verified** — requires a real compile |
 | The level is traversable, secrets reachable, no soft-locks | **Verified** by the level reachability solver |
@@ -298,14 +299,15 @@ same ground, a checkpoint respawning into an enemy's sight, an exit inside a fig
 reachable without jumping — and asserts that the matching tool reports it. Two controls assert
 the *opposite* direction, that a legitimate shape produces no complaint at all, because an
 over-eager verifier is as broken as a blind one. It touches nothing in the working tree.
-Twenty-five controls, all detected at the time of writing.
+Twenty-seven controls, all detected at the time of writing.
 
 Several checks were added because a control failed the first time it was run, which is the
 whole point of having them: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves
 it to nothing and the asset silently loses a field; and cross-assembly visibility is enforced
 for **fully-qualified references** and now for **bare type names**, not just for `using`
-directives — that last hole was found by the first real Unity build rather than by the gates,
-which is recorded honestly below rather than quietly patched. A verifier whose own holes are
+directives — and a file that names a UnityEngine type it never imports is now a failure too.
+Both of those holes were found by the first two real Unity builds rather than by the gates, and
+both are recorded honestly below rather than quietly patched. A verifier whose own holes are
 unknown is not a verifier.
 
 `verify.py`'s scope and blind spots are documented in §0. Everything the gates cannot see —
@@ -320,6 +322,8 @@ parsed as a parameter list, so `foreach (PlayableNode other in reachable)` regis
 called `reachable` and produced failures that did not exist; and two nested classes with the same
 name in different controllers were treated as an ambiguity when C# resolves them by their
 containing type. Each was fixed at the root, and each fix is covered by a control.
+
+**The first Unity Editor import found two defects the gates had missed** — a type named from an assembly that could not see it, and an engine type named with no import — and both now have a rule and a control. It also settled the licensing question: account credentials alone activate a Personal seat, no `.ulf` and no serial involved.
 
 **The first Unity Editor import remains the real test.** No claim of "compiles" or "play
 mode tested" is made until someone has actually opened the project.
