@@ -292,16 +292,49 @@ jobs:
             echo "::warning title=No captured log::The build step produced no ci-build-*.log file."
             exit 0
           fi
+
+          # One annotation can carry many lines if the newlines are escaped, which matters because a
+          # check run only keeps a few dozen annotations. %25 first so a literal % in the log cannot
+          # be mistaken for an escape.
+          emit_digest() {
+            local title="$1"
+            local body
+            body=$(grep -v -- '--password' | cut -c1-400 \
+              | sed -e 's/%/%25/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g')
+            [ -z "$body" ] && return 0
+            echo "::notice title=${title}::${body}"
+          }
+
           for f in "${files[@]}"; do
-            echo "::notice title=Captured log::$f - $(wc -l < "$f") lines"
-            grep -nEi 'error|exception|licens|entitlement|seat|factor|verification|unauthorized|invalid (username|password|credentials)|denied|machine binding|no space|not found|failed' "$f" \
-              | grep -vEi 'Verifying Checksum|Pulling fs layer|Download complete|Waiting|Extracting|Node\.js 20 is deprecated|DeprecationWarning|no space left on device:: (false)|warning::' \
-              | grep -v -- '--password' \
-              | cut -c1-450 | head -45 \
-              | while IFS= read -r line; do echo "::error title=Unity build log::$line"; done
-            # The tail is where the failure banner and the exit reasoning live.
-            tail -n 12 "$f" | cut -c1-450 | grep -v -- '--password' \
-              | while IFS= read -r line; do echo "::notice title=Log tail::$line"; done
+            # Unity writes progress updates with carriage returns, not newlines. Without this the
+            # compiler errors can end up inside one 200,000-character line, where a line-based grep
+            # and a 450-character cut both miss them.
+            norm="$RUNNER_TEMP/$(basename "$f" .log)-normalised.log"
+            tr '\r' '\n' < "$f" > "$norm"
+            cp "$norm" "ci-build-$(basename "$f" .log)-normalised.log"
+            echo "::notice title=Captured log::$f - $(wc -l < "$f") raw lines, $(wc -l < "$norm") after normalising"
+
+            # 1. The compile errors, which is what "Scripts have compiler errors" is hiding. Both the
+            #    Roslyn shape and the plain Unity asset-path shape.
+            grep -nE '\.cs\([0-9]+,[0-9]+\)|error CS[0-9]{4}|CS[0-9]{4}:|Compilation failed|compiler error' "$norm" \
+              | head -40 | cut -c1-400 \
+              | while IFS= read -r line; do echo "::error title=Compile error::$line"; done
+
+            # 2. The whole run-up to Unity's own abort reason, as one digest - the errors are usually
+            #    in the lines immediately above it.
+            reason_line=$(grep -n 'Aborting batchmode due to failure' "$norm" | head -1 | cut -d: -f1)
+            if [ -n "${reason_line:-}" ]; then
+              first=$(( reason_line > 90 ? reason_line - 90 : 1 ))
+              sed -n "${first},${reason_line}p" "$norm" | emit_digest "Lines before Unity aborted"
+            fi
+
+            # 3. Anything else that reads like a failure, for when the above finds nothing.
+            grep -nEi 'error|exception|failed|unable to|could not|cannot|missing|not found' "$norm" \
+              | grep -vEi 'Verifying Checksum|Pulling fs layer|Download complete|Waiting|Extracting|Node\.js 20 is deprecated|DeprecationWarning|warning::|no space left on device:: \(false\)' \
+              | cut -c1-400 | head -25 \
+              | while IFS= read -r line; do echo "::warning title=Other log lines::$line"; done
+
+            tail -n 10 "$norm" | emit_digest "Log tail"
           done
 
       - name: Save Library cache
@@ -369,7 +402,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-build-log
-          path: ci-build-*.log
+          path: ci-build*.log
           if-no-files-found: ignore
           retention-days: 7
 
