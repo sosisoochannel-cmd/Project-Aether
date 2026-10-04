@@ -30,6 +30,7 @@ namespace Aether.Gameplay.Support
         private static Sprite _square;
         private static Sprite _circle;
         private static Sprite _ring;
+        private static Sprite _diamond;
 
         /// <summary>A one-unit white square. Scale it to the desired size.</summary>
         public static Sprite Square
@@ -61,9 +62,29 @@ namespace Aether.Gameplay.Support
             }
         }
 
+        /// <summary>A diamond: the shape reserved for secrets.</summary>
+        /// <remarks>
+        /// A second round marker would have been cheaper, but the secret is the one thing in the
+        /// region the player is meant to spot across a clearing. Round things are checkpoints; a
+        /// diamond is a find.
+        /// </remarks>
+        public static Sprite Diamond
+        {
+            get
+            {
+                if (_diamond == null) _diamond = Build("AetherPlaceholderDiamond", InsideUnitDiamond);
+                return _diamond;
+            }
+        }
+
         private static bool InsideUnitCircle(float x, float y)
         {
             return ((x - 0.5f) * (x - 0.5f)) + ((y - 0.5f) * (y - 0.5f)) <= 0.25f;
+        }
+
+        private static bool InsideUnitDiamond(float x, float y)
+        {
+            return (Mathf.Abs(x - 0.5f) + Mathf.Abs(y - 0.5f)) <= 0.5f;
         }
 
         private static bool InsideUnitRing(float x, float y)

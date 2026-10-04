@@ -69,6 +69,8 @@ namespace Aether.Gameplay.Player
             var deviceInput = host.AddComponent<PlayerInputReader>();
             var router = host.AddComponent<GameplayInputRouter>();
             var controller = host.AddComponent<PlayerController>();
+            var feedback = host.AddComponent<PlayerFeedback>();
+            feedback.Configure(renderer);
 
             router.AddSource(deviceInput);
             motor.ConfigureGrounding(GameplayLayers.Ground);

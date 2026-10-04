@@ -1,4 +1,5 @@
 using Aether.Data.Config;
+using Aether.Gameplay.Levels;
 using Aether.Gameplay.Support;
 using UnityEngine;
 
@@ -29,8 +30,9 @@ namespace Aether.Gameplay.Enemies
 
         /// <summary>Creates an enemy standing at <paramref name="feet"/>.</summary>
         public static EnemyController Create(EnemyDefinition definition, Vector2 feet, Transform parent,
-                                             int patrolTiles, Color colour)
+                                             int patrolTiles)
         {
+            Color colour = LevelPalette.EnemyIdle;
             var host = new GameObject($"Enemy_{definition.TypeId}");
             host.SetActive(false);
             host.transform.SetParent(parent, false);
@@ -57,6 +59,11 @@ namespace Aether.Gameplay.Enemies
             var motor = host.AddComponent<EnemyMotor2D>();
             var health = host.AddComponent<EnemyHealth>();
             var controller = host.AddComponent<EnemyController>();
+
+            // Presentation only, and added last so the controller's Awake has already wired the
+            // state machine and health events it listens to.
+            var telegraph = host.AddComponent<EnemyTelegraph>();
+            telegraph.Configure(renderer, controller);
 
             motor.ConfigureSolidLayers(GameplayLayers.Ground);
             controller.ConfigureLayers(GameplayLayers.Ground, GameplayLayers.Player);

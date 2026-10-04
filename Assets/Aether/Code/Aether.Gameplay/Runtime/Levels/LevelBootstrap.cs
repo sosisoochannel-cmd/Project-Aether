@@ -65,9 +65,15 @@ namespace Aether.Gameplay.Levels
             if (_bootOnStart) Boot();
         }
 
-        /// <summary>Runs the whole boot flow. Safe to call by hand from a test or a debug key.</summary>
+        /// <summary>
+        /// Runs the whole boot flow. Safe to call by hand from a test or a debug key, and safe to
+        /// call twice: a scene that owns its own boot and the automatic fallback can both ask, and
+        /// the second ask must do nothing rather than build a second level on top of the first.
+        /// </summary>
         public void Boot()
         {
+            if (Level != null) return;
+
             _session = GameSession.Instance;
             if (_session == null)
             {
@@ -101,7 +107,7 @@ namespace Aether.Gameplay.Levels
             var directorHost = new GameObject("LevelDirector");
             directorHost.transform.SetParent(transform, false);
             Director = directorHost.AddComponent<LevelDirector>();
-            Director.Initialize(_session, Level, player);
+            Director.Initialize(_session, Level, player, follow);
         }
 
         private LevelData LoadLevelData()

@@ -31,20 +31,47 @@ namespace Aether.Gameplay.Controls
     [DisallowMultipleComponent]
     public sealed class TouchControlsView : MonoBehaviour
     {
-        // -- layout, in fractions of screen height unless noted ---------------------------------
-        private static readonly Rect StickZone = new Rect(0f, 0f, 0.45f, 0.75f);
-        private const float StickRadius = 0.15f;
-        private const float StickDeadZone = 0.14f;
-        private static readonly Vector2 StickRest = new Vector2(0.16f, 0.20f);
+        /// <summary>
+        /// Where everything sits, in fractions of the <b>safe area</b>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Fractions rather than pixels, so the layout is identical on every resolution, and of the
+        /// safe area rather than the screen, so a notch or a gesture bar cannot put a control under
+        /// the player's thumb-if-they-had-one. On a device with no cutout the safe area is the whole
+        /// screen and these numbers mean exactly what they say.
+        /// </para>
+        /// <para>
+        /// Radii are fractions of screen height, which is what a thumb's reach scales with; the
+        /// centres are fractions of the safe rect. <c>tools/verify/touchlayout.py</c> reads these
+        /// numbers and proves no two controls overlap and none leaves the safe area, across the
+        /// aspect ratios phones and tablets actually ship with. Editing a number here is therefore
+        /// checked, not just hoped for.
+        /// </para>
+        /// </remarks>
+        public static class Layout
+        {
+            /// <summary>Region of the lower left that may claim a touch for the stick.</summary>
+            public static readonly Rect StickZone = new Rect(0f, 0f, 0.45f, 0.75f);
 
-        private static readonly Vector2 JumpCentre = new Vector2(0.705f, 0.19f);
-        private const float JumpRadius = 0.105f;
+            /// <summary>Distance from the touch origin that means full tilt.</summary>
+            public const float StickRadius = 0.15f;
 
-        private static readonly Vector2 AttackCentre = new Vector2(0.875f, 0.235f);
-        private const float AttackRadius = 0.125f;
+            /// <summary>Movement below this fraction of the radius is ignored.</summary>
+            public const float StickDeadZone = 0.14f;
 
-        private static readonly Vector2 DodgeCentre = new Vector2(0.775f, 0.47f);
-        private const float DodgeRadius = 0.09f;
+            /// <summary>Where the stick rests before it is touched.</summary>
+            public static readonly Vector2 StickRest = new Vector2(0.16f, 0.20f);
+
+            public static readonly Vector2 JumpCentre = new Vector2(0.62f, 0.15f);
+            public const float JumpRadius = 0.10f;
+
+            public static readonly Vector2 AttackCentre = new Vector2(0.88f, 0.24f);
+            public const float AttackRadius = 0.115f;
+
+            public static readonly Vector2 DodgeCentre = new Vector2(0.73f, 0.46f);
+            public const float DodgeRadius = 0.09f;
+        }
 
         private Camera _camera;
         private TouchInputSource _source;
@@ -66,6 +93,10 @@ namespace Aether.Gameplay.Controls
 
         private int _cachedWidth;
         private int _cachedHeight;
+        private Rect _cachedSafeArea;
+        private Vector2 _placedStickOrigin;
+        private Vector2 _placedStickValue;
+        private bool _placedStickActive;
         private bool _visible;
 
         /// <summary>True when this overlay is showing, which only happens when touch exists.</summary>
@@ -120,12 +151,32 @@ namespace Aether.Gameplay.Controls
 
         private void Update()
         {
-            RefreshLayout(force: false);
             ReadTouches();
+            RefreshLayout(force: false);
             _source.SetMove(_stickValue);
         }
 
         private void OnDisable()
+        {
+            ReleaseEverything();
+        }
+
+        /// <summary>
+        /// A phone call, a notification the player taps, or the app going to the background ends the
+        /// touch stream without a release event. Without this the stick would stay tilted and a
+        /// pending attack would fire the moment the player came back.
+        /// </summary>
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus) ReleaseEverything();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) ReleaseEverything();
+        }
+
+        private void ReleaseEverything()
         {
             _source?.Reset();
             _stickTouch = -1;
@@ -231,11 +282,11 @@ namespace Aether.Gameplay.Controls
 
         private void ApplyStick(Vector2 position)
         {
-            float radius = StickRadius * Screen.height;
+            float radius = Layout.StickRadius * Screen.height;
             Vector2 offset = (position - _stickOrigin) / Mathf.Max(1f, radius);
             float magnitude = offset.magnitude;
-            if (magnitude < StickDeadZone) offset = Vector2.zero;
-            else offset = offset.normalized * Mathf.Min(1f, (magnitude - StickDeadZone) / (1f - StickDeadZone));
+            if (magnitude < Layout.StickDeadZone) offset = Vector2.zero;
+            else offset = offset.normalized * Mathf.Min(1f, (magnitude - Layout.StickDeadZone) / (1f - Layout.StickDeadZone));
 
             // Only horizontal movement exists in this game, but a full stick vector is produced so a
             // later ability (a crouch, a down-attack) needs no input plumbing.
@@ -244,13 +295,14 @@ namespace Aether.Gameplay.Controls
 
         private static bool InStickZone(Vector2 position)
         {
-            return position.x <= StickZone.width * Screen.width
-                && position.y <= StickZone.height * Screen.height;
+            Vector2 fraction = ToFraction(position);
+            return fraction.x >= Layout.StickZone.xMin && fraction.x <= Layout.StickZone.xMax
+                && fraction.y >= Layout.StickZone.yMin && fraction.y <= Layout.StickZone.yMax;
         }
 
         private static bool CircleHit(Vector2 position, Vector2 centreFraction, float radiusFraction)
         {
-            Vector2 centre = new Vector2(centreFraction.x * Screen.width, centreFraction.y * Screen.height);
+            Vector2 centre = ToScreen(centreFraction);
             float radius = radiusFraction * Screen.height;
             return (position - centre).sqrMagnitude <= radius * radius;
         }
@@ -259,21 +311,66 @@ namespace Aether.Gameplay.Controls
 
         private void RefreshLayout(bool force)
         {
-            if (!force && _cachedWidth == Screen.width && _cachedHeight == Screen.height) return;
-            _cachedWidth = Screen.width;
-            _cachedHeight = Screen.height;
+            bool resized = Screen.width != _cachedWidth
+                || Screen.height != _cachedHeight
+                || Screen.safeArea != _cachedSafeArea;
+            bool stickMoved = _stickActive != _placedStickActive
+                || _stickOrigin != _placedStickOrigin
+                || _stickValue != _placedStickValue;
 
-            Place(_stickBase, _stickActive ? ToFraction(_stickOrigin) : StickRest, StickRadius * 2f);
-            Place(_stickKnob, _stickActive ? ToFraction(_stickOrigin + _stickValue * (StickRadius * Screen.height)) : StickRest, StickRadius * 0.9f);
-            Place(_jumpRenderer.transform, JumpCentre, JumpRadius * 2f);
-            Place(_attackRenderer.transform, AttackCentre, AttackRadius * 2f);
-            Place(_dodgeRenderer.transform, DodgeCentre, DodgeRadius * 2f);
+            if (!force && !resized && !stickMoved) return;
+
+            if (force || resized)
+            {
+                _cachedWidth = Screen.width;
+                _cachedHeight = Screen.height;
+                _cachedSafeArea = Screen.safeArea;
+
+                Place(_jumpRenderer.transform, Layout.JumpCentre, Layout.JumpRadius * 2f);
+                Place(_attackRenderer.transform, Layout.AttackCentre, Layout.AttackRadius * 2f);
+                Place(_dodgeRenderer.transform, Layout.DodgeCentre, Layout.DodgeRadius * 2f);
+            }
+
+            // The stick is placed whenever it moves, not only when the screen changes: a floating
+            // stick that never follows the thumb is a stick the player cannot aim with, and the
+            // player's own input would be the only thing working.
+            _placedStickActive = _stickActive;
+            _placedStickOrigin = _stickOrigin;
+            _placedStickValue = _stickValue;
+
+            Vector2 baseFraction = _stickActive ? ToFraction(_stickOrigin) : Layout.StickRest;
+            Place(_stickBase, baseFraction, Layout.StickRadius * 2f);
+
+            Vector2 knobFraction = _stickActive
+                ? ToFraction(_stickOrigin + _stickValue * (Layout.StickRadius * Screen.height))
+                : Layout.StickRest;
+            Place(_stickKnob, knobFraction, Layout.StickRadius * 0.9f);
         }
 
+        /// <summary>Screen pixels to fractions of the safe area.</summary>
         private Vector2 ToFraction(Vector2 screenPosition)
         {
-            return new Vector2(screenPosition.x / Mathf.Max(1f, Screen.width),
-                               screenPosition.y / Mathf.Max(1f, Screen.height));
+            Rect safe = SafeArea();
+            return new Vector2((screenPosition.x - safe.x) / Mathf.Max(1f, safe.width),
+                               (screenPosition.y - safe.y) / Mathf.Max(1f, safe.height));
+        }
+
+        /// <summary>Fractions of the safe area back to screen pixels.</summary>
+        private static Vector2 ToScreen(Vector2 fraction)
+        {
+            Rect safe = SafeArea();
+            return new Vector2(safe.x + (fraction.x * safe.width), safe.y + (fraction.y * safe.height));
+        }
+
+        /// <summary>
+        /// The drawable screen. Falls back to the whole screen when Unity reports a degenerate
+        /// rect, which happens on some devices before the first orientation change settles.
+        /// </summary>
+        private static Rect SafeArea()
+        {
+            Rect safe = Screen.safeArea;
+            if (safe.width < 1f || safe.height < 1f) return new Rect(0f, 0f, Screen.width, Screen.height);
+            return safe;
         }
 
         private void Place(Transform target, Vector2 fraction, float diameterFraction)

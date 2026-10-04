@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aether.Gameplay.Cameras;
 using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Player;
 using UnityEngine;
@@ -34,6 +35,7 @@ namespace Aether.Gameplay.Levels
         private GameSession _session;
         private BuiltLevel _built;
         private PlayerController _player;
+        private CameraFollow2D _camera;
         private float _respawnAt = float.NegativeInfinity;
 
         /// <summary>The level currently running.</summary>
@@ -49,11 +51,17 @@ namespace Aether.Gameplay.Levels
         public Vector2 RespawnFeet { get; private set; }
 
         /// <summary>Wires the director to a built level and the player now running in it.</summary>
-        public void Initialize(GameSession session, BuiltLevel built, PlayerController player)
+        /// <param name="camera">
+        /// The follow camera, so a respawn can move the view immediately. Optional: a test or a
+        /// headless run has no camera and everything else still works.
+        /// </param>
+        public void Initialize(GameSession session, BuiltLevel built, PlayerController player,
+                               CameraFollow2D camera = null)
         {
             _session = session;
             _built = built;
             _player = player;
+            _camera = camera;
 
             _enemies.Clear();
             _enemyFeet.Clear();
@@ -113,6 +121,10 @@ namespace Aether.Gameplay.Levels
 
             float halfHeight = _player.Tuning != null ? _player.Tuning.BodyHeight * 0.5f : 0.7f;
             _player.ResetForRespawn(RespawnFeet + new Vector2(0f, halfHeight));
+
+            // The view moves with the player, not after them. Without this the camera glides across
+            // the whole region after every death, which reads as the game losing its place.
+            if (_camera != null) _camera.SnapToTarget();
         }
 
         /// <summary>The checkpoint the session says is active, or the level's start.</summary>

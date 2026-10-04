@@ -25,16 +25,20 @@ IGNORE = shutil.ignore_patterns(".git", "Library", "Temp", "obj", "__pycache__",
 CODE = "Assets/Aether/Code"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
 STRIKE = "Assets/Aether/Resources/Content/Attack.Strike.asset"
+ENEMY = "Assets/Aether/Resources/Content/Enemies/ForestStalker.asset"
 
 
 class Control:
     """One injected fault and the outcome it must produce."""
 
-    def __init__(self, name, tool, mutate, mentions):
+    def __init__(self, name, tool, mutate, mentions, must_fail=True):
         self.name = name
         self.tool = tool
         self.mutate = mutate
         self.mentions = mentions
+        # Some controls guard the opposite direction: an over-eager verifier that reports a
+        # non-problem is just as broken as one that misses a problem.
+        self.must_fail = must_fail
 
 
 def edit(root: str, rel: str, old: str, new: str):
@@ -163,6 +167,90 @@ def controls() -> list[Control]:
             solver,
             lambda root: level_rows(root, [(20, 50, 1, "?")]),
             ["?"]),
+        Control(
+            "levelcheck: a platform inside the play space that nothing can reach",
+            solver,
+            lambda root: level_rows(root, [(17, 50, 1, "=")]),
+            ["looks reachable"]),
+        Control(
+            "levelcheck: wall crowns stay reported as out of reach by design, not as problems",
+            solver,
+            lambda root: level_rows(root, [(12, 0, 1, "#"), (11, 0, 1, "#"), (10, 0, 1, "#")]),
+            ["out of reach by design", "8/8 traversal claims proven"],
+            must_fail=False),
+        Control
+        (
+            "verify: a bogus member on a foreach-typed variable",
+            gate,
+            # `stalker` is used nowhere else, so the tool can resolve it; a name that is used
+            # with two different types on purpose (`other`) is skipped by design and would prove
+            # nothing here.
+            lambda root: edit(root, f"{CODE}/Aether.Gameplay/Runtime/Levels/LevelDirector.cs",
+                              "            for (int i = 0; i < _enemies.Count; i++)",
+                              "            foreach (EnemyController stalker in _enemies)\n"
+                              "            {\n"
+                              "                stalker.NotAMember();\n"
+                              "            }\n"
+                              "\n"
+                              "            for (int i = 0; i < _enemies.Count; i++)"),
+            ["NotAMember"]),
+        Control(
+            "levelcheck: an archetype that points at no attack",
+            solver,
+            lambda root: edit(root, ENEMY, "  _attack: {fileID: 11400000",
+                              "  _attack: {fileID: 0"),
+            ["points at no attack"]),
+        Control(
+            "levelcheck: an enemy open for less time than it warned for",
+            solver,
+            lambda root: edit(root, ENEMY, "  _recoveryPause: 0.65", "  _recoveryPause: 0.05"),
+            ["open for less time"]),
+        Control(
+            "verify: an asset key that does not exist on its script (Unity ignores it silently)",
+            gate,
+            lambda root: edit(root, "Assets/Aether/Resources/Content/PlayerTuning.asset",
+                              "  _runSpeed: 7", "  _runSpeedd: 7"),
+            ["_runSpeedd", "silently"]),
+        Control(
+            "levelcheck: two encounters close enough to see the same ground",
+            solver,
+            lambda root: edit(root, LEVEL, "enemy        = id=enemy.greenway.stalker.02, type=forest_stalker, x=91, y=18",
+                              "enemy        = id=enemy.greenway.stalker.02, type=forest_stalker, x=94, y=20"),
+            ["both see"]),
+        Control(
+            "levelcheck: a checkpoint that respawns the player inside an enemy's senses",
+            solver,
+            lambda root: (edit(root, LEVEL,
+                               "enemy        = id=enemy.greenway.stalker.02, type=forest_stalker, x=91, y=18",
+                               "enemy        = id=enemy.greenway.stalker.02, type=forest_stalker, x=91, y=20")
+                          + edit(root, LEVEL, "respawn=86:20", "respawn=88:20")),
+            ["punished twice"]),
+        Control(
+            "levelcheck: an exit inside an enemy's senses",
+            solver,
+            lambda root: edit(root, LEVEL, "exit         = id=exit.greenway.north, x=117, y=20",
+                              "exit         = id=exit.greenway.north, x=105, y=20"),
+            ["senses"]),
+        Control(
+            "levelcheck: a secret a player reaches without jumping",
+            solver,
+            lambda root: edit(root, LEVEL,
+                              "discovery    = id=secret.greenway.overhang, x=81, y=15",
+                              "discovery    = id=secret.greenway.overhang, x=8, y=20"),
+            ["without jumping"]),
+        Control(
+            "verify: a bogus member through a type whose name is shared by nested classes",
+            gate,
+            lambda root: edit(root, f"{CODE}/Aether.Gameplay/Runtime/Player/PlayerController.cs",
+                              "        private PlayerTuningData _tuning;",
+                              "        private PlayerTuningData _tuning;\n"
+                              "        private DeadState _probe;\n"
+                              "\n"
+                              "        private void ProbeMergedType()\n"
+                              "        {\n"
+                              "            _probe.NotAMember();\n"
+                              "        }"),
+            ["NotAMember"]),
     ]
 
 
@@ -171,21 +259,31 @@ def run_control(root: str, control: Control) -> bool:
     try:
         proc = subprocess.run(control.tool, cwd=root, capture_output=True, text=True)
         output = proc.stdout + proc.stderr
+        # The solver reports structural problems under their own prefix, and a raised Python
+        # exception would mean the tool crashed rather than reported.
         failures = [line.strip() for line in output.splitlines()
-                    if line.strip().startswith(("FAIL", "FAILED", "error"))]
-        reported = bool(failures)
-        mentioned = all(any(word in line for line in failures) for word in control.mentions)
-        ok = proc.returncode != 0 and reported and mentioned
-        print(f"  {'PASS' if ok else 'FAIL'}  {control.name}")
-        if failures:
-            print(f"          detected: {failures[0][:140]}")
+                    if line.strip().startswith(("FAIL", "FAILED", "STRUCTURAL", "error", "Traceback"))]
+
+        if control.must_fail:
+            mentioned = all(any(word in line for line in failures) for word in control.mentions)
+            ok = proc.returncode != 0 and bool(failures) and mentioned
+            evidence = failures[0][:140] if failures else "nothing"
         else:
-            print("          detected: nothing")
-        if ok is False:
+            # The mutation is a legitimate level or code shape; the tool must stay quiet.
+            mentioned = all(word in output for word in control.mentions)
+            ok = proc.returncode == 0 and not failures and mentioned
+            evidence = next((line.strip() for line in output.splitlines()
+                             if any(word in line for word in control.mentions)), "nothing")
+
+        print(f"  {'PASS' if ok else 'FAIL'}  {control.name}")
+        print(f"          {'detected' if control.must_fail else 'declared clean'}: {evidence}")
+        if not ok:
             print(f"          exit {proc.returncode}; expected mentions {control.mentions}")
         return ok
     finally:
-        for entry in undo:
+        # Reverse order: a control that edits the same file twice returns both originals, and the
+        # *first* one is the clean copy. Restoring forwards would write the intermediate text back.
+        for entry in reversed(undo):
             if entry[0] == "MISSING_META":
                 with open(entry[1][0], "w", encoding="utf-8") as fh:
                     fh.write(entry[1][1])

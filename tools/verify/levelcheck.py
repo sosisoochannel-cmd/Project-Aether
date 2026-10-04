@@ -37,6 +37,7 @@ C# one must change with it.
 from __future__ import annotations
 
 import math
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -837,6 +838,326 @@ class ClaimResult:
                 f"({self.detail})")
 
 
+@dataclass
+class EnemyKind:
+    """One enemy archetype, read from the asset the game loads at runtime."""
+
+    type_id: str
+    path: str
+    max_health: float
+    detection_range: float
+    detection_height: float
+    move_speed: float
+    attack_range: float
+    windup: float
+    recovery: float
+    patrol_distance: int
+
+    # The attack timeline the archetype points at. Without an attack an enemy cannot teach
+    # anything, so the tool treats a missing one as a problem rather than as a silent default.
+    has_attack: bool = False
+    attack_id: str = ""
+    attack_startup: float = 0.0
+    attack_active: float = 0.0
+    attack_recovery: float = 0.0
+    attack_damage: float = 0.0
+
+    @property
+    def telegraph(self) -> float:
+        """How long the player has to read the attack before it can hurt them."""
+        return self.windup + self.attack_startup
+
+    @property
+    def counter_window(self) -> float:
+        """How long the enemy is open after the hit frame ends."""
+        return self.attack_recovery + self.recovery
+
+
+def read_enemy_kinds(root: str) -> Dict[str, EnemyKind]:
+    """Parse the enemy definition assets.
+
+    The level reasons about enemies — how far they see, how long they pause — so the numbers have
+    to come from the same asset the game reads, exactly like the player's tuning. A hard-coded
+    copy here would drift the first time somebody retuned the archetype.
+    """
+    folder = os.path.join(root, "Assets/Aether/Resources/Content/Enemies")
+    kinds: Dict[str, EnemyKind] = {}
+    if not os.path.isdir(folder):
+        return kinds
+
+    def number(text: str, key: str, default: float) -> float:
+        match = re.search(rf"^\s*{re.escape(key)}:\s*(-?[0-9.]+)", text, re.M)
+        return float(match.group(1)) if match else default
+
+    # Every asset by guid, so an archetype's attack reference can be followed to its timeline.
+    by_guid: Dict[str, str] = {}
+    content_root = os.path.join(root, "Assets/Aether/Resources/Content")
+    for walk_root, _dirs, files in os.walk(content_root):
+        for name in files:
+            if not name.endswith(".asset.meta"):
+                continue
+            found = re.search(r"^guid: ([0-9a-f]{32})$",
+                              open(os.path.join(walk_root, name), encoding="utf-8").read(), re.M)
+            if found:
+                by_guid[found.group(1)] = os.path.join(walk_root, name[:-5])
+
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(".asset"):
+            continue
+        path = os.path.join(folder, name)
+        text = open(path, encoding="utf-8").read()
+        type_match = re.search(r"^\s*_typeId:\s*(\S+)", text, re.M)
+        if not type_match:
+            continue
+        type_id = type_match.group(1)
+
+        reference = re.search(r"^\s*_attack:\s*\{fileID: (\d+), guid: ([0-9a-f]{32})", text, re.M)
+        attack_text = ""
+        has_attack = bool(reference) and reference.group(1) != "0"
+        if has_attack:
+            attack_path = by_guid.get(reference.group(2))
+            if attack_path and os.path.exists(attack_path):
+                attack_text = open(attack_path, encoding="utf-8").read()
+            else:
+                has_attack = False
+
+        kinds[type_id] = EnemyKind(
+            type_id=type_id,
+            path=os.path.relpath(path, root).replace(os.sep, "/"),
+            max_health=number(text, "_maxHealth", 1.0),
+            detection_range=number(text, "_detectionRange", 0.0),
+            detection_height=number(text, "_detectionHeight", 0.0),
+            move_speed=number(text, "_moveSpeed", 0.0),
+            attack_range=number(text, "_attackRange", 0.0),
+            windup=number(text, "_attackWindupDelay", 0.0),
+            recovery=number(text, "_recoveryPause", 0.0),
+            patrol_distance=int(number(text, "_patrolDistance", 0.0)),
+            has_attack=has_attack,
+            attack_id=(re.search(r"^\s*_id:\s*(\S+)", attack_text, re.M).group(1)
+                       if attack_text else ""),
+            attack_startup=number(attack_text, "_startup", 0.0),
+            attack_active=number(attack_text, "_active", 0.0),
+            attack_recovery=number(attack_text, "_recovery", 0.0),
+            attack_damage=number(attack_text, "_damage", 0.0),
+        )
+    return kinds
+
+
+def _seen_by(entity: LevelEntity, kind: EnemyKind, col: int, row: float) -> bool:
+    """Would this enemy notice a player standing at (col, row)?"""
+    dx = abs(col - entity.x)
+    dy = abs(row - entity.y)
+    return dx <= kind.detection_range and dy <= kind.detection_height
+
+
+def check_encounters(level: Level, kinds: Dict[str, EnemyKind]) -> Tuple[List[str], List[str]]:
+    """Encounter pacing and fairness, using the enemies' real senses.
+
+    Returns (problems, notes). A problem is something that makes the level unfair or unreadable; a
+    note is something true about the pacing that a designer should see but that no rule can judge.
+    """
+    problems: List[str] = []
+    notes: List[str] = []
+
+    enemies = [e for e in level.entities if e.kind == "Enemy"]
+    if not enemies:
+        return problems, notes
+
+    def kind_of(entity: LevelEntity) -> EnemyKind:
+        return kinds.get(entity.attrs.get("type", ""))
+
+    # 1. Two encounters must not be able to see the same tile. A fight the player has just survived
+    #    must not hand them straight to the next one.
+    for i, a in enumerate(enemies):
+        kind_a = kind_of(a)
+        if kind_a is None:
+            continue
+        for b in enemies[i + 1:]:
+            kind_b = kind_of(b)
+            if kind_b is None:
+                continue
+            # Tiles both enemies can see, on the ground either of them stands on.
+            overlap = []
+            for col in range(max(0, min(a.x, b.x) - 12), min(level.width, max(a.x, b.x) + 13)):
+                for row in (a.y, b.y):
+                    if _seen_by(a, kind_a, col, row) and _seen_by(b, kind_b, col, row):
+                        overlap.append((col, row))
+            if overlap:
+                col, row = overlap[0]
+                problems.append(
+                    f"encounters '{a.id}' and '{b.id}' both see ({col},{row}): the player can be "
+                    f"attacked by the second before the first is over, with no safe ground between")
+
+    # 2. Respawning must not put the player inside somebody's senses.
+    for entity in level.entities:
+        if entity.kind != "Checkpoint":
+            continue
+        respawn = entity.attrs.get("respawn")
+        if not respawn:
+            continue
+        try:
+            rx, ry = (int(v) for v in respawn.split(":"))
+        except ValueError:
+            problems.append(f"checkpoint '{entity.id}' has an unreadable respawn '{respawn}'")
+            continue
+
+        for enemy in enemies:
+            kind = kind_of(enemy)
+            if kind is None:
+                continue
+            if _seen_by(enemy, kind, rx, ry):
+                problems.append(
+                    f"checkpoint '{entity.id}' respawns the player at ({rx},{ry}), where "
+                    f"'{enemy.id}' already has them in sight: dying would be punished twice")
+
+    # 3. The exit must be reachable without fighting, and must read as an arrival.
+    exit_entity = next((e for e in level.entities if e.kind == "Exit"), None)
+    if exit_entity is not None:
+        for enemy in enemies:
+            kind = kind_of(enemy)
+            if kind is None:
+                continue
+            if _seen_by(enemy, kind, exit_entity.x, exit_entity.y):
+                problems.append(
+                    f"the exit at ({exit_entity.x},{exit_entity.y}) is inside '{enemy.id}'s "
+                    "senses, so the region ends in a fight the player did not choose")
+
+    # 3b. An enemy with no attack teaches nothing: it can chase, but the player never has to learn
+    #     when to dodge, and there is no recovery to punish.
+    for enemy in enemies:
+        kind = kind_of(enemy)
+        if kind is not None and not kind.has_attack:
+            problems.append(
+                f"enemy '{enemy.id}' uses archetype '{enemy.attrs.get('type')}', which points at no "
+                "attack: it can chase but it cannot attack, so the encounter cannot teach its lesson")
+
+    # 3c. The counter-attack window has to be felt. If the enemy is only open for less time than it
+    #     spent warning the player, the fight teaches dodging and never teaches punishing, which is
+    #     the second half of what the first encounter exists for.
+    for enemy in enemies:
+        kind = kind_of(enemy)
+        if kind is None or not kind.has_attack:
+            continue
+        if kind.counter_window <= kind.telegraph:
+            problems.append(
+                f"enemy '{enemy.id}': telegraph {kind.telegraph:.2f}s vs counter window "
+                f"{kind.counter_window:.2f}s — the enemy is open for less time than it warned for, "
+                "so punishing a miss is not something the player can learn here")
+
+    # 4. Escalation, reported honestly. If every encounter uses one archetype with one set of
+    #    numbers, then difficulty cannot be coming from stats — it is coming from placement, which
+    #    is the design the milestone asks for. If that ever stops being true, say so.
+    used = {}
+    for enemy in enemies:
+        name = enemy.attrs.get("type", "?")
+        used[name] = used.get(name, 0) + 1
+    if len(used) == 1:
+        type_id = next(iter(used))
+        kind = kinds.get(type_id)
+        if kind is not None:
+            notes.append(
+                f"all {used[type_id]} encounters use '{type_id}' with identical numbers "
+                f"(hp {kind.max_health:g}, speed {kind.move_speed:g}, sight "
+                f"{kind.detection_range:g}x{kind.detection_height:g}): escalation is positional, "
+                "not statistical")
+    else:
+        notes.append("encounters use more than one archetype: " +
+                     ", ".join(f"{name} x{count}" for name, count in sorted(used.items())))
+
+    # 5. Per-encounter context: what the fight actually is.
+    for index, enemy in enumerate(enemies):
+        kind = kind_of(enemy)
+        if kind is None:
+            continue
+        patrol = enemy.attrs.get("patrol", "0")
+        previous = enemies[index - 1] if index > 0 else None
+        spacing = f"{abs(enemy.x - previous.x)} tiles from '{previous.id}'" if previous else \
+            "the first encounter"
+        if kind.has_attack:
+            notes.append(
+                f"'{enemy.id}' at ({enemy.x},{enemy.y}) patrol {patrol}: {spacing}; attack "
+                f"'{kind.attack_id}' — telegraph {kind.telegraph:.2f}s "
+                f"({kind.windup:g}s approach + {kind.attack_startup:g}s wind-up), hit frame "
+                f"{kind.attack_active:g}s, counter window {kind.counter_window:.2f}s, "
+                f"{kind.attack_damage:g} damage")
+        else:
+            notes.append(
+                f"'{enemy.id}' at ({enemy.x},{enemy.y}) patrol {patrol}: {spacing}, no attack")
+
+    return problems, notes
+
+
+def check_secret(level: Level, solver: Solver) -> Tuple[List[str], List[str]]:
+    """Whether the level's first secret behaves like a secret.
+
+    Two things are decidable: it must not sit on the route to the exit, and getting to it must
+    cost something the main path does not — otherwise it is a thing the player passes anyway.
+    Whether it *feels* hidden needs eyes, and is reported as such.
+    """
+    problems: List[str] = []
+    notes: List[str] = []
+
+    discoveries = [e for e in level.entities if e.kind == "Discovery"]
+    if not discoveries:
+        return problems, notes
+
+    start = next((e for e in level.entities if e.kind == "PlayerStart"), None)
+    exit_entity = next((e for e in level.entities if e.kind == "Exit"), None)
+    if start is None or exit_entity is None:
+        return problems, notes
+
+    start_node = solver.nearest_node(start.x, start.y)
+    exit_node = solver.nearest_node(exit_entity.x, exit_entity.y)
+    if start_node is None or exit_node is None:
+        return problems, notes
+
+    exit_route = solver.search(start_node, exit_node, walk_only=False)
+    if exit_route is not None:
+        travelled = {start_node} | {edge.target for edge in exit_route}
+    else:
+        travelled = set()
+
+    for discovery in discoveries:
+        node = solver.nearest_node(discovery.x, discovery.y)
+        if node is None:
+            problems.append(f"discovery '{discovery.id}' is not on a tile the player can stand on")
+            continue
+
+        route = solver.search(start_node, node, walk_only=False)
+        if route is None:
+            problems.append(
+                f"discovery '{discovery.id}' at ({discovery.x},{discovery.y}) cannot be reached "
+                "at all from the start")
+            continue
+
+        jumps = sum(edge.jumps for edge in route)
+        if jumps == 0:
+            # The only thing standing between the player and this secret is the walk itself, so it
+            # is not hidden — it is on the way, and the region's first discovery is supposed to
+            # reward looking rather than passing through.
+            problems.append(
+                f"discovery '{discovery.id}' at ({discovery.x},{discovery.y}) can be reached "
+                "without jumping at all: it is not hidden, it is on the floor the player already "
+                "walks along")
+            continue
+
+        if node in travelled:
+            problems.append(
+                f"discovery '{discovery.id}' at ({discovery.x},{discovery.y}) sits on the "
+                "cheapest route to the exit, so every player walks over it")
+            continue
+
+        notes.append(
+            f"'{discovery.id}' at ({discovery.x},{discovery.y}) is off the exit route: "
+            f"{len(route)} hop(s) and {jumps} jump(s) of detour, so it is found by exploring "
+            "rather than by passing through")
+        notes.append(
+            f"whether '{discovery.id}' is hidden from the path is a sight-line question this tool "
+            "cannot answer: it compares tiles, not what the camera renders. Confirm in the Editor.")
+
+    return problems, notes
+
+
 def check_claims(level: Level, solver: Solver) -> List[ClaimResult]:
     results: List[ClaimResult] = []
     for claim in level.claims:
@@ -1001,16 +1322,14 @@ def structural_problems(level: Level) -> List[str]:
     return problems
 
 
-def orphan_nodes(level: Level, solver: Solver) -> List[str]:
-    """Standable tiles the player can never reach. A tile that is standable but sealed off is
-    either a bug or a description of a secret reachable another way; either way it is worth
-    being told about."""
+def reachable_nodes(level: Level, solver: Solver) -> set:
+    """Every standable tile the player can actually get to from the start."""
     start_entity = next((e for e in level.entities if e.kind == "PlayerStart"), None)
     if start_entity is None:
-        return []
+        return set()
     start = solver.nearest_node(start_entity.x, start_entity.y)
     if start is None:
-        return []
+        return set()
     graph = solver.edges()
     seen = {start}
     stack = [start]
@@ -1020,12 +1339,75 @@ def orphan_nodes(level: Level, solver: Solver) -> List[str]:
             if edge.target not in seen:
                 seen.add(edge.target)
                 stack.append(edge.target)
-    orphans = [n for n in solver.stand_nodes() if n not in seen]
-    return [f"({n.col},{n.row})" for n in orphans]
+    return seen
 
 
-def report(level: Level, solver: Solver) -> Tuple[List[ClaimResult], List[str], List[str]]:
-    return check_claims(level, solver), structural_problems(level), orphan_nodes(level, solver)
+def classify_orphans(level: Level, solver: Solver) -> Tuple[List[str], List[str]]:
+    """Split unreachable standable tiles into real problems and explained ones.
+
+    The distinction is whether the tile *looks* reachable. A wall crown eight tiles above the
+    only floor the player can stand on is not a place anyone expects to go: it is architecture.
+    A ledge one or two tiles past a gap is a place the player will absolutely try to reach, so
+    being unable to is a level bug.
+
+    The test uses the solver's own numbers rather than a new constant: a tile counts as
+    reachable-looking when some reachable surface sits within one jump of it — `jump_height`
+    tiles in any direction, since that is the distance the tuning itself calls a jump.
+
+    Returns (problems, explained).
+    """
+    reachable = reachable_nodes(level, solver)
+    if not reachable:
+        return [], []
+
+    envelope = solver.tuning.jump_height
+    problems: List[str] = []
+    explained: List[str] = []
+
+    for node in solver.stand_nodes():
+        if node in reachable:
+            continue
+
+        nearest = None
+        nearest_gap = None
+        for other in reachable:
+            dx = abs(other.col - node.col)
+            dy = abs(other.row - node.row)
+            # Chebyshev distance reads as "how far do I have to travel", which is the question a
+            # player asks when they look at a ledge.
+            gap = max(dx, dy)
+            if nearest_gap is None or gap < nearest_gap:
+                nearest_gap = gap
+                nearest = (other, dx, dy)
+
+        label = f"({node.col},{node.row})"
+        if nearest is not None and nearest_gap <= envelope:
+            other, dx, dy = nearest
+            problems.append(
+                f"{label} is unreachable but looks reachable: the player can stand on "
+                f"({other.col},{other.row}) just {dx} across and {dy} up, inside the "
+                f"{envelope:g}-tile jump envelope, and still cannot get there")
+        else:
+            other, dx, dy = nearest
+            explained.append(
+                f"{label}: {nearest_gap} tiles from the nearest reachable surface "
+                f"({other.col},{other.row}) — further than the {envelope:g}-tile jump envelope, "
+                "so it is out of reach by design rather than sealed off")
+
+    return problems, explained
+
+
+def report(level: Level, solver: Solver, root: str) -> Tuple[
+        List[ClaimResult], List[str], List[str], List[str]]:
+    """Every check, in one place: claims, structure, reachability, encounters, the secret."""
+    kinds = read_enemy_kinds(root)
+    encounter_problems, encounter_notes = check_encounters(level, kinds)
+    secret_problems, secret_notes = check_secret(level, solver)
+    orphan_problems, orphan_notes = classify_orphans(level, solver)
+
+    problems = structural_problems(level) + encounter_problems + secret_problems
+    notes = encounter_notes + secret_notes + orphan_notes
+    return check_claims(level, solver), problems, orphan_problems, notes
 
 
 def main() -> int:
@@ -1058,15 +1440,17 @@ def main() -> int:
           f"air dodge {tuning.allow_air_dodge}")
     print()
 
-    results, problems, orphans = report(level, solver)
+    results, problems, orphan_problems, notes = report(level, solver, root)
     for result in results:
         print(f"  {'OK  ' if result.ok else 'FAIL'} {result.describe()}")
     print()
+    problems = problems + orphan_problems
     for problem in problems:
         print(f"  STRUCTURAL {problem}")
-    if orphans:
-        print(f"  {len(orphans)} standable tile(s) not connected to the start: "
-              f"{', '.join(orphans[:12])}{' ...' if len(orphans) > 12 else ''}")
+    if notes:
+        print("  pacing, encounters and secrets:")
+        for note in notes:
+            print(f"    - {note}")
     failed = [r for r in results if not r.ok]
     print()
     print(f"{len(results) - len(failed)}/{len(results)} traversal claims proven, "

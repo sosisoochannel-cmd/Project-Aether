@@ -675,18 +675,20 @@ namespace Aether.Data.Levels
         }
 
         /// <summary>
-        /// Standable tiles the player can never reach. Wall tops are expected here; a tile inside
-        /// the play space is a piece of level that has been sealed off by accident.
+        /// Every standable tile the player can actually get to from the level's start.
         /// </summary>
-        public List<PlayableNode> UnreachableTiles()
+        public HashSet<PlayableNode> ReachableTiles()
         {
-            var unreachable = new List<PlayableNode>();
+            var visited = new HashSet<PlayableNode>();
             LevelEntity startEntity = _level.PlayerStart;
-            if (startEntity == null) return unreachable;
-            if (!TryFindNearestNode(startEntity.Position.x, startEntity.Position.y, out PlayableNode start)) return unreachable;
+            if (startEntity == null) return visited;
+            if (!TryFindNearestNode(startEntity.Position.x, startEntity.Position.y, out PlayableNode start))
+            {
+                return visited;
+            }
 
             Dictionary<PlayableNode, List<TraversalEdge>> graph = BuildGraph();
-            var visited = new HashSet<PlayableNode> { start };
+            visited.Add(start);
             var stack = new Stack<PlayableNode>();
             stack.Push(start);
             while (stack.Count > 0)
@@ -698,12 +700,101 @@ namespace Aether.Data.Levels
                     if (visited.Add(outgoing[i].Target)) stack.Push(outgoing[i].Target);
                 }
             }
+            return visited;
+        }
 
-            foreach (PlayableNode node in StandNodes())
+        /// <summary>
+        /// Standable tiles the player can never reach. Wall tops are expected here; a tile inside
+        /// the play space is a piece of level that has been sealed off by accident.
+        /// </summary>
+        public List<PlayableNode> UnreachableTiles()
+        {
+            HashSet<PlayableNode> reachable = ReachableTiles();
+            var unreachable = new List<PlayableNode>();
+            List<PlayableNode> nodes = StandNodes();
+            for (int i = 0; i < nodes.Count; i++)
             {
-                if (!visited.Contains(node)) unreachable.Add(node);
+                if (!reachable.Contains(nodes[i])) unreachable.Add(nodes[i]);
             }
             return unreachable;
+        }
+
+        /// <summary>
+        /// Unreachable tiles that look reachable, and so are level bugs rather than scenery.
+        /// </summary>
+        /// <remarks>
+        /// A wall crown eight tiles above the only floor the player can stand on is architecture;
+        /// a ledge one tile past a gap is a place the player will absolutely try to reach. The
+        /// test is the tuning's own jump height: anything within one jump of reachable ground in
+        /// any direction is somewhere the player will expect to get to.
+        /// </remarks>
+        public List<string> UnreachableProblems()
+        {
+            var problems = new List<string>();
+            HashSet<PlayableNode> reachable = ReachableTiles();
+            if (reachable.Count == 0) return problems;
+
+            List<PlayableNode> nodes = StandNodes();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                PlayableNode node = nodes[i];
+                if (reachable.Contains(node)) continue;
+
+                int gap = NearestReachableGap(node, reachable, out int col, out int row);
+                if (gap > _tuning.JumpHeight + Epsilon) continue;
+
+                problems.Add(
+                    $"({node.Col},{node.Row}) is unreachable but looks reachable: the player can " +
+                    $"stand on ({col},{row}) just {gap} tiles away, inside the " +
+                    $"{_tuning.JumpHeight:0.##}-tile jump envelope, and still cannot get there");
+            }
+            return problems;
+        }
+
+        /// <summary>Unreachable tiles that are explained by being out of reach by design.</summary>
+        public List<string> UnreachableNotes()
+        {
+            var notes = new List<string>();
+            HashSet<PlayableNode> reachable = ReachableTiles();
+            if (reachable.Count == 0) return notes;
+
+            List<PlayableNode> nodes = StandNodes();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                PlayableNode node = nodes[i];
+                if (reachable.Contains(node)) continue;
+
+                int gap = NearestReachableGap(node, reachable, out int col, out int row);
+                if (gap <= _tuning.JumpHeight + Epsilon) continue;
+
+                notes.Add($"({node.Col},{node.Row}): {gap} tiles from the nearest reachable " +
+                          $"surface ({col},{row}) — further than the {_tuning.JumpHeight:0.##}-tile " +
+                          "jump envelope, so it is out of reach by design rather than sealed off");
+            }
+            return notes;
+        }
+
+        /// <summary>
+        /// Chebyshev distance to the nearest reachable tile: how far the player has to travel,
+        /// which is the question they ask when they look at a ledge.
+        /// </summary>
+        private static int NearestReachableGap(PlayableNode node, HashSet<PlayableNode> reachable,
+                                               out int col, out int row)
+        {
+            col = 0;
+            row = 0;
+            int best = int.MaxValue;
+            foreach (PlayableNode other in reachable)
+            {
+                int dx = Math.Abs(other.Col - node.Col);
+                int dy = Math.Abs(other.Row - node.Row);
+                int gap = dx > dy ? dx : dy;
+                if (gap >= best) continue;
+                best = gap;
+                col = other.Col;
+                row = other.Row;
+            }
+            return best;
         }
 
         private readonly struct RouteCost

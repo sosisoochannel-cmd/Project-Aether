@@ -33,6 +33,12 @@ namespace Aether.Gameplay.Levels
         /// <summary>True once this checkpoint has been activated in this session.</summary>
         public bool Activated { get; private set; }
 
+        /// <summary>
+        /// Raised with true when the checkpoint takes, and false when it is re-armed for a retry.
+        /// Presentation listens; nothing in the retry flow depends on anyone listening.
+        /// </summary>
+        public event System.Action<bool> ActivatedChanged;
+
         /// <summary>Called by the level builder. Everything needed comes from the entity.</summary>
         public void Configure(LevelEntity entity, Vector2 feet)
         {
@@ -51,6 +57,7 @@ namespace Aether.Gameplay.Levels
 
             Activated = true;
             session.ActivateCheckpoint(_entity.Id, _feet);
+            ActivatedChanged?.Invoke(true);
         }
 
         /// <summary>
@@ -60,7 +67,9 @@ namespace Aether.Gameplay.Levels
         /// </summary>
         public void Rearm()
         {
+            if (!Activated) return;
             Activated = false;
+            ActivatedChanged?.Invoke(false);
         }
     }
 }

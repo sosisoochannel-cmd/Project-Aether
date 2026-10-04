@@ -219,28 +219,83 @@ Applying these from the start, without premature micro-optimisation:
 
 ---
 
+## 6b. Presentation: gameplay is never read by it, and never waits for it
+
+The Greenway is drawn with placeholders, and placeholders still have to *communicate*. The rule
+that keeps that from leaking rules into art code:
+
+> **Gameplay publishes events; presentation subscribes. Gameplay never knows presentation exists.**
+
+| Component | Reads | Owns |
+|---|---|---|
+| `EnemyTelegraph` | `StateChanged`, `PlayerSpotted`, `AttackStartupProgress`, `Damaged`, `Died` | the enemy's colour and scale |
+| `PlayerFeedback` | `Damaged`, `HealthChanged`, `Died`, `AttackStarted`, `HitLanded` | the player's colour and scale |
+| `CheckpointView` | `CheckpointTrigger.ActivatedChanged` | the checkpoint ring's colour |
+| `LevelPalette` | nothing | every placeholder colour in one file |
+
+Three consequences worth stating:
+
+1. **No timing lives in presentation.** Delete all three components and the enemy fights
+   identically; that is the test for whether presentation has stayed presentation. In particular
+   the wind-up ramp reads `AttackStartupProgress` from the shared `AttackRunner` — it does not
+   model the attack a second time.
+2. **They switch themselves off.** Each animates only while something is actually changing, then
+   sets `enabled = false` and waits for the next event. An idle level costs nothing per frame,
+   which matters more than it looks on a phone.
+3. **The palette is shared with the bake.** `LevelPalette` is read by the runtime builder *and*
+   the Editor bake, so the scene an artist opens and the game the player sees agree on what a
+   checkpoint looks like. Replacing placeholders with art means editing this one file.
+
+The visual vocabulary the first encounter teaches, in one sentence: **warm and bright means
+danger, dull and cool means it is safe to approach, and the shape says what a thing is.**
+
 ## 7. Verification strategy
 
-Three gates, all runnable without a Unity licence:
+### The three levels of verification, never substituted for each other
+
+| Level | What it can prove | Tools |
+|---|---|---|
+| **Static / tooling** | references, assemblies, symbols, asset fields, level reachability, encounter fairness, touch layout | the five commands below |
+| **Unity Editor** | that it imports, compiles, and plays | **not run: no Editor in this environment** |
+| **Android device** | that it builds, launches, and feels right in a hand | **not run: no device in this environment** |
+
+Nothing in the first row is evidence for the second or third. A green run below means the data,
+the references and the geometry are sound — nothing more, and every report says so explicitly.
+
+### The gates
 
 ```
 python3 tools/verify/gen_meta.py --check         # every asset has a .meta
-python3 tools/verify/verify.py                   # assets, assemblies, project-type symbols
+python3 tools/verify/verify.py                   # assets, assemblies, symbols, asset fields
 python3 tools/verify/levelcheck.py               # the level is playable, proven by simulation
-python3 tools/verify/negative_controls.py        # the gates above actually fail when they should
+python3 tools/verify/touchlayout.py              # the touch layout is usable, proven by geometry
+python3 tools/verify/negative_controls.py        # the tools above actually fail when they should
 ```
+
+`levelcheck.py` proves more than reachability: it reads the enemy archetypes *and the attack
+timeline they point at* and checks the things that make an encounter teach — an enemy with no
+attack, two encounters that can see the same ground, a checkpoint that respawns the player inside
+an enemy's senses, an exit inside a fight, and a counter window shorter than the telegraph that
+preceded it. It also reports the pacing it can see (spacing, detours, telegraph and recovery
+times) and names the things only a person can judge.
 
 **The gates are validated against injected faults.** `negative_controls.py` copies the
 repository to a temporary directory, injects one fault at a time — a dangling GUID, a missing
 `.meta`, a call to a member that does not exist, a wrong argument count, an empty folder, an
-illegal cross-assembly reference written both with `using` and inline, a gap widened until the
-exit is unreachable, a step added to a `must=walk` route, the canopy route to the secret
-removed, an entity inside solid rock, an unknown tile character — and asserts that the matching
-tool reports it. It touches nothing in the working tree. Twelve controls, all detected at the
-time of writing.
+illegal cross-assembly reference written both with `using` and inline, a bogus member reached
+through a `foreach` variable, a bogus member on a type whose name is shared by two nested
+classes, an asset key that does not exist on its script, a gap widened until the exit is
+unreachable, a step added to a `must=walk` route, the canopy route to the secret removed, an
+entity inside solid rock, an unknown tile character, a platform nothing can reach, an archetype
+with no attack, an enemy open for less time than it warned for, two encounters that can see the
+same ground, a checkpoint respawning into an enemy's sight, an exit inside a fight, a secret
+reachable without jumping — and asserts that the matching tool reports it. Two controls assert
+the *opposite* direction, that a legitimate shape produces no complaint at all, because an
+over-eager verifier is as broken as a blind one. It touches nothing in the working tree.
+Twenty-three controls, all detected at the time of writing.
 
-Two checks were added to `verify.py` because those controls failed the first time they were
-run: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves
+Several checks were added because a control failed the first time it was run, which is the
+whole point of having them: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves
 it to nothing and the asset silently loses a field; and cross-assembly visibility is enforced
 for **fully-qualified references**, not just `using` directives. A verifier whose own holes are
 unknown is not a verifier.
@@ -248,6 +303,15 @@ unknown is not a verifier.
 `verify.py`'s scope and blind spots are documented in §0. Everything the gates cannot see —
 Unity API signatures, import behaviour, Play Mode, touch on a device — is listed as
 not verified in every report rather than assumed.
+
+**The gates get stronger when they are wrong, not quieter.** Writing the negative controls for
+this milestone exposed four defects in the tools themselves: a dangling GUID was only a warning
+when Unity treats it as a silent data loss; cross-assembly visibility was enforced for `using`
+directives but not for fully-qualified references; any parenthesised text before a brace was
+parsed as a parameter list, so `foreach (PlayableNode other in reachable)` registered a parameter
+called `reachable` and produced failures that did not exist; and two nested classes with the same
+name in different controllers were treated as an ambiguity when C# resolves them by their
+containing type. Each was fixed at the root, and each fix is covered by a control.
 
 **The first Unity Editor import remains the real test.** No claim of "compiles" or "play
 mode tested" is made until someone has actually opened the project.

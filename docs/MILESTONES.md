@@ -5,16 +5,22 @@ Ordering is deliberate: **the thing that makes everything else verifiable is bui
 
 ```
 M0  Foundation ...................... DONE
-M1  Core architecture + player ...... DONE  <- this milestone
-M2  Level pipeline + The Greenway ... DONE (see notes)
-M3  Enemies + combat integration .... DONE
-M4  Whispering Woods + shortcut
+M1  Core architecture + player ...... DONE
+M2  Level pipeline + The Greenway ... DONE
+    M3 (enemy archetypes + combat) .. DONE  as M2's dependency
+M3  Greenway hardening ............. DONE
+M4  Whispering Woods + shortcut ..... NEXT
 M5  Old Settlement + NPC hook + secrets
 M6  Deep Forest + environmental storytelling
 M7  Root Guardian arena + 3-phase boss
 M8  Rootbind unlock + gated backtracking
 M9  Region exit + audit + docs
 ```
+
+> Every milestone so far is verified by static tooling only: **no Unity Editor and no Android
+> device exist in this environment**, so import, compilation, Play Mode, baking and device
+> behaviour are unverified and are reported as such in every milestone's report. See
+> `ARCHITECTURE.md` §7 for what each level of verification can and cannot prove.
 
 ### On the order
 
@@ -25,7 +31,11 @@ means the solver is written against real enemy behaviour instead of a placeholde
 
 M2 followed and closed the loop: the region is playable from `Boot.unity` with movement, combat,
 checkpoints, a secret and an exit, and the solver proves the level against the tuned player.
-The next region (M4) can now be authored entirely as data.
+
+M3 then hardened the region rather than extending it. The rule was *better before more*: the two
+defects that mattered most — an enemy that could not attack and a joystick that never moved — were
+found by making the tools ask harder questions, not by writing new features. The next region (M4)
+can now be authored entirely as data, and the tools will check it as strictly as this one.
 
 ---
 
@@ -176,7 +186,60 @@ problems. The tightest jump on the route clears 2.50 of 4.14 available, leaving 
 controls on a device, and every Unity API signature. No claim of "compiles" or "playtested" is
 made anywhere in this milestone's report; see the report's two-part structure.
 
-## M3 — Enemies + combat integration
+## M3 — The Greenway gameplay hardening and first-play quality
+
+The region already existed and was already provable; this milestone made it *good to play* without
+adding content. Nothing new was built: no region, no ability, no boss, no story system.
+
+**Fixed — real defects found by looking, not by adding**
+
+| Defect | Why it mattered |
+|---|---|
+| `ForestStalker` pointed at **no attack asset** | The Forest Stalker could chase but never attack, so the first encounter — the one whose whole job is teaching when to dodge and when to punish — taught nothing. Found by a new gate check, not by reading code. |
+| The floating stick **never followed the thumb** | `RefreshLayout` returned early whenever the screen size was unchanged, so the joystick's base and knob stayed at their rest position. Input worked; the visual that tells the player what their thumb is doing did not. |
+| Jump and attack **overlapped on a 4:3 tablet** | Horizontal fractions shrink with the screen, so two buttons 0.17 apart were 0.23 screen-heights apart instead of 0.38. Would only ever have been found on a tablet. |
+| No **safe-area** support | A notch or gesture bar could sit under a thumb control. |
+| **Focus loss** left input held | A phone call mid-jump left the stick tilted and a pending attack queued for the moment the player came back. |
+| The camera **flew across the region** on respawn | The view glided from wherever the player died to the checkpoint, which reads as losing your place. It now snaps. |
+| A dangling asset GUID was a **warning** | Unity resolves it to nothing and the field silently vanishes; now a failure. |
+| Cross-assembly visibility was not checked for **fully-qualified references** | Writing a namespace inline slipped past the gate that `using` could not. |
+
+**Combat readability, without a second combat system**
+
+`EnemyTelegraph` and `PlayerFeedback` subscribe to events the M2/M3 systems already publish
+(`StateChanged`, `AttackStartupProgress`, `PlayerSpotted`, `Damaged`, `Died`, `HitLanded`) and
+colour a square. No timing moved: the wind-up ramp reads the shared `AttackRunner`'s progress
+rather than modelling the attack again. The vocabulary is deliberate — bright and warm means
+danger now, dull and cool means the counter window is open — and each component disables itself
+once its colour settles, so an idle level costs nothing per frame. `CheckpointView` turns the ring
+white-cyan when the checkpoint takes, so the player can see that dying has become cheap.
+
+**Encounter design, proven rather than asserted**
+
+All three encounters use the *same archetype with identical numbers* (3 hp, 2.1 speed, sight
+5.5x1.6, 1 damage). Escalation cannot be statistical, so it comes from placement: a lone enemy with
+44 tiles of room, then a mesa with a 2-tile climb and a 1-tile patrol, then a corridor where the
+player must commit. `levelcheck.py` now proves the properties that make that work: no two
+encounters can see the same ground, no checkpoint respawns the player inside an enemy's senses,
+the exit is not inside a fight, every archetype points at a real attack, and every enemy's counter
+window is longer than its telegraph (0.90s against 0.38s here).
+
+**The secret**
+
+Now a gold diamond rather than a second round marker, hidden under the canopy above a rock
+overhang. The solver proves it is off the exit route (27 hops, 7 jumps of detour) and that
+reaching it takes jumps — a discovery you can walk to is not a secret, and that is now a failure
+rather than an opinion. Whether it is *hidden from the camera* is a sight-line question and is
+reported as one: **not verified**, because this tool compares tiles, not pixels.
+
+**Verification**
+
+Twenty-three negative controls, twelve of them new: the tools are only trusted where an injected
+fault has been seen to fail. Four of those controls found bugs in the tools themselves (see
+`ARCHITECTURE.md` §7). A fifth tool appeared — `tools/verify/touchlayout.py` — because a layout
+that is wrong on a tablet is wrong in a way no amount of reading finds.
+
+## M3 (original) — Enemies + combat integration
 
 - `Forest Stalker` — teaches timing and dodge.
 - `Thorn Crawler` — teaches positioning.

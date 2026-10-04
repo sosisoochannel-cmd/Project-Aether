@@ -444,11 +444,33 @@ class Project:
         self.types: dict[str, dict] = {}          # simple name -> type record
         self.by_namespace: dict[str, set[str]] = defaultdict(set)
         self.duplicate_types: list[str] = []
-        # Simple names declared in more than one namespace. Member access on these cannot be
-        # resolved without full namespace context, so checks involving them are skipped rather
-        # than guessed — a wrong guess would produce a false failure.
+        # Every declaration in the project, before nesting is resolved.
+        self.declarations: list[dict] = []
+        # Simple names declared as a top-level type in more than one namespace. Member access on
+        # these cannot be resolved without full namespace context, so checks involving them are
+        # skipped rather than guessed — a wrong guess would produce a false failure.
         self.ambiguous: set[str] = set()
+        # Simple names shared by several *nested* types. C# resolves these by their containing
+        # type, so they are not an ambiguity; they are merged here (see merge_sets) so that member
+        # checks stay sound instead of being skipped.
+        self.merged: list[str] = []
+        self.merge_sets: dict[str, list[dict]] = {}
         self.declared_namespaces: set[str] = set()
+
+    def records_for(self, name: str) -> list[dict]:
+        """Every declaration sharing a simple name, for names that cannot be told apart."""
+        if name in self.merge_sets:
+            return self.merge_sets[name]
+        record = self.types.get(name)
+        return [record] if record else []
+
+    def _merged_members(self, name: str) -> set[str]:
+        """Members of every declaration sharing the name, plus everything they inherit.
+
+        This is an over-approximation, which is the safe direction: a member that exists on any
+        declaration is accepted, and a name that exists on none of them is still a failure.
+        """
+        return {m["name"] for record in self.records_for(name) for m in record["members"]}
 
     def type_of(self, name: str) -> dict | None:
         if name in self.ambiguous:
@@ -464,40 +486,48 @@ class Project:
             return set()
         seen.add(type_name)
 
-        record = self.types.get(type_name)
-        if not record:
+        records = self.records_for(type_name)
+        if not records:
             return set()
 
-        names = {m["name"] for m in record["members"]} | INHERITED_MEMBERS
-        for base in record["bases"]:
-            if base in self.types:
-                names |= self.members_of(base, seen)
+        names = self._merged_members(type_name) | INHERITED_MEMBERS
+        for record in records:
+            for base in record["bases"]:
+                if base in self.types or base in self.merge_sets:
+                    names |= self.members_of(base, seen)
         return names
 
     def arity_of(self, type_name: str, member: str) -> tuple[int, int] | None:
         if type_name in self.ambiguous:
             return None
-        record = self.types.get(type_name)
-        if not record:
-            return None
-        for m in record["members"]:
-            if m["name"] == member and m["kind"] == "method":
-                return (m["min_args"], m["max_args"])
-        return None
+        widest: tuple[int, int] | None = None
+        for record in self.records_for(type_name):
+            for m in record["members"]:
+                if m["name"] != member or m["kind"] != "method":
+                    continue
+                call = (m["min_args"], m["max_args"])
+                if widest is None:
+                    widest = call
+                else:
+                    widest = (min(widest[0], call[0]), max(widest[1], call[1]))
+        return widest
 
     def declared_type_of(self, type_name: str, member: str) -> str | None:
         """Simple type name a field/property holds, when that type is one of ours."""
         if type_name in self.ambiguous:
             return None
 
-        record = self.types.get(type_name)
-        if not record:
-            return None
-        for m in record["members"]:
-            if m["name"] == member and m["type"]:
-                simple = simple_type_name(m["type"])
-                if simple in self.types and simple not in self.ambiguous:
-                    return simple
+        # With several declarations sharing a name the field or property type is only usable
+        # when they all agree; otherwise a following check would be guessing.
+        found = set()
+        for record in self.records_for(type_name):
+            for m in record["members"]:
+                if m["name"] == member and m["type"]:
+                    found.add(simple_type_name(m["type"]))
+        for simple in found:
+            if simple in self.types and simple not in self.ambiguous:
+                return None if len(found) > 1 else simple
+        return None
         return None
 
 
@@ -551,22 +581,81 @@ def collect_namespaces_and_types(path: str, code: str, project: Project) -> None
             "namespaces": namespaces,
             "bases": base_type_names(match.group("bases")),
             "members": members,
+            "container": None,
         }
+        # Attribution to a containing type needs every declaration in the file, so it happens in
+        # finalise_types() once the whole project has been parsed.
+        project.declarations.append(
+            {"path": path, "start": match.start(), "brace": brace, "close": close,
+             "record": record})
 
-        if name in project.types:
-            # Two types with the same simple name in *different* namespaces is legal C#. It is a
-            # resolution hazard rather than an error, so it is recorded as ambiguous and any
-            # member check that would have used it is skipped.
-            existing = project.types[name]
-            if set(existing["namespaces"]) != set(namespaces):
+
+def finalise_types(project: Project) -> None:
+    """Attribute every declaration to its container and build the simple-name lookup.
+
+    This is where C# nesting is modelled. A type declared inside another type is only visible by
+    simple name inside that container (or as ``Outer.Inner``), so two private ``DeadState``
+    classes nested in two different controllers are not an ambiguity — they cannot be confused.
+    Treating them as one was a false positive in this tool, not a problem in the code.
+
+    Names that genuinely cannot be told apart are handled in one of two ways:
+
+    * top-level types sharing a name in different namespaces are a real resolution hazard and are
+      recorded as ambiguous, so checks involving them are skipped;
+    * declarations sharing a name that are all nested are *merged*: a member is accepted if any
+      of them has it, and rejected only if none does. That over-approximates, which is the safe
+      direction, and it checks more than skipping them entirely would.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for declaration in project.declarations:
+        by_file[declaration["path"]].append(declaration)
+
+    for declarations in by_file.values():
+        for declaration in declarations:
+            # The innermost enclosing declaration is the container. An outer declaration always
+            # starts before a nested one, so comparing spans is enough.
+            container = None
+            for other in declarations:
+                if other is declaration:
+                    continue
+                if other["brace"] < declaration["start"] < other["close"]:
+                    if container is None or other["brace"] > container["brace"]:
+                        container = other
+            declaration["record"]["container"] = (
+                container["record"]["name"] if container else None)
+
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for declaration in project.declarations:
+        record = declaration["record"]
+        by_name[record["name"]].append(record)
+        for ns in record["namespaces"]:
+            project.by_namespace[ns].add(record["name"])
+
+    for name, records in by_name.items():
+        top_level = [r for r in records if r["container"] is None]
+        nested = [r for r in records if r["container"] is not None]
+
+        if not top_level:
+            # Every declaration is nested. Inside its own container each one resolves to itself,
+            # so they only need merging, never ambiguity handling.
+            project.types[name] = records[0]
+            if len(records) > 1:
+                project.merge_sets[name] = records
+                project.merged.append(name)
+            continue
+
+        project.types[name] = top_level[0]
+        if len(top_level) > 1:
+            namespaces = {ns for r in top_level for ns in r["namespaces"]}
+            if len(namespaces) > 1:
                 project.ambiguous.add(name)
             else:
                 project.duplicate_types.append(name)
-        else:
-            project.types[name] = record
-
-        for ns in namespaces:
-            project.by_namespace[ns].add(name)
+        if nested:
+            # A nested type shadowing a top-level name *is* context-dependent, so member checks
+            # on that name stay skipped.
+            project.merge_sets.pop(name, None)
+            project.ambiguous.add(name)
 
 
 def load_project() -> Project:
@@ -582,6 +671,7 @@ def load_project() -> Project:
             code = strip_noncode(raw)
             project.files[rel] = {"raw": raw, "code": code}
             collect_namespaces_and_types(rel, code, project)
+    finalise_types(project)
     return project
 
 
@@ -717,6 +807,86 @@ def check_guids(report: Report) -> None:
 
 
 ASMDEF_REQUIRED_KEYS = {"name"}
+
+
+ASSET_FIELD_RE = re.compile(r"^  (_[A-Za-z_][\w]*):", re.M)
+
+
+def check_asset_fields(report: Report, project: Project) -> None:
+    """Check that a serialized asset's field names exist on the script it points at.
+
+    This exists because of how forgiving Unity is: a key in a `.asset` file that does not match a
+    serialized field is **silently ignored**, so a typo means an asset that looks right, loads
+    without complaint, and quietly does nothing. For tuning that is worse than a crash — the level
+    was proven against the numbers in the file, and the game would be running on different ones.
+
+    The reverse direction is reported as a note: a serialized field with no key in the asset keeps
+    its C# initialiser, which is legitimate but worth knowing about.
+    """
+    script_by_guid: dict[str, str] = {}
+    for root, _dirs, files in os.walk(ASSETS):
+        for f in files:
+            if not f.endswith(".cs.meta"):
+                continue
+            meta = os.path.join(root, f)
+            found = GUID_DECL_RE.search(open(meta, encoding="utf-8").read())
+            if found:
+                script_by_guid[found.group(1)] = os.path.relpath(
+                    meta[:-5], REPO_ROOT).replace(os.sep, "/")
+
+    checked = 0
+    for root, _dirs, files in os.walk(ASSETS):
+        for f in sorted(files):
+            if not f.endswith(".asset"):
+                continue
+            path = os.path.join(root, f)
+            rel = os.path.relpath(path, REPO_ROOT).replace(os.sep, "/")
+            text = open(path, encoding="utf-8").read()
+            found = re.search(r"m_Script: \{fileID: 11500000, guid: ([0-9a-f]{32})", text)
+            if not found:
+                continue
+            script = script_by_guid.get(found.group(1))
+            if script is None or script not in project.files:
+                continue
+
+            # Unity's MonoScript for a file is the type whose name matches the file, which is the
+            # rule when a file declares more than one type (an enum next to a class, for example).
+            wanted = os.path.basename(script)[:-3]
+            type_name = None
+            fallback = None
+            for name, record in project.types.items():
+                if record["file"] != script:
+                    continue
+                if fallback is None:
+                    fallback = name
+                if name == wanted:
+                    type_name = name
+                    break
+            if type_name is None:
+                type_name = fallback
+            if type_name is None:
+                continue
+
+            checked += 1
+            members = project.members_of(type_name)
+            keys = ASSET_FIELD_RE.findall(text)
+            for key in keys:
+                if key not in members:
+                    report.fail(
+                        f"asset: '{rel}' sets '{key}', which does not exist on {type_name} "
+                        f"({script}). Unity ignores unknown keys, so this value would silently "
+                        "never apply")
+
+            missing = sorted(m for m in members - set(keys)
+                             if m.startswith("_") and not m.startswith("__"))
+            if missing:
+                report.note(
+                    f"asset: '{rel}' leaves {len(missing)} field(s) of {type_name} at their "
+                    f"C# defaults: {', '.join(missing[:6])}"
+                    + (" ..." if len(missing) > 6 else ""))
+
+    if checked:
+        report.note(f"asset: {checked} serialized asset(s) reference fields that exist")
 
 
 def check_asmdefs(report: Report, project: Project) -> None:
@@ -875,9 +1045,27 @@ def check_symbols(report: Report, project: Project) -> None:
     for rel, entry in project.files.items():
         code = entry["code"]
 
-        # Build the scope of resolvable names for this file: its own fields/properties plus
-        # method parameters whose type is one of our types.
-        scope: dict[str, str] = {}
+        # Build the scope of resolvable names for this file: fields, properties, method
+        # parameters and foreach variables whose type is one of our types.
+        #
+        # Two rules keep this from inventing false failures:
+        #
+        #   * only real parameter lists count. An earlier version treated every parenthesised
+        #     text followed by a brace as one, so `foreach (PlayableNode other in reachable)`
+        #     registered a parameter called `reachable` of type PlayableNode and then reported
+        #     that PlayableNode has no member `Contains`. Control-flow keywords are excluded
+        #     here, and foreach headers are read for what they actually declare.
+        #
+        #   * a name declared with different types in different places is dropped rather than
+        #     guessed. The model is file-global while C# is not, so `other` may be a RouteCost in
+        #     one method and a PlayableNode in another; when that happens the name is unknown and
+        #     checks involving it are skipped, which under-reports instead of lying.
+        #
+        # UNKNOWN is recorded for declarations whose type this tool does not model. It matters:
+        # `candidate` is a PlayableNode in one loop and a KeyValuePair<...> in another, and
+        # without the marker the PlayableNode declaration would look like the only one.
+        unknown = "?"
+        candidates: dict[str, set[str]] = defaultdict(set)
 
         for type_name, record in project.types.items():
             if record["file"] != rel:
@@ -885,11 +1073,14 @@ def check_symbols(report: Report, project: Project) -> None:
             for m in record["members"]:
                 if m["kind"] in ("field", "property") and m["type"]:
                     simple = simple_type_name(m["type"])
-                    if simple in project.types:
-                        scope[m["name"]] = simple
+                    candidates[m["name"]].add(simple if simple in project.types else unknown)
 
-        for match in re.finditer(r"\(([^()]*)\)\s*(?:\{|=>)", code):
-            for param in split_top_level(match.group(1)):
+        not_parameters = {"if", "while", "for", "foreach", "switch", "catch", "using", "lock",
+                          "fixed", "checked", "unchecked", "when", "return", "do", "else", "in"}
+        for match in re.finditer(r"(?<![\w.])([A-Za-z_]\w*)\s*\(([^()]*)\)\s*(?:\{|=>)", code):
+            if match.group(1) in not_parameters:
+                continue
+            for param in split_top_level(match.group(2)):
                 param = param.strip()
                 if not param:
                     continue
@@ -898,8 +1089,21 @@ def check_symbols(report: Report, project: Project) -> None:
                     continue
                 simple = simple_type_name(bits[0])
                 pname = bits[1].strip()
-                if simple in project.types and re.fullmatch(r"[A-Za-z_]\w*", pname):
-                    scope[pname] = simple
+                if not re.fullmatch(r"[A-Za-z_]\w*", pname):
+                    continue
+                candidates[pname].add(simple if simple in project.types else unknown)
+
+        # foreach (PlayableNode node in nodes) — the loop variable is a real declaration, and
+        # reading it makes member checks *stronger*: what it points at is now known.
+        for match in re.finditer(
+                r"\bforeach\s*\(\s*([A-Za-z_][\w.]*(?:<[^<>]*>)?)\s+([A-Za-z_]\w*)\s+in\b", code):
+            simple = simple_type_name(match.group(1))
+            candidates[match.group(2)].add(simple if simple in project.types else unknown)
+
+        scope: dict[str, str] = {}
+        for name, types in candidates.items():
+            if len(types) == 1:
+                scope[name] = next(iter(types))
 
         for match in IDENT_CHAIN_RE.finditer(code):
             chain = match.group(1).split(".")
@@ -995,6 +1199,12 @@ def check_namespace_hygiene(report: Report, project: Project) -> None:
         for name in sorted(set(project.duplicate_types)):
             report.fail(f"symbol: type '{name}' is declared more than once in the same namespace")
 
+    if project.merged:
+        report.note(
+            f"symbol: {len(project.merged)} nested type name(s) declared in more than one "
+            "container are merged for member checking (C# resolves them by their outer type, so "
+            "this is not an error)")
+
     if project.ambiguous:
         report.note(
             f"symbol: {len(project.ambiguous)} simple type name(s) declared in more than one "
@@ -1020,6 +1230,7 @@ def main() -> int:
     check_guids(report)
     check_syntax(report, project)
     check_asmdefs(report, project)
+    check_asset_fields(report, project)
     check_symbols(report, project)
     check_lints(report, project)
     check_namespace_hygiene(report, project)

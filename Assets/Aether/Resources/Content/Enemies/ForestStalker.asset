@@ -34,6 +34,7 @@ MonoBehaviour:
   _wallProbeDistance: 0.45
   _groundProbeOffset: 0.5
   _dropDelay: 0.45
+  _attack: {fileID: 11400000, guid: 6436f28df097e1b3f44a64189150dca3, type: 2}
   _alertCueId: enemy.alert
   _attackCueId: enemy.attack
   _deathCueId: enemy.death

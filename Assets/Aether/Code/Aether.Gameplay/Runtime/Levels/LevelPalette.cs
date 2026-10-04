@@ -20,6 +20,30 @@ namespace Aether.Gameplay.Levels
         public static readonly Color CanopyBack = new Color(0.14f, 0.27f, 0.17f, 0.9f);
         public static readonly Color CanopyFront = new Color(0.20f, 0.40f, 0.20f, 0.65f);
 
+        // -- entities ---------------------------------------------------------------------------
+        //
+        // One vocabulary, learned in the first minute: warm and bright means danger, dull and cool
+        // means it is safe to go there. Shapes carry the rest — a square attacks, a ring saves, a
+        // diamond is a secret — so the player never has to read text to know what a thing is.
+
+        public static readonly Color Player = new Color(0.86f, 0.92f, 1f, 1f);
+        public static readonly Color PlayerHit = new Color(1f, 0.45f, 0.45f, 1f);
+        public static readonly Color PlayerDead = new Color(0.45f, 0.45f, 0.5f, 1f);
+
+        public static readonly Color EnemyIdle = new Color(0.72f, 0.4f, 0.2f, 0.85f);
+        public static readonly Color EnemyAlert = new Color(0.95f, 0.6f, 0.25f, 1f);
+        public static readonly Color EnemyWindup = new Color(1f, 0.85f, 0.45f, 1f);
+        public static readonly Color EnemyActive = new Color(1f, 0.35f, 0.25f, 1f);
+        public static readonly Color EnemyRecovering = new Color(0.45f, 0.55f, 0.62f, 1f);
+        public static readonly Color EnemyStagger = new Color(0.95f, 0.95f, 0.6f, 1f);
+        public static readonly Color EnemyDead = new Color(0.3f, 0.28f, 0.26f, 1f);
+
+        public static readonly Color CheckpointIdle = new Color(0.55f, 0.9f, 1f, 0.85f);
+        public static readonly Color CheckpointActive = new Color(0.78f, 1f, 1f, 1f);
+        public static readonly Color Secret = new Color(0.98f, 0.86f, 0.42f, 0.95f);
+        public static readonly Color Exit = new Color(0.5f, 1f, 0.6f, 0.6f);
+        public static readonly Color StoryMarker = new Color(0.86f, 0.80f, 0.62f, 0.5f);
+
         /// <summary>Colour used for a tile kind.</summary>
         public static Color For(LevelTileKind kind)
         {

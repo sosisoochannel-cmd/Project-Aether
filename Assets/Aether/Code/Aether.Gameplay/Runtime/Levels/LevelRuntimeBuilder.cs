@@ -80,8 +80,6 @@ namespace Aether.Gameplay.Levels
     /// </remarks>
     public static class LevelRuntimeBuilder
     {
-        private static readonly Color EnemyColour = new Color(0.93f, 0.55f, 0.22f, 1f);
-
         private const int SortingCanopyBack = -20;
         private const int SortingTerrain = 0;
         private const int SortingEntity = 5;
@@ -230,8 +228,7 @@ namespace Aether.Gameplay.Levels
                 return;
             }
 
-            EnemyController controller = EnemyFactory.Create(definition, feet, parent,
-                entity.PatrolTiles, EnemyColour);
+            EnemyController controller = EnemyFactory.Create(definition, feet, parent, entity.PatrolTiles);
             built.Enemies.Add(new BuiltLevel.EnemySpawn(controller, entity, feet));
         }
 
@@ -244,7 +241,7 @@ namespace Aether.Gameplay.Levels
 
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = PlaceholderVisuals.Ring;
-            renderer.color = new Color(0.55f, 0.9f, 1f, 0.85f);
+            renderer.color = LevelPalette.CheckpointIdle;
             renderer.sortingOrder = SortingEntity;
             go.transform.localScale = new Vector3(1.4f, 1.4f, 1f);
 
@@ -254,6 +251,11 @@ namespace Aether.Gameplay.Levels
 
             var trigger = go.AddComponent<CheckpointTrigger>();
             trigger.Configure(entity, feet);
+
+            // The ring changes colour when the checkpoint takes, so the player can see that dying
+            // has stopped being expensive.
+            var view = go.AddComponent<CheckpointView>();
+            view.Configure(renderer, trigger);
             return trigger;
         }
 
@@ -265,10 +267,10 @@ namespace Aether.Gameplay.Levels
             GameplayLayers.Assign(go, GameplayLayers.InteractableName);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Circle;
-            renderer.color = new Color(0.95f, 0.85f, 0.45f, 0.9f);
+            renderer.sprite = PlaceholderVisuals.Diamond;
+            renderer.color = LevelPalette.Secret;
             renderer.sortingOrder = SortingEntity;
-            go.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
+            go.transform.localScale = new Vector3(0.8f, 0.8f, 1f);
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
@@ -288,7 +290,7 @@ namespace Aether.Gameplay.Levels
 
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = new Color(0.5f, 1f, 0.6f, 0.6f);
+            renderer.color = LevelPalette.Exit;
             renderer.sortingOrder = SortingEntity - 1;
             go.transform.localScale = new Vector3(1.6f, 3.2f, 1f);
 
@@ -309,7 +311,7 @@ namespace Aether.Gameplay.Levels
 
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = new Color(0.86f, 0.80f, 0.62f, 0.5f);
+            renderer.color = LevelPalette.StoryMarker;
             renderer.sortingOrder = SortingEntity - 2;
             go.transform.localScale = new Vector3(0.9f, 0.14f, 1f);
         }
