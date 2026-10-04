@@ -141,6 +141,31 @@ def controls() -> list[Control]:
                               "Aether.Gameplay.Levels.LevelDirector\n"),
             ["Aether.Gameplay", "does not reference"]),
         Control(
+            "verify: a bare type name crosses an assembly boundary with no using and no qualifier",
+            # The exact shape that reached the first real Unity build: AttackRunner lived in
+            # Aether.Core (which references nothing) and read AttackDefinition out of Aether.Data,
+            # with no using directive and no qualified name, so neither of the two existing
+            # namespace rules had anything to look at.
+            gate,
+            lambda root: edit(root, f"{CODE}/Aether.Core/Runtime/Combat/Damage.cs",
+                              "    public readonly struct DamageInfo",
+                              "    internal sealed class Borrowed\n    {\n"
+                              "        private AttackDefinition _definition;\n    }\n\n"
+                              "    public readonly struct DamageInfo"),
+            ["AttackDefinition", "does not reference"]),
+        Control(
+            "verify: the same reference is silent when the assembly may legally see it",
+            # Aether.Gameplay references Aether.Data, so the identical line there is correct and
+            # must not be reported. Without this control the rule could be satisfied by simply
+            # flagging the type name everywhere.
+            gate,
+            lambda root: edit(root, f"{CODE}/Aether.Gameplay/Runtime/Player/PlayerCombat.cs",
+                              "        private readonly AttackRunner _runner = new AttackRunner();",
+                              "        private readonly AttackRunner _runner = new AttackRunner();\n"
+                              "        private AttackDefinition _legallyVisible;"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
             "levelcheck: a wide gap makes the exit genuinely unreachable",
             solver,
             lambda root: level_rows(root, [(20, 94, 6, "......"),

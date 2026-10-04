@@ -45,6 +45,12 @@ benefit is faster incremental compiles. The layering above gives the property th
 matters early: **`Aether.Core` cannot depend on gameplay, and `Aether.Data` cannot depend on
 behaviour** — both enforced by the verifier, not by convention.
 
+The verifier does not read intent, so it went looking for every way a file can name a type
+it is not allowed to see: a `using` directive, a fully-qualified `Aether.X.Y` reference, and
+— added after the first real Unity build stopped on exactly this — a **bare type name** with
+neither. Every rule has a negative control, including one that proves the same reference is
+*silent* in an assembly that may legally see it.
+
 Promote a system to its own assembly when it becomes large enough that its compile time or
 its dependency surface is a problem. Do not do it speculatively.
 
@@ -292,12 +298,14 @@ same ground, a checkpoint respawning into an enemy's sight, an exit inside a fig
 reachable without jumping — and asserts that the matching tool reports it. Two controls assert
 the *opposite* direction, that a legitimate shape produces no complaint at all, because an
 over-eager verifier is as broken as a blind one. It touches nothing in the working tree.
-Twenty-three controls, all detected at the time of writing.
+Twenty-five controls, all detected at the time of writing.
 
 Several checks were added because a control failed the first time it was run, which is the
 whole point of having them: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves
 it to nothing and the asset silently loses a field; and cross-assembly visibility is enforced
-for **fully-qualified references**, not just `using` directives. A verifier whose own holes are
+for **fully-qualified references** and now for **bare type names**, not just for `using`
+directives — that last hole was found by the first real Unity build rather than by the gates,
+which is recorded honestly below rather than quietly patched. A verifier whose own holes are
 unknown is not a verifier.
 
 `verify.py`'s scope and blind spots are documented in §0. Everything the gates cannot see —

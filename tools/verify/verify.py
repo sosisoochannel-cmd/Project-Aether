@@ -1003,8 +1003,57 @@ def check_asmdefs(report: Report, project: Project) -> None:
                     f"asmdef: '{rel}' line {line} (assembly {assembly}) references namespace "
                     f"'{prefix}' owned by '{owner}', which it does not reference")
 
+        # The third way to name a type across an assembly boundary: not a `using`, not a
+        # qualified name, just the bare identifier. Both rules above look for evidence of a
+        # namespace; a bare type name carries none, and that is the hole this closes.
+        #
+        # It is not hypothetical. `AttackRunner` sat in Aether.Core (which references nothing)
+        # while reading `AttackDefinition` from Aether.Data, written without a using directive at
+        # all: the `using Aether.Data.Config;` rule saw nothing, the `Aether.Data.*` rule saw
+        # nothing either because the name never appears qualified, and the static gates passed
+        # green on a file no C# compiler would accept. The first real Unity build stopped on it.
+        #
+        # Deliberately conservative in one direction only: an identifier that is declared
+        # anywhere in the same file (a field, a local, a parameter, a method, a type) is treated
+        # as shadowing and skipped, because a false accusation here costs more than a miss.
+        shadowed = set()
+        for pattern in (
+            DECLARED_TYPE_RE,
+            DECLARED_VARIABLE_RE,
+            DECLARED_METHOD_RE,
+            DECLARED_USING_ALIAS_RE,
+        ):
+            shadowed.update(pattern.findall(entry["code"]))
+
+        flagged: set[str] = set()
+        for match in re.finditer(r"(?<![\w.])([A-Z]\w*)(?![\w])", entry["code"]):
+            name = match.group(1)
+            if name in flagged or name in shadowed:
+                continue
+            record = project.types.get(name)
+            if record is None:
+                continue
+            owner = assembly_for(os.path.join(REPO_ROOT, record["file"]))
+            if owner is None or owner in visible:
+                continue
+            flagged.add(name)
+            line = entry["code"][: match.start()].count("\n") + 1
+            report.fail(
+                f"asmdef: '{rel}' line {line} (assembly {assembly}) uses the type '{name}' from "
+                f"'{owner}', which it does not reference")
+
     report.note(f"asmdef: {len(asmdefs)} assembly definition(s), references and cycles OK")
 
+
+# Names a file declares itself. Used to decide whether a bare identifier that matches a project
+# type is really that type, or a local/field/method that merely shares its name.
+DECLARED_TYPE_RE = re.compile(r"\b(?:class|struct|interface|enum|record)\s+([A-Z]\w*)")
+DECLARED_VARIABLE_RE = re.compile(
+    r"(?:^|[;{(,]\s*)(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?(?:\?)?)\s+([A-Za-z_]\w*)\s*(?=[=;,)])",
+    re.M)
+DECLARED_METHOD_RE = re.compile(
+    r"(?:^|[;{}\s])(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?)\s+([A-Za-z_]\w*)\s*\(")
+DECLARED_USING_ALIAS_RE = re.compile(r"^using\s+([A-Za-z_]\w*)\s*=", re.M)
 
 BALANCE_PAIRS = {"{": "}", "(": ")", "[": "]"}
 
