@@ -242,19 +242,19 @@ namespace Aether.Gameplay.Controls
                         ApplyStick(position);
                         sawStick = true;
                     }
-                    else if (_jumpTouch < 0 && CircleHit(position, JumpCentre, JumpRadius))
+                    else if (_jumpTouch < 0 && CircleHit(position, Layout.JumpCentre, Layout.JumpRadius))
                     {
                         _jumpTouch = id;
                         _source.PressJump();
                         sawJump = true;
                     }
-                    else if (_attackTouch < 0 && CircleHit(position, AttackCentre, AttackRadius))
+                    else if (_attackTouch < 0 && CircleHit(position, Layout.AttackCentre, Layout.AttackRadius))
                     {
                         _attackTouch = id;
                         _source.PressAttack();
                         sawAttack = true;
                     }
-                    else if (_dodgeTouch < 0 && CircleHit(position, DodgeCentre, DodgeRadius))
+                    else if (_dodgeTouch < 0 && CircleHit(position, Layout.DodgeCentre, Layout.DodgeRadius))
                     {
                         _dodgeTouch = id;
                         _source.PressDodge();
@@ -348,7 +348,7 @@ namespace Aether.Gameplay.Controls
         }
 
         /// <summary>Screen pixels to fractions of the safe area.</summary>
-        private Vector2 ToFraction(Vector2 screenPosition)
+        private static Vector2 ToFraction(Vector2 screenPosition)
         {
             Rect safe = SafeArea();
             return new Vector2((screenPosition.x - safe.x) / Mathf.Max(1f, safe.width),
