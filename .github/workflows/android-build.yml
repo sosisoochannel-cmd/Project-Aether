@@ -70,6 +70,17 @@ jobs:
           else
             echo "Add both secrets under Settings -> Secrets and variables -> Actions, then re-run this workflow from the Actions tab."
           fi
+
+          # Shape checks, booleans only — the values themselves never reach the log. Unity answers a
+          # password with a stray trailing space or newline exactly as it answers a wrong password
+          # ("credentials rejected"), and pasting on a phone is where that usually comes from.
+          email_shape="no"; email_ws="clean"
+          case "$UNITY_EMAIL" in *@*.*) email_shape="yes";; esac
+          case "$UNITY_EMAIL" in *[[:space:]]*) email_ws="contains whitespace";; esac
+          pw_ws="clean"; pw_len="too short"
+          case "$UNITY_PASSWORD" in *[[:space:]]*) pw_ws="contains whitespace";; esac
+          [ "${#UNITY_PASSWORD}" -ge 8 ] && pw_len="at least 8 characters"
+          echo "::notice title=Credential shape::UNITY_EMAIL looks like an address: $email_shape (whitespace: $email_ws); UNITY_PASSWORD length: $pw_len (whitespace: $pw_ws)"
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
 
   apk:
@@ -205,6 +216,21 @@ jobs:
         with:
           path: Library
           key: Library-Android-${{ github.sha }}
+
+      # Which Unity image actually ran, and what the job cost in disk, are the two facts a failed
+      # run otherwise buries in a very long log. Annotations are cheap and survive where the log is
+      # not to hand.
+      - name: Report the image and the disk
+        if: always()
+        run: |
+          echo "=== docker images ==="
+          docker images --format '{{.Repository}}:{{.Tag}} - {{.Size}}' || true
+          while IFS= read -r img; do
+            [ -z "$img" ] && continue
+            echo "::notice title=Unity image used::$img"
+          done < <(docker images --format '{{.Repository}}:{{.Tag}} - {{.Size}}' | grep -E 'unityci' || true)
+          df -h /
+          echo "::notice title=Disk after the build::$(( $(df -Pk / | awk 'NR==2 {print $4}') / 1024 / 1024 )) GB free on /"
 
       - name: Report what was produced
         if: always()
