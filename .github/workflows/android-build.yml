@@ -577,8 +577,10 @@ jobs:
           cat SHA256SUMS.txt
           echo "::notice title=Release asset::$asset - $size bytes - sha256 $sha (matches the build: yes)"
 
-      # `gh` rather than a third-party release action: it is already on the runner, and a token with
-      # `contents: write` is all this needs.
+      # The API rather than `gh release`: on this repository `gh release create` is answered with
+      # a 403 while a plain POST to the same endpoint is answered 201, and the point of the job is
+      # the release, not the client. The sequence is create a draft, upload the assets, publish it,
+      # and then use the published link before announcing it.
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -587,19 +589,80 @@ jobs:
           SIZE: ${{ steps.assets.outputs.size }}
           SHA: ${{ steps.assets.outputs.sha }}
         run: |
-          set -euo pipefail
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; replacing its assets."
-            gh release upload "$TAG" "$ASSET" SHA256SUMS.txt --clobber
-          else
-            gh release create "$TAG" "$ASSET" SHA256SUMS.txt \
-              --title "Aether dev build ${TAG#apk-}" \
-              --target "$GITHUB_SHA" \
-              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit \`$GITHUB_SHA\`, built and published by the Android APK workflow. Debug-signed, for play-testing only.
+          set -uo pipefail
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          auth="Authorization: token $GH_TOKEN"
+          acc="Accept: application/vnd.github+json"
+          notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit \`$GITHUB_SHA\`, built and published by the Android APK workflow. Debug-signed, for play-testing only. Asset \`$ASSET\`, $SIZE bytes, sha256 \`$SHA\`."
 
-          \`$ASSET\` — $SIZE bytes — sha256 \`$SHA\`"
+          rel=$(curl -sS --max-time 120 -H "$auth" -H "$acc" "$api/releases?per_page=100" \
+                  | jq -r --arg t "$TAG" '.[] | select(.tag_name == $t) | .id' | head -1)
+          echo "release for $TAG: ${rel:-none yet}"
+          if [ -z "$rel" ]; then
+            payload=$(jq -n --arg tag "$TAG" --arg name "Aether dev build ${TAG#apk-}" \
+                        --arg body "$notes" --arg target "$GITHUB_SHA" \
+                        '{tag_name:$tag, name:$name, body:$body, draft:true, target_commitish:$target}')
+            answer=$(curl -sS --max-time 120 -X POST -H "$auth" -H "$acc" \
+                       -H 'Content-Type: application/json' -d "$payload" "$api/releases")
+            rel=$(printf '%s' "$answer" | jq -r '.id // empty')
+            if [ -z "$rel" ]; then
+              echo "::error title=Release creation refused::$(printf '%s' "$answer" | tr '\n' '|' | head -c 400)"
+              exit 1
+            fi
           fi
+
+          uploads="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rel/assets"
+          for f in "$ASSET" SHA256SUMS.txt; do
+            name=$(basename "$f")
+            old=$(curl -sS --max-time 120 -H "$auth" "$api/releases/$rel/assets" \
+                    | jq -r --arg n "$name" '.[] | select(.name == $n) | .id' | head -1)
+            if [ -n "$old" ]; then
+              curl -sS --max-time 120 -X DELETE -H "$auth" "$api/releases/assets/$old" >/dev/null 2>&1 || true
+            fi
+            answer=$(curl -sS --max-time 1800 -X POST -H "$auth" \
+                       -H 'Content-Type: application/octet-stream' --data-binary "@$f" \
+                       "$uploads?name=$name")
+            got=$(printf '%s' "$answer" | jq -r '.name // empty')
+            if [ -z "$got" ]; then
+              echo "::error title=Asset upload refused::$name - $(printf '%s' "$answer" | tr '\n' '|' | head -c 400)"
+              exit 1
+            fi
+            echo "uploaded $got ($(printf '%s' "$answer" | jq -r '.size') bytes)"
+          done
+
+          payload=$(jq -n --arg name "Aether dev build ${TAG#apk-}" --arg body "$notes" \
+                      '{draft:false, name:$name, body:$body}')
+          answer=$(curl -sS --max-time 180 -X PATCH -H "$auth" -H "$acc" \
+                     -H 'Content-Type: application/json' -d "$payload" "$api/releases/$rel")
+          if [ "$(printf '%s' "$answer" | jq -r '.draft')" != "false" ]; then
+            echo "::error title=Release could not be published::$(printf '%s' "$answer" | tr '\n' '|' | head -c 400)"
+            exit 1
+          fi
+
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$ASSET"
-          echo "### Release" >> "$GITHUB_STEP_SUMMARY"
-          echo "$url" >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Direct APK download::$url"
+          # Use the link before announcing it: fetch the asset back the way a browser download
+          # resolves and compare it with the bytes this job hashed.
+          asset_id=$(curl -sS --max-time 120 -H "$auth" "$api/releases/$rel/assets" \
+                       | jq -r --arg n "$ASSET" '.[] | select(.name == $n) | .id' | head -1)
+          if curl -sS -L --location-trusted --max-time 1800 -H "$auth" \
+               -H 'Accept: application/octet-stream' -o back.bin "$api/releases/assets/$asset_id"; then
+            back=$(sha256sum back.bin | cut -d' ' -f1)
+            if [ "$back" = "$SHA" ]; then
+              echo "::notice title=Direct APK download::$url - $SIZE bytes - sha256 $SHA - verified by downloading the published asset back"
+            else
+              echo "::error title=Published asset mismatch::re-downloaded bytes hash to $back, not $SHA"
+              exit 1
+            fi
+          else
+            echo "::error title=Published asset unreadable::the asset could not be fetched back"
+            exit 1
+          fi
+
+          {
+            echo "### Release"
+            echo ""
+            echo "$url"
+            echo ""
+            echo "- $SIZE bytes"
+            echo "- sha256 $SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
