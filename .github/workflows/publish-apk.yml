@@ -129,24 +129,34 @@ jobs:
       - name: Publish it as a release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This workflow never checks the repository out - it only needs the artifact - so `gh` has
+          # no git remote to read the repository name from and has to be told.
+          GH_REPO: ${{ github.repository }}
           SIZE: ${{ steps.file.outputs.size }}
           SHA: ${{ steps.file.outputs.sha }}
           TAG: apk-5fd4384
         run: |
-          set -euo pipefail
+          set -uo pipefail
           asset="Aether_0.1.0_${SOURCE_SHA}.apk"
           cp "${{ steps.file.outputs.path }}" "$asset"
           sha256sum "$asset" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+          notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; replacing its assets."
-            gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" "$asset" SHA256SUMS.txt \
-              --title "Aether dev build ${TAG#apk-}" \
-              --target "$SOURCE_SHA" \
-              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
+            if ! out=$(gh release create "$TAG" --title "Aether dev build ${TAG#apk-}" \
+                         --target "$SOURCE_SHA" --notes "$notes" 2>&1); then
+              echo "::error title=Release create failed::$(printf '%s' "$out" | tr '\n' '|' | tail -c 350)"
+              exit 1
+            fi
+          fi
+
+          if ! out=$(gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber 2>&1); then
+            echo "::error title=Release upload failed::$(printf '%s' "$out" | tr '\n' '|' | tail -c 350)"
+            exit 1
           fi
 
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
