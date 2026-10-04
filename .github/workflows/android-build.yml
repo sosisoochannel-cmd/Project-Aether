@@ -86,6 +86,86 @@ jobs:
       # Restore and save are split deliberately: the combined cache step's implicit post-run save
       # has been observed hanging on hosted runners (see the comment in GameCI's own build
       # workflow), and an explicit step can be bounded by a timeout.
+      # Why this exists: GitHub gives a *private* repository's runner a 2-core VM with a 75 GB disk of
+      # which only ~14 GB is free (actions/runner-images#14492, GitHub staff, 2026-08-05; public repos
+      # get 150 GB with ~90 GB free), and the Unity Android image must unpack far more than that into
+      # /var/lib/docker. That is exactly how the first real run died:
+      #   docker: failed to register layer: write .../AndroidPlayer/Variations/il2cpp/.../libunity.so:
+      #   no space left on device
+      # GameCI's own troubleshooting page names this failure and its first remedy is to free disk
+      # space. Every path below is a host-side toolchain that a *container* build cannot use: the
+      # editor, the Android SDK/NDK and the JDK all live inside the unityci/editor image, this
+      # workflow calls no setup-* action, and unity-builder v6 is a node24 action that runs on the
+      # runner's bundled Node rather than anything in the tool cache. Deliberately untouched: the
+      # workspace and .git, the Unity project, the actions runtime, the Docker daemon, and swap —
+      # the standard runner has 8 GB of RAM and an IL2CPP build is the thing most likely to want it.
+      - name: Free disk space
+        id: space
+        run: |
+          set -euo pipefail
+
+          free_mb() { df -Pk / | awk 'NR==2 {print int($4/1024)}'; }
+
+          before=$(free_mb)
+          total=$(df -Ph / | awk 'NR==2 {print $2}')
+          echo "=== disk before cleanup ==="
+          df -h /
+          docker system df || true
+          echo "::notice title=Disk before cleanup::$((before/1024)) GB free of ${total} on /"
+
+          saved=0
+          remove_path() { # $1 = path, $2 = label
+            if [ ! -e "$1" ]; then
+              echo "- $2: not present"
+              return 0
+            fi
+            local b a size
+            b=$(free_mb)
+            size=$(sudo du -sh "$1" 2>/dev/null | cut -f1 || echo "?")
+            sudo rm -rf --one-file-system "$1" || true
+            a=$(free_mb)
+            saved=$(( saved + a - b ))
+            echo "- $2: removed $1 (was $size, freed $((a-b)) MB)"
+          }
+
+          remove_path /usr/local/lib/android  "host Android SDK/NDK - the build's own SDK is inside the Unity image"
+          remove_path "$AGENT_TOOLSDIRECTORY" "pre-installed language runtimes and the CodeQL toolchain"
+          remove_path /opt/ghc                "Haskell GHC"
+          remove_path /usr/local/.ghcup       "Haskell GHCup data"
+          remove_path /usr/share/dotnet       ".NET SDK"
+          remove_path /usr/local/share/boost  "Boost headers"
+
+          echo "=== docker prune ==="
+          docker image prune --all --force || true
+          docker container prune --force || true
+
+          after=$(free_mb)
+          echo "=== disk after cleanup ==="
+          df -h /
+          echo "::notice title=Disk after cleanup::$((after/1024)) GB free on / (was $((before/1024)) GB; ${saved} MB reclaimed)"
+
+          # The image unpacks into /var/lib/docker and the build then needs room for Library/ and the
+          # APK. If the fast, file-level cleanup above is not enough, fall back to the slower package
+          # sweep from the same documented list, and only then.
+          if [ "$((after/1024))" -lt 30 ]; then
+            echo "::notice::Under 30 GB free after the file-level cleanup; running the documented package sweep (this takes a few minutes)."
+            sudo apt-get remove -y '^llvm-.*' --fix-missing || true
+            sudo apt-get remove -y 'php.*' --fix-missing || true
+            sudo apt-get remove -y '^mongodb-.*' --fix-missing || true
+            sudo apt-get remove -y '^mysql-.*' --fix-missing || true
+            sudo apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel --fix-missing || true
+            sudo apt-get remove -y google-cloud-sdk google-cloud-cli --fix-missing || true
+            sudo apt-get autoremove -y || true
+            sudo apt-get clean || true
+            after=$(free_mb)
+            df -h /
+            echo "::notice title=Disk after package sweep::$((after/1024)) GB free on /"
+          fi
+
+          if [ "$((after/1024))" -lt 25 ]; then
+            echo "::warning::Only $((after/1024)) GB free on / after cleanup; the Unity Android image may still not fit."
+          fi
+
       - name: Restore Library cache
         uses: actions/cache/restore@v4
         with:
@@ -139,9 +219,11 @@ jobs:
             echo "- \`$apk\` - $size bytes" >> "$GITHUB_STEP_SUMMARY"
             echo "- sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
             echo "$apk  $size bytes  sha256=$sha"
+            echo "::notice title=APK produced::$apk - $size bytes - sha256 $sha"
           done < <(find Builds -name '*.apk' 2>/dev/null | sort)
           if [ "$found" = "0" ]; then
             echo "No APK was produced. The real error is in the build step's log above, not here." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::No APK was produced by this run; the build step above holds the real error."
           fi
 
       - name: Upload APK
