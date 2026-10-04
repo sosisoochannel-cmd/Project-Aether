@@ -221,10 +221,19 @@ namespace Aether.Editor
             var bootHost = new GameObject("LevelBootstrap");
             LevelBootstrap bootstrap = bootHost.AddComponent<LevelBootstrap>();
             var serialized = new SerializedObject(bootstrap);
-            serialized.FindProperty("_levelPath")?.SetValue("Levels/region1.greenway.level");
+
+            // SerializedProperty has no SetValue: each declared type has its own accessor, so the
+            // field is written through the one that matches it. Both lookups stay null-guarded -
+            // renaming a field in LevelBootstrap should fail the bake with a missing value, not
+            // kill the menu command with a NullReferenceException.
+            SerializedProperty levelPath = serialized.FindProperty("_levelPath");
+            if (levelPath != null) levelPath.stringValue = "Levels/region1.greenway.level";
+
             // The tilemaps above are this scene's geometry, so the runtime builder must not add a
             // second copy of it; entities are still built from data every time.
-            serialized.FindProperty("_buildGeometry")?.SetValue(false);
+            SerializedProperty buildGeometry = serialized.FindProperty("_buildGeometry");
+            if (buildGeometry != null) buildGeometry.boolValue = false;
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             var markerHost = new GameObject("LevelMarkers");
