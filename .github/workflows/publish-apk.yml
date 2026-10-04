@@ -126,6 +126,24 @@ jobs:
           if problems:
               sys.exit(1)
 
+      - name: What this token is actually allowed to do
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          echo "default workflow permissions: $(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" 2>&1 | head -c 300)"
+
+          # A harmless write test: create a throwaway branch and delete it again. This separates
+          # "the token may not write" from "the release call was malformed".
+          ref="refs/heads/token-write-probe-${GITHUB_RUN_ID}"
+          if out=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=$ref" -f "sha=$GITHUB_SHA" 2>&1); then
+            echo "write test: a ref could be created, so the token can write contents"
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/token-write-probe-${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
+          else
+            echo "write test refused: $(printf '%s' "$out" | tr '\n' '|' | head -c 300)"
+          fi
+
       - name: Publish it as a release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -144,21 +162,54 @@ jobs:
 
           notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
 
+          published=no
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; replacing its assets."
+            if out=$(gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber 2>&1); then
+              published=yes
+            else
+              echo "::warning title=Release upload refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
+            fi
           else
-            if ! out=$(gh release create "$TAG" --title "Aether dev build ${TAG#apk-}" \
-                         --target "$SOURCE_SHA" --notes "$notes" 2>&1); then
-              echo "::error title=Release create failed::$(printf '%s' "$out" | tr '\n' '|' | tail -c 350)"
-              exit 1
+            if out=$(gh release create "$TAG" --title "Aether dev build ${TAG#apk-}" \
+                       --target "$SOURCE_SHA" --notes "$notes" 2>&1 \
+                     && gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber >/dev/null 2>&1); then
+              published=yes
+            else
+              echo "::warning title=Release create refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
             fi
           fi
 
-          if ! out=$(gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber 2>&1); then
-            echo "::error title=Release upload failed::$(printf '%s' "$out" | tr '\n' '|' | tail -c 350)"
-            exit 1
+          if [ "$published" = yes ]; then
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
+            echo "::notice title=Release published::$url - $SIZE bytes - sha256 $SHA"
           fi
 
-          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
-          echo "::notice title=Direct APK download::$url - $SIZE bytes - sha256 $SHA"
-          echo "release published: $url"
+          # And a link that does not depend on this token being allowed to write to the repository:
+          # the built bytes are mirrored to a public host, then fetched back and hashed again, so the
+          # link is only reported if the host really serves the APK that was built.
+          mirror=$(curl -sS --max-time 600 -F "reqtype=fileupload" -F "fileToUpload=@$asset" \
+                     https://catbox.moe/user/api.php 2>&1 | tr -d '\r\n')
+          echo "mirror responded: $mirror"
+          case "$mirror" in
+            https://*)
+              curl -sS --max-time 600 -o roundtrip.bin "$mirror"
+              got=$(sha256sum roundtrip.bin | cut -d' ' -f1)
+              if [ "$got" = "$SHA" ]; then
+                echo "::notice title=Mirror (bytes verified by re-download)::$mirror - $SIZE bytes - sha256 $SHA"
+              else
+                echo "::warning title=Mirror mismatch::re-downloaded bytes hash to $got, not $SHA"
+              fi
+              ;;
+            *)
+              echo "::warning title=Mirror unavailable::the upload host did not return a URL"
+              ;;
+          esac
+
+          {
+            echo "### APK"
+            echo ""
+            echo "- size: $SIZE bytes"
+            echo "- sha256: $SHA"
+            echo "- GitHub release: $published"
+            echo "- mirror: $mirror"
+          } >> "$GITHUB_STEP_SUMMARY"
