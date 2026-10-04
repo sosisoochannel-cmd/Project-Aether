@@ -54,6 +54,9 @@ jobs:
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_LICENSING_SERVER: ${{ secrets.UNITY_LICENSING_SERVER }}
         run: |
           # Values are never printed; only whether they are present.
           ready=true
@@ -81,6 +84,16 @@ jobs:
           case "$UNITY_PASSWORD" in *[[:space:]]*) pw_ws="contains whitespace";; esac
           [ "${#UNITY_PASSWORD}" -ge 8 ] && pw_len="at least 8 characters"
           echo "::notice title=Credential shape::UNITY_EMAIL looks like an address: $email_shape (whitespace: $email_ws); UNITY_PASSWORD length: $pw_len (whitespace: $pw_ws)"
+
+          # Which licensing credentials exist decides which strategy GameCI picks on its own, and a
+          # stray .ulf or serial silently outranks the account credentials in that choice. Names
+          # only - never values.
+          present=""
+          [ -n "$UNITY_LICENSE" ] && present="$present UNITY_LICENSE"
+          [ -n "$UNITY_SERIAL" ] && present="$present UNITY_SERIAL"
+          [ -n "$UNITY_LICENSING_SERVER" ] && present="$present UNITY_LICENSING_SERVER"
+          if [ -z "$present" ]; then present="none (account credentials only, which means the personal strategy)"; fi
+          echo "::notice title=Other licence secrets::$present"
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
 
   apk:
@@ -190,28 +203,106 @@ jobs:
           restore-keys: |
             Library-Android-
 
+      - name: Install the GameCI CLI
+        id: cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Pinned, not `latest`: the version that runs is then a fact in the log rather than
+          # whatever shipped this morning. This is the same install path the unity-builder action
+          # uses (game-ci/cli's own scripts/install.sh, fetched at the tag), so the binary and its
+          # checksum verification are GameCI's, not a reimplementation.
+          version="v0.1.72"
+          script="$RUNNER_TEMP/game-ci-install.sh"
+          if ! curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/$version/scripts/install.sh" -o "$script"; then
+            # raw.githubusercontent.com is the documented source; the API is the authenticated fallback.
+            curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/game-ci/cli/contents/scripts/install.sh?ref=$version" -o "$script"
+          fi
+          dest="$RUNNER_TEMP/game-ci"
+          mkdir -p "$dest"
+          bin=$(bash "$script" "$version" "$dest" | tail -n 1)
+          test -x "$bin" || { echo "::error::install.sh did not produce an executable ($bin)"; exit 1; }
+          "$bin" --version || true
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+          echo "::notice title=game-ci CLI::installed $version -> $bin"
+
       - name: Build APK
         id: build
-        uses: game-ci/unity-builder@v6
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          # Empty when unset, and only ever used by the second attempt below.
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_LICENSING_SERVER: ${{ secrets.UNITY_LICENSING_SERVER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          targetPlatform: Android
-          # androidPackage = .apk. The other values are androidAppBundle (.aab) and
-          # androidStudioProject, neither of which this milestone wants.
-          androidExportType: androidPackage
-          buildName: Aether-dev
-          buildsPath: Builds
-          # Custom versioning keeps the build deterministic and independent of git history: the
-          # Semantic strategy derives a version from tags and commit counts, which a shallow
-          # checkout cannot do.
-          versioning: Custom
-          version: 0.1.0
-          # Unity generates Packages/packages-lock.json on its first import, which makes the
-          # working tree dirty. That is expected here, not a mistake to be blocked on.
-          allowDirtyBuild: true
+        run: |
+          set -uo pipefail
+
+          # The same command the `game-ci/unity-builder` action runs, called directly so the whole
+          # output can be captured to a file. Without that file the only copy of a failure is the
+          # job log, which is 25,000 lines and not readable from a phone or from the API.
+          attempt() {
+            local method="$1"
+            echo "### Attempt: unityLicensingMethod=$method"
+            "${{ steps.cli.outputs.bin }}" build \
+              --targetPlatform=Android \
+              --androidExportType=androidPackage \
+              --buildName=Aether-dev \
+              --buildsPath=Builds \
+              --versioningStrategy=Custom \
+              --version=0.1.0 \
+              --allowDirtyBuild \
+              --unityLicensingMethod="$method" 2>&1 | tee "ci-build-$method.log"
+            return "${PIPESTATUS[0]}"
+          }
+
+          status=1
+          # Personal first, and forced: with only an email and a password configured, `auto` resolves
+          # to `personal` anyway, and forcing it means a stray license secret cannot silently switch
+          # the strategy out from under the run.
+          attempt personal && status=0
+
+          if [ "$status" != 0 ]; then
+            echo "::notice title=Attempt 1 failed::personal licensing failed; see ci-build-personal.log"
+            # A second attempt is only worth its minutes if the account supplied something the first
+            # (forced) strategy was told to ignore - a .ulf or a serial.
+            if [ -n "${UNITY_LICENSE:-}" ] || [ -n "${UNITY_SERIAL:-}" ]; then
+              echo "A license file or serial secret is present, so retrying with the automatic strategy."
+              attempt auto && status=0
+            else
+              echo "No .ulf and no serial are configured, so there is no second strategy to try."
+            fi
+          fi
+
+          exit "$status"
+
+      # A failed Unity build is only diagnosable from the container's output, and that output lands in
+      # a 25,000-line job log. These lines are re-emitted as workflow commands, which become
+      # annotations on the run - visible from a phone, and readable through the API when the log
+      # itself is not. Passwords are filtered out on principle even though GitHub masks secret values.
+      - name: Surface what the container said
+        if: always()
+        run: |
+          shopt -s nullglob
+          files=(ci-build-*.log)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning title=No captured log::The build step produced no ci-build-*.log file."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "::notice title=Captured log::$f - $(wc -l < "$f") lines"
+            grep -nEi 'error|exception|licens|entitlement|seat|factor|verification|unauthorized|invalid (username|password|credentials)|denied|machine binding|no space|not found|failed' "$f" \
+              | grep -vEi 'Verifying Checksum|Pulling fs layer|Download complete|Waiting|Extracting|Node\.js 20 is deprecated|DeprecationWarning|no space left on device:: (false)|warning::' \
+              | grep -v -- '--password' \
+              | cut -c1-450 | head -45 \
+              | while IFS= read -r line; do echo "::error title=Unity build log::$line"; done
+            # The tail is where the failure banner and the exit reasoning live.
+            tail -n 12 "$f" | cut -c1-450 | grep -v -- '--password' \
+              | while IFS= read -r line; do echo "::notice title=Log tail::$line"; done
+          done
 
       - name: Save Library cache
         if: always()
@@ -270,6 +361,17 @@ jobs:
           path: Builds/**/*.apk
           if-no-files-found: warn
           retention-days: 30
+
+      # The captured build output, so a failure can be read in a browser instead of hunted for in the
+      # job log. Kept short-lived; it is diagnostic material, not a deliverable.
+      - name: Upload the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-build-log
+          path: ci-build-*.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The release-facing half of the same pipeline, not a second one: it takes the artifact the build
   # job produced and publishes it where a phone can download it. The tag and asset naming follow the
