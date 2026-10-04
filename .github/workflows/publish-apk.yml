@@ -168,7 +168,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-          setting=$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" 2>&1 | tr -d '\r\n' | head -c 300)
+          setting=$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" 2>&1 | tr -d '\r\n' | head -c 300 || true)
           echo "default workflow permissions: $setting"
           echo "::notice title=Repo workflow permission setting::${setting}"
 
@@ -242,7 +242,9 @@ jobs:
           err=$(head -c 160 /tmp/h.err 2>/dev/null | tr -d '\r\n')
           note "pixeldrain http=${code:-none} out=${body:-empty} err=${err:-none}"
           id=$(printf '%s' "$body" | sed -n 's/.*"id":"\([A-Za-z0-9]*\)".*/\1/p')
-          [ -n "$id" ] && mirror="https://pixeldrain.com/api/file/$id?download"
+          if [ -n "$id" ]; then
+            mirror="https://pixeldrain.com/api/file/$id?download"
+          fi
 
           if [ -z "$mirror" ]; then
             code=$(curl -sS --max-time 180 -o /tmp/h.out -w '%{http_code}' -H "$UA" \
@@ -271,8 +273,10 @@ jobs:
                      -H "$UA" "https://bashupload.com/$(basename "$asset")" 2>/tmp/h.err) || true
             body=$(head -c 300 /tmp/h.out 2>/dev/null | tr -d '\r\n')
             note "bashupload http=${code:-none} out=${body:-empty}"
-            got=$(printf '%s' "$body" | grep -o 'https://bashupload.com/[^ ]*' | head -1)
-            [ -n "$got" ] && mirror="$got"
+            got=$(printf '%s' "$body" | grep -o 'https://bashupload.com/[^ ]*' | head -1 || true)
+            if [ -n "$got" ]; then
+              mirror="$got"
+            fi
           fi
 
           echo "::warning title=Mirror attempts::${report# || }"
