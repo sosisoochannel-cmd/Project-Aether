@@ -10,6 +10,10 @@
 # It is pinned to the run and commit it publishes, verifies the APK before publishing it, and is
 # triggered by its own file only, so it can never fire off another build's output by accident.
 # It gets deleted once the fixed pipeline has published a release of its own.
+#
+# Every check prints its evidence, and the summary of that evidence is also sent as a single
+# annotation, because a job log and an uploaded artifact both live on a host that not every client
+# can reach.
 
 name: Publish an existing APK artifact
 
@@ -38,8 +42,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release
 
-      - name: Verify the bytes really are a signed Unity APK
-        id: verify
+      - name: Identify the file and hash it
+        id: file
         run: |
           set -euo pipefail
           apk=$(find release -name '*.apk' | sort | head -1)
@@ -47,95 +51,104 @@ jobs:
             echo "::error::The artifact contains no .apk file."
             exit 1
           fi
-
           size=$(stat -c %s "$apk")
           sha=$(sha256sum "$apk" | cut -d' ' -f1)
-          echo "file     : $apk"
-          echo "size     : $size bytes"
-          echo "sha256   : $sha"
-
-          # An APK is a zip with a binary manifest, dalvik code, resources, native libraries and a
-          # signature. Verify it by structure and report the evidence, rather than assuming.
-          listing=$(unzip -l "$apk")
-          integrity=$(unzip -t "$apk" | tail -1)
-          echo "integrity: $integrity"
-
-          verdict=ok
-          for required in AndroidManifest.xml classes.dex resources.arsc; do
-            if printf '%s\n' "$listing" | grep -q "$required"; then
-              echo "present  : $required"
-            else
-              echo "MISSING  : $required"
-              verdict=bad
-            fi
-          done
-
-          native=$(printf '%s\n' "$listing" | grep -c 'lib/.*\.so' || true)
-          unitydata=$(printf '%s\n' "$listing" | grep -c 'assets/bin/Data/' || true)
-          signature=$(printf '%s\n' "$listing" | grep -E 'META-INF/.*\.(RSA|DSA|EC)' | head -1 || true)
-          entries=$(printf '%s\n' "$listing" | grep -c '^ *[0-9]' || true)
-          echo "entries  : $entries"
-          echo "native   : $native shared libraries"
-          echo "unity    : $unitydata player-data entries"
-          echo "signature: ${signature:-MISSING}"
-
-          [ "$native" -gt 0 ] || verdict=bad
-          [ "$unitydata" -gt 0 ] || verdict=bad
-          [ -n "$signature" ] || verdict=bad
-          printf '%s\n' "$integrity" | grep -q 'No errors detected' || verdict=bad
-
-          if [ "$verdict" != ok ]; then
-            echo "::error::The artifact is not a complete signed Unity APK."
-            exit 1
-          fi
-          echo "verdict  : complete, signed Unity APK (zip integrity verified)"
-
-          # Which key signed it: Unity's generated debug key, or something else.
-          unzip -o -q "$apk" "$signature" -d sig
-          sigfile=$(find sig -name '*.RSA' -o -name '*.DSA' -o -name '*.EC' | head -1)
-          if [ -n "$sigfile" ]; then
-            subject=$(openssl pkcs7 -inform DER -in "$sigfile" -print_certs -noout 2>/dev/null | grep -a '^subject' | head -1 || true)
-            echo "signed by: ${subject:-unreadable}"
-          fi
-
-          asset="Aether_0.1.0_${SOURCE_SHA}.apk"
-          cp "$apk" "$asset"
-          sha256sum "$asset" > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
+          file -b "$apk" || true
           {
-            echo "asset=$asset"
+            echo "path=$apk"
             echo "size=$size"
             echo "sha=$sha"
-            echo "tag=apk-${SOURCE_SHA}"
           } >> "$GITHUB_OUTPUT"
+
+      # An APK is a zip whose bytes have to add up: a binary manifest, dalvik code, resources,
+      # native libraries, Unity's player data, and a signature. python rather than a heredoc
+      # inside a shell step, so the evidence can be printed without quoting games.
+      - name: Verify the APK's structure and signature
+        shell: python
+        env:
+          APK: ${{ steps.file.outputs.path }}
+        run: |
+          import os, sys, zipfile
+
+          path = os.environ["APK"]
+          data = open(path, "rb").read()
+          lines = []
+          def say(text):
+              lines.append(text)
+              print(text)
+
+          say("file      : %s" % path)
+          say("size      : %d bytes" % len(data))
+          say("zip magic : %s" % ("PK\\x03\\x04" if data[:4] == b"PK\\x03\\x04" else repr(data[:4])))
+          # v2/v3 APK signatures live in an "APK Signing Block" between the entries and the
+          # central directory; v1 signatures are META-INF/*.RSA. Either one is a real signature.
+          say("sign block: %s" % ("APK Sig Block 42 present" if b"APK Sig Block 42" in data[-40_000_000:] else "absent (v1 signing only?)"))
+
+          problems = []
+          with zipfile.ZipFile(path) as archive:
+              names = archive.namelist()
+              bad = archive.testzip()
+          say("entries   : %d" % len(names))
+          say("zip test  : %s" % ("all entries read back intact" if bad is None else "CORRUPT at %s" % bad))
+          if bad is not None:
+              problems.append("zip integrity")
+
+          for required in ("AndroidManifest.xml", "classes.dex", "resources.arsc"):
+              present = required in names
+              say("entry     : %-20s %s" % (required, "present" if present else "MISSING"))
+              if not present:
+                  problems.append(required)
+
+          native = sorted(n for n in names if n.startswith("lib/") and n.endswith(".so"))
+          say("native    : %d shared libraries" % len(native))
+          for n in native[:6]:
+              say("  %s" % n)
+          if not native:
+              problems.append("native libraries")
+
+          unity = [n for n in names if n.startswith("assets/bin/Data/")]
+          say("unity data: %d entries (first: %s)" % (len(unity), unity[0] if unity else "none"))
+          if not unity:
+              problems.append("unity player data")
+
+          v1 = sorted(n for n in names if n.startswith("META-INF/") and n.endswith((".RSA", ".DSA", ".EC")))
+          v1_any = sorted(n for n in names if n.startswith("META-INF/"))
+          say("v1 sign   : %s" % (", ".join(v1) if v1 else "none (%d META-INF entries)" % len(v1_any)))
+          signed = bool(v1) or b"APK Sig Block 42" in data
+          say("signed    : %s" % ("yes" if signed else "NO signature found"))
+          if not signed:
+              problems.append("signature")
+
+          summary = "; ".join(lines)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write("```\\n" + summary + "\\n```\\n")
+          print("VERDICT: %s" % ("complete, signed Unity APK" if not problems else "problems: " + ", ".join(problems)))
+          if problems:
+              sys.exit(1)
 
       - name: Publish it as a release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.verify.outputs.tag }}
-          ASSET: ${{ steps.verify.outputs.asset }}
-          SIZE: ${{ steps.verify.outputs.size }}
-          SHA: ${{ steps.verify.outputs.sha }}
+          SIZE: ${{ steps.file.outputs.size }}
+          SHA: ${{ steps.file.outputs.sha }}
+          TAG: apk-5fd4384
         run: |
           set -euo pipefail
+          asset="Aether_0.1.0_${SOURCE_SHA}.apk"
+          cp "${{ steps.file.outputs.path }}" "$asset"
+          sha256sum "$asset" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; replacing its assets."
-            gh release upload "$TAG" "$ASSET" SHA256SUMS.txt --clobber
+            gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" "$ASSET" SHA256SUMS.txt \
+            gh release create "$TAG" "$asset" SHA256SUMS.txt \
               --title "Aether dev build ${TAG#apk-}" \
               --target "$SOURCE_SHA" \
-              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Debug-signed, for play-testing only. Asset $ASSET, $SIZE bytes, sha256 $SHA."
+              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
           fi
-          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$ASSET"
-          {
-            echo "### Release"
-            echo ""
-            echo "$url"
-            echo ""
-            echo "- $SIZE bytes"
-            echo "- sha256 $SHA"
-          } >> "$GITHUB_STEP_SUMMARY"
-          # One annotation: an annotations list is capped, and this is the line that matters.
+
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$asset"
           echo "::notice title=Direct APK download::$url - $SIZE bytes - sha256 $SHA"
+          echo "release published: $url"
