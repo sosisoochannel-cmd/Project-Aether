@@ -39,6 +39,28 @@ Secrets are stored by GitHub and injected into the job environment only; they ne
 repository, in the workflow file, or in the logs. The workflow never prints them — it only reports
 whether they exist.
 
+## Publishing: the APK becomes a GitHub Release
+
+An artifact lives inside a workflow run and expires; a release asset is a stable link that a phone can
+open. When a build produces an APK, the `release` job publishes it as a GitHub Release, using the
+same tag and asset pattern this project's release links already use:
+
+- tag: `apk-<short sha>` (e.g. `apk-206195e`)
+- asset: `Aether_0.1.0_<short sha>.apk`
+- asset: `SHA256SUMS.txt`
+- direct link: `https://github.com/sosisoochannel-cmd/Project-Aether/releases/download/apk-<sha7>/Aether_0.1.0_<sha7>.apk`
+
+That job runs **only if the build job reported an APK**, so a failed build cannot publish a release.
+It re-hashes the downloaded artifact and refuses to publish if the bytes differ from what the build
+hashed in its own workspace. Re-running a build for the same commit replaces the assets instead of
+failing. `contents: write` is granted to the release job alone — the build job stays read-only.
+
+Note that this repository is private, so opening that link requires being signed in to GitHub.
+
+**Not verified:** the release path itself has never run, because no APK has ever been produced. Its
+script logic (asset naming, checksum file, hash comparison, create-versus-update) is exercised
+locally against a stubbed `gh`, but the first real release will be the first real test of it.
+
 ## Running it and getting the file
 
 - Trigger: push to `main` or `arena/01a10203-project-aether`, or **Actions** → **Android APK** →

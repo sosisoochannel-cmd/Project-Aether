@@ -89,6 +89,11 @@ jobs:
     if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      apk_found: ${{ steps.report.outputs.apk_found }}
+      apk_name: ${{ steps.report.outputs.apk_name }}
+      apk_size: ${{ steps.report.outputs.apk_size }}
+      apk_sha: ${{ steps.report.outputs.apk_sha }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -233,6 +238,7 @@ jobs:
           echo "::notice title=Disk after the build::$(( $(df -Pk / | awk 'NR==2 {print $4}') / 1024 / 1024 )) GB free on /"
 
       - name: Report what was produced
+        id: report
         if: always()
         run: |
           echo "### APK" >> "$GITHUB_STEP_SUMMARY"
@@ -246,7 +252,11 @@ jobs:
             echo "- sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
             echo "$apk  $size bytes  sha256=$sha"
             echo "::notice title=APK produced::$apk - $size bytes - sha256 $sha"
+            echo "apk_name=$(basename "$apk")" >> "$GITHUB_OUTPUT"
+            echo "apk_size=$size" >> "$GITHUB_OUTPUT"
+            echo "apk_sha=$sha" >> "$GITHUB_OUTPUT"
           done < <(find Builds -name '*.apk' 2>/dev/null | sort)
+          echo "apk_found=$found" >> "$GITHUB_OUTPUT"
           if [ "$found" = "0" ]; then
             echo "No APK was produced. The real error is in the build step's log above, not here." >> "$GITHUB_STEP_SUMMARY"
             echo "::notice::No APK was produced by this run; the build step above holds the real error."
@@ -260,3 +270,84 @@ jobs:
           path: Builds/**/*.apk
           if-no-files-found: warn
           retention-days: 30
+
+  # The release-facing half of the same pipeline, not a second one: it takes the artifact the build
+  # job produced and publishes it where a phone can download it. The tag and asset naming follow the
+  # pattern this project's release links already use — tag `apk-<short sha>`, asset
+  # `<Project>_<version>_<short sha>.apk` beside a `SHA256SUMS.txt`.
+  #
+  # It runs only when a build actually produced an APK (`apk_found`), so a failed build can never
+  # publish an empty or stale release. `contents: write` is granted to this job alone; the build job
+  # stays read-only.
+  release:
+    name: Publish Aether-dev.apk as a Release
+    needs: apk
+    if: needs.apk.outputs.apk_found == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Aether-dev-apk
+          path: release
+
+      - name: Name the assets and verify the bytes survived the transfer
+        id: assets
+        env:
+          # What the build job hashed in its own workspace, before the artifact round trip.
+          BUILD_SHA: ${{ needs.apk.outputs.apk_sha }}
+          BUILD_SIZE: ${{ needs.apk.outputs.apk_size }}
+        run: |
+          set -euo pipefail
+          short="${GITHUB_SHA:0:7}"
+          apk=$(find release -name '*.apk' | sort | head -1)
+          if [ -z "$apk" ]; then
+            echo "::error::The build job reported an APK but the artifact contains none."
+            exit 1
+          fi
+
+          asset="Aether_0.1.0_${short}.apk"
+          cp "$apk" "$asset"
+          size=$(stat -c %s "$asset")
+          sha=$(sha256sum "$asset" | cut -d' ' -f1)
+          sha256sum "$asset" > SHA256SUMS.txt
+
+          if [ -n "${BUILD_SHA:-}" ] && [ "$sha" != "$BUILD_SHA" ]; then
+            echo "::error::The downloaded APK does not match what the build hashed ($sha != $BUILD_SHA)."
+            exit 1
+          fi
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=apk-${short}" >> "$GITHUB_OUTPUT"
+          cat SHA256SUMS.txt
+          echo "::notice title=Release asset::$asset - $size bytes - sha256 $sha (matches the build: yes)"
+
+      # `gh` rather than a third-party release action: it is already on the runner, and a token with
+      # `contents: write` is all this needs.
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.assets.outputs.tag }}
+          ASSET: ${{ steps.assets.outputs.asset }}
+          SIZE: ${{ steps.assets.outputs.size }}
+          SHA: ${{ steps.assets.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; replacing its assets."
+            gh release upload "$TAG" "$ASSET" SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$ASSET" SHA256SUMS.txt \
+              --title "Aether dev build ${TAG#apk-}" \
+              --target "$GITHUB_SHA" \
+              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit \`$GITHUB_SHA\`, built and published by the Android APK workflow. Debug-signed, for play-testing only.
+
+          \`$ASSET\` — $SIZE bytes — sha256 \`$SHA\`"
+          fi
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$ASSET"
+          echo "### Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Direct APK download::$url"
