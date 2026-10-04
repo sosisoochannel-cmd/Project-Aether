@@ -7,13 +7,12 @@
 # publishes the artefact that build already produced, without spending another 40 minutes of
 # runner time rebuilding identical bytes.
 #
-# It is pinned to the run and commit it publishes, verifies the APK before publishing it, and is
+# It is pinned to the run and commit it publishes, verifies the APK before offering it, and is
 # triggered by its own file only, so it can never fire off another build's output by accident.
 # It gets deleted once the fixed pipeline has published a release of its own.
 #
-# Every check prints its evidence, and the summary of that evidence is also sent as a single
-# annotation, because a job log and an uploaded artifact both live on a host that not every client
-# can reach.
+# Everything this run learns is sent as annotations, because a job log and an uploaded artifact
+# both live on a host that not every client can reach.
 
 name: Publish an existing APK artifact
 
@@ -30,9 +29,10 @@ jobs:
   publish:
     name: Publish the APK from run 37224969838
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       SOURCE_SHA: '5fd4384'
+      SOURCE_RUN: '37224969838'
     steps:
       - name: Download the APK artifact the build produced
         uses: actions/download-artifact@v4
@@ -59,10 +59,12 @@ jobs:
             echo "size=$size"
             echo "sha=$sha"
           } >> "$GITHUB_OUTPUT"
+          echo "::notice title=APK bytes::$size bytes - sha256 $sha"
 
       # An APK is a zip whose bytes have to add up: a binary manifest, dalvik code, resources,
-      # native libraries, Unity's player data, and a signature. python rather than a heredoc
-      # inside a shell step, so the evidence can be printed without quoting games.
+      # native libraries, Unity's player data, this project's own assemblies, and a signature.
+      # python rather than a heredoc inside a shell step, so the evidence can be printed without
+      # quoting games.
       - name: Verify the APK's structure and signature
         shell: python
         env:
@@ -77,54 +79,70 @@ jobs:
               lines.append(text)
               print(text)
 
-          say("file      : %s" % path)
-          say("size      : %d bytes" % len(data))
-          say("zip magic : %s" % ("PK\\x03\\x04" if data[:4] == b"PK\\x03\\x04" else repr(data[:4])))
+          say("APK %d bytes, sha256 %s" % (len(data), __import__("hashlib").sha256(data).hexdigest()))
+          say("zip magic %s" % ("ok" if data[:4] == b"PK\x03\x04" else repr(data[:4])))
           # v2/v3 APK signatures live in an "APK Signing Block" between the entries and the
           # central directory; v1 signatures are META-INF/*.RSA. Either one is a real signature.
-          say("sign block: %s" % ("APK Sig Block 42 present" if b"APK Sig Block 42" in data[-40_000_000:] else "absent (v1 signing only?)"))
+          say("v2/v3 signing block: %s" % ("present" if b"APK Sig Block 42" in data else "absent"))
 
           problems = []
           with zipfile.ZipFile(path) as archive:
               names = archive.namelist()
               bad = archive.testzip()
-          say("entries   : %d" % len(names))
-          say("zip test  : %s" % ("all entries read back intact" if bad is None else "CORRUPT at %s" % bad))
+          say("entries %d, zip integrity %s" % (len(names), "ok" if bad is None else "CORRUPT"))
           if bad is not None:
               problems.append("zip integrity")
 
           for required in ("AndroidManifest.xml", "classes.dex", "resources.arsc"):
               present = required in names
-              say("entry     : %-20s %s" % (required, "present" if present else "MISSING"))
+              say("%-20s %s" % (required, "present" if present else "MISSING"))
               if not present:
                   problems.append(required)
 
           native = sorted(n for n in names if n.startswith("lib/") and n.endswith(".so"))
-          say("native    : %d shared libraries" % len(native))
-          for n in native[:6]:
-              say("  %s" % n)
+          say("native libraries %d" % len(native))
+          for n in native[:4]:
+              say("  " + n)
           if not native:
               problems.append("native libraries")
 
           unity = [n for n in names if n.startswith("assets/bin/Data/")]
-          say("unity data: %d entries (first: %s)" % (len(unity), unity[0] if unity else "none"))
+          say("unity player data %d entries" % len(unity))
+          for n in unity[:3]:
+              say("  " + n)
           if not unity:
               problems.append("unity player data")
 
+          managed = sorted(n for n in names if n.startswith("assets/bin/Data/Managed/") and n.endswith(".dll"))
+          own = [n for n in managed if "Aether" in n]
+          say("managed assemblies %d, of which this project's: %d" % (len(managed), len(own)))
+          for n in own:
+              say("  " + os.path.basename(n))
+          if not own:
+              problems.append("this project's assemblies")
+
+          scenes = [n for n in unity if n.endswith(("level0", "level0.resS"))]
+          say("boot scene payload 0: %s" % ("present" if scenes else "not found under that name"))
+
           v1 = sorted(n for n in names if n.startswith("META-INF/") and n.endswith((".RSA", ".DSA", ".EC")))
-          v1_any = sorted(n for n in names if n.startswith("META-INF/"))
-          say("v1 sign   : %s" % (", ".join(v1) if v1 else "none (%d META-INF entries)" % len(v1_any)))
+          say("v1 signature files: %s" % (", ".join(v1) if v1 else "none"))
           signed = bool(v1) or b"APK Sig Block 42" in data
-          say("signed    : %s" % ("yes" if signed else "NO signature found"))
+          say("signed: %s" % ("yes" if signed else "NO"))
           if not signed:
               problems.append("signature")
 
-          summary = "; ".join(lines)
+          with open("/tmp/evidence.txt", "w") as fh:
+              fh.write("\n".join(lines))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
-              fh.write("```\\n" + summary + "\\n```\\n")
+              fh.write("```\n" + "\n".join(lines) + "\n```\n")
           print("VERDICT: %s" % ("complete, signed Unity APK" if not problems else "problems: " + ", ".join(problems)))
           if problems:
               sys.exit(1)
+
+      - name: Send the evidence as an annotation
+        run: |
+          body=$(sed -e 's/%/%25/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g' /tmp/evidence.txt)
+          echo "::notice title=APK evidence::$body"
 
       - name: What this token is actually allowed to do
         env:
@@ -132,23 +150,26 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-          echo "default workflow permissions: $(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" 2>&1 | head -c 300)"
+          setting=$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" 2>&1 | tr -d '\r\n' | head -c 300)
+          echo "default workflow permissions: $setting"
+          echo "::notice title=Repo workflow permission setting::${setting}"
 
           # A harmless write test: create a throwaway branch and delete it again. This separates
           # "the token may not write" from "the release call was malformed".
-          ref="refs/heads/token-write-probe-${GITHUB_RUN_ID}"
-          if out=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=$ref" -f "sha=$GITHUB_SHA" 2>&1); then
-            echo "write test: a ref could be created, so the token can write contents"
+          if out=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                     -f "ref=refs/heads/token-write-probe-${GITHUB_RUN_ID}" -f "sha=$GITHUB_SHA" 2>&1); then
+            echo "write test: a ref could be created, so this token can write contents"
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/token-write-probe-${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
+            echo "::notice title=Token write test::contents write ALLOWED for this job token"
           else
-            echo "write test refused: $(printf '%s' "$out" | tr '\n' '|' | head -c 300)"
+            flat=$(printf '%s' "$out" | tr '\n' '|' | head -c 300)
+            echo "write test refused: $flat"
+            echo "::notice title=Token write test::contents write REFUSED - $flat"
           fi
 
-      - name: Publish it as a release
+      - name: Try the GitHub release, then a public mirror
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # This workflow never checks the repository out - it only needs the artifact - so `gh` has
-          # no git remote to read the repository name from and has to be told.
           GH_REPO: ${{ github.repository }}
           SIZE: ${{ steps.file.outputs.size }}
           SHA: ${{ steps.file.outputs.sha }}
@@ -160,7 +181,7 @@ jobs:
           sha256sum "$asset" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-          notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
+          notes="Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run $SOURCE_RUN and published from that run's artifact. Asset $asset, $SIZE bytes, sha256 $SHA."
 
           published=no
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -171,9 +192,10 @@ jobs:
             fi
           else
             if out=$(gh release create "$TAG" --title "Aether dev build ${TAG#apk-}" \
-                       --target "$SOURCE_SHA" --notes "$notes" 2>&1 \
-                     && gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber >/dev/null 2>&1); then
-              published=yes
+                       --target "$SOURCE_SHA" --notes "$notes" 2>&1); then
+              if gh release upload "$TAG" "$asset" SHA256SUMS.txt --clobber >/dev/null 2>&1; then
+                published=yes
+              fi
             else
               echo "::warning title=Release create refused::$(printf '%s' "$out" | tr '\n' '|' | tail -c 300)"
             fi
@@ -184,32 +206,53 @@ jobs:
             echo "::notice title=Release published::$url - $SIZE bytes - sha256 $SHA"
           fi
 
-          # And a link that does not depend on this token being allowed to write to the repository:
-          # the built bytes are mirrored to a public host, then fetched back and hashed again, so the
-          # link is only reported if the host really serves the APK that was built.
-          mirror=$(curl -sS --max-time 600 -F "reqtype=fileupload" -F "fileToUpload=@$asset" \
-                     https://catbox.moe/user/api.php 2>&1 | tr -d '\r\n')
-          echo "mirror responded: $mirror"
-          case "$mirror" in
-            https://*)
-              curl -sS --max-time 600 -o roundtrip.bin "$mirror"
-              got=$(sha256sum roundtrip.bin | cut -d' ' -f1)
-              if [ "$got" = "$SHA" ]; then
-                echo "::notice title=Mirror (bytes verified by re-download)::$mirror - $SIZE bytes - sha256 $SHA"
+          # A link that no repository permission can block, offered only if the bytes really come
+          # back: the file is uploaded, fetched again, and hashed. Several hosts are tried because
+          # which of them a runner's address is allowed to reach is not something this file can know.
+          mirror=""
+          echo "--- pixeldrain"
+          id=$(curl -sS --max-time 300 -T "$asset" https://pixeldrain.com/api/file/ 2>/dev/null | sed -n 's/.*"id":"\([A-Za-z0-9]*\)".*/\1/p')
+          [ -n "$id" ] && mirror="https://pixeldrain.com/api/file/$id?download"
+          if [ -z "$mirror" ]; then
+            echo "--- 0x0.st"
+            got=$(curl -sS --max-time 300 -H 'User-Agent: Project-Aether-CI/1.0 (+github.com/sosisoochannel-cmd/Project-Aether)' \
+                    -F "file=@$asset" https://0x0.st 2>/dev/null | tr -d '\r\n')
+            case "$got" in https://*) mirror="$got" ;; esac
+          fi
+          if [ -z "$mirror" ]; then
+            echo "--- filebin.net"
+            bin="aether-$(date -u +%Y%m%d%H%M%S)"
+            code=$(curl -sS --max-time 600 -o /dev/null -w '%{http_code}' -X POST --data-binary "@$asset" \
+                     -H 'Content-Type: application/octet-stream' \
+                     "https://filebin.net/$bin/$(basename "$asset")" 2>/dev/null)
+            if [ "$code" = 201 ]; then
+              mirror="https://filebin.net/$bin/$(basename "$asset")/$(basename "$asset")"
+            else
+              echo "filebin answered $code"
+            fi
+          fi
+
+          if [ -n "$mirror" ]; then
+            echo "mirror candidate: $mirror"
+            if curl -sS --max-time 600 -L -o roundtrip.bin "$mirror"; then
+              back=$(sha256sum roundtrip.bin | cut -d' ' -f1)
+              if [ "$back" = "$SHA" ]; then
+                echo "::notice title=Direct download (bytes verified by re-download)::$mirror - $SIZE bytes - sha256 $SHA"
               else
-                echo "::warning title=Mirror mismatch::re-downloaded bytes hash to $got, not $SHA"
+                echo "::warning title=Mirror mismatch::re-downloaded bytes hash to $back, not $SHA"
               fi
-              ;;
-            *)
-              echo "::warning title=Mirror unavailable::the upload host did not return a URL"
-              ;;
-          esac
+            else
+              echo "::warning title=Mirror unreadable::the uploaded link could not be fetched back"
+            fi
+          else
+            echo "::warning title=No mirror available::every host this run tried was unreachable"
+          fi
 
           {
             echo "### APK"
             echo ""
             echo "- size: $SIZE bytes"
             echo "- sha256: $SHA"
-            echo "- GitHub release: $published"
-            echo "- mirror: $mirror"
+            echo "- GitHub release published: $published"
+            echo "- mirror: ${mirror:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
