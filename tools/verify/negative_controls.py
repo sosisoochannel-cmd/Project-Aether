@@ -187,6 +187,29 @@ def controls() -> list[Control]:
             ["VERIFICATION PASSED"],
             must_fail=False),
         Control(
+            "verify: a nested type's member is used without its container",
+            # The third licensed build's failure: three lines, six errors, all of them
+            # 'The name JumpCentre does not exist in the current context'. JumpCentre belongs to
+            # the nested Layout class and the enclosing view cannot see it unqualified.
+            gate,
+            lambda root: edit(root,
+                              f"{CODE}/Aether.Gameplay/Runtime/Controls/TouchControlsView.cs",
+                              "CircleHit(position, Layout.JumpCentre, Layout.JumpRadius)",
+                              "CircleHit(position, JumpCentre, Layout.JumpRadius)"),
+            ["scope:", "JumpCentre", "not in scope"]),
+        Control(
+            "verify: a local variable that shadows a nested member name is silent",
+            # Proves the rule is not simply 'the name is banned'. A local called JumpRadius is
+            # perfectly legal C#, and the tool must not report it.
+            gate,
+            lambda root: edit(root,
+                              f"{CODE}/Aether.Gameplay/Runtime/Controls/TouchControlsView.cs",
+                              "            float radius = radiusFraction * Screen.height;",
+                              "            float JumpRadius = radiusFraction * Screen.height;\n"
+                              "            float radius = JumpRadius;"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
             "levelcheck: a wide gap makes the exit genuinely unreachable",
             solver,
             lambda root: level_rows(root, [(20, 94, 6, "......"),

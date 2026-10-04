@@ -1230,6 +1230,65 @@ ENGINE_TYPE_NAMES = (
 ENGINE_USING_RE = re.compile(r"^\s*using\s+UnityEngine(?:\.[\w.]+)?\s*;", re.M)
 
 
+def check_nested_member_scope(report: Report, project: Project) -> None:
+    """A member of a nested type is not in scope in the enclosing type.
+
+    `Layout.JumpCentre` is a member of the nested `Layout` class; `JumpCentre` on its own is not
+    a name the enclosing `TouchControlsView` can see, which is what the third licensed build
+    stopped on - six times in three lines. The symbol check could not see it either: it resolves
+    members accessed *on a receiver*, and these had no receiver at all.
+
+    An occurrence inside the nested type's own body is legal (members are in scope there), and a
+    name the enclosing type also declares is legal by C# name lookup, so both are skipped.
+    """
+    enclosing_member_names: dict[str, set[str]] = {}
+    for decl in project.declarations:
+        record = decl["record"]
+        if record["container"] is None:
+            enclosing_member_names.setdefault(decl["path"], set()).update(
+                m["name"] for m in record["members"])
+
+    findings = 0
+    for rel, entry in project.files.items():
+        code = entry["code"]
+
+        nested: dict[str, str] = {}
+        own_ranges: list[tuple[int, int]] = []
+        for decl in project.declarations:
+            if decl["path"] != rel:
+                continue
+            record = decl["record"]
+            if record["container"] is not None:
+                own_ranges.append((decl["brace"], decl["close"]))
+                for member in record["members"]:
+                    nested.setdefault(member["name"], record["name"])
+
+        if not nested:
+            continue
+
+        legal = enclosing_member_names.get(rel, set())
+        shadowing = set()
+        for pattern in (DECLARED_TYPE_RE, DECLARED_VARIABLE_RE, DECLARED_METHOD_RE,
+                        DECLARED_USING_ALIAS_RE):
+            shadowing.update(pattern.findall(code))
+
+        for name in sorted(nested):
+            if name in legal or name in shadowing:
+                continue
+            for match in re.finditer(r"(?<![\w.])" + re.escape(name) + r"(?![\w])", code):
+                if any(start <= match.start() <= end for start, end in own_ranges):
+                    continue
+                line = code[: match.start()].count("\n") + 1
+                report.fail(
+                    f"scope: '{rel}' line {line} names '{name}', which is a member of the nested "
+                    f"type '{nested[name]}' and not in scope here (write '{nested[name]}.{name}')")
+                findings += 1
+                break
+
+    if not findings:
+        report.note("scope: no nested-type member is used without its container")
+
+
 def check_engine_names(report: Report, project: Project) -> None:
     """A file may not name a UnityEngine type it never imports.
 
@@ -1340,6 +1399,7 @@ def main() -> int:
     check_asmdefs(report, project)
     check_asset_fields(report, project)
     check_symbols(report, project)
+    check_nested_member_scope(report, project)
     check_engine_names(report, project)
     check_lints(report, project)
     check_namespace_hygiene(report, project)
