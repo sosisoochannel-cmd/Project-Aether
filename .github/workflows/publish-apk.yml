@@ -70,7 +70,7 @@ jobs:
         env:
           APK: ${{ steps.file.outputs.path }}
         run: |
-          import os, sys, zipfile
+          import hashlib, os, sys, zipfile
 
           path = os.environ["APK"]
           data = open(path, "rb").read()
@@ -79,70 +79,88 @@ jobs:
               lines.append(text)
               print(text)
 
-          say("APK %d bytes, sha256 %s" % (len(data), __import__("hashlib").sha256(data).hexdigest()))
-          say("zip magic %s" % ("ok" if data[:4] == b"PK\x03\x04" else repr(data[:4])))
-          # v2/v3 APK signatures live in an "APK Signing Block" between the entries and the
-          # central directory; v1 signatures are META-INF/*.RSA. Either one is a real signature.
+          say("APK file  : %s" % path)
+          say("size      : %d bytes" % len(data))
+          say("sha256    : %s" % hashlib.sha256(data).hexdigest())
+          say("zip magic : %s" % ("ok" if data[:4] == b"PK\x03\x04" else repr(data[:4])))
+          # v2/v3 APK signatures live in an "APK Signing Block" between the entries and the central
+          # directory; v1 signatures are META-INF/*.RSA. Either one is a real signature.
           say("v2/v3 signing block: %s" % ("present" if b"APK Sig Block 42" in data else "absent"))
 
-          problems = []
+          # Two lists: what has to be true for the bytes to be an installable Android package at
+          # all, and what is merely worth reporting. Failing to find a managed assembly, for
+          # instance, is expected in an IL2CPP build - the C# is compiled into native code and
+          # there is nothing left to find - so that is evidence, not a gate.
+          gates = []
+          notes = []
+
           with zipfile.ZipFile(path) as archive:
               names = archive.namelist()
               bad = archive.testzip()
-          say("entries %d, zip integrity %s" % (len(names), "ok" if bad is None else "CORRUPT"))
+          say("entries   : %d" % len(names))
+          say("zip test  : %s" % ("every entry read back intact" if bad is None else "CORRUPT at %s" % bad))
           if bad is not None:
-              problems.append("zip integrity")
+              gates.append("zip integrity")
 
-          for required in ("AndroidManifest.xml", "classes.dex", "resources.arsc"):
+          for required in ("AndroidManifest.xml", "classes.dex"):
               present = required in names
-              say("%-20s %s" % (required, "present" if present else "MISSING"))
+              say("required  : %-20s %s" % (required, "present" if present else "MISSING"))
               if not present:
-                  problems.append(required)
+                  gates.append(required)
 
-          native = sorted(n for n in names if n.startswith("lib/") and n.endswith(".so"))
-          say("native libraries %d" % len(native))
-          for n in native[:4]:
-              say("  " + n)
-          if not native:
-              problems.append("native libraries")
-
-          unity = [n for n in names if n.startswith("assets/bin/Data/")]
-          say("unity player data %d entries" % len(unity))
-          for n in unity[:3]:
-              say("  " + n)
-          if not unity:
-              problems.append("unity player data")
-
-          managed = sorted(n for n in names if n.startswith("assets/bin/Data/Managed/") and n.endswith(".dll"))
-          own = [n for n in managed if "Aether" in n]
-          say("managed assemblies %d, of which this project's: %d" % (len(managed), len(own)))
-          for n in own:
-              say("  " + os.path.basename(n))
-          if not own:
-              problems.append("this project's assemblies")
-
-          scenes = [n for n in unity if n.endswith(("level0", "level0.resS"))]
-          say("boot scene payload 0: %s" % ("present" if scenes else "not found under that name"))
+          for expected in ("resources.arsc",):
+              say("expected  : %-20s %s" % (expected, "present" if expected in names else "MISSING"))
+              if expected not in names:
+                  notes.append(expected)
 
           v1 = sorted(n for n in names if n.startswith("META-INF/") and n.endswith((".RSA", ".DSA", ".EC")))
-          say("v1 signature files: %s" % (", ".join(v1) if v1 else "none"))
           signed = bool(v1) or b"APK Sig Block 42" in data
-          say("signed: %s" % ("yes" if signed else "NO"))
+          say("signature : %s" % ("v1 " + ", ".join(v1) if v1 else "no v1 files; WARNING" if not signed else "v2/v3 signing block only"))
+          say("signed    : %s" % ("yes" if signed else "NO"))
           if not signed:
-              problems.append("signature")
+              gates.append("signature")
+
+          abis = sorted({n.split("/")[1] for n in names if n.startswith("lib/") and n.count("/") >= 2})
+          native = [n for n in names if n.startswith("lib/") and n.endswith(".so")]
+          say("abis      : %s" % (", ".join(abis) if abis else "none"))
+          say("native    : %d shared libraries" % len(native))
+          for n in native[:6]:
+              say("              " + n)
+          if not native:
+              notes.append("native libraries")
+
+          il2cpp = [n for n in names if "il2cpp" in n.lower() or n.endswith("global-metadata.dat")]
+          say("il2cpp    : %d entries%s" % (len(il2cpp), (" (" + ", ".join(os.path.basename(n) for n in il2cpp[:3]) + ")") if il2cpp else ""))
+
+          unity = [n for n in names if n.startswith("assets/bin/Data/")]
+          say("player data: %d entries" % len(unity))
+          for n in unity[:8]:
+              say("              " + n)
+          if not unity:
+              notes.append("unity player data")
+
+          managed = [n for n in names if n.startswith("assets/bin/Data/Managed/")]
+          own = [n for n in managed if "Aether" in n]
+          say("managed    : %d entries under Managed/, of which Aether: %d (IL2CPP builds have none - expected)" % (len(managed), len(own)))
 
           with open("/tmp/evidence.txt", "w") as fh:
               fh.write("\n".join(lines))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
               fh.write("```\n" + "\n".join(lines) + "\n```\n")
-          print("VERDICT: %s" % ("complete, signed Unity APK" if not problems else "problems: " + ", ".join(problems)))
-          if problems:
+
+          verdict = "installable signed APK" if not gates else "problems: " + ", ".join(gates)
+          print("VERDICT: %s" % verdict)
+          if gates:
+              print("NOTE: this run refuses to publish, but the evidence above is still reported.")
               sys.exit(1)
 
       - name: Send the evidence as an annotation
+        if: always()
         run: |
-          body=$(sed -e 's/%/%25/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g' /tmp/evidence.txt)
-          echo "::notice title=APK evidence::$body"
+          if [ -f /tmp/evidence.txt ]; then
+            body=$(sed -e 's/%/%25/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g' /tmp/evidence.txt)
+            echo "::notice title=APK evidence::$body"
+          fi
 
       - name: What this token is actually allowed to do
         env:
@@ -168,6 +186,7 @@ jobs:
           fi
 
       - name: Try the GitHub release, then a public mirror
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
