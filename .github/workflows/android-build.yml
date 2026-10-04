@@ -1,0 +1,149 @@
+# Android APK build for Project Aether, on GitHub's own runners.
+#
+# The pipeline in one line: check out the repository, let GameCI provide Unity 6000.3.24f1 in a
+# container, activate the Unity Personal license from the account's own credentials, build an
+# Android APK, and upload it as a downloadable artifact.
+#
+# **Nothing here needs a PC.** Unity's editor, the Android SDK/NDK and the JDK all live on
+# GitHub's runner for the length of the job; the only things the account owner supplies are their
+# Unity account email and password, stored as repository secrets. See docs/CI.md.
+#
+# Licensing, stated plainly because this is the part people get wrong: no .ulf file and no serial
+# key are used. GameCI's CLI resolves the licensing strategy itself in the order
+# file -> serial -> floating -> personal, and with only account credentials present it activates a
+# Personal seat inside the container and returns it when the build ends. That is a real,
+# account-bound Unity Personal license being used exactly as Unity's own tooling intends — not a
+# bypass, not a cracked license, and not a fabricated one. The strategy order and the
+# activate/return pairing are in game-ci/cli (`licensing-method.ts`, `run-licensing-probe-cell.sh`),
+# and the only cell GameCI records as failing across the versions they measure is 2020.3.49f1,
+# whose bundled licensing client predates the `--include-personal` flag this path needs.
+
+name: Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - arena/01a10203-project-aether
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A build spends the account's monthly Actions minutes, and a run cancelled mid-build can leave a
+# Personal seat bound to a machine that no longer exists — released by hand at id.unity.com. So a
+# newer push queues behind the older run instead of killing it.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Check Unity credentials
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Verify the secrets exist
+        id: check
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          # Values are never printed; only whether they are present.
+          ready=true
+          if [ -z "$UNITY_EMAIL" ]; then
+            echo "::warning::Repository secret UNITY_EMAIL is missing, so no license can be activated."
+            ready=false
+          fi
+          if [ -z "$UNITY_PASSWORD" ]; then
+            echo "::warning::Repository secret UNITY_PASSWORD is missing, so no license can be activated."
+            ready=false
+          fi
+          if [ "$ready" = "true" ]; then
+            echo "Unity account credentials are present. The build job will run."
+          else
+            echo "Add both secrets under Settings -> Secrets and variables -> Actions, then re-run this workflow from the Actions tab."
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+  apk:
+    name: Unity 6000.3.24f1 -> Aether-dev.apk
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Library is Unity's import cache. Restoring it turns a multi-minute import into seconds.
+      # Restore and save are split deliberately: the combined cache step's implicit post-run save
+      # has been observed hanging on hosted runners (see the comment in GameCI's own build
+      # workflow), and an explicit step can be bounded by a timeout.
+      - name: Restore Library cache
+        uses: actions/cache/restore@v4
+        with:
+          path: Library
+          key: Library-Android-${{ github.sha }}
+          restore-keys: |
+            Library-Android-
+
+      - name: Build APK
+        id: build
+        uses: game-ci/unity-builder@v6
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          targetPlatform: Android
+          # androidPackage = .apk. The other values are androidAppBundle (.aab) and
+          # androidStudioProject, neither of which this milestone wants.
+          androidExportType: androidPackage
+          buildName: Aether-dev
+          buildsPath: Builds
+          # Custom versioning keeps the build deterministic and independent of git history: the
+          # Semantic strategy derives a version from tags and commit counts, which a shallow
+          # checkout cannot do.
+          versioning: Custom
+          version: 0.1.0
+          # Unity generates Packages/packages-lock.json on its first import, which makes the
+          # working tree dirty. That is expected here, not a mistake to be blocked on.
+          allowDirtyBuild: true
+
+      - name: Save Library cache
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/cache/save@v4
+        with:
+          path: Library
+          key: Library-Android-${{ github.sha }}
+
+      - name: Report what was produced
+        if: always()
+        run: |
+          echo "### APK" >> "$GITHUB_STEP_SUMMARY"
+          found=0
+          while IFS= read -r apk; do
+            [ -z "$apk" ] && continue
+            found=1
+            size=$(stat -c %s "$apk")
+            sha=$(sha256sum "$apk" | cut -d' ' -f1)
+            echo "- \`$apk\` - $size bytes" >> "$GITHUB_STEP_SUMMARY"
+            echo "- sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "$apk  $size bytes  sha256=$sha"
+          done < <(find Builds -name '*.apk' 2>/dev/null | sort)
+          if [ "$found" = "0" ]; then
+            echo "No APK was produced. The real error is in the build step's log above, not here." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-dev-apk
+          path: Builds/**/*.apk
+          if-no-files-found: warn
+          retention-days: 30
