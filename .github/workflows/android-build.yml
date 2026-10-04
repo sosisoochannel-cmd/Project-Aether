@@ -249,6 +249,15 @@ jobs:
           # The same command the `game-ci/unity-builder` action runs, called directly so the whole
           # output can be captured to a file. Without that file the only copy of a failure is the
           # job log, which is 25,000 lines and not readable from a phone or from the API.
+          #
+          # --androidTargetSdkVersion is not cosmetic. The GameCI Android image installs
+          # platform-tools, build-tools and the NDK, but no `platforms;android-XX` at all: its
+          # container entrypoint installs exactly one platform, named by the project's
+          # `AndroidTargetSdkVersion`. This project leaves that at 0 (Auto), so the entrypoint asked
+          # the SDK manager for `platforms;android-0`, was told "Failed to find package", and Unity
+          # was left with no Android platform to compile against. Naming API 35 here installs
+          # `platforms;android-35` and hands Unity the same level - the level Google Play requires of
+          # new apps in 2025.
           attempt() {
             local method="$1"
             echo "### Attempt: unityLicensingMethod=$method"
@@ -260,6 +269,7 @@ jobs:
               --versioningStrategy=Custom \
               --version=0.1.0 \
               --allowDirtyBuild \
+              --androidTargetSdkVersion=35 \
               --unityLicensingMethod="$method" 2>&1 | tee "ci-build-$method.log"
             return "${PIPESTATUS[0]}"
           }
@@ -271,7 +281,10 @@ jobs:
           attempt personal && status=0
 
           if [ "$status" != 0 ]; then
-            echo "::notice title=Attempt 1 failed::personal licensing failed; see ci-build-personal.log"
+            # What failed, not what is assumed to have failed: licensing already worked by the time
+            # Unity is given the project, and the log says so either way.
+            reason=$(grep -hoE 'Build failed, with exit code [0-9]+|Aborting batchmode due to failure.*|Licensing failed.*' ci-build-personal.log | tail -1)
+            echo "::notice title=Attempt 1 failed::${reason:-no build result in the log yet}; see ci-build-personal.log"
             # A second attempt is only worth its minutes if the account supplied something the first
             # (forced) strategy was told to ignore - a .ulf or a serial.
             if [ -n "${UNITY_LICENSE:-}" ] || [ -n "${UNITY_SERIAL:-}" ]; then
@@ -354,15 +367,14 @@ jobs:
               | while IFS= read -r line; do echo "::notice title=Log end (newest first)::$line"; done
           done
 
-      # The job log is tens of thousands of lines, and the host it is stored on is not reachable from
-      # every client that reads a run, so the captured log is handed back through the API as well: one
-      # check run per 40 KB part, each carrying a gzip+base64 slice of the normalised log. Check-run
-      # output is capped at 64 KB per field, hence the part size. Diagnostic material only - nothing
-      # below this line feeds the build.
-      - name: Hand the captured log back through the API
+      # The job log is tens of thousands of lines and the host it is stored on is not reachable from
+      # every client that reads a run, so the captured log is handed back through the API too -
+      # gzipped, base64'd, and cut to fit what the channels actually allow: a workflow-command message
+      # is truncated at 4096 characters, and only the first ten annotations of a step (per level)
+      # survive. Hence 3900-character pieces, ten per step, two steps. Diagnostic material only;
+      # nothing here feeds the build.
+      - name: Prepare the log payload
         if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
           files=(ci-build-*-normalised.log)
@@ -373,34 +385,71 @@ jobs:
 
           for f in "${files[@]}"; do
             tag=$(basename "$f" .log)
-            b64="$RUNNER_TEMP/$tag.b64"
-            gzip -9c "$f" | base64 -w0 > "$b64"
-            total=$(wc -c < "$b64")
-            parts=$(( (total + 39999) / 40000 ))
-            echo "::notice title=Log payload::$tag - $total base64 characters, $parts part(s)"
-
-            rm -f "$RUNNER_TEMP/$tag.part-"*
-            split -b 40000 -d -a 3 "$b64" "$RUNNER_TEMP/$tag.part-"
-
-            n=0
-            for part in "$RUNNER_TEMP/$tag.part-"*; do
-              n=$((n+1))
-              name="$tag part $n/$parts"
-              digest=$(sha256sum < "$part" | cut -c1-16)
-              if jq -n --arg name "$name" --arg sha "$GITHUB_SHA" --arg text "$(cat "$part")" \
-                   '{name:$name, head_sha:$sha, status:"completed", conclusion:"neutral",
-                     output:{title:$name, text:$text}}' > "$RUNNER_TEMP/body.json" \
-                 && id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" \
-                        --input "$RUNNER_TEMP/body.json" --jq '.id'); then
-                echo "::notice title=Log payload part::check run $id carries $name ($digest)"
-              else
-                # If the API route is unavailable, the same bytes still go out as an annotation, where
-                # only the first ten of a step survive.
-                echo "::warning title=Log payload fallback::$name could not be posted as a check run"
-                echo "::notice title=$name::$digest $(cat "$part")"
-              fi
-            done
+            gzip -9c "$f" | base64 -w0 > "$RUNNER_TEMP/$tag.b64"
+            total=$(wc -c < "$RUNNER_TEMP/$tag.b64")
+            rm -f "$RUNNER_TEMP/$tag.piece-"*
+            split -b 3900 -d -a 3 "$RUNNER_TEMP/$tag.b64" "$RUNNER_TEMP/$tag.piece-"
+            pieces=$(ls "$RUNNER_TEMP/$tag.piece-"* | wc -l)
+            # A tiny script so the tail is emitted from a later step, where the annotation budget is
+            # still empty.
+            {
+              echo "tail -n 25 \"$f\" | tac | cut -c1-380 | while IFS= read -r line; do"
+              echo "  echo \"::notice title=Log end::$line\""
+              echo "done"
+            } > "$RUNNER_TEMP/tail-$tag.sh"
+            echo "::notice title=Log payload::$tag - $total base64 characters in $pieces piece(s), so $(( (pieces + 9) / 10 )) step(s)"
           done
+
+      - name: Hand back the log payload (pieces 1-10)
+        if: always()
+        run: |
+          shopt -s nullglob
+          for piece in "$RUNNER_TEMP"/ci-build-*.piece-*; do
+            n=$(basename "$piece" | sed 's/.*piece-//')
+            if [ "$((10#$n))" -le 10 ]; then
+              echo "::notice title=$(basename "$piece" | sed 's/.piece-/-/')::$(cat "$piece")"
+            fi
+          done
+
+      - name: Hand back the log payload (pieces 11-20)
+        if: always()
+        run: |
+          shopt -s nullglob
+          for piece in "$RUNNER_TEMP"/ci-build-*.piece-*; do
+            n=$(basename "$piece" | sed 's/.*piece-//')
+            if [ "$((10#$n))" -gt 10 ] && [ "$((10#$n))" -le 20 ]; then
+              echo "::notice title=$(basename "$piece" | sed 's/.piece-/-/')::$(cat "$piece")"
+            fi
+          done
+
+      # The end of the log read newest-first, and the same bytes offered to the check-run API - the
+      # pieces above are the channel that is known to work, so both of these are best-effort.
+      - name: Report the end of the log and try the check-run channel
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          for script in "$RUNNER_TEMP"/tail-*.sh; do
+            if [ -f "$script" ]; then bash "$script"; fi
+          done
+
+          posted=0
+          for piece in "$RUNNER_TEMP"/ci-build-*.piece-*; do
+            name="$(basename "$piece" | sed 's/.piece-/-/')"
+            rm -f "$RUNNER_TEMP/error.txt"
+            if jq -n --arg name "$name" --arg sha "$GITHUB_SHA" --arg text "$(cat "$piece")" \
+                 '{name:$name, head_sha:$sha, status:"completed", conclusion:"neutral",
+                   output:{title:$name, text:$text}}' > "$RUNNER_TEMP/body.json" 2>>"$RUNNER_TEMP/error.txt" \
+               && gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" \
+                    --input "$RUNNER_TEMP/body.json" >> "$RUNNER_TEMP/posted.txt" 2>>"$RUNNER_TEMP/error.txt"; then
+              posted=$(( posted + 1 ))
+            else
+              reason=$(head -c 300 "$RUNNER_TEMP/error.txt" | tr -d '\r\n')
+              echo "::warning title=Check run refused::$name - ${reason:-no error text}"
+            fi
+          done
+          echo "::notice title=Check runs posted::$posted piece(s) accepted by the API"
 
       - name: Save Library cache
         if: always()
