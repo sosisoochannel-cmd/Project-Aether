@@ -1,0 +1,57 @@
+# Temporary diagnostic workflow, not part of the build.
+#
+# Answering one question: how much of a long build log can be read back from a client that cannot
+# reach the host GitHub stores job logs and artifacts on? Two candidate channels are measured -
+# workflow-command annotations, whose number is capped per step, and check-run `output.text`, whose
+# size is capped per field. The same mechanics the APK workflow uses to hand back its build log.
+#
+# Removed once the numbers are known.
+
+name: Reporting probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  probe:
+    name: Measure the reporting channels
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Emit 30 notices, 30 warnings and 30 errors
+        run: |
+          for i in $(seq 1 30); do echo "::notice title=PROBE-N-$i::notice number $i of 30"; done
+          for i in $(seq 1 30); do echo "::warning title=PROBE-W-$i::warning number $i of 30"; done
+          for i in $(seq 1 30); do echo "::error title=PROBE-E-$i::error number $i of 30"; done
+
+      - name: Emit one notice carrying a 60-line digest
+        run: |
+          body=$(seq -f 'PROBE-DIGEST-LINE-%03g' 1 60 | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g')
+          echo "::notice title=PROBE-DIGEST::${body}"
+
+      - name: Post two check runs carrying 60 KB of text each
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for part in 1 2; do
+            name="Payload probe part $part"
+            text=$(awk -v p="$part" 'BEGIN { for (i = 1; i <= 2500; i++) printf "PROBE-PART-%d-LINE-%04d\n", p, i }')
+            jq -n --arg name "$name" --arg sha "$GITHUB_SHA" --arg text "$text" \
+              '{name:$name, head_sha:$sha, status:"completed", conclusion:"neutral",
+                output:{title:$name, text:$text}}' > /tmp/body.json
+            echo "payload bytes: $(wc -c < /tmp/body.json)"
+            if id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" --input /tmp/body.json --jq '.id'); then
+              echo "::notice title=PROBE-CHECKRUN::$part -> check run $id"
+            else
+              echo "::error title=PROBE-CHECKRUN::$part could not be posted"
+            fi
+          done
+
+      - name: Report the caps GitHub applied
+        if: always()
+        run: |
+          echo "::notice title=PROBE-DONE::probe finished; annotations and check runs are the payload"

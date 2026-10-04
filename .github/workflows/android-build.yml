@@ -102,6 +102,11 @@ jobs:
     if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # `checks: write` is what lets the last step post the captured log back as check-run payloads;
+    # the job otherwise only reads the repository.
+    permissions:
+      contents: read
+      checks: write
     outputs:
       apk_found: ${{ steps.report.outputs.apk_found }}
       apk_name: ${{ steps.report.outputs.apk_name }}
@@ -315,8 +320,10 @@ jobs:
             echo "::notice title=Captured log::$f - $(wc -l < "$f") raw lines, $(wc -l < "$norm") after normalising"
 
             # 1. The compile errors, which is what "Scripts have compiler errors" is hiding. Both the
-            #    Roslyn shape and the plain Unity asset-path shape.
-            grep -nE '\.cs\([0-9]+,[0-9]+\)|error CS[0-9]{4}|CS[0-9]{4}:|Compilation failed|compiler error' "$norm" \
+            #    Roslyn shape and the plain Unity asset-path shape. Warnings are excluded on purpose:
+            #    a check run keeps only ten annotations per level per step, and GameCI's own vendored
+            #    editor scripts emit enough CS0618 warnings to use up all ten and hide the real error.
+            grep -nE '\.cs\([0-9]+,[0-9]+\): error|error CS[0-9]{4}|Compilation failed|Scripts have compiler errors' "$norm" \
               | head -40 | cut -c1-400 \
               | while IFS= read -r line; do echo "::error title=Compile error::$line"; done
 
@@ -331,10 +338,68 @@ jobs:
             # 3. Anything else that reads like a failure, for when the above finds nothing.
             grep -nEi 'error|exception|failed|unable to|could not|cannot|missing|not found' "$norm" \
               | grep -vEi 'Verifying Checksum|Pulling fs layer|Download complete|Waiting|Extracting|Node\.js 20 is deprecated|DeprecationWarning|warning::|no space left on device:: \(false\)' \
-              | cut -c1-400 | head -25 \
+              | tail -25 | tac | cut -c1-400 \
               | while IFS= read -r line; do echo "::warning title=Other log lines::$line"; done
 
             tail -n 10 "$norm" | emit_digest "Log tail"
+
+            # 4. The end of the log in full, as one multi-line annotation: the failure is almost always
+            #    in the last screenful, and one annotation carries far more than the ten-line tail.
+            tail -n 120 "$norm" | grep -v -- '--password' | cut -c1-420 \
+              | sed -e 's/%/%25/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g' \
+              | { read -r body && echo "::notice title=Last 120 log lines::${body}"; }
+
+            # 5. The same tail, freshest line first, so the ten that survive are the most recent.
+            tail -n 25 "$norm" | tac | cut -c1-400 \
+              | while IFS= read -r line; do echo "::notice title=Log end (newest first)::$line"; done
+          done
+
+      # The job log is tens of thousands of lines, and the host it is stored on is not reachable from
+      # every client that reads a run, so the captured log is handed back through the API as well: one
+      # check run per 40 KB part, each carrying a gzip+base64 slice of the normalised log. Check-run
+      # output is capped at 64 KB per field, hence the part size. Diagnostic material only - nothing
+      # below this line feeds the build.
+      - name: Hand the captured log back through the API
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          files=(ci-build-*-normalised.log)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning title=No normalised log::Nothing to hand back."
+            exit 0
+          fi
+
+          for f in "${files[@]}"; do
+            tag=$(basename "$f" .log)
+            b64="$RUNNER_TEMP/$tag.b64"
+            gzip -9c "$f" | base64 -w0 > "$b64"
+            total=$(wc -c < "$b64")
+            parts=$(( (total + 39999) / 40000 ))
+            echo "::notice title=Log payload::$tag - $total base64 characters, $parts part(s)"
+
+            rm -f "$RUNNER_TEMP/$tag.part-"*
+            split -b 40000 -d -a 3 "$b64" "$RUNNER_TEMP/$tag.part-"
+
+            n=0
+            for part in "$RUNNER_TEMP/$tag.part-"*; do
+              n=$((n+1))
+              name="$tag part $n/$parts"
+              digest=$(sha256sum < "$part" | cut -c1-16)
+              if jq -n --arg name "$name" --arg sha "$GITHUB_SHA" --arg text "$(cat "$part")" \
+                   '{name:$name, head_sha:$sha, status:"completed", conclusion:"neutral",
+                     output:{title:$name, text:$text}}' > "$RUNNER_TEMP/body.json" \
+                 && id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" \
+                        --input "$RUNNER_TEMP/body.json" --jq '.id'); then
+                echo "::notice title=Log payload part::check run $id carries $name ($digest)"
+              else
+                # If the API route is unavailable, the same bytes still go out as an annotation, where
+                # only the first ten of a step survive.
+                echo "::warning title=Log payload fallback::$name could not be posted as a check run"
+                echo "::notice title=$name::$digest $(cat "$part")"
+              fi
+            done
           done
 
       - name: Save Library cache
