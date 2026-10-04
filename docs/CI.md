@@ -9,9 +9,10 @@ duration and then disappear.
 
 1. The workflow registers and the credentials gate refuses to start a Unity build without them.
 2. A `unityci/editor:ubuntu-6000.3.24f1-android-3` image **exists** for this project's editor
-   version and its layers unpack — that was open for a while, since GameCI's measured matrix stops
-   below `6000.3`, and it is now settled by a run that got as far as running Unity's licensing
-   client inside the container.
+   version, is pulled, and unpacks to 19.1 GB on disk — that was open for a while, since GameCI's
+   measured matrix stops below `6000.3`, and it is now settled by a run that got as far as running
+   Unity's licensing client inside the container. Note what that means for the failure below: the
+   editor itself never started, so nothing has been imported or compiled yet.
 3. The runner's disk no longer blocks the build (see below).
 4. **Unity then refused the account credentials, and that is where it stands.** It is an account-side
    problem, not a pipeline one, and it is described at the bottom of this file.
@@ -84,7 +85,8 @@ runtime, the Docker daemon or swap; `unity-builder` v6 is a `node24` action and 
 no `setup-*` step, so none of those toolchains are reachable from it anyway.
 
 Measured on the first run that had it: **13 GB free before, 40 GB after, 25,960 MB reclaimed**, and
-the fast path was enough — the package sweep did not have to run.
+the fast path was enough — the package sweep did not have to run. Pulling and unpacking the image
+costs about 18 GB, which is why 14 GB could never have been enough.
 
 ## Unity license activation (the current blocker)
 
