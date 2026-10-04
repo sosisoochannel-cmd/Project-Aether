@@ -1,0 +1,141 @@
+# Publishes the APK that a specific, already-finished build produced.
+#
+# Why this exists: run 37224969838 (commit 5fd4384) built a real APK and uploaded it as the
+# `Aether-dev-apk` artifact, but the release job in `android-build.yml` was skipped because its
+# guard compared the build job's `apk_found` output against the string 'true' while that output
+# was written as the integer 1. That guard is fixed there; this workflow is the one-off that
+# publishes the artefact that build already produced, without spending another 40 minutes of
+# runner time rebuilding identical bytes.
+#
+# It is pinned to the run and commit it publishes, verifies the APK before publishing it, and is
+# triggered by its own file only, so it can never fire off another build's output by accident.
+# It gets deleted once the fixed pipeline has published a release of its own.
+
+name: Publish an existing APK artifact
+
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-apk.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Publish the APK from run 37224969838
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: '5fd4384'
+    steps:
+      - name: Download the APK artifact the build produced
+        uses: actions/download-artifact@v4
+        with:
+          name: Aether-dev-apk
+          run-id: 37224969838
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release
+
+      - name: Verify the bytes really are a signed Unity APK
+        id: verify
+        run: |
+          set -euo pipefail
+          apk=$(find release -name '*.apk' | sort | head -1)
+          if [ -z "$apk" ]; then
+            echo "::error::The artifact contains no .apk file."
+            exit 1
+          fi
+
+          size=$(stat -c %s "$apk")
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+          echo "file     : $apk"
+          echo "size     : $size bytes"
+          echo "sha256   : $sha"
+
+          # An APK is a zip with a binary manifest, dalvik code, resources, native libraries and a
+          # signature. Verify it by structure and report the evidence, rather than assuming.
+          listing=$(unzip -l "$apk")
+          integrity=$(unzip -t "$apk" | tail -1)
+          echo "integrity: $integrity"
+
+          verdict=ok
+          for required in AndroidManifest.xml classes.dex resources.arsc; do
+            if printf '%s\n' "$listing" | grep -q "$required"; then
+              echo "present  : $required"
+            else
+              echo "MISSING  : $required"
+              verdict=bad
+            fi
+          done
+
+          native=$(printf '%s\n' "$listing" | grep -c 'lib/.*\.so' || true)
+          unitydata=$(printf '%s\n' "$listing" | grep -c 'assets/bin/Data/' || true)
+          signature=$(printf '%s\n' "$listing" | grep -E 'META-INF/.*\.(RSA|DSA|EC)' | head -1 || true)
+          entries=$(printf '%s\n' "$listing" | grep -c '^ *[0-9]' || true)
+          echo "entries  : $entries"
+          echo "native   : $native shared libraries"
+          echo "unity    : $unitydata player-data entries"
+          echo "signature: ${signature:-MISSING}"
+
+          [ "$native" -gt 0 ] || verdict=bad
+          [ "$unitydata" -gt 0 ] || verdict=bad
+          [ -n "$signature" ] || verdict=bad
+          printf '%s\n' "$integrity" | grep -q 'No errors detected' || verdict=bad
+
+          if [ "$verdict" != ok ]; then
+            echo "::error::The artifact is not a complete signed Unity APK."
+            exit 1
+          fi
+          echo "verdict  : complete, signed Unity APK (zip integrity verified)"
+
+          # Which key signed it: Unity's generated debug key, or something else.
+          unzip -o -q "$apk" "$signature" -d sig
+          sigfile=$(find sig -name '*.RSA' -o -name '*.DSA' -o -name '*.EC' | head -1)
+          if [ -n "$sigfile" ]; then
+            subject=$(openssl pkcs7 -inform DER -in "$sigfile" -print_certs -noout 2>/dev/null | grep -a '^subject' | head -1 || true)
+            echo "signed by: ${subject:-unreadable}"
+          fi
+
+          asset="Aether_0.1.0_${SOURCE_SHA}.apk"
+          cp "$apk" "$asset"
+          sha256sum "$asset" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+          {
+            echo "asset=$asset"
+            echo "size=$size"
+            echo "sha=$sha"
+            echo "tag=apk-${SOURCE_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish it as a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.verify.outputs.tag }}
+          ASSET: ${{ steps.verify.outputs.asset }}
+          SIZE: ${{ steps.verify.outputs.size }}
+          SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; replacing its assets."
+            gh release upload "$TAG" "$ASSET" SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$ASSET" SHA256SUMS.txt \
+              --title "Aether dev build ${TAG#apk-}" \
+              --target "$SOURCE_SHA" \
+              --notes "Android debug build of Project Aether (Unity 6000.3.24f1) from commit $SOURCE_SHA, produced by the Android APK workflow in run 37224969838 and published from that run's artifact. Debug-signed, for play-testing only. Asset $ASSET, $SIZE bytes, sha256 $SHA."
+          fi
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/$ASSET"
+          {
+            echo "### Release"
+            echo ""
+            echo "$url"
+            echo ""
+            echo "- $SIZE bytes"
+            echo "- sha256 $SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # One annotation: an annotations list is capped, and this is the line that matters.
+          echo "::notice title=Direct APK download::$url - $SIZE bytes - sha256 $SHA"

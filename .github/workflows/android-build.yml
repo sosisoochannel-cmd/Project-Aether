@@ -480,10 +480,13 @@ jobs:
         if: always()
         run: |
           echo "### APK" >> "$GITHUB_STEP_SUMMARY"
-          found=0
+          # Spelled true/false, not 1/0: the release job's guard compares this against the string
+          # 'true', and an integer 1 never matched it, so a real APK was built and then never
+          # published. The comparison is string-typed either way.
+          found=false
           while IFS= read -r apk; do
             [ -z "$apk" ] && continue
-            found=1
+            found=true
             size=$(stat -c %s "$apk")
             sha=$(sha256sum "$apk" | cut -d' ' -f1)
             echo "- \`$apk\` - $size bytes" >> "$GITHUB_STEP_SUMMARY"
@@ -495,7 +498,7 @@ jobs:
             echo "apk_sha=$sha" >> "$GITHUB_OUTPUT"
           done < <(find Builds -name '*.apk' 2>/dev/null | sort)
           echo "apk_found=$found" >> "$GITHUB_OUTPUT"
-          if [ "$found" = "0" ]; then
+          if [ "$found" = "false" ]; then
             echo "No APK was produced. The real error is in the build step's log above, not here." >> "$GITHUB_STEP_SUMMARY"
             echo "::notice::No APK was produced by this run; the build step above holds the real error."
           fi
