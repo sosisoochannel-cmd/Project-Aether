@@ -25,7 +25,12 @@ namespace Aether.Tests.PlayMode
     /// </para>
     /// <para>
     /// The frames it captures are written to <c>IntroRender/</c> in the project root, which is what
-    /// the CI job uploads, so a run leaves behind a real screenshot of the intro beside the proof.
+    /// the CI job uploads, so a run leaves behind a real screenshot of the intro beside the proof —
+    /// four moments: the reveal in progress, the lockup fully arrived, the hold, and the exit.
+    /// </para>
+    /// <para>
+    /// What it cannot check: how the arrival reads in motion, and how it looks on a real panel. Four
+    /// stills and their measurements are what a machine can honestly say about a two-second reveal.
     /// </para>
     /// </remarks>
     public sealed class StudioIntroRenderTests
