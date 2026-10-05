@@ -1,3 +1,4 @@
+using Aether.Gameplay.Flow;
 using Aether.Gameplay.Levels;
 using UnityEngine;
 
@@ -14,10 +15,11 @@ namespace Aether.Gameplay
     /// starts and no scene has claimed responsibility for the region, this starts it.
     /// </para>
     /// <para>
-    /// The hook stands down the moment a scene contains its own <see cref="LevelBootstrap"/>. That
-    /// keeps the choice where it belongs: the default gets a fresh clone playing by pressing play,
-    /// and any scene that wants explicit control (a menu, a different region, a test) simply places
-    /// the component and this stays quiet.
+    /// The hook stands down the moment a scene contains its own <see cref="LevelBootstrap"/>, or a
+    /// <see cref="SceneFlowOwner"/> — a scene that has its own plans for what happens after it loads
+    /// (the studio intro, and later a main menu). That keeps the choice where it belongs: the default
+    /// gets a fresh clone playing by pressing play, and any scene that wants explicit control simply
+    /// places the component and this stays quiet.
     /// </para>
     /// <para>
     /// This is the seam that grows into real scene flow. It is deliberately not a loading system:
@@ -35,6 +37,7 @@ namespace Aether.Gameplay
         {
             if (!AutoBootEnabled) return;
             if (Object.FindAnyObjectByType<LevelBootstrap>() != null) return;
+            if (Object.FindAnyObjectByType<SceneFlowOwner>() != null) return;
 
             var host = new GameObject("LevelBootstrap");
             host.AddComponent<LevelBootstrap>();

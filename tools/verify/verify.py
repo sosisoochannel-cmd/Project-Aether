@@ -810,6 +810,8 @@ ASMDEF_REQUIRED_KEYS = {"name"}
 
 
 ASSET_FIELD_RE = re.compile(r"^  (_[A-Za-z_][\w]*):", re.M)
+MONO_SCRIPT_RE = re.compile(r"m_Script: \{fileID: 11500000, guid: ([0-9a-f]{32})")
+MONO_BLOCK_RE = re.compile(r"^--- !u!114 &\d+\n(.*?)(?=^--- |\Z)", re.M | re.S)
 
 
 def check_asset_fields(report: Report, project: Project) -> None:
@@ -837,56 +839,71 @@ def check_asset_fields(report: Report, project: Project) -> None:
     checked = 0
     for root, _dirs, files in os.walk(ASSETS):
         for f in sorted(files):
-            if not f.endswith(".asset"):
+            # Scenes and prefabs are checked as well as assets, and for the same reason: a
+            # hand-authored scene is exactly where a mistyped serialized field survives review,
+            # because Unity silently keeps the C# default and the scene looks right in a diff.
+            if not f.endswith((".asset", ".unity", ".prefab")):
                 continue
             path = os.path.join(root, f)
             rel = os.path.relpath(path, REPO_ROOT).replace(os.sep, "/")
+            kind = ("scene" if f.endswith(".unity")
+                    else "prefab" if f.endswith(".prefab") else "asset")
             text = open(path, encoding="utf-8").read()
-            found = re.search(r"m_Script: \{fileID: 11500000, guid: ([0-9a-f]{32})", text)
-            if not found:
-                continue
-            script = script_by_guid.get(found.group(1))
-            if script is None or script not in project.files:
-                continue
 
-            # Unity's MonoScript for a file is the type whose name matches the file, which is the
-            # rule when a file declares more than one type (an enum next to a class, for example).
-            wanted = os.path.basename(script)[:-3]
-            type_name = None
-            fallback = None
-            for name, record in project.types.items():
-                if record["file"] != script:
+            # Each component is checked against the script it names, so a file with more than one
+            # MonoBehaviour (any real scene) is checked component by component rather than by
+            # comparing all of its fields to whichever script was mentioned first.
+            blocks = MONO_BLOCK_RE.findall(text) if kind != "asset" else [text]
+            for block in blocks:
+                found = MONO_SCRIPT_RE.search(block)
+                if not found:
                     continue
-                if fallback is None:
-                    fallback = name
-                if name == wanted:
-                    type_name = name
-                    break
-            if type_name is None:
-                type_name = fallback
-            if type_name is None:
-                continue
+                script = script_by_guid.get(found.group(1))
+                if script is None or script not in project.files:
+                    continue
 
-            checked += 1
-            members = project.members_of(type_name)
-            keys = ASSET_FIELD_RE.findall(text)
-            for key in keys:
-                if key not in members:
-                    report.fail(
-                        f"asset: '{rel}' sets '{key}', which does not exist on {type_name} "
-                        f"({script}). Unity ignores unknown keys, so this value would silently "
-                        "never apply")
+                # Unity's MonoScript for a file is the type whose name matches the file, which is
+                # the rule when a file declares more than one type (an enum next to a class).
+                wanted = os.path.basename(script)[:-3]
+                type_name = None
+                fallback = None
+                for name, record in project.types.items():
+                    if record["file"] != script:
+                        continue
+                    if fallback is None:
+                        fallback = name
+                    if name == wanted:
+                        type_name = name
+                        break
+                if type_name is None:
+                    type_name = fallback
+                if type_name is None:
+                    continue
 
-            missing = sorted(m for m in members - set(keys)
-                             if m.startswith("_") and not m.startswith("__"))
-            if missing:
-                report.note(
-                    f"asset: '{rel}' leaves {len(missing)} field(s) of {type_name} at their "
-                    f"C# defaults: {', '.join(missing[:6])}"
-                    + (" ..." if len(missing) > 6 else ""))
+                checked += 1
+                members = project.members_of(type_name)
+                keys = ASSET_FIELD_RE.findall(block)
+                for key in keys:
+                    if key not in members:
+                        report.fail(
+                            f"{kind}: '{rel}' sets '{key}', which does not exist on {type_name} "
+                            f"({script}). Unity ignores unknown keys, so this value would silently "
+                            "never apply")
+
+                missing = sorted(m for m in members - set(keys)
+                                 if m.startswith("_") and not m.startswith("__"))
+                if kind == "asset" and keys and missing:
+                    # Only for data assets. A component in a scene also has private runtime fields
+                    # that Unity never serializes, and listing those as "left at their C# defaults"
+                    # would be noise dressed as a finding.
+                    report.note(
+                        f"{kind}: '{rel}' leaves {len(missing)} field(s) of {type_name} at their "
+                        f"C# defaults: {', '.join(missing[:6])}"
+                        + (" ..." if len(missing) > 6 else ""))
 
     if checked:
-        report.note(f"asset: {checked} serialized asset(s) reference fields that exist")
+        report.note(f"asset: {checked} serialized component(s) set only fields their script "
+                    "declares")
 
 
 def check_asmdefs(report: Report, project: Project) -> None:
@@ -1382,6 +1399,173 @@ def check_namespace_hygiene(report: Report, project: Project) -> None:
                 "unverifiable by this tool and rely on the real compiler")
 
 
+# ---- scene flow --------------------------------------------------------------------------
+
+BUILD_SETTINGS = "ProjectSettings/EditorBuildSettings.asset"
+INTRO_SCENE = "Assets/Aether/Scenes/StudioIntro.unity"
+INTRO_SCRIPT = "Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs"
+BRAND_DIR = "Assets/Aether/Resources/Brand"
+
+SCENE_ENTRY_RE = re.compile(
+    r"- enabled: (\d+)\n    path: ([^\n]+)\n    guid: ([0-9a-f]{32})")
+
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".tga", ".psd", ".exr")
+
+# What a brand mark's importer has to say. The studio intro draws the mark from its alpha channel
+# and recolours it, so a texture imported without these is a mark that is invisible (no alpha or no
+# CPU access), fringed (block compression), or wrapped at the edges.
+REQUIRED_TEXTURE_SETTINGS = {
+    "textureType": "8",            # Sprite
+    "spriteMode": "1",             # single
+    "spriteMeshType": "0",         # full rect: a tight mesh can crop the artwork's own edges
+    "alphaIsTransparency": "1",
+    "isReadable": "1",             # the intro reads the pixels to recolour them
+    "enableMipMap": "0",
+    "filterMode": "1",             # bilinear
+    "wrapU": "1",
+    "wrapV": "1",
+    "textureCompression": "0",     # uncompressed: a logo is small and its edges are the point
+}
+
+
+def check_scene_flow(report: Report) -> None:
+    """Check which scene the app starts in, and that the intro can reach the next one.
+
+    This is the part of the game that a device shows first, and it is decided entirely by files that
+    no compiler reads: the build order in `EditorBuildSettings.asset`, the GUID that has to match a
+    scene's own `.meta`, the component a scene has to contain for the intro to run at all, and the
+    scene name the intro hands over to. Every one of those is a silent failure at runtime — a scene
+    that is not in the build simply never loads, and a scene name that does not exist throws when
+    the intro ends — so they are checked here.
+    """
+    settings_path = os.path.join(REPO_ROOT, BUILD_SETTINGS)
+    if not os.path.exists(settings_path):
+        report.fail(f"scene: {BUILD_SETTINGS} is missing; the build would contain no scenes")
+        return
+
+    entries = SCENE_ENTRY_RE.findall(open(settings_path, encoding="utf-8").read())
+    if not entries:
+        report.fail(f"scene: {BUILD_SETTINGS} lists no scenes")
+        return
+
+    enabled = [(path, guid) for flag, path, guid in entries if flag == "1"]
+    disabled = [path for flag, path, guid in entries if flag != "1"]
+    for path, guid in enabled:
+        asset = os.path.join(REPO_ROOT, path)
+        if not os.path.exists(asset):
+            report.fail(f"scene: '{path}' is in the build order but does not exist")
+            continue
+        meta = asset + ".meta"
+        if not os.path.exists(meta):
+            report.fail(f"scene: '{path}' has no .meta, so its guid cannot be resolved")
+            continue
+        declared = GUID_DECL_RE.search(open(meta, encoding="utf-8").read())
+        if declared is None or declared.group(1) != guid:
+            report.fail(
+                f"scene: '{path}' is listed with guid {guid}, but its .meta declares "
+                f"{declared.group(1) if declared else 'nothing'}. Unity finds a scene by guid, so "
+                "it would load the wrong scene or none at all")
+
+    if disabled:
+        report.note(f"scene: {len(disabled)} scene(s) in the build order are disabled: "
+                    f"{', '.join(disabled)}")
+
+    # The studio intro is the app's first screen. If the project has one, it has to be first, or the
+    # game boots into the region and the intro is never seen.
+    intro_present = os.path.exists(os.path.join(REPO_ROOT, INTRO_SCENE))
+    if intro_present:
+        if not enabled or enabled[0][0] != INTRO_SCENE:
+            first = enabled[0][0] if enabled else "nothing"
+            report.fail(
+                f"scene: the studio intro ('{INTRO_SCENE}') is not the first enabled scene in the "
+                f"build order; '{first}' is. The first scene is what the app shows.")
+
+        # ... and the scene has to contain the component, or it is a black screen with a camera.
+        script_rel = INTRO_SCRIPT
+        script_guid = None
+        if os.path.exists(os.path.join(REPO_ROOT, script_rel + ".meta")):
+            found = GUID_DECL_RE.search(
+                open(os.path.join(REPO_ROOT, script_rel + ".meta"), encoding="utf-8").read())
+            script_guid = found.group(1) if found else None
+        if script_guid is None:
+            report.fail(f"scene: {script_rel} has no .meta guid, so nothing can reference it")
+        else:
+            scene_text = open(os.path.join(REPO_ROOT, INTRO_SCENE), encoding="utf-8").read()
+            if f"guid: {script_guid}" not in scene_text:
+                report.fail(
+                    f"scene: '{INTRO_SCENE}' does not contain a component of {script_rel}; the "
+                    "scene would load, show black, and never hand over")
+
+            # The hand-over target has to be a scene the build contains, or the intro ends in a
+            # thrown SceneManager exception on the device.
+            found = re.search(r"^  _nextScene: (.+)$", scene_text, re.M)
+            if found is None:
+                found = re.search(r'_nextScene\s*=\s*"([^"]*)"',
+                                  open(os.path.join(REPO_ROOT, script_rel), encoding="utf-8").read())
+            target = found.group(1).strip() if found else ""
+            names = {os.path.basename(path)[:-len(".unity")] for path, _guid in enabled}
+            if not target:
+                report.fail("scene: the studio intro names no scene to hand over to")
+            elif target not in names:
+                report.fail(
+                    f"scene: the studio intro hands over to '{target}', which is not an enabled "
+                    f"scene in the build order (enabled: {', '.join(sorted(names))}). "
+                    "SceneManager would throw when the intro ends")
+            else:
+                report.note(f"scene: the studio intro hands over to '{target}', which the build "
+                            "contains")
+
+    # Brand textures: the mark the intro draws, and how it must be imported.
+    brand_path = os.path.join(REPO_ROOT, BRAND_DIR)
+    marks = []
+    if os.path.isdir(brand_path):
+        marks = sorted(f for f in os.listdir(brand_path) if f.lower().endswith(IMAGE_EXTENSIONS))
+
+    if not marks:
+        report.warn(
+            f"brand: '{BRAND_DIR}' holds no image yet, so the studio intro has nothing to draw and "
+            "hands straight over. Drop the mark in and this check starts enforcing its import "
+            "settings.")
+    else:
+        script_text = (open(os.path.join(REPO_ROOT, script_rel), encoding="utf-8").read()
+                       if os.path.exists(os.path.join(REPO_ROOT, script_rel)) else "")
+        for name in marks:
+            meta_path = os.path.join(brand_path, name + ".meta")
+            if not os.path.exists(meta_path):
+                report.fail(f"brand: '{BRAND_DIR}/{name}' has no .meta file")
+                continue
+            meta = open(meta_path, encoding="utf-8").read()
+            if "TextureImporter:" not in meta:
+                report.fail(f"brand: '{BRAND_DIR}/{name}' is not imported by a TextureImporter; "
+                            "regenerate its .meta with tools/verify/gen_meta.py")
+                continue
+            for field, expected in REQUIRED_TEXTURE_SETTINGS.items():
+                if not re.search(rf"^\s*{field}: {expected}\s*$", meta, re.M):
+                    report.fail(
+                        f"brand: '{BRAND_DIR}/{name}' is imported with {field} set to something "
+                        f"other than {expected}; the studio intro draws the mark from its alpha "
+                        "channel and needs it imported as a readable, uncompressed sprite")
+            resource_path = "Brand/" + os.path.splitext(name)[0]
+            if script_text and resource_path not in script_text:
+                report.fail(
+                    f"brand: '{resource_path}' is in Resources but the studio intro does not name "
+                    "it, so the mark in the repository is not the mark on screen")
+        report.note(f"brand: {len(marks)} mark(s) imported as readable, uncompressed sprites")
+
+    # Any other image in the project still has to be imported as an image.
+    for root, _dirs, files in os.walk(ASSETS):
+        for f in sorted(files):
+            if not f.lower().endswith(IMAGE_EXTENSIONS):
+                continue
+            meta_path = os.path.join(root, f + ".meta")
+            rel = os.path.relpath(os.path.join(root, f), REPO_ROOT).replace(os.sep, "/")
+            if not os.path.exists(meta_path):
+                continue          # check_meta already reports the missing .meta
+            if "TextureImporter:" not in open(meta_path, encoding="utf-8").read():
+                report.fail(f"brand: '{rel}' is not imported by a TextureImporter; "
+                            "regenerate its .meta with tools/verify/gen_meta.py")
+
+
 # ---- entry point ------------------------------------------------------------------------
 
 
@@ -1403,6 +1587,7 @@ def main() -> int:
     check_engine_names(report, project)
     check_lints(report, project)
     check_namespace_hygiene(report, project)
+    check_scene_flow(report)
 
     if not args.quiet:
         for line in report.notes:

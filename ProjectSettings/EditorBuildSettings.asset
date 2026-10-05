@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Aether/Scenes/StudioIntro.unity
+    guid: 8e727f3605223dbc5e7912d5b4306283
+  - enabled: 1
     path: Assets/Aether/Scenes/Boot.unity
     guid: 87a6078f48c05d93e39d2b60816f6b93
   m_configObjects: {}

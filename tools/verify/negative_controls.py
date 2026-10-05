@@ -23,6 +23,10 @@ COPY_DIRS = ("Assets", "ProjectSettings", "Packages", "tools", "docs")
 IGNORE = shutil.ignore_patterns(".git", "Library", "Temp", "obj", "__pycache__", "*.bak")
 
 CODE = "Assets/Aether/Code"
+INTRO_CODE = f"{CODE}/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs"
+INTRO_SCENE = "Assets/Aether/Scenes/StudioIntro.unity"
+BUILD_SETTINGS = "ProjectSettings/EditorBuildSettings.asset"
+BRAND_DIR = "Assets/Aether/Resources/Brand"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
 STRIKE = "Assets/Aether/Resources/Content/Attack.Strike.asset"
 ENEMY = "Assets/Aether/Resources/Content/Enemies/ForestStalker.asset"
@@ -87,6 +91,72 @@ def empty_folder(root: str):
 def controls() -> list[Control]:
     gate = ["python3", "tools/verify/verify.py"]
     solver = ["python3", "tools/verify/levelcheck.py"]
+    intro = ["python3", "tools/verify/intro.py"]
+
+    def bad_brand_texture(root):
+        """A brand PNG imported without alpha transparency.
+
+        Written into the copy rather than mutating a real mark's .meta, so this control keeps
+        testing the rule even if the studio's artwork or its import settings change.
+        """
+        folder = os.path.join(root, BRAND_DIR)
+        folder_existed = os.path.isdir(folder)
+        os.makedirs(folder, exist_ok=True)
+        # A new folder needs its own .meta, or the gate fails for that reason instead of the one
+        # this control is about, and the evidence line would name the wrong problem.
+        if not folder_existed:
+            with open(folder + ".meta", "w", encoding="utf-8") as fh:
+                fh.write("fileFormatVersion: 2\n"
+                         "guid: fedcba9876543210fedcba9876543210\n"
+                         "folderAsset: yes\n"
+                         "DefaultImporter:\n"
+                         "  externalObjects: {}\n"
+                         "  userData: \n"
+                         "  assetBundleName: \n"
+                         "  assetBundleVariant: \n")
+        png = os.path.join(folder, "ControlMark.png")
+        meta = png + ".meta"
+        for path in (png, meta):
+            if os.path.exists(path):
+                raise AssertionError(f"{path} already exists; the control would overwrite it")
+        # The bytes are never decoded by the gate; only the importer settings are read.
+        with open(png, "wb") as fh:
+            fh.write(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        with open(meta, "w", encoding="utf-8") as fh:
+            fh.write("fileFormatVersion: 2\n"
+                     "guid: 0123456789abcdef0123456789abcdef\n"
+                     "TextureImporter:\n"
+                     "  serializedVersion: 13\n"
+                     "  mipmaps:\n"
+                     "    enableMipMap: 0\n"
+                     "  isReadable: 1\n"
+                     "  textureType: 8\n"
+                     "  spriteMode: 1\n"
+                     "  spriteMeshType: 0\n"
+                     "  alphaIsTransparency: 0\n"
+                     "  filterMode: 1\n"
+                     "  wrapU: 1\n"
+                     "  wrapV: 1\n"
+                     "  textureCompression: 0\n")
+        undo = [("DELETE_TREE", folder)]
+        if not folder_existed:
+            undo.append(("DELETE", folder + ".meta"))
+        return undo
+
+    def demote_the_intro(root):
+        """Boot listed before the studio intro: the app would skip its own intro."""
+        path = os.path.join(root, BUILD_SETTINGS)
+        original = open(path, encoding="utf-8").read()
+        intro = ("  - enabled: 1\n"
+                 "    path: Assets/Aether/Scenes/StudioIntro.unity\n"
+                 "    guid: 8e727f3605223dbc5e7912d5b4306283\n")
+        boot = ("  - enabled: 1\n"
+                "    path: Assets/Aether/Scenes/Boot.unity\n"
+                "    guid: 87a6078f48c05d93e39d2b60816f6b93\n")
+        if intro + boot not in original:
+            raise AssertionError("the two scene entries are not in the order this control expects")
+        open(path, "w", encoding="utf-8").write(original.replace(intro + boot, boot + intro, 1))
+        return [(path, original)]
 
     def hide_meta(root):
         path = os.path.join(root, f"{CODE}/Aether.Gameplay/Runtime/Levels/LevelDirector.cs.meta")
@@ -320,6 +390,90 @@ def controls() -> list[Control]:
                               "            _probe.NotAMember();\n"
                               "        }"),
             ["NotAMember"]),
+
+        # -- the studio intro's numbers ------------------------------------------------------
+        Control(
+            "intro: the mark is allowed to grow past the safe area",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float MaxHeightFraction = 0.34f;",
+                              "public const float MaxHeightFraction = 1.50f;"),
+            ["MaxHeightFraction"]),
+        Control(
+            "intro: the mark shrinks to a watermark",
+            intro,
+            lambda root: (edit(root, INTRO_CODE,
+                               "public const float MaxWidthFraction = 0.62f;",
+                               "public const float MaxWidthFraction = 0.12f;")
+                          + edit(root, INTRO_CODE,
+                                 "public const float MaxHeightFraction = 0.34f;",
+                                 "public const float MaxHeightFraction = 0.10f;")),
+            ["larger dimension"]),
+        Control(
+            "intro: the mark lunges towards the screen as it leaves",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float ExitScale = 1.025f;",
+                              "public const float ExitScale = 1.60f;"),
+            ["ExitScale"]),
+        Control(
+            "intro: the sequence runs far longer than the two-to-three seconds it must",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float Hold = 0.90f;",
+                              "public const float Hold = 6.00f;"),
+            ["outside the required"]),
+        Control(
+            "intro: skipping takes longer than watching it out",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float SkipExit = 0.30f;",
+                              "public const float SkipExit = 0.90f;"),
+            ["not shorter"]),
+        Control(
+            "intro: a lighter mark that is still inside the rules stays silent",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float MaxHeightFraction = 0.34f;",
+                              "public const float MaxHeightFraction = 0.30f;"),
+            ["sound"],
+            must_fail=False),
+
+        # -- the scene the app starts in -----------------------------------------------------
+        Control(
+            "verify: the studio intro is not the first scene in the build order",
+            gate,
+            demote_the_intro,
+            ["not the first enabled scene"]),
+        Control(
+            "verify: a scene is listed in the build order under the wrong guid",
+            gate,
+            lambda root: edit(root, BUILD_SETTINGS,
+                              "    guid: 8e727f3605223dbc5e7912d5b4306283",
+                              "    guid: 00000000000000000000000000000000"),
+            ["is listed with guid"]),
+        Control(
+            "verify: the intro hands over to a scene the build does not contain",
+            gate,
+            lambda root: edit(root, INTRO_SCENE, "  _nextScene: Boot", "  _nextScene: MainMenu"),
+            ["is not an enabled"]),
+        Control(
+            "verify: a component in a scene names a field that does not exist",
+            gate,
+            lambda root: edit(root, INTRO_SCENE, "  _playOnAwake: 1", "  _playOnAwakee: 1"),
+            ["does not exist on"]),
+        Control(
+            "verify: the intro scene has no studio-intro component in it",
+            gate,
+            lambda root: edit(root, INTRO_SCENE,
+                              "guid: d2ab92089ed7c270787404d95bb62195",
+                              "guid: 87a6078f48c05d93e39d2b60816f6b93"),
+            ["does not contain a component"]),
+        Control(
+            "verify: a brand texture is imported without alpha transparency",
+            gate,
+            bad_brand_texture,
+            ["alphaIsTransparency"]),
     ]
 
 
