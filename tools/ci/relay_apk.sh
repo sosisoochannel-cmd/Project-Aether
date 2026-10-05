@@ -106,57 +106,12 @@ links_in() { grep -oE 'https?://[A-Za-z0-9._~:/?#@!$&*+,;=%-]+' "$1" 2>/dev/null
 kcode=$(curl -sS --max-time 600 -A "$UA" -F "file=@$ASSET" -o kl.json -w '%{http_code}' \
         https://kappa.lol/api/upload || echo 000)
 add "kappa upload: http=$kcode resp=$(short kl.json 300)"
-kurl=$(jq -r '.url // .data.url // empty' kl.json 2>/dev/null)
+kurl=$(jq -r '.link // .url // .data.link // .data.url // empty' kl.json 2>/dev/null)
 kid=$(jq -r '.id // .data.id // empty' kl.json 2>/dev/null)
-if [ -n "$kurl" ]; then
-  try_urls kappa "$kurl" || true
-  case "$kurl" in
-    *"$kid"*) try_urls kappa.apk "https://kappa.lol/$kid.apk" "$kurl.apk" || true ;;
-  esac
+if [ -n "$kurl" ]; then try_urls kappa "$kurl" || true; fi
+if [ -n "$kid" ]; then
+  try_urls kappa.apk "https://kappa.lol/$kid.apk" "https://kappa.lol/$kid/$ASSET" || true
 fi
-
-# --- tmpfiles.org: json api; the /dl/ shape is the direct one, and it wants a browser ----------
-code=$(curl -sS --max-time 900 -A "$UA" -F "file=@$ASSET" -o tf.json -w '%{http_code}' \
-       https://tmpfiles.org/api/v1/upload || echo 000)
-add "tmpfiles upload: http=$code resp=$(short tf.json 140)"
-tf_url=$(jq -r '.data.url // empty' tf.json 2>/dev/null)
-tf_dl=$(printf '%s' "$tf_url" | sed 's|tmpfiles\.org/|tmpfiles.org/dl/|')
-try_urls tmpfiles "$tf_dl" "$tf_url" || true
-if [ -n "$tf_dl" ]; then
-  CHECK_UA="$BUA" try_urls tmpfiles-br "$tf_dl" "$tf_url" || true
-  CHECK_UA="$UA"
-fi
-
-# --- pixeldrain: anonymous PUT to a chosen id, which is the documented raw upload --------------
-pd_id="aether6bf7101"
-pcode=$(curl -sS --max-time 900 -A "$UA" -X PUT --data-binary "@$ASSET" \
-        -H 'Content-Type: application/octet-stream' -o pd.json -w '%{http_code}' \
-        "https://pixeldrain.com/api/file/$pd_id" || echo 000)
-add "pixeldrain PUT: http=$pcode resp=$(short pd.json 160)"
-if [ "$pcode" = 200 ] || [ "$pcode" = 201 ]; then
-  try_urls pixeldrain "https://pixeldrain.com/api/file/$pd_id?download&name=$ASSET" \
-    "https://pixeldrain.com/api/file/$pd_id" || true
-fi
-
-# --- litterbox: temporary catbox, 1 GB, its documented api params this time --------------------
-lcode=$(curl -sS --max-time 900 -A "$UA" \
-        -F "reqtype=fileupload" -F "time=72h" -F "fileToUpload=@$ASSET" \
-        -o lb.txt -w '%{http_code}' \
-        https://litterbox.catbox.moe/resources/internals/api.php || echo 000)
-add "litterbox upload: http=$lcode resp=$(short lb.txt 160)"
-lurl=$(grep -oE 'https://litter\.catbox\.moe/[A-Za-z0-9._-]+' lb.txt 2>/dev/null | head -1)
-if [ -z "$lurl" ]; then
-  lurl=$(head -1 lb.txt | tr -d '\r\n')
-  case "$lurl" in *" ") lurl="" ;; esac
-fi
-try_urls litterbox "$lurl" || true
-
-# --- uguu.se: temporary, 128 MB, its documented api --------------------------------------------
-ucode=$(curl -sS --max-time 900 -A "$UA" -F "files[]=@$ASSET" -o ug.json -w '%{http_code}' \
-        https://uguu.se/upload.php || echo 000)
-add "uguu upload: http=$ucode resp=$(short ug.json 160)"
-try_urls uguu $(jq -r '.files[0].url // empty' ug.json 2>/dev/null) \
-  $(links_in ug.json 2 | grep -E '^https://[a-z]*\.?uguu\.se/') || true
 
 # --- the .zip copy that x0.at already proved, kept so the run always reports one live link -----
 cp "$ASSET" "$ZIPNAME"
