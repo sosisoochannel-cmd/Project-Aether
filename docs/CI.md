@@ -132,6 +132,24 @@ Its own advice, in order:
 
 This is an account-side change. Nothing in the repository can or should work around it.
 
+## The intro render job (temporary)
+
+`Intro render (temporary)` exists for one thing the static gates cannot do: play the studio intro in
+the real engine and photograph it. There is no Unity Editor anywhere near this project, so the frames
+a phone would show are otherwise unverifiable — and the one bug that got past every static check was
+exactly a rendering bug (the mark drawn several times the width of the screen).
+
+It runs `game-ci test --docker --testPlatforms=playmode`, which loads `StudioIntro.unity` through the
+shipped component and asserts against the captured pixels: ink present, centred, inside the frame with
+margins, aspect ratio preserved, the ground black, and a reveal and an exit that change the picture.
+The frames themselves are uploaded as the `intro-render` artifact, so a green run leaves a real
+screenshot behind. It builds nothing, restores and saves the same `Library` cache the APK job uses,
+and it is deleted once the screenshots have served their purpose.
+
+The same job does not run on `ubuntu-latest` like the build does: the runner image is pinned, because
+`ubuntu-latest` moves to Ubuntu 26 on 2026-10-19 and a Unity job is not where an OS migration should
+be discovered.
+
 ## Cost
 
 GitHub Actions is free for public repositories; this one is private and metered, which is still
