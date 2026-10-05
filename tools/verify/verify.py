@@ -1496,6 +1496,50 @@ def check_scene_flow(report: Report) -> None:
                     f"scene: '{INTRO_SCENE}' does not contain a component of {script_rel}; the "
                     "scene would load, show black, and never hand over")
 
+            # The app's first frame is black, and that is a property of the scene's camera. A
+            # camera left on Skybox clear flags draws the project's skybox (or the pipeline default)
+            # behind the mark, so "the logo on black" would be a claim about settings rather than
+            # about the data. The mark is white on transparent, so a non-black background would also
+            # show its transparent parts as a grey rectangle.
+            cameras = []
+            for document in re.split(r"^--- ", scene_text, flags=re.M):
+                if "!u!20 &" not in document or "\nCamera:\n" not in document:
+                    continue
+                owner = re.search(r"m_GameObject: \{fileID: (\d+)\}", document)
+                on = re.search(r"^  m_Enabled: (\d+)$", document, re.M)
+                clear = re.search(r"^  m_ClearFlags: (\d+)$", document, re.M)
+                colour = re.search(
+                    r"^  m_BackGroundColor: \{r: ([-\d.]+), g: ([-\d.]+), b: ([-\d.]+)",
+                    document, re.M)
+                cameras.append((owner.group(1) if owner else "",
+                                on.group(1) if on else "",
+                                clear.group(1) if clear else "",
+                                [float(v) for v in colour.groups()] if colour else None))
+
+            tagged = {found.group(1) for document in re.split(r"^--- ", scene_text, flags=re.M)
+                      if "!u!1 &" in document and "m_TagString: MainCamera" in document
+                      for found in [re.search(r"!u!1 &(\d+)", document)] if found}
+
+            main_cameras = [camera for camera in cameras if camera[0] in tagged]
+            if not main_cameras:
+                report.fail(
+                    f"scene: '{INTRO_SCENE}' has no camera tagged MainCamera, so the intro cannot "
+                    "draw anything and would hand over without being seen")
+            for _owner, on, clear, colour in main_cameras:
+                if on != "1":
+                    report.fail(
+                        f"scene: the studio intro's MainCamera is disabled, so the screen stays at "
+                        "whatever the last scene left behind")
+                elif clear != "2":
+                    report.fail(
+                        f"scene: the studio intro's camera clears to clear-flags '{clear or 'unset'}' "
+                        "instead of Solid Color, so the first frame is the skybox rather than the "
+                        "black screen the intro is drawn on")
+                elif colour is None or any(channel > 0.002 for channel in colour):
+                    report.fail(
+                        "scene: the studio intro's camera background is not black, so the "
+                        "transparent parts of the mark would show as a grey rectangle")
+
             # The hand-over target has to be a scene the build contains, or the intro ends in a
             # thrown SceneManager exception on the device.
             found = re.search(r"^  _nextScene: (.+)$", scene_text, re.M)

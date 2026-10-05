@@ -470,6 +470,18 @@ def controls() -> list[Control]:
                               "guid: 87a6078f48c05d93e39d2b60816f6b93"),
             ["does not contain a component"]),
         Control(
+            "verify: the intro scene's camera draws the skybox instead of a black screen",
+            gate,
+            lambda root: edit(root, INTRO_SCENE, "  m_ClearFlags: 2", "  m_ClearFlags: 1"),
+            ["instead of Solid Color"]),
+        Control(
+            "verify: the intro scene's camera background is not black",
+            gate,
+            lambda root: edit(root, INTRO_SCENE,
+                              "  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}",
+                              "  m_BackGroundColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}"),
+            ["is not black"]),
+        Control(
             "verify: a brand texture is imported without alpha transparency",
             gate,
             bad_brand_texture,
