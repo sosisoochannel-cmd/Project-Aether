@@ -56,6 +56,14 @@ jobs:
           df -h /
           echo "::notice title=Disk::$(df -Ph / | awk 'NR==2 {print $4}') free on /"
 
+      - name: Restore Library cache
+        uses: actions/cache/restore@v4
+        with:
+          path: Library
+          key: Library-Android-${{ github.sha }}
+          restore-keys: |
+            Library-Android-
+
       - name: Install the GameCI CLI
         id: cli
         env:
@@ -108,6 +116,15 @@ jobs:
           else
             echo "::warning title=No frames::IntroRender/summary.txt was not written; see the test log."
           fi
+
+      - name: Save Library cache
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/cache/save@v4
+        with:
+          path: Library
+          key: Library-Android-${{ github.sha }}
 
       - name: Keep the frames
         if: always()
