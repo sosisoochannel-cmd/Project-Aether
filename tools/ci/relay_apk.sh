@@ -65,6 +65,7 @@ add "SOURCE ok: $size bytes, sha256 $sha (matches the release)"
 
 verified=0
 : > links.txt
+CHECK_UA="$BUA"
 
 check() { # $1 host label, $2 url, $3 timeout seconds, $4 user agent
   local host="$1" url="$2" limit="${3:-600}" ua="${CHECK_UA:-$UA}" out="back-$1.bin" code got_size got_sha
@@ -102,15 +103,28 @@ try_urls() { # $1 host label, then candidate urls
 
 links_in() { grep -oE 'https?://[A-Za-z0-9._~:/?#@!$&*+,;=%-]+' "$1" 2>/dev/null | sort -u | head -"${2:-3}"; }
 
-# --- kappa.lol: it took the real .apk and served the exact bytes; name it, and name it .apk ----
-kcode=$(curl -sS --max-time 600 -A "$UA" -F "file=@$ASSET" -o kl.json -w '%{http_code}' \
-        https://kappa.lol/api/upload || echo 000)
-add "kappa upload: http=$kcode resp=$(short kl.json 300)"
-kurl=$(jq -r '.link // .url // .data.link // .data.url // empty' kl.json 2>/dev/null)
-kid=$(jq -r '.id // .data.id // empty' kl.json 2>/dev/null)
-if [ -n "$kurl" ]; then try_urls kappa "$kurl" || true; fi
-if [ -n "$kid" ]; then
-  try_urls kappa.apk "https://kappa.lol/$kid.apk" "https://kappa.lol/$kid/$ASSET" || true
+# --- kappa.lol: the link that already proved itself, fetched the way a phone would ------------
+KAPPA_ID="${KAPPA_ID:-gaJ7xj}"
+try_urls kappa-browser "https://kappa.lol/$KAPPA_ID.apk" "https://kappa.lol/$KAPPA_ID" || {
+  kcode=$(curl -sS --max-time 600 -A "$UA" -F "file=@$ASSET" -o kl.json -w '%{http_code}' \
+          https://kappa.lol/api/upload || echo 000)
+  add "kappa re-upload: http=$kcode resp=$(short kl.json 200)"
+  kurl=$(jq -r '.link // .url // empty' kl.json 2>/dev/null)
+  kid=$(jq -r '.id // .data.id // empty' kl.json 2>/dev/null)
+  if [ -n "$kid" ]; then
+    try_urls kappa-fresh "https://kappa.lol/$kid.apk" "https://kappa.lol/$kid" || true
+  fi
+}
+
+# --- temp.sh: the page it returns names the file; find what it points at ----------------------
+code=$(curl -sS --max-time 900 -A "$UA" -F "file=@$ASSET" -D hdr-temp.txt -o temp.out \
+       -w '%{http_code}' https://temp.sh/upload || echo 000)
+turl=$(head -1 temp.out | tr -d '\r\n')
+add "temp.sh upload: http=$code url=$turl"
+if [ "${turl#https://}" != "$turl" ]; then
+  tcode=$(curl -sSL --max-time 900 -A "$BUA" -D hdr-temp.txt -o tpage.html -w '%{http_code}' "$turl" || echo 000)
+  add "temp.sh page: http=$tcode, $(stat -c %s tpage.html 2>/dev/null || echo 0) bytes, urls=$(links_in tpage.html 6 | tr '\n' ' ')"
+  try_urls temp.sh $(links_in tpage.html 4 | grep -E 'temp\.sh|amazonaws|backblazeb2|b-cdn|r2\.dev') || true
 fi
 
 # --- the .zip copy that x0.at already proved, kept so the run always reports one live link -----
