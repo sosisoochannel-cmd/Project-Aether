@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Aether.Gameplay.Sound;
 using UnityEngine;
@@ -453,7 +454,16 @@ namespace Aether.Gameplay.Flow
                 return;
             }
 
-            Color32[] pixels = texture.GetPixels32(x0, y0, width, height);
+            // GetPixels32 has no rect overload, so the whole texture is fetched and the sprite's
+            // patch is copied out of it. Rows run bottom-up and the copy keeps that order, which is
+            // what the split below and the ink bounds assume.
+            Color32[] whole = texture.GetPixels32();
+            var pixels = new Color32[width * height];
+            for (int row = 0; row < height; row++)
+            {
+                Array.Copy(whole, ((y0 + row) * texture.width) + x0, pixels, row * width, width);
+            }
+
             bool hasAlpha = HasTransparency(pixels);
             byte[] coverage = Coverage(pixels, hasAlpha);
             if (!hasAlpha)
