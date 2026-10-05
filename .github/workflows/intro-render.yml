@@ -28,7 +28,7 @@ concurrency:
 jobs:
   render:
     name: Play the intro and photograph it
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest migrates to Ubuntu 26 on 2026-10-19
     timeout-minutes: 60
     steps:
       - name: Check out
