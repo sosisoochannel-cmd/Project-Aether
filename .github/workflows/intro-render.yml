@@ -1,0 +1,121 @@
+# Temporary: render the studio intro inside the real Unity, and photograph what comes out.
+#
+# The intro's layout is proved by arithmetic in tools/verify/intro.py, but arithmetic cannot see
+# what the renderer draws - the bug that made the mark fill the screen passed every static check.
+# This job loads the shipped scene on the runner, lets the shipped component play, captures the
+# frames, and measures them: ink present, centred, inside the frame, aspect preserved, black ground,
+# and a reveal and exit that actually change. The PNGs and the measurements are uploaded.
+#
+# It builds nothing and is deleted once the screenshots have been handed over.
+name: Intro render (temporary)
+
+on:
+  push:
+    branches:
+      - arena/01a10203-project-aether
+    paths:
+      - '.github/workflows/intro-render.yml'
+      - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intro-render-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Play the intro and photograph it
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The Unity image unpacks into /var/lib/docker and the import needs room afterwards, on a VM
+      # that starts with about 14 GB free. Only host-side toolchains a *container* run cannot use
+      # are removed - the editor, SDK, NDK and JDK all live inside the image.
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          df -h /
+          remove_path() {
+            [ -e "$1" ] || { echo "- $2: not present"; return 0; }
+            sudo rm -rf --one-file-system "$1" || true
+            echo "- $2: removed $1"
+          }
+          remove_path /usr/local/lib/android "host Android SDK/NDK"
+          remove_path "$AGENT_TOOLSDIRECTORY" "pre-installed language runtimes"
+          remove_path /opt/ghc "Haskell GHC"
+          remove_path /usr/local/.ghcup "Haskell GHCup"
+          remove_path /usr/share/dotnet ".NET SDK"
+          remove_path /usr/local/share/boost "Boost headers"
+          docker image prune --all --force || true
+          df -h /
+          echo "::notice title=Disk::$(df -Ph / | awk 'NR==2 {print $4}') free on /"
+
+      - name: Install the GameCI CLI
+        id: cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="v0.1.72"
+          script="$RUNNER_TEMP/game-ci-install.sh"
+          if ! curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/$version/scripts/install.sh" -o "$script"; then
+            curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/game-ci/cli/contents/scripts/install.sh?ref=$version" -o "$script"
+          fi
+          dest="$RUNNER_TEMP/game-ci"
+          mkdir -p "$dest"
+          bin=$(bash "$script" "$version" "$dest" | tail -n 1)
+          test -x "$bin" || { echo "::error::install.sh did not produce an executable ($bin)"; exit 1; }
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+          echo "::notice title=game-ci CLI::installed $version -> $bin"
+
+      - name: Run the intro render test
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          set -uo pipefail
+          status=0
+          "${{ steps.cli.outputs.bin }}" test --docker \
+            --targetPlatform=Android \
+            --testPlatforms=playmode \
+            --artifactsPath=artifacts \
+            --coverageEnabled=false \
+            2>&1 | tee intro-render.log || status=$?
+          echo "::notice title=Test exit::test command exited $status"
+          exit "$status"
+
+      - name: Surface what the run said
+        if: always()
+        run: |
+          shopt -s nullglob
+          # The job log is 25,000 lines and unreadable from a phone; the lines that matter are
+          # re-emitted as annotations, which are not.
+          if [ -f intro-render.log ]; then
+            body=$(grep -aE '\[intro-render\]|Tests? (passed|failed)|test result|error CS|Exception|Assert|Fatal|Saved|Uploading' \
+              intro-render.log | cut -c1-400 | tr '\r' '\n' | awk 'NF' | tail -40 \
+              | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5800)
+            [ -n "$body" ] && echo "::notice title=Render run::${body}"
+          fi
+          if [ -f IntroRender/summary.txt ]; then
+            echo "::notice title=Rendered frames::$(tr '\n' '|' < IntroRender/summary.txt | head -c 5800)"
+          else
+            echo "::warning title=No frames::IntroRender/summary.txt was not written; see the test log."
+          fi
+
+      - name: Keep the frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intro-render
+          path: |
+            IntroRender/**
+            artifacts/**
+          if-no-files-found: warn
+          retention-days: 7

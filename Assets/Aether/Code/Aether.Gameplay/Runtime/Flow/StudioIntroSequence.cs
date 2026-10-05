@@ -8,8 +8,8 @@ using UnityEngine.SceneManagement;
 namespace Aether.Gameplay.Flow
 {
     /// <summary>
-    /// The studio's intro: black, the Varellon mark, a short hold, and a soft exit into the next
-    /// scene.
+    /// The studio's intro: black, the Varellon mark, the wordmark settling under it, a short hold,
+    /// and a soft exit into the next scene.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -17,6 +17,12 @@ namespace Aether.Gameplay.Flow
     /// order, so it is the first thing the app shows, and it hands over to <see cref="_nextScene"/>
     /// when it ends. Repointing that one field at a main menu is the whole change the next stage
     /// needs; nothing here knows what the next scene contains.
+    /// </para>
+    /// <para>
+    /// <b>The screen behind it is black, and nothing else is drawn on it.</b> The scene's camera clears
+    /// to solid black, and the intro draws nothing else — no backdrop, no frame, no caption. The Unity
+    /// splash that used to come first is switched off in the project's own player settings, so the
+    /// first thing the app shows is this.
     /// </para>
     /// <para>
     /// <b>Sprites parented to the camera, not uGUI.</b> The same choice the on-screen controls make,
@@ -86,22 +92,29 @@ namespace Aether.Gameplay.Flow
         public static class Layout
         {
             /// <summary>Largest fraction of the safe area's width the lockup may occupy.</summary>
-            public const float MaxWidthFraction = 0.62f;
+            public const float MaxWidthFraction = 0.60f;
 
-            /// <summary>Largest fraction of the safe area's height the lockup may occupy.</summary>
-            public const float MaxHeightFraction = 0.34f;
+            /// <summary>
+            /// Largest fraction of the safe area's height the lockup may occupy.
+            /// </summary>
+            /// <remarks>
+            /// The lockup is taller than it is wide, so on a phone held sideways this is the limit that
+            /// decides its size. It is large enough to be read as a studio card and small enough to
+            /// leave the screen around it empty, which is what "a mark on black" means.
+            /// </remarks>
+            public const float MaxHeightFraction = 0.40f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
-            public const float RevealScale = 0.94f;
+            public const float RevealScale = 0.965f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
-            public const float RevealRise = 0.022f;
+            public const float RevealRise = 0.018f;
 
             /// <summary>Scale the lockup grows to as it leaves.</summary>
-            public const float ExitScale = 1.025f;
+            public const float ExitScale = 1.015f;
 
             /// <summary>How far the lockup drifts upwards as it leaves, in safe-area heights.</summary>
-            public const float ExitRise = 0.012f;
+            public const float ExitRise = 0.010f;
 
             /// <summary>
             /// Where the artwork splits into mark and wordmark, as a fraction of its height
@@ -116,10 +129,10 @@ namespace Aether.Gameplay.Flow
             public const float WordmarkSplit = 0.605f;
 
             /// <summary>Fraction of the reveal before the wordmark starts: the mark leads.</summary>
-            public const float RevealOverlap = 0.40f;
+            public const float RevealOverlap = 0.17f;
 
             /// <summary>How far the wordmark rises into its place, in safe-area heights.</summary>
-            public const float WordmarkRise = 0.010f;
+            public const float WordmarkRise = 0.008f;
         }
 
         /// <summary>
@@ -146,7 +159,7 @@ namespace Aether.Gameplay.Flow
         /// How long each part of the intro lasts, in seconds.
         /// </summary>
         /// <remarks>
-        /// Black hold, reveal, hold, exit: 2.85 seconds including the beat of black before the next
+        /// Black hold, reveal, hold, exit: 2.80 seconds including the beat of black before the next
         /// scene loads. That budget is a requirement, not a taste — an intro of this kind is two to
         /// three seconds — and <c>tools/verify/intro.py</c> fails the build if the parts stop adding
         /// up to it, so buying a longer reveal means shortening something else on purpose.
@@ -154,13 +167,13 @@ namespace Aether.Gameplay.Flow
         public static class Timing
         {
             /// <summary>Black before the mark appears. Covers the first frames of the app.</summary>
-            public const float BlackHold = 0.25f;
+            public const float BlackHold = 0.35f;
 
             /// <summary>Fade-in and settle of the mark, and then of the wordmark behind it.</summary>
-            public const float Reveal = 1.00f;
+            public const float Reveal = 1.05f;
 
             /// <summary>The lockup at full presence. The pause that makes it read as a signature.</summary>
-            public const float Hold = 0.90f;
+            public const float Hold = 0.70f;
 
             /// <summary>Fade-out of the lockup.</summary>
             public const float Exit = 0.55f;
@@ -169,10 +182,10 @@ namespace Aether.Gameplay.Flow
             public const float HandOver = 0.15f;
 
             /// <summary>Input before this is ignored: the tap that launched the app is still landing.</summary>
-            public const float SkipGrace = 0.40f;
+            public const float SkipGrace = 0.45f;
 
             /// <summary>How long the shortened exit lasts when the player skips.</summary>
-            public const float SkipExit = 0.30f;
+            public const float SkipExit = 0.35f;
         }
 
         /// <summary>
@@ -225,6 +238,7 @@ namespace Aether.Gameplay.Flow
         private bool _playOnAwake = true;
 
         private Camera _camera;
+        private float _pixelsPerUnit = 100f;
         private Part _mark;
         private Part _wordmark;
         private Vector2 _lockupPixels;
@@ -351,17 +365,24 @@ namespace Aether.Gameplay.Flow
         /// </summary>
         /// <remarks>
         /// The mark starts at <see cref="Timing.BlackHold"/>; the wordmark starts a fraction of the
-        /// reveal later, so the mark lands first and the wordmark settles under it. Both end at the
+        /// reveal later, so the mark arrives first and the wordmark resolves under it. Both end at the
         /// same moment, which is the moment the hold begins.
+        /// <para>
+        /// Presence and movement ride separate curves. The mark's opacity follows a curve that is soft
+        /// at both ends, which is what makes it bloom rather than appear; the wordmark's arrives
+        /// sooner and settles later, so it reads as resolving. The scale and the small rise behind both
+        /// are gentler still, and never overshoot: nothing here bounces.
+        /// </para>
         /// </remarks>
         private static void RevealAt(float elapsed, bool wordmark,
                                      out float presence, out float scale, out float rise)
         {
             float delay = wordmark ? Layout.RevealOverlap * Timing.Reveal : 0f;
-            float reveal = EaseOutCubic(Ramp(elapsed, Timing.BlackHold + delay, Timing.Reveal - delay));
-            presence = reveal;
-            scale = Mathf.Lerp(Layout.RevealScale, 1f, reveal);
-            rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - reveal);
+            float linear = Ramp(elapsed, Timing.BlackHold + delay, Timing.Reveal - delay);
+            float settle = EaseInOutSine(linear);
+            presence = wordmark ? EaseOutCubic(linear) : settle;
+            scale = Mathf.Lerp(Layout.RevealScale, 1f, settle);
+            rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
 
         /// <summary>Waits real seconds, unaffected by time scale: the intro is not gameplay.</summary>
@@ -501,7 +522,8 @@ namespace Aether.Gameplay.Flow
             Vector2 lockupCentre = lockup.Centre;
 
             _generatedTexture = BuildKeyedTexture(coverage, width, height);
-            _markSprite = BuildSprite(_generatedTexture, markBounds, source.pixelsPerUnit);
+            _pixelsPerUnit = source.pixelsPerUnit > 0f ? source.pixelsPerUnit : 100f;
+            _markSprite = BuildSprite(_generatedTexture, markBounds, _pixelsPerUnit);
             _mark = BuildPart("StudioMark", _markSprite, markBounds, lockupCentre);
 
             if (wordmarkBounds.Found)
@@ -606,6 +628,13 @@ namespace Aether.Gameplay.Flow
         /// The fit is computed from the <b>lockup's</b> size for both pieces, so they keep the
         /// proportions and the spacing the artwork drew, and it is one scale factor from both limits,
         /// which is what "no stretching" means. Two factors would be the bug this avoids.
+        /// <para>
+        /// The artwork's import resolution is divided out here. A sprite is sized in world units as
+        /// its pixels over its pixels-per-unit, so scaling its transform by the fit directly would
+        /// draw it at the artwork's own pixel size rather than at the size the fit chose — a mark
+        /// filling the screen however carefully the limits were set. <c>tools/verify/intro.py</c>
+        /// checks the numbers, and the render test in CI checks the pixels that come out.
+        /// </para>
         /// </remarks>
         private void Place(Transform drawn, Vector2 sizePixels, Vector2 offsetPixels, float scale,
                            float rise)
@@ -615,19 +644,29 @@ namespace Aether.Gameplay.Flow
             // Pixels to world units. The camera is full screen and orthographic, so its vertical
             // extent is twice the orthographic size over the whole screen, and pixels are square.
             float worldPerPixel = (2f * _camera.orthographicSize) / Mathf.Max(1f, Screen.height);
+
+            // One factor from both limits — the lockup's size, for both pieces — so the mark and the
+            // wordmark keep the relationship the artwork drew at every size.
             float fit = Mathf.Min((safe.width * Layout.MaxWidthFraction) / _lockupPixels.x,
                                   (safe.height * Layout.MaxHeightFraction) / _lockupPixels.y);
+
+            // World units per artwork pixel at this point in the animation: the fit, converted to
+            // world units, times the reveal's scale. The sprite's transform then carries its own size
+            // in pixels times this, times its pixels-per-unit — the conversion the sprite needs because
+            // its size is already expressed in units.
+            float unitsPerPixel = fit * worldPerPixel * scale;
+            float pixelsPerUnit = Mathf.Max(1f, _pixelsPerUnit);
 
             Vector2 safeCentre = safe.center - new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Vector3 cameraPosition = _camera.transform.position;
 
             drawn.position = new Vector3(
-                cameraPosition.x + (safeCentre.x * worldPerPixel) + (offsetPixels.x * fit * scale * worldPerPixel),
-                cameraPosition.y + (safeCentre.y * worldPerPixel) + (offsetPixels.y * fit * scale * worldPerPixel)
+                cameraPosition.x + (safeCentre.x * worldPerPixel) + (offsetPixels.x * unitsPerPixel),
+                cameraPosition.y + (safeCentre.y * worldPerPixel) + (offsetPixels.y * unitsPerPixel)
                     + (rise * safe.height * worldPerPixel),
                 cameraPosition.z + 1f);
-            drawn.localScale = new Vector3(sizePixels.x * fit * scale * worldPerPixel,
-                                           sizePixels.y * fit * scale * worldPerPixel,
+            drawn.localScale = new Vector3(sizePixels.x * unitsPerPixel * pixelsPerUnit,
+                                           sizePixels.y * unitsPerPixel * pixelsPerUnit,
                                            1f);
         }
 
@@ -752,6 +791,12 @@ namespace Aether.Gameplay.Flow
         {
             float inverse = 1f - t;
             return 1f - (inverse * inverse * inverse);
+        }
+
+        /// <summary>A curve that starts and ends soft: the one the mark's arrival rides.</summary>
+        private static float EaseInOutSine(float t)
+        {
+            return -(Mathf.Cos(Mathf.PI * t) - 1f) * 0.5f;
         }
 
         private static float EaseInOutCubic(float t)

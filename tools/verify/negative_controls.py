@@ -13,6 +13,7 @@ Exit: 0 when every injected fault was detected, 1 otherwise.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -28,6 +29,8 @@ CODE = "Assets/Aether/Code"
 INTRO_CODE = f"{CODE}/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs"
 INTRO_SCENE = "Assets/Aether/Scenes/StudioIntro.unity"
 BUILD_SETTINGS = "ProjectSettings/EditorBuildSettings.asset"
+PLAYER_SETTINGS = "ProjectSettings/ProjectSettings.asset"
+BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
 BRAND_DIR = "Assets/Aether/Resources/Brand"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
 STRIKE = "Assets/Aether/Resources/Content/Attack.Strike.asset"
@@ -54,6 +57,23 @@ def edit(root: str, rel: str, old: str, new: str):
     if old not in original:
         raise AssertionError(f"{rel}: pattern not found: {old[:60]!r}")
     open(path, "w", encoding="utf-8").write(original.replace(old, new, 1))
+    return [(path, original)]
+
+
+def retune(root: str, rel: str, name: str, value: str):
+    """Set a C# float constant by name, whatever it currently holds.
+
+    The controls pin *behaviour*, not the number the theme is tuned to. A control that hard-codes
+    the old value stops injecting anything the first time the value is legitimately retuned - and a
+    control that silently stops injecting a fault is worse than no control at all, because it keeps
+    reporting that the gate was caught failing something it never saw.
+    """
+    path = os.path.join(root, rel)
+    original = open(path, encoding="utf-8").read()
+    pattern = re.compile(rf"(public const float {name}\s*=\s*)[0-9.]+f;")
+    if pattern.search(original) is None:
+        raise AssertionError(f"{rel}: constant '{name}' not found")
+    open(path, "w", encoding="utf-8").write(pattern.sub(rf"\g<1>{value}f;", original, count=1))
     return [(path, original)]
 
 
@@ -444,47 +464,33 @@ def controls() -> list[Control]:
         Control(
             "intro: the mark is allowed to grow past the safe area",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float MaxHeightFraction = 0.34f;",
-                              "public const float MaxHeightFraction = 1.50f;"),
+            lambda root: retune(root, INTRO_CODE, "MaxHeightFraction", "1.50"),
             ["MaxHeightFraction"]),
         Control(
             "intro: the mark shrinks to a watermark",
             intro,
-            lambda root: (edit(root, INTRO_CODE,
-                               "public const float MaxWidthFraction = 0.62f;",
-                               "public const float MaxWidthFraction = 0.12f;")
-                          + edit(root, INTRO_CODE,
-                                 "public const float MaxHeightFraction = 0.34f;",
-                                 "public const float MaxHeightFraction = 0.10f;")),
+            lambda root: (retune(root, INTRO_CODE, "MaxWidthFraction", "0.12")
+                          + retune(root, INTRO_CODE, "MaxHeightFraction", "0.10")),
             ["larger dimension"]),
         Control(
             "intro: the mark lunges towards the screen as it leaves",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float ExitScale = 1.025f;",
-                              "public const float ExitScale = 1.60f;"),
+            lambda root: retune(root, INTRO_CODE, "ExitScale", "1.60"),
             ["ExitScale"]),
         Control(
             "intro: the sequence runs far longer than the two-to-three seconds it must",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float Hold = 0.90f;",
-                              "public const float Hold = 6.00f;"),
+            lambda root: retune(root, INTRO_CODE, "Hold", "6.00"),
             ["outside the required"]),
         Control(
             "intro: skipping takes longer than watching it out",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float SkipExit = 0.30f;",
-                              "public const float SkipExit = 0.90f;"),
+            lambda root: retune(root, INTRO_CODE, "SkipExit", "0.90"),
             ["not shorter"]),
         Control(
-            "intro: a lighter mark that is still inside the rules stays silent",
+            "intro: a size limit that is still inside the rules stays silent",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float MaxHeightFraction = 0.34f;",
-                              "public const float MaxHeightFraction = 0.30f;"),
+            lambda root: retune(root, INTRO_CODE, "MaxHeightFraction", "0.30"),
             ["sound"],
             must_fail=False),
 
@@ -510,23 +516,17 @@ def controls() -> list[Control]:
         Control(
             "intro: the split leaves no mark above it",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float WordmarkSplit = 0.605f;",
-                              "public const float WordmarkSplit = 0.22f;"),
+            lambda root: retune(root, INTRO_CODE, "WordmarkSplit", "0.22"),
             ["no ink above"]),
         Control(
             "intro: the wordmark starts after the reveal has finished",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float RevealOverlap = 0.40f;",
-                              "public const float RevealOverlap = 0.95f;"),
+            lambda root: retune(root, INTRO_CODE, "RevealOverlap", "0.95"),
             ["RevealOverlap"]),
         Control(
             "intro: the key gap is too narrow to key without smearing",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float BackgroundLuminance = 0.78f;",
-                              "public const float BackgroundLuminance = 0.30f;"),
+            lambda root: retune(root, INTRO_CODE, "BackgroundLuminance", "0.30"),
             ["separates ink from canvas"]),
         Control(
             "intro: a logo exported with a real alpha channel stays silent",
@@ -541,10 +541,46 @@ def controls() -> list[Control]:
         Control(
             "intro: a looser split that still cuts between mark and wordmark stays silent",
             intro,
-            lambda root: edit(root, INTRO_CODE,
-                              "public const float WordmarkSplit = 0.605f;",
-                              "public const float WordmarkSplit = 0.55f;"),
+            lambda root: retune(root, INTRO_CODE, "WordmarkSplit", "0.55"),
             ["sound"],
+            must_fail=False),
+
+        # -- how the app launches, before any of our code runs --------------------------------
+        Control(
+            "verify: portrait becomes an allowed orientation again",
+            gate,
+            lambda root: edit(root, PLAYER_SETTINGS,
+                              "  allowedAutorotateToPortrait: 0",
+                              "  allowedAutorotateToPortrait: 1"),
+            ["allowedAutorotateToPortrait"]),
+        Control(
+            "verify: rotation follows the device's own lock instead of the sensor",
+            gate,
+            lambda root: edit(root, PLAYER_SETTINGS,
+                              "  androidAutoRotationBehavior: 1",
+                              "  androidAutoRotationBehavior: 0"),
+            ["Sensor"]),
+        Control(
+            "verify: the Unity splash comes back ahead of the studio intro",
+            gate,
+            lambda root: edit(root, PLAYER_SETTINGS,
+                              "  m_ShowUnitySplashScreen: 0",
+                              "  m_ShowUnitySplashScreen: 1"),
+            ["m_ShowUnitySplashScreen"]),
+        Control(
+            "verify: the intro hands over to a bright page instead of to black",
+            gate,
+            lambda root: edit(root, BOOT_SCENE,
+                              "  m_BackGroundColor: {r: 0.019607844, g: 0.019607844, b: 0.019607844, a: 1}",
+                              "  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 1}"),
+            ["hands over to a bright page"]),
+        Control(
+            "verify: a ground that is still dark enough stays silent",
+            gate,
+            lambda root: edit(root, PLAYER_SETTINGS,
+                              "  m_SplashScreenBackgroundColor: {r: 0.019607844, g: 0.019607844, b: 0.019607844, a: 1}",
+                              "  m_SplashScreenBackgroundColor: {r: 0.04, g: 0.04, b: 0.04, a: 1}"),
+            ["landscape only"],
             must_fail=False),
 
         # -- the scene the app starts in -----------------------------------------------------

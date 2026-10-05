@@ -48,8 +48,21 @@ light canvas with the mark drawn on it — which is exactly the failure the pixe
 catch, and it is recorded here rather than glossed over: the file is used as supplied, and the
 intro subtracts the canvas by luminance.
 
-What is **not** verified: the intro has never been compiled or watched. No Editor, no device —
-the arithmetic and the pixels are checked, the look is not.
+Two things were added after the first APK, both because the phone showed what the gates could not:
+
+* **A play-mode render test.** `Assets/Aether/Code/Aether.Tests.PlayMode` loads the shipped scene in
+  the real engine, lets the shipped component run, captures four frames, and measures them: ink
+  present and centred, inside the frame with margins, aspect preserved, the ground black, and a
+  reveal and an exit that actually change the picture. The frames are uploaded as screenshots. The
+  first build drew the mark several times the width of the screen — the sprite's own
+  pixels-per-unit was left out of its transform scale — and every static check passed while it did.
+* **`ProjectSettings.asset` is a gate now.** Landscape only both ways up, driven by the rotation
+  sensor rather than the device's lock, with the Made-with-Unity splash off (Unity 6 allows that on
+  Personal). `tools/verify/verify.py` checks those values and the near-black ground, because a
+  setting nobody reads back is a setting that silently changes.
+
+What is **not** verified: the app's launch has never been watched on a device. The arithmetic, the
+settings and the rendered frames are checked; how the splash behaves on a real phone is not.
 
 M3 then hardened the region rather than extending it. The rule was *better before more*: the two
 defects that mattered most — an enemy that could not attack and a joystick that never moved — were

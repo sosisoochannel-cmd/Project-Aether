@@ -18,6 +18,8 @@ What it checks
                project-owned types only — Unity/BCL receivers are skipped, so this
                reports no false positives but also cannot check engine calls)
 6. lints       Unity 6 API deprecations and known-risky patterns
+7. player      the launch-time decisions the player settings hold: landscape-only, sensor-driven
+               rotation, no Unity splash ahead of the studio intro, and a black ground beneath it
 
 Exit code is non-zero if any check fails.
 """
@@ -1428,6 +1430,119 @@ REQUIRED_TEXTURE_SETTINGS = {
 }
 
 
+PLAYER_SETTINGS = "ProjectSettings/ProjectSettings.asset"
+BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
+
+# The serialized values behind the Player Settings that decide what the phone shows in the first
+# second of the app. They are written here as the numbers Unity writes, with what the editor's UI
+# calls them, because that pairing is the part that is easy to get wrong and invisible afterwards.
+AUTO_ROTATION = 4                # Default Orientation: Auto Rotation
+AUTO_ROTATION_SENSOR = 1         # Auto Rotation Behavior: Sensor (ignores the device's lock)
+SPLASH_BACKGROUND_MAX = 0.05     # luminance ceiling for the ground behind the first frame
+
+
+def _setting(text: str, name: str) -> float | None:
+    """The numeric value of one serialized player setting, or None when it is absent."""
+    match = re.search(rf"^  {name}: (-?[0-9.]+)$", text, re.M)
+    if match:
+        return float(match.group(1))
+    match = re.search(rf"^  {name}: \{{r: ([0-9.]+), g: ([0-9.]+), b: ([0-9.]+), a: [0-9.]+\}}$",
+                      text, re.M)
+    return None if match is None else max(float(match.group(i)) for i in (1, 2, 3))
+
+
+def check_player_settings(report: Report) -> None:
+    """Check the settings that decide how the app launches, before any of our code runs.
+
+    Orientation and the splash screen are not gameplay: they are what the player sees while the
+    first scene loads, and they are decided entirely by `ProjectSettings.asset`. A device is the
+    only place the result is visible, so the values are checked here, the built APK's manifest is
+    checked in CI, and the screenshot on a phone is the final word.
+
+    Landscape only, both ways up, driven by the rotation sensor rather than by the device's own
+    rotation lock: a player holding the phone sideways gets the game the way it was drawn even if
+    their phone is locked to portrait, and a player holding it the other way gets it flipped
+    instead of the app refusing to turn.
+    """
+    path = os.path.join(REPO_ROOT, PLAYER_SETTINGS)
+    if not os.path.exists(path):
+        report.fail(f"player: {PLAYER_SETTINGS} is missing; nothing decides the orientation")
+        return
+
+    text = open(path, encoding="utf-8").read()
+
+    orientation = _setting(text, "defaultScreenOrientation")
+    if orientation is None:
+        report.fail("player: defaultScreenOrientation is not set, so the launch orientation is "
+                    "whatever the last editor wrote")
+    elif orientation != AUTO_ROTATION:
+        report.fail(f"player: defaultScreenOrientation is {orientation:g}, not Auto Rotation "
+                    f"({AUTO_ROTATION}); landscape-only needs Auto Rotation with the landscape "
+                    "sides allowed")
+
+    for name, wanted, why in (
+        ("allowedAutorotateToPortrait", 0, "portrait becomes selectable, so a phone held upright "
+                                           "shows the game sideways"),
+        ("allowedAutorotateToPortraitUpsideDown", 0, "upside-down portrait becomes selectable"),
+        ("allowedAutorotateToLandscapeLeft", 1, "one of the two landscape directions is refused"),
+        ("allowedAutorotateToLandscapeRight", 1, "one of the two landscape directions is refused"),
+    ):
+        value = _setting(text, name)
+        if value is None:
+            report.fail(f"player: {name} is not set, so the launch orientations are undefined")
+        elif value != wanted:
+            report.fail(f"player: {name} is {value:g}, expected {wanted:g} - {why}")
+
+    behavior = _setting(text, "androidAutoRotationBehavior")
+    if behavior is None:
+        report.fail("player: androidAutoRotationBehavior is not set; with Auto Rotation that "
+                    "leaves the default (User), which stops rotating when the phone is locked")
+    elif behavior != AUTO_ROTATION_SENSOR:
+        report.fail(f"player: androidAutoRotationBehavior is {behavior:g}, expected "
+                    f"{AUTO_ROTATION_SENSOR} (Sensor): with User, a phone whose rotation lock is on "
+                    "is shown the game in whatever orientation the lock allows")
+
+    for name, wanted in (("m_ShowUnitySplashScreen", 0), ("m_ShowUnitySplashLogo", 0)):
+        value = _setting(text, name)
+        if value is None:
+            report.fail(f"player: {name} is not set, so the splash is whatever the default is")
+        elif value != wanted:
+            report.fail(f"player: {name} is {value:g}, expected {wanted:g} - the Unity splash would "
+                        "screen ahead of the studio intro, which is the first thing the app is "
+                        "supposed to show")
+
+    background = _setting(text, "m_SplashScreenBackgroundColor")
+    if background is None:
+        report.fail("player: m_SplashScreenBackgroundColor is not set, so the frames before the "
+                    "first scene are a colour nobody chose")
+    elif background > SPLASH_BACKGROUND_MAX:
+        report.fail(f"player: m_SplashScreenBackgroundColor is {background:.3f} at its brightest, "
+                    f"above the {SPLASH_BACKGROUND_MAX} this project keeps its first frame under")
+
+    boot_path = os.path.join(REPO_ROOT, BOOT_SCENE)
+    if not os.path.exists(boot_path):
+        report.fail(f"player: {BOOT_SCENE} is missing, so the intro has nothing to hand over to")
+        return
+
+    boot = open(boot_path, encoding="utf-8").read()
+    match = re.search("^  m_BackGroundColor: \\{r: ([0-9.]+), g: ([0-9.]+), b: ([0-9.]+), a: [0-9.]+\\}$",
+                      boot, re.M)
+    if match is None:
+        report.fail(f"player: {BOOT_SCENE} has no camera background colour, so the frames after "
+                    "the intro are whatever the camera was left pointing at")
+    else:
+        brightest = max(float(match.group(i)) for i in (1, 2, 3))
+        if brightest > SPLASH_BACKGROUND_MAX:
+            report.fail(f"player: {BOOT_SCENE}'s camera clears to {brightest:.3f} at its brightest, "
+                        f"above {SPLASH_BACKGROUND_MAX}: the intro hands over to a bright page "
+                        "instead of to black")
+        else:
+            report.note("player: landscape only, both ways up, driven by the rotation sensor; no "
+                        "Unity splash ahead of the intro, and the ground under the first frame is "
+                        "black. The built APK's manifest is checked in CI, and the phone is the "
+                        "final word")
+
+
 def check_scene_flow(report: Report) -> None:
     """Check which scene the app starts in, and that the intro can reach the next one.
 
@@ -1636,6 +1751,7 @@ def main() -> int:
     check_lints(report, project)
     check_namespace_hygiene(report, project)
     check_scene_flow(report)
+    check_player_settings(report)
 
     if not args.quiet:
         for line in report.notes:

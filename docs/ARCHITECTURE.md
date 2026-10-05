@@ -273,7 +273,12 @@ Four decisions worth recording:
 1. **Sprites parented to the camera, not uGUI.** Same reasoning as the touch controls: a Canvas, an
    EventSystem and an input-UI module are three things to wire that cannot be checked without an
    Editor, and the intro is two images that fade. Layout is fractions of `Screen.safeArea`, so
-   `tools/verify/intro.py` can prove it on 140 synthetic device shapes.
+   `tools/verify/intro.py` can prove it on 140 synthetic device shapes — and because arithmetic
+   cannot see what a renderer draws, a play-mode test (`Assets/Aether/Code/Aether.Tests.PlayMode`)
+   plays the real scene and measures the frames that come out: ink present, centred, inside the
+   frame, aspect preserved, black ground, and a reveal and an exit that change the picture. That
+   test exists because the one bug that got past every static gate here was a placement bug that
+   drew the mark several times the width of the screen.
 2. **The layout is fitted with one scale factor from both limits.** Two factors — one per axis — is
    the classic way a logo ends up stretched on a tablet. The numbers are public constants in
    `StudioIntroSequence.Layout` so the gate reads the same values the runtime uses.
@@ -283,7 +288,15 @@ Four decisions worth recording:
    it is. Both paths are decided by what the pixels say, not by a setting someone has to remember.
    The gate decodes the committed PNG in pure Python and re-measures it, which is what stops
    "the logo is in the repository" from being mistaken for "the logo is on screen".
-4. **The intro may be skipped, and switched off.** A tap, key or face button after a short grace
+4. **Landscape only, both ways up, and the splash is off.** The player settings — not a script —
+   put the app in Auto Rotation with only Landscape Left and Right allowed, and set Auto Rotation
+   Behavior to Sensor, so a phone whose rotation lock is on still shows the game the way it was
+   drawn instead of refusing to turn. The Made-with-Unity splash is switched off there too, which
+   Unity 6 permits on Personal, so the first thing anyone sees is the studio's own intro rather
+   than Unity's. `tools/verify/verify.py` checks all of it in the project file, CI inspects the
+   built APK's manifest for the orientation it actually shipped with, and the phone is the final
+   word.
+5. **The intro may be skipped, and switched off.** A tap, key or face button after a short grace
    ends it early; `Preference` (a PlayerPref) is what a future settings screen writes. Nothing in
    the intro knows what comes after it: `_nextScene` is a string, and pointing it at a Main Menu is
    the only change the next stage needs.
