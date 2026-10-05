@@ -6,8 +6,11 @@
 # The hash it must match is the value the publish job recorded when it created the release, so the
 # copy handed to a player is provably the same file the build produced.
 #
+# Every host reports one line as a workflow notice, because the job log itself cannot be read from
+# the environment this is driven from - only the annotations can.
+#
 # Run:  GITHUB_TOKEN=... bash tools/ci/relay_apk.sh
-set -euo pipefail
+set -uo pipefail
 
 REPO="${GITHUB_REPOSITORY:-sosisoochannel-cmd/Project-Aether}"
 TAG="${TAG:-apk-6bf7101}"
@@ -18,7 +21,9 @@ UA="aether-apk-relay/1.0 (+https://github.com/$REPO)"
 API="https://api.github.com/repos/$REPO"
 
 say() { echo "$@"; }
-notice() { echo "::notice title=$1::$2"; }
+report() { printf '::notice title=%s::%s\n' "$1" "${2//$'\n'/ }"; }
+# Short form of a response, for a notice line: no newlines, no huge bodies.
+head_response() { tr -d '\r\n' < "$1" 2>/dev/null | head -c 130; }
 
 say "== source: $TAG / $ASSET =="
 asset_id=$(curl -sS --max-time 120 \
@@ -27,18 +32,15 @@ asset_id=$(curl -sS --max-time 120 \
   "$API/releases/tags/$TAG" \
   | jq -r --arg n "$ASSET" '.assets[] | select(.name == $n) | .id' | head -1)
 if [ -z "$asset_id" ] || [ "$asset_id" = "null" ]; then
-  echo "::error::release $TAG has no asset named $ASSET"
+  printf '::error::release %s has no asset named %s\n' "$TAG" "$ASSET"
   exit 1
 fi
-say "asset id $asset_id"
 
 for attempt in 1 2 3; do
-  if curl -sSL --max-time 900 --retry 5 --retry-all-errors \
-       -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-       -H "Accept: application/octet-stream" \
-       -o "$ASSET" "$API/releases/assets/$asset_id"; then
-    break
-  fi
+  curl -sSL --max-time 900 --retry 5 --retry-all-errors \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Accept: application/octet-stream" \
+    -o "$ASSET" "$API/releases/assets/$asset_id" && break
   say "download attempt $attempt failed; retrying"
   sleep 5
 done
@@ -47,90 +49,123 @@ size=$(stat -c %s "$ASSET")
 sha=$(sha256sum "$ASSET" | awk '{print $1}')
 say "fetched: $size bytes, sha256 $sha"
 if [ "$size" != "$EXPECT_SIZE" ] || [ "$sha" != "$EXPECT_SHA" ]; then
-  echo "::error::the release asset is $size bytes / $sha, expected $EXPECT_SIZE / $EXPECT_SHA"
+  printf '::error::the release asset is %s bytes / %s, expected %s / %s\n' \
+    "$size" "$sha" "$EXPECT_SIZE" "$EXPECT_SHA"
   exit 1
 fi
-notice "Source APK" "$ASSET - $size bytes - sha256 $sha - matches the published release"
+report "Source APK" "$ASSET - $size bytes - sha256 $sha - matches the published release"
 
 verified=0
 : > links.txt
 
 check() { # $1 host label, $2 url
-  local host="$1" url="$2" out="back-$1.bin"
-  case "$url" in
-    https://*) ;;
-    *) say "  [$host] no usable link came back"; return 1 ;;
-  esac
-  if ! curl -sSL --max-time 900 --retry 3 --retry-all-errors -A "$UA" -o "$out" "$url"; then
-    say "  [$host] download-back FAILED"
+  local host="$1" url="$2" out="back-$1.bin" code got_size got_sha
+  if [ -z "$url" ] || [ "${url#https://}" = "$url" ]; then
+    report "$host" "no link came back"
     return 1
   fi
-  local got_size got_sha
-  got_size=$(stat -c %s "$out")
-  got_sha=$(sha256sum "$out" | awk '{print $1}')
+  code=$(curl -sSL --max-time 900 --retry 3 --retry-all-errors -A "$UA" -o "$out" \
+         -w '%{http_code}' "$url" || echo 000)
+  got_size=$(stat -c %s "$out" 2>/dev/null || echo 0)
+  got_sha=$(sha256sum "$out" 2>/dev/null | awk '{print $1}')
   if [ "$got_size" = "$EXPECT_SIZE" ] && [ "$got_sha" = "$EXPECT_SHA" ]; then
-    say "  [$host] VERIFIED  $url  ($got_size bytes, sha256 $got_sha)"
-    notice "$host link" "$url - $got_size bytes - sha256 $got_sha - downloaded back and identical"
+    report "$host" "VERIFIED $url - $got_size bytes - sha256 $got_sha - downloaded back, identical"
     printf '%s|%s|%s|%s\n' "$host" "$url" "$got_size" "$got_sha" >> links.txt
     verified=$((verified + 1))
     return 0
   fi
-  say "  [$host] MISMATCH: came back as $got_size bytes, sha256 $got_sha"
+  report "$host" "MISMATCH http=$code - got ${got_size} bytes, sha ${got_sha:0:16}... from $url"
   return 1
 }
 
-say "== pixeldrain =="
-pd=$(curl -sS --max-time 900 -A "$UA" -T "$ASSET" "https://pixeldrain.com/api/file/$ASSET" || true)
-pd_id=$(printf '%s' "$pd" | jq -r '.id // empty' 2>/dev/null || true)
+# --- pixeldrain -----------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" -T "$ASSET" -o pd.json -w '%{http_code}' \
+       "https://pixeldrain.com/api/file/$ASSET" || echo 000)
+pd_id=$(jq -r '.id // empty' pd.json 2>/dev/null)
 if [ -n "$pd_id" ]; then
   check pixeldrain "https://pixeldrain.com/api/file/$pd_id?download" || true
 else
-  say "  [pixeldrain] upload rejected: $(printf '%s' "$pd" | head -c 200)"
+  report pixeldrain "upload http=$code - $(head_response pd.json)"
 fi
 
-say "== catbox =="
-cb=$(curl -sS --max-time 900 -A "$UA" \
-  -F "reqtype=fileupload" -F "fileToUpload=@$ASSET" \
-  https://catbox.moe/user/api.php || true)
-check catbox "$cb" || true
+# --- catbox (permanent) ---------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" -F "reqtype=fileupload" -F "fileToUpload=@$ASSET" \
+       -o cb.txt -w '%{http_code}' https://catbox.moe/user/api.php || echo 000)
+cb_url=$(grep -oE 'https://files\.catbox\.moe/[^[:space:]]+' cb.txt | head -1 || true)
+if [ -n "$cb_url" ]; then check catbox "$cb_url" || true
+else report catbox "upload http=$code - $(head_response cb.txt)"; fi
 
-say "== litterbox (72h) =="
-lb=$(curl -sS --max-time 900 -A "$UA" \
-  -F "reqtype=fileupload" -F "time=72h" -F "fileToUpload=@$ASSET" \
-  https://litterbox.catbox.moe/resources/internals/api.php || true)
-check litterbox "$lb" || true
+# --- litterbox (72h) ------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" -F "reqtype=fileupload" -F "time=72h" \
+       -F "fileToUpload=@$ASSET" -o lb.txt -w '%{http_code}' \
+       https://litterbox.catbox.moe/resources/internals/api.php || echo 000)
+lb_url=$(grep -oE 'https://litterbox\.catbox\.moe/[^[:space:]]+' lb.txt | head -1 || true)
+if [ -n "$lb_url" ]; then check litterbox "$lb_url" || true
+else report litterbox "upload http=$code - $(head_response lb.txt)"; fi
 
-say "== temp.sh =="
-ts=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" https://temp.sh/upload || true)
-check temp.sh "$ts" || true
+# --- temp.sh --------------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" -o ts.txt -w '%{http_code}' \
+       https://temp.sh/upload || echo 000)
+ts_url=$(grep -oE 'https://temp\.sh/[^[:space:]]+' ts.txt | head -1 || true)
+if [ -n "$ts_url" ]; then check temp.sh "$ts_url" || true
+else report temp.sh "upload http=$code - $(head_response ts.txt)"; fi
 
-say "== oshi.at =="
-oa=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" https://oshi.at || true)
-oshi_link=$(printf '%s\n' "$oa" | awk '/^DL:/{print $2; exit}')
-check oshi.at "${oshi_link:-}" || true
+# --- oshi.at --------------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" -o oa.txt -w '%{http_code}' \
+       https://oshi.at || echo 000)
+oa_url=$(awk '/^DL:/{print $2; exit}' oa.txt || true)
+if [ -n "$oa_url" ]; then check oshi.at "$oa_url" || true
+else report oshi.at "upload http=$code - $(head_response oa.txt)"; fi
 
-say "== bashupload =="
-bu=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" https://bashupload.com/ || true)
-bu_link=$(printf '%s\n' "$bu" | grep -oE 'https://bashupload\.com/[^[:space:]]+' | tail -1 || true)
-check bashupload "${bu_link:-}" || true
+# --- bashupload -----------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" -o bu.txt -w '%{http_code}' \
+       https://bashupload.com/ || echo 000)
+bu_url=$(grep -oE 'https://bashupload\.com/[^[:space:]]+' bu.txt | tail -1 || true)
+if [ -n "$bu_url" ]; then check bashupload "$bu_url" || true
+else report bashupload "upload http=$code - $(head_response bu.txt)"; fi
 
-for host in 0x0.st envs.sh; do
-  say "== $host =="
-  url=$(curl -sS --max-time 900 -A "$UA" -F "file=@$ASSET" "https://$host" || true)
-  check "${host%%.*}" "$url" || true
+# --- 0x0 clones -----------------------------------------------------------------------------
+for host in 0x0.st envs.sh ttm.sh; do
+  code=$(curl -sS --max-time 900 -A "$UA" -F "file=@$ASSET" -o "x-$host.txt" \
+         -w '%{http_code}' "https://$host" || echo 000)
+  url=$(head -1 "x-$host.txt" | tr -d '\r\n')
+  if [ -n "$url" ] && [ "${url#https://}" != "$url" ]; then
+    check "${host%%.*}" "$url" || true
+  else
+    report "$host" "upload http=$code - $(head_response "x-$host.txt")"
+  fi
 done
 
-say "== filebin =="
+# --- filebin --------------------------------------------------------------------------------
 bin="aether-6bf7101-$(date +%s)"
-curl -sS --max-time 900 -A "$UA" -X POST -H "filename: $ASSET" \
-  --data-binary "@$ASSET" "https://filebin.net/$bin" >/dev/null 2>&1 || true
-check filebin "https://filebin.net/$bin/$ASSET" || true
+code=$(curl -sS --max-time 900 -A "$UA" -X POST -H "filename: $ASSET" \
+       --data-binary "@$ASSET" -o fb.txt -w '%{http_code}' "https://filebin.net/$bin" || echo 000)
+if [ "$code" = "201" ] || [ "$code" = "200" ] || [ "$code" = "409" ]; then
+  check filebin "https://filebin.net/$bin/$ASSET" || true
+else
+  report filebin "upload http=$code - $(head_response fb.txt)"
+fi
+
+# --- transfer.sh clone ----------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" -o tr.txt -w '%{http_code}' \
+       "https://transfer.archivete.am/$ASSET" || echo 000)
+tr_url=$(grep -oE 'https://transfer\.archivete\.am/[^[:space:]]+' tr.txt | tail -1 || true)
+if [ -n "$tr_url" ]; then check transfer "$tr_url" || true
+else report transfer "upload http=$code - $(head_response tr.txt)"; fi
+
+# --- pomf clone -----------------------------------------------------------------------------
+code=$(curl -sS --max-time 900 -A "$UA" -F "files[]=@$ASSET" -o pf.json -w '%{http_code}' \
+       https://pomf.lain.la/upload.php || echo 000)
+pf_url=$(jq -r '.files[0].url // empty' pf.json 2>/dev/null)
+if [ -n "$pf_url" ]; then check pomf "$pf_url" || true
+else report pomf "upload http=$code - $(head_response pf.json)"; fi
 
 say
 say "== verified links =="
 cat links.txt || true
 if [ "$verified" -lt 1 ]; then
-  echo "::error::no host returned a byte-identical copy of the APK"
+  printf '::error::no host returned a byte-identical copy of the APK\n'
   exit 1
 fi
-notice "Relay summary" "$verified host(s) verified: every link above was downloaded back and hashed $EXPECT_SHA"
+printf '::notice title=Relay summary::%s host(s) verified; each was downloaded back and hashed %s\n' \
+  "$verified" "$EXPECT_SHA"
