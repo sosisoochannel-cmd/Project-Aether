@@ -24,7 +24,11 @@ say() { echo "$@"; }
 RESULTS=""
 add() { RESULTS="${RESULTS}$1"$'\n'; say "  $1"; }
 flush() { # one compact notice with everything that happened
-  printf '::notice title=Relay results::%s\n' "$(printf '%s' "$RESULTS" | head -c 3800)"
+  # A workflow command ends at the first newline, so the lines are joined before they are emitted -
+  # otherwise only the first result would ever be visible.
+  local body
+  body=$(printf '%s' "$RESULTS" | tr '\n' '|' | head -c 6000)
+  printf '::notice title=Relay results::%s\n' "$body"
 }
 short() { tr -d '\r\n' < "$1" 2>/dev/null | head -c "$2"; }
 
@@ -119,6 +123,24 @@ for host in x0.at envs.sh; do
   if [ "${url#https://}" != "$url" ]; then check "$host" "$url" 900 || true
   else add "$host: upload http=$code - $(short "x-$host.txt" 120)"; fi
 done
+
+code=$(curl -sS --max-time 600 -A "$UA" -H "filename: $ASSET" --data-binary "@$ASSET" \
+       -o bh.json -w '%{http_code}' "https://w.buzzheavier.com/$ASSET" || echo 000)
+bh_url=$(jq -r '.data.id // empty' bh.json 2>/dev/null)
+if [ -n "$bh_url" ]; then check buzzheavier "https://buzzheavier.com/$bh_url" 900 || true
+else add "buzzheavier: upload http=$code - $(short bh.json 100)"; fi
+
+code=$(curl -sS --max-time 600 -A "$UA" -F "files[]=@$ASSET" -o ka.json -w '%{http_code}' \
+       https://kappa.lol/upload.php || echo 000)
+ka_url=$(jq -r '.files[0].url // empty' ka.json 2>/dev/null)
+if [ -n "$ka_url" ]; then check kappa "$ka_url" 900 || true
+else add "kappa.lol: upload http=$code - $(short ka.json 100)"; fi
+
+code=$(curl -sS --max-time 900 -A "$UA" --upload-file "$ASSET" -o tr.txt -w '%{http_code}' \
+       "https://transfer.archivete.am/$ASSET" || echo 000)
+tr_url=$(grep -oE 'https://transfer\.archivete\.am/[^[:space:]]+' tr.txt | tail -1 || true)
+if [ -n "$tr_url" ]; then check transfer.archivete.am "$tr_url" 900 || true
+else add "transfer.archivete.am: upload http=$code - $(short tr.txt 100)"; fi
 
 code=$(curl -sS --max-time 600 -A "$UA" -F "files[]=@$ASSET" -o fd.json -w '%{http_code}' \
        https://up1.fileditch.com/upload.php || echo 000)
