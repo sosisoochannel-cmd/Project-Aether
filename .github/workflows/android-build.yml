@@ -30,6 +30,12 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      # CI plumbing that cannot change a single byte of the game. The build workflow is in this
+      # list on purpose: editing the recipe should not spend a build, and it is what lets a
+      # temporary helper be added and taken out again without rebuilding the APK.
+      - '.github/workflows/android-build.yml'
+      - '.github/workflows/relay-apk.yml'
+      - 'tools/ci/**'
   workflow_dispatch:
 
 permissions:

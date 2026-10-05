@@ -1,0 +1,43 @@
+# Temporary, one-off helper: hand the APK that is already published on the release to public hosts
+# a phone can finish downloading from, and prove every copy byte-identical. It builds nothing.
+#
+# It exists because the sandbox this project is worked from cannot reach third-party hosts (and
+# cannot reach the release CDN either), while a runner can. It is deleted again as soon as the links
+# have been handed over; the work it did is in the run's annotations and in links.txt.
+#
+# Triggered only by a change to its own files, and the build workflow ignores those same paths, so
+# using this never spends a Unity build.
+name: Relay APK (temporary)
+
+on:
+  push:
+    branches:
+      - arena/01a10203-project-aether
+    paths:
+      - '.github/workflows/relay-apk.yml'
+      - 'tools/ci/**'
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    name: Re-host and verify the published APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Re-host every copy and hash it back
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/ci/relay_apk.sh
+
+      - name: Keep the links in the run, as a file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relay-links
+          path: links.txt
+          if-no-files-found: ignore
