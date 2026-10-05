@@ -5,6 +5,7 @@ Ordering is deliberate: **the thing that makes everything else verifiable is bui
 
 ```
 M0  Foundation ...................... DONE
+    Studio intro (Varellon Studios) . DONE  as a stage of its own, before M4
 M1  Core architecture + player ...... DONE
 M2  Level pipeline + The Greenway ... DONE
     M3 (enemy archetypes + combat) .. DONE  as M2's dependency
@@ -31,6 +32,24 @@ means the solver is written against real enemy behaviour instead of a placeholde
 
 M2 followed and closed the loop: the region is playable from `Boot.unity` with movement, combat,
 checkpoints, a secret and an exit, and the solver proves the level against the tuned player.
+
+### The studio intro (a stage of its own, before M4)
+
+The app used to open straight into `Boot`. It now opens on the Varellon Studios mark: black, the
+mark, the wordmark settling under it, a short hold, a soft exit, and a hand-over to `Boot` —
+**2.85 seconds**, skippable after 0.4s, and switchable off through a PlayerPref that no screen
+writes yet. It is one scene, one script and one PNG, and it does not know what comes after it
+(`_nextScene` is a string; pointing it at a Main Menu is the next stage's whole change).
+
+`tools/verify/intro.py` is part of the gate set now: it proves the layout on 140 synthetic device
+shapes in portrait and landscape, proves the length, and decodes the committed PNG to prove the
+artwork actually keys into something drawable. The supplied file had no alpha channel at all — a
+light canvas with the mark drawn on it — which is exactly the failure the pixel check exists to
+catch, and it is recorded here rather than glossed over: the file is used as supplied, and the
+intro subtracts the canvas by luminance.
+
+What is **not** verified: the intro has never been compiled or watched. No Editor, no device —
+the arithmetic and the pixels are checked, the look is not.
 
 M3 then hardened the region rather than extending it. The rule was *better before more*: the two
 defects that mattered most — an enemy that could not attack and a joystick that never moved — were

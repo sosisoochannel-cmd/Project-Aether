@@ -257,6 +257,40 @@ Three consequences worth stating:
 The visual vocabulary the first encounter teaches, in one sentence: **warm and bright means
 danger, dull and cool means it is safe to approach, and the shape says what a thing is.**
 
+## 6c. The studio intro: the first thing the app shows
+
+The app opens in `Assets/Aether/Scenes/StudioIntro.unity`, which is scene **0** in the build order.
+It is the only scene whose whole job is to be looked at: black, the Varellon mark, the wordmark
+settling under it, a short hold, a soft exit, and then it hands the app to `Boot`.
+
+> **A scene that owns its own flow declares itself, and the boot stands down.**
+> `SceneFlowOwner` is an empty abstract base; `AetherBoot.BootIfUnclaimed` looks for one and returns
+> without doing anything if a scene has it. That is the whole seam. The Main Menu will be the second
+> owner, which is why the seam exists before the menu does.
+
+Four decisions worth recording:
+
+1. **Sprites parented to the camera, not uGUI.** Same reasoning as the touch controls: a Canvas, an
+   EventSystem and an input-UI module are three things to wire that cannot be checked without an
+   Editor, and the intro is two images that fade. Layout is fractions of `Screen.safeArea`, so
+   `tools/verify/intro.py` can prove it on 140 synthetic device shapes.
+2. **The layout is fitted with one scale factor from both limits.** Two factors — one per axis — is
+   the classic way a logo ends up stretched on a tablet. The numbers are public constants in
+   `StudioIntroSequence.Layout` so the gate reads the same values the runtime uses.
+3. **The artwork is one PNG, and its coverage is the alpha channel.** The Varellon file is a light
+   canvas with the mark drawn on it — no transparency — so the intro keys the canvas out by
+   luminance at load time and draws the ink. A file supplied with a real alpha channel is used as
+   it is. Both paths are decided by what the pixels say, not by a setting someone has to remember.
+   The gate decodes the committed PNG in pure Python and re-measures it, which is what stops
+   "the logo is in the repository" from being mistaken for "the logo is on screen".
+4. **The intro may be skipped, and switched off.** A tap, key or face button after a short grace
+   ends it early; `Preference` (a PlayerPref) is what a future settings screen writes. Nothing in
+   the intro knows what comes after it: `_nextScene` is a string, and pointing it at a Main Menu is
+   the only change the next stage needs.
+
+The intro is **silent**. It requests its cues through `SoundDirector` like the rest of the game, so
+it becomes audible when an audio backend exists; no audio asset is invented for it.
+
 ## 7. Verification strategy
 
 ### The three levels of verification, never substituted for each other
@@ -277,6 +311,7 @@ python3 tools/verify/gen_meta.py --check         # every asset has a .meta
 python3 tools/verify/verify.py                   # assets, assemblies, symbols, asset fields
 python3 tools/verify/levelcheck.py               # the level is playable, proven by simulation
 python3 tools/verify/touchlayout.py              # the touch layout is usable, proven by geometry
+python3 tools/verify/intro.py                    # the studio intro's layout, length and artwork
 python3 tools/verify/negative_controls.py        # the tools above actually fail when they should
 ```
 
@@ -300,7 +335,7 @@ same ground, a checkpoint respawning into an enemy's sight, an exit inside a fig
 reachable without jumping — and asserts that the matching tool reports it. Two controls assert
 the *opposite* direction, that a legitimate shape produces no complaint at all, because an
 over-eager verifier is as broken as a blind one. It touches nothing in the working tree.
-Twenty-nine controls, all detected at the time of writing.
+Fifty-two controls, all detected at the time of writing.
 
 Several checks were added because a control failed the first time it was run, which is the
 whole point of having them: a dangling asset GUID is now a **failure** rather than a warning, because Unity resolves

@@ -20,22 +20,34 @@ namespace Aether.Gameplay.Flow
     /// <para>
     /// <b>Sprites parented to the camera, not uGUI.</b> The same choice the on-screen controls make,
     /// for the same reasons: a Canvas, an EventSystem and an input-UI module are three things that
-    /// need wiring and can be got wrong in a build nobody can open in an Editor, and the intro is one
-    /// image that fades. Layout is arithmetic in fractions of the safe area, which is why it is
-    /// checkable without a device — <c>tools/verify/intro.py</c> proves the mark stays inside the
+    /// need wiring and can be got wrong in a build nobody can open in an Editor, and the intro is two
+    /// images that fade. Layout is arithmetic in fractions of the safe area, which is why it is
+    /// checkable without a device — <c>tools/verify/intro.py</c> proves the lockup stays inside the
     /// safe area, keeps its aspect ratio (no stretching) and stays centred on every shape of screen
     /// the game is expected to meet, using the numbers in <see cref="Layout"/> in this file.
     /// </para>
     /// <para>
-    /// <b>The mark is drawn from the mark's own alpha channel.</b> The supplied artwork is black on
-    /// transparency, and this intro starts from a black screen, so the pixels are recoloured
-    /// (<see cref="KnockOut"/>) and the artwork's coverage — the alpha channel, which is the mark
-    /// itself — is what is shown. The colour is a serialized field, so a light mark on a dark
-    /// backdrop, or the reverse, is a data change rather than a code change.
+    /// <b>One PNG, two parts.</b> The supplied artwork is a single image: the Varellon mark with the
+    /// VAR-ELLON STUDIOS wordmark under it. Rather than cut the file in two, the studio mark and the
+    /// wordmark are found in the pixels at load time — the artwork is split by
+    /// <see cref="Layout.WordmarkSplit"/>, and each half is trimmed to the ink inside it. That is
+    /// also why the two can be animated separately: the mark leads the reveal and the wordmark
+    /// settles a beat later into the slot the artwork already left for it, which is the difference
+    /// between a logo reveal and a picture fading in.
+    /// </para>
+    /// <para>
+    /// <b>The artwork's coverage becomes the alpha channel.</b> A PNG with an alpha channel is used
+    /// as it is imported: its alpha is the shape, and the pixels are recoloured to
+    /// <see cref="_markColour"/> so the mark is legible on the black backdrop whatever ink colour
+    /// the artwork happens to use. An export that has <b>no</b> alpha — a light canvas with the logo
+    /// drawn on it — is keyed instead: the canvas is subtracted by luminance
+    /// (<see cref="Artwork"/>) and the logo becomes the shape. Both paths produce the same thing: ink
+    /// with soft edges and no background, which is what the black screen behind it requires. The
+    /// brand gate checks the committed file's pixels against these numbers before a build.
     /// </para>
     /// <para>
     /// <b>Everything is eased and nothing snaps.</b> Presence, scale and a small vertical rise are
-    /// curves over elapsed time, the exit starts from wherever the mark currently is (skipping
+    /// curves over elapsed time, the exit starts from wherever either part currently is (skipping
     /// mid-reveal fades from the current presence, not from full), and the whole sequence is under
     /// three seconds because an intro is a signature, not a wait.
     /// </para>
@@ -53,13 +65,15 @@ namespace Aether.Gameplay.Flow
     public sealed class StudioIntroSequence : SceneFlowOwner
     {
         /// <summary>
-        /// Where the mark sits, in fractions of the <b>safe area</b>.
+        /// Where the lockup sits, in fractions of the <b>safe area</b>.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// The mark is fitted — one scale factor from both limits, never one per axis — so it can
-        /// never be stretched, and it is centred on the safe area rather than the screen, so a notch
-        /// on one side does not push the mark off-centre.
+        /// The lockup — mark and wordmark together — is fitted with one scale factor from both
+        /// limits, never one per axis, so it can never be stretched, and it is centred on the safe
+        /// area rather than the screen, so a notch on one side does not push it off-centre. Both
+        /// parts share that one factor, so their relative sizes and the gap between them stay as the
+        /// artwork drew them.
         /// </para>
         /// <para>
         /// The limits are deliberately generous in neither direction: a mark that fills the screen is
@@ -70,23 +84,61 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         public static class Layout
         {
-            /// <summary>Largest fraction of the safe area's width the mark may occupy.</summary>
+            /// <summary>Largest fraction of the safe area's width the lockup may occupy.</summary>
             public const float MaxWidthFraction = 0.62f;
 
-            /// <summary>Largest fraction of the safe area's height the mark may occupy.</summary>
+            /// <summary>Largest fraction of the safe area's height the lockup may occupy.</summary>
             public const float MaxHeightFraction = 0.34f;
 
-            /// <summary>Scale the mark starts at, as a fraction of its final size.</summary>
+            /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
             public const float RevealScale = 0.94f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
             public const float RevealRise = 0.022f;
 
-            /// <summary>Scale the mark grows to as it leaves.</summary>
+            /// <summary>Scale the lockup grows to as it leaves.</summary>
             public const float ExitScale = 1.025f;
 
-            /// <summary>How far the mark drifts upwards as it leaves, in safe-area heights.</summary>
+            /// <summary>How far the lockup drifts upwards as it leaves, in safe-area heights.</summary>
             public const float ExitRise = 0.012f;
+
+            /// <summary>
+            /// Where the artwork splits into mark and wordmark, as a fraction of its height
+            /// <b>from the top</b>: above this line is the mark, below it is the wordmark.
+            /// </summary>
+            /// <remarks>
+            /// The supplied artwork has a clear band between the two, so this is a line drawn through
+            /// empty pixels; both halves are trimmed to their own ink afterwards, which is what makes
+            /// a slightly wrong split harmless. The brand gate re-measures the committed file with
+            /// this number and fails if either half would come out empty.
+            /// </remarks>
+            public const float WordmarkSplit = 0.605f;
+
+            /// <summary>Fraction of the reveal before the wordmark starts: the mark leads.</summary>
+            public const float RevealOverlap = 0.40f;
+
+            /// <summary>How far the wordmark rises into its place, in safe-area heights.</summary>
+            public const float WordmarkRise = 0.010f;
+        }
+
+        /// <summary>
+        /// How an artwork with no alpha channel is keyed.
+        /// </summary>
+        /// <remarks>
+        /// A pixel at or above <see cref="BackgroundLuminance"/> is canvas and becomes fully
+        /// transparent; one at or below <see cref="InkLuminance"/> is ink and becomes fully opaque;
+        /// between the two the coverage ramps, which keeps the anti-aliased edges of a letter or a
+        /// feather smooth instead of jagged. The gap between the two numbers is what stops a
+        /// slightly warm or slightly grey canvas from turning into a haze of half-transparent ink.
+        /// <c>tools/verify/intro.py</c> measures the committed artwork against these numbers.
+        /// </remarks>
+        public static class Artwork
+        {
+            /// <summary>Luminance (0-1) at or above which a pixel is background.</summary>
+            public const float BackgroundLuminance = 0.78f;
+
+            /// <summary>Luminance (0-1) at or below which a pixel is ink.</summary>
+            public const float InkLuminance = 0.20f;
         }
 
         /// <summary>
@@ -103,16 +155,16 @@ namespace Aether.Gameplay.Flow
             /// <summary>Black before the mark appears. Covers the first frames of the app.</summary>
             public const float BlackHold = 0.25f;
 
-            /// <summary>Fade-in and settle of the mark.</summary>
+            /// <summary>Fade-in and settle of the mark, and then of the wordmark behind it.</summary>
             public const float Reveal = 1.00f;
 
-            /// <summary>The mark at full presence. The pause that makes it read as a signature.</summary>
+            /// <summary>The lockup at full presence. The pause that makes it read as a signature.</summary>
             public const float Hold = 0.90f;
 
-            /// <summary>Fade-out of the mark.</summary>
+            /// <summary>Fade-out of the lockup.</summary>
             public const float Exit = 0.55f;
 
-            /// <summary>Black held after the mark has gone, so the hand-over is not a hard cut.</summary>
+            /// <summary>Black held after the lockup has gone, so the hand-over is not a hard cut.</summary>
             public const float HandOver = 0.15f;
 
             /// <summary>Input before this is ignored: the tap that launched the app is still landing.</summary>
@@ -147,7 +199,7 @@ namespace Aether.Gameplay.Flow
             }
         }
 
-        [Tooltip("Resource path of the studio mark, without extension.")]
+        [Tooltip("Resource path of the studio artwork: the mark, or a lockup with its wordmark.")]
         [SerializeField]
         private string _markResourcePath = "Brand/VarellonLogo";
 
@@ -155,7 +207,7 @@ namespace Aether.Gameplay.Flow
         [SerializeField]
         private string _nextScene = "Boot";
 
-        [Tooltip("Colour the mark is drawn in. Its shape comes from the artwork's alpha channel.")]
+        [Tooltip("Colour the artwork is drawn in. Its shape comes from the alpha channel, or its ink.")]
         [SerializeField]
         private Color _markColour = new Color(0.949f, 0.937f, 0.918f, 1f);
 
@@ -172,16 +224,23 @@ namespace Aether.Gameplay.Flow
         private bool _playOnAwake = true;
 
         private Camera _camera;
-        private SpriteRenderer _mark;
-        private Sprite _generatedSprite;
+        private Part _mark;
+        private Part _wordmark;
+        private Vector2 _lockupPixels;
         private Texture2D _generatedTexture;
-        private Vector2 _markPixels;
+        private Sprite _markSprite;
+        private Sprite _wordmarkSprite;
         private bool _skipRequested;
 
         /// <summary>
-        /// Ends the intro early, exactly as a tap would. For a future "skip" button of the intro's
-        /// own, or a test that does not want to wait three seconds.
+        /// Ends the intro early, starting the exit from wherever the sequence has reached. For a
+        /// future "skip" button of the intro's own, or a test that does not want to wait three
+        /// seconds.
         /// </summary>
+        /// <remarks>
+        /// Unlike a tap it is not held back by <see cref="Timing.SkipGrace"/>: a tap may be the one
+        /// that launched the app, but a call to this method is deliberate.
+        /// </remarks>
         public void Skip()
         {
             _skipRequested = true;
@@ -198,15 +257,21 @@ namespace Aether.Gameplay.Flow
                 return;
             }
 
-            BuildMark();
+            BuildLockup();
         }
 
         private void Start()
         {
-            if (_mark == null || !_playOnAwake || !Preference.Enabled)
+            if (!_mark.Present && !_wordmark.Present)
             {
                 // Nothing to show, or nothing the player wants to see: the app still has to reach the
                 // next scene, and it must not sit on a black screen to do it.
+                HandOver();
+                return;
+            }
+
+            if (!_playOnAwake || !Preference.Enabled)
+            {
                 HandOver();
                 return;
             }
@@ -220,11 +285,12 @@ namespace Aether.Gameplay.Flow
             bool skipped = false;
             bool revealCued = false;
             bool exitCued = false;
-            float skipPresence = 1f;
+            float markFadeFrom = 1f;
+            float wordmarkFadeFrom = 1f;
             float exitStartsAt = Timing.BlackHold + Timing.Reveal + Timing.Hold;
             float exitLength = Timing.Exit;
 
-            PlaceMark(0f, 1f, 0f);
+            HideAll();
 
             while (true)
             {
@@ -232,8 +298,9 @@ namespace Aether.Gameplay.Flow
 
                 if (!skipped && (_skipRequested || (elapsed >= Timing.SkipGrace && SkipRequested())))
                 {
-                    // Skipping mid-reveal must not jump: the exit fades from wherever the mark is.
-                    skipPresence = EaseOutCubic(Ramp(elapsed, Timing.BlackHold, Timing.Reveal));
+                    // Skipping mid-reveal must not jump: each part exits from wherever it currently is.
+                    RevealAt(elapsed, false, out markFadeFrom, out _, out _);
+                    RevealAt(elapsed, true, out wordmarkFadeFrom, out _, out _);
                     skipped = true;
                     exitStartsAt = elapsed;
                     exitLength = Timing.SkipExit;
@@ -254,27 +321,46 @@ namespace Aether.Gameplay.Flow
                 if (elapsed >= exitStartsAt)
                 {
                     float exit = EaseInOutCubic(Ramp(elapsed, exitStartsAt, exitLength));
-                    PlaceMark(skipPresence * (1f - exit),
-                              Mathf.Lerp(1f, Layout.ExitScale, exit),
-                              Layout.ExitRise * exit);
+                    float scale = Mathf.Lerp(1f, Layout.ExitScale, exit);
+                    float rise = Layout.ExitRise * exit;
+                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, scale, rise);
+                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, scale, rise);
                 }
                 else
                 {
-                    float reveal = EaseOutCubic(Ramp(elapsed, Timing.BlackHold, Timing.Reveal));
-                    PlaceMark(reveal,
-                              Mathf.Lerp(Layout.RevealScale, 1f, reveal),
-                              -Layout.RevealRise * (1f - reveal));
+                    RevealAt(elapsed, false, out float markPresence, out float markScale, out float markRise);
+                    RevealAt(elapsed, true, out float wordPresence, out float wordScale, out float wordRise);
+                    Draw(_mark, markPresence, markScale, markRise);
+                    Draw(_wordmark, wordPresence, wordScale, wordRise);
                 }
 
                 if (elapsed >= exitStartsAt + exitLength) break;
                 yield return null;
             }
 
-            // The mark is gone and the screen is black. A beat of black before the next scene keeps
+            // The lockup is gone and the screen is black. A beat of black before the next scene keeps
             // the hand-over from reading as a cut.
-            PlaceMark(0f, 1f, 0f);
+            HideAll();
             yield return WaitUnscaled(Timing.HandOver);
             HandOver();
+        }
+
+        /// <summary>
+        /// How present, how large and how high the given part is during the reveal.
+        /// </summary>
+        /// <remarks>
+        /// The mark starts at <see cref="Timing.BlackHold"/>; the wordmark starts a fraction of the
+        /// reveal later, so the mark lands first and the wordmark settles under it. Both end at the
+        /// same moment, which is the moment the hold begins.
+        /// </remarks>
+        private static void RevealAt(float elapsed, bool wordmark,
+                                     out float presence, out float scale, out float rise)
+        {
+            float delay = wordmark ? Layout.RevealOverlap * Timing.Reveal : 0f;
+            float reveal = EaseOutCubic(Ramp(elapsed, Timing.BlackHold + delay, Timing.Reveal - delay));
+            presence = reveal;
+            scale = Mathf.Lerp(Layout.RevealScale, 1f, reveal);
+            rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - reveal);
         }
 
         /// <summary>Waits real seconds, unaffected by time scale: the intro is not gameplay.</summary>
@@ -295,118 +381,244 @@ namespace Aether.Gameplay.Flow
             return Mathf.Clamp01((elapsed - startsAt) / duration);
         }
 
-        // -- the mark ---------------------------------------------------------------------------
+        // -- the lockup -------------------------------------------------------------------------
 
-        private void BuildMark()
+        /// <summary>
+        /// One drawn piece of the artwork: the mark, or the wordmark, or neither when the artwork
+        /// does not have one.
+        /// </summary>
+        private readonly struct Part
+        {
+            public readonly SpriteRenderer Renderer;
+
+            /// <summary>This piece's centre relative to the lockup's centre, in pixels, y up.</summary>
+            public readonly Vector2 OffsetPixels;
+
+            /// <summary>This piece's size in pixels: what the fit multiplies.</summary>
+            public readonly Vector2 SizePixels;
+
+            public Part(SpriteRenderer renderer, Vector2 offsetPixels, Vector2 sizePixels)
+            {
+                Renderer = renderer;
+                OffsetPixels = offsetPixels;
+                SizePixels = sizePixels;
+            }
+
+            public bool Present => Renderer != null;
+        }
+
+        /// <summary>
+        /// Draws one piece for one frame: presence is its opacity, scale its size, and rise how far
+        /// it has drifted up from its resting place, in safe-area heights.
+        /// </summary>
+        private void Draw(Part part, float presence, float scale, float rise)
+        {
+            if (part.Renderer == null) return;
+            part.Renderer.color = new Color(1f, 1f, 1f, Mathf.Clamp01(presence));
+            Place(part.Renderer.transform, part.SizePixels, part.OffsetPixels, scale, rise);
+        }
+
+        /// <summary>
+        /// Reads the artwork, keys it, splits it, and puts the two pieces on screen at zero opacity.
+        /// </summary>
+        private void BuildLockup()
         {
             Sprite source = Resources.Load<Sprite>(_markResourcePath);
             if (source == null)
             {
                 Debug.LogError(
-                    $"The studio mark '{_markResourcePath}' was not found under Assets/Aether/Resources. " +
-                    "The intro has nothing to show and hands over immediately.", this);
+                    $"The studio artwork '{_markResourcePath}' was not found under " +
+                    "Assets/Aether/Resources. The intro has nothing to show and hands over " +
+                    "immediately.", this);
                 return;
             }
 
-            _markPixels = new Vector2(Mathf.Round(source.textureRect.width),
-                                     Mathf.Round(source.textureRect.height));
-            if (_markPixels.x < 1f || _markPixels.y < 1f)
+            Texture2D texture = source.texture;
+            if (texture == null || !texture.isReadable)
             {
-                Debug.LogError($"The studio mark '{_markResourcePath}' has no pixels to draw.", this);
+                Debug.LogError(
+                    $"The studio artwork '{_markResourcePath}' cannot be read from script, so the " +
+                    "intro cannot build the mark from it. Import it with Read/Write enabled.", this);
                 return;
             }
 
-            var host = new GameObject("StudioMark");
-            host.transform.SetParent(_camera.transform, false);
-            _mark = host.AddComponent<SpriteRenderer>();
-            _mark.sprite = KnockOut(source, _markColour);
-            _mark.sortingOrder = 1000;
-            _mark.color = new Color(1f, 1f, 1f, 0f);
+            Rect rect = source.textureRect;
+            int x0 = Mathf.RoundToInt(rect.x);
+            int y0 = Mathf.RoundToInt(rect.y);
+            int width = Mathf.RoundToInt(rect.width);
+            int height = Mathf.RoundToInt(rect.height);
+            if (width < 2 || height < 2)
+            {
+                Debug.LogError($"The studio artwork '{_markResourcePath}' has no pixels to draw.", this);
+                return;
+            }
+
+            Color32[] pixels = texture.GetPixels32(x0, y0, width, height);
+            bool hasAlpha = HasTransparency(pixels);
+            byte[] coverage = Coverage(pixels, hasAlpha);
+            if (!hasAlpha)
+            {
+                Debug.Log(
+                    $"The studio artwork '{_markResourcePath}' has no alpha channel, so its light " +
+                    $"background is being keyed out by luminance ({Artwork.BackgroundLuminance}.." +
+                    $"{Artwork.InkLuminance}).", this);
+            }
+
+            // Pixel rows run bottom-up in Unity, so the band above the split line is the upper one.
+            int bandTop = Mathf.Clamp(Mathf.RoundToInt(height * (1f - Layout.WordmarkSplit)), 1,
+                                      height - 1);
+            Bounds markBounds = InkBounds(coverage, width, bandTop, height);
+            Bounds wordmarkBounds = InkBounds(coverage, width, 0, bandTop);
+
+            if (!markBounds.Found)
+            {
+                Debug.LogError(
+                    $"The studio artwork '{_markResourcePath}' has no ink above " +
+                    $"{Layout.WordmarkSplit:P0} of its height, where the mark is expected. Check " +
+                    "Layout.WordmarkSplit against the file.", this);
+                return;
+            }
+
+            if (!wordmarkBounds.Found)
+            {
+                Debug.Log($"The studio artwork '{_markResourcePath}' has no wordmark below " +
+                          $"{Layout.WordmarkSplit:P0} of its height; the mark is drawn alone.", this);
+            }
+
+            // The lockup is the box around everything that will be drawn: what the fit measures.
+            Bounds lockup = markBounds.Union(wordmarkBounds);
+            _lockupPixels = lockup.Size;
+            Vector2 lockupCentre = lockup.Centre;
+
+            _generatedTexture = BuildKeyedTexture(coverage, width, height);
+            _markSprite = BuildSprite(_generatedTexture, markBounds, source.pixelsPerUnit);
+            _mark = BuildPart("StudioMark", _markSprite, markBounds, lockupCentre);
+
+            if (wordmarkBounds.Found)
+            {
+                _wordmarkSprite = BuildSprite(_generatedTexture, wordmarkBounds, source.pixelsPerUnit);
+                _wordmark = BuildPart("StudioWordmark", _wordmarkSprite, wordmarkBounds, lockupCentre);
+            }
+        }
+
+        /// <summary>True when the artwork carries its own transparency, rather than needing a key.</summary>
+        private static bool HasTransparency(Color32[] pixels)
+        {
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a < 250) return true;
+            }
+
+            return false;
         }
 
         /// <summary>
-        /// The artwork's coverage, drawn in one colour.
+        /// The artwork's shape as coverage, one byte per pixel: the alpha channel when the file has
+        /// one, its darkness when it does not.
         /// </summary>
-        /// <remarks>
-        /// The mark is the shape in the alpha channel; the pixels themselves are the ink colour the
-        /// artwork happens to be exported in. Recolouring from alpha is what lets a black-on-clear
-        /// logo appear on a black screen without touching the file, and it is why the brand texture
-        /// is imported readable. A texture that is not readable is used as it came, with a warning:
-        /// that is correct for a light mark and invisible for a dark one, which is worth saying out
-        /// loud rather than rendering nothing.
-        /// </remarks>
-        private Sprite KnockOut(Sprite source, Color colour)
+        private static byte[] Coverage(Color32[] pixels, bool fromAlpha)
         {
-            Texture2D texture = source.texture;
-            if (!texture.isReadable)
-            {
-                Debug.LogWarning(
-                    $"The studio mark '{texture.name}' is not readable, so it cannot be recoloured for " +
-                    "the black backdrop. Import it with Read/Write enabled.", this);
-                return source;
-            }
-
-            int width = (int)_markPixels.x;
-            int height = (int)_markPixels.y;
-            var pixels = texture.GetPixels32(Mathf.RoundToInt(source.textureRect.x),
-                                            Mathf.RoundToInt(source.textureRect.y), width, height);
-
-            var tint = (Color32)colour;
+            var coverage = new byte[pixels.Length];
             for (int i = 0; i < pixels.Length; i++)
             {
-                // Alpha carries the shape; the ink colour is replaced outright.
-                pixels[i] = new Color32(tint.r, tint.g, tint.b, (byte)((pixels[i].a * tint.a) / 255));
+                Color32 pixel = pixels[i];
+                if (fromAlpha)
+                {
+                    coverage[i] = pixel.a;
+                    continue;
+                }
+
+                float luminance = (0.299f * pixel.r + 0.587f * pixel.g + 0.114f * pixel.b) / 255f;
+                float ink = (Artwork.BackgroundLuminance - luminance)
+                           / (Artwork.BackgroundLuminance - Artwork.InkLuminance);
+                coverage[i] = (byte)(Mathf.Clamp01(ink) * 255f);
             }
 
-            _generatedTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            return coverage;
+        }
+
+        /// <summary>
+        /// The keyed texture: the coverage in <see cref="_markColour"/>, with no background at all.
+        /// </summary>
+        /// <remarks>
+        /// This is the one place the artwork's own colours are dropped, and it is deliberate: the
+        /// intro is black, so what has to survive the file is the shape, not the ink someone exported
+        /// it in. A CPU copy is not kept — the intro runs once.
+        /// </remarks>
+        private Texture2D BuildKeyedTexture(byte[] coverage, int width, int height)
+        {
+            var tint = (Color32)_markColour;
+            var pixels = new Color32[coverage.Length];
+            for (int i = 0; i < coverage.Length; i++)
             {
-                name = source.name + " (studio intro)",
+                pixels[i] = new Color32(tint.r, tint.g, tint.b, (byte)((coverage[i] * tint.a) / 255));
+            }
+
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                name = _markResourcePath + " (studio intro)",
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.HideAndDontSave,
             };
-            _generatedTexture.SetPixels32(pixels);
-            // No mipmaps, and the CPU copy is not needed again: the intro runs once.
-            _generatedTexture.Apply(false, true);
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
 
-            _generatedSprite = Sprite.Create(_generatedTexture, new Rect(0f, 0f, width, height),
-                                            new Vector2(0.5f, 0.5f), source.pixelsPerUnit);
-            _generatedSprite.name = source.name + " (studio intro)";
-            _generatedSprite.hideFlags = HideFlags.HideAndDontSave;
-            return _generatedSprite;
+        private Sprite BuildSprite(Texture2D keyed, Bounds bounds, float pixelsPerUnit)
+        {
+            // The pivot is the middle of the ink, not of the canvas: nothing here draws the margins
+            // the artwork happened to be exported with, so the mark lands where it is placed.
+            var sprite = Sprite.Create(keyed, bounds.ToRect(), new Vector2(0.5f, 0.5f), pixelsPerUnit);
+            sprite.name = _markResourcePath + " (studio intro)";
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        private Part BuildPart(string name, Sprite sprite, Bounds bounds, Vector2 lockupCentre)
+        {
+            var host = new GameObject(name);
+            host.transform.SetParent(_camera.transform, false);
+            var renderer = host.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = 1000;
+            renderer.color = new Color(1f, 1f, 1f, 0f);
+            host.hideFlags = HideFlags.HideAndDontSave;
+            return new Part(renderer, bounds.Centre - lockupCentre, bounds.Size);
         }
 
         /// <summary>
-        /// Places the mark for this frame: centred on the safe area, fitted without stretching, and
-        /// drawn at the given presence, scale and rise.
+        /// Places one piece: centred on the safe area, fitted without stretching, drawn at the given
+        /// presence, scale and rise.
         /// </summary>
-        private void PlaceMark(float presence, float scale, float rise)
+        /// <remarks>
+        /// The fit is computed from the <b>lockup's</b> size for both pieces, so they keep the
+        /// proportions and the spacing the artwork drew, and it is one scale factor from both limits,
+        /// which is what "no stretching" means. Two factors would be the bug this avoids.
+        /// </remarks>
+        private void Place(Transform drawn, Vector2 sizePixels, Vector2 offsetPixels, float scale,
+                           float rise)
         {
-            if (_mark == null || _camera == null) return;
-
             Rect safe = DrawableArea();
 
             // Pixels to world units. The camera is full screen and orthographic, so its vertical
             // extent is twice the orthographic size over the whole screen, and pixels are square.
             float worldPerPixel = (2f * _camera.orthographicSize) / Mathf.Max(1f, Screen.height);
+            float fit = Mathf.Min((safe.width * Layout.MaxWidthFraction) / _lockupPixels.x,
+                                  (safe.height * Layout.MaxHeightFraction) / _lockupPixels.y);
 
-            // One scale factor from both limits: the mark keeps its own aspect ratio exactly, which
-            // is what "no stretching" means. Two factors would be the bug this avoids.
-            float fit = Mathf.Min((safe.width * Layout.MaxWidthFraction) / _markPixels.x,
-                                  (safe.height * Layout.MaxHeightFraction) / _markPixels.y);
-
-            Vector2 offset = safe.center - new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            Vector2 safeCentre = safe.center - new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Vector3 cameraPosition = _camera.transform.position;
-            float riseWorld = rise * safe.height * worldPerPixel;
 
-            _mark.transform.position = new Vector3(
-                cameraPosition.x + (offset.x * worldPerPixel),
-                cameraPosition.y + (offset.y * worldPerPixel) + riseWorld,
+            drawn.position = new Vector3(
+                cameraPosition.x + (safeCentre.x * worldPerPixel) + (offsetPixels.x * fit * scale * worldPerPixel),
+                cameraPosition.y + (safeCentre.y * worldPerPixel) + (offsetPixels.y * fit * scale * worldPerPixel)
+                    + (rise * safe.height * worldPerPixel),
                 cameraPosition.z + 1f);
-            _mark.transform.localScale = new Vector3(_markPixels.x * fit * scale * worldPerPixel,
-                                                     _markPixels.y * fit * scale * worldPerPixel,
-                                                     1f);
-            _mark.color = new Color(1f, 1f, 1f, Mathf.Clamp01(presence));
+            drawn.localScale = new Vector3(sizePixels.x * fit * scale * worldPerPixel,
+                                           sizePixels.y * fit * scale * worldPerPixel,
+                                           1f);
         }
 
         /// <summary>
@@ -418,6 +630,33 @@ namespace Aether.Gameplay.Flow
             Rect safe = Screen.safeArea;
             if (safe.width < 1f || safe.height < 1f) return new Rect(0f, 0f, Screen.width, Screen.height);
             return safe;
+        }
+
+        /// <summary>
+        /// The ink in a horizontal band of the artwork: the box that has to be drawn, so the
+        /// transparent margins of the file never become part of the layout.
+        /// </summary>
+        private static Bounds InkBounds(byte[] coverage, int width, int yFrom, int yTo)
+        {
+            int minX = int.MaxValue;
+            int minY = int.MaxValue;
+            int maxX = -1;
+            int maxY = -1;
+
+            for (int y = yFrom; y < yTo; y++)
+            {
+                int row = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    if (coverage[row + x] == 0) continue;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+
+            return new Bounds(minX, minY, maxX, maxY);
         }
 
         // -- input and hand-over ----------------------------------------------------------------
@@ -454,7 +693,7 @@ namespace Aether.Gameplay.Flow
 
         private void HandOver()
         {
-            ReleaseMark();
+            ReleaseLockup();
 
             if (string.IsNullOrEmpty(_nextScene))
             {
@@ -467,26 +706,34 @@ namespace Aether.Gameplay.Flow
             SceneManager.LoadScene(_nextScene);
         }
 
-        /// <summary>
-        /// Frees what this intro generated. The scene unload would take the renderer with it, but the
-        /// texture and sprite were created with <c>HideAndDontSave</c> and would outlive the scene;
-        /// the mark is a one-off, and nothing else should be left holding a copy of it.
-        /// </summary>
-        private void ReleaseMark()
+        /// <summary>Draws nothing, which is how the intro starts and how it ends.</summary>
+        private void HideAll()
         {
-            if (_mark != null)
-            {
-                _mark.sprite = null;
-                _mark.enabled = false;
-            }
+            Draw(_mark, 0f, 1f, 0f);
+            Draw(_wordmark, 0f, 1f, 0f);
+        }
 
-            // Only what was generated is destroyed: on the not-readable path the sprite is the
-            // imported asset itself, and destroying that would remove it from the project.
-            if (_generatedSprite != null) Destroy(_generatedSprite);
+        /// <summary>
+        /// Frees what this intro generated. The scene unload would take the renderers with them, but
+        /// the texture and the sprites were created with <c>HideAndDontSave</c> and would outlive the
+        /// scene; the lockup is a one-off, and nothing else should be left holding a copy of it.
+        /// </summary>
+        private void ReleaseLockup()
+        {
+            // The hosts carry HideAndDontSave, so the scene unload would not take them along; they
+            // are destroyed here, renderer and all, rather than travelling into the next scene
+            // disabled and invisible.
+            if (_mark.Renderer != null) Destroy(_mark.Renderer.gameObject);
+            if (_wordmark.Renderer != null) Destroy(_wordmark.Renderer.gameObject);
+
+            if (_markSprite != null) Destroy(_markSprite);
+            if (_wordmarkSprite != null) Destroy(_wordmarkSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
-            _generatedSprite = null;
+            _markSprite = null;
+            _wordmarkSprite = null;
             _generatedTexture = null;
-            _mark = null;
+            _mark = default;
+            _wordmark = default;
         }
 
         // -- easing -----------------------------------------------------------------------------
@@ -502,6 +749,42 @@ namespace Aether.Gameplay.Flow
             if (t < 0.5f) return 4f * t * t * t;
             float inverse = 1f - t;
             return 1f - (4f * inverse * inverse * inverse);
+        }
+
+        /// <summary>
+        /// What was and was not drawn in a band of artwork, in the artwork's own pixels.
+        /// </summary>
+        private readonly struct Bounds
+        {
+            private readonly int _minX;
+            private readonly int _minY;
+            private readonly int _maxX;
+            private readonly int _maxY;
+
+            public Bounds(int minX, int minY, int maxX, int maxY)
+            {
+                _minX = minX;
+                _minY = minY;
+                _maxX = maxX;
+                _maxY = maxY;
+            }
+
+            public bool Found => _maxX >= _minX && _maxY >= _minY;
+
+            public Vector2 Size => new Vector2(_maxX - _minX + 1, _maxY - _minY + 1);
+
+            public Vector2 Centre => new Vector2((_minX + _maxX) * 0.5f, (_minY + _maxY) * 0.5f);
+
+            public Rect ToRect() => new Rect(_minX, _minY, _maxX - _minX + 1, _maxY - _minY + 1);
+
+            /// <summary>The box around both, or just this one when the other is empty.</summary>
+            public Bounds Union(Bounds other)
+            {
+                if (!other.Found) return this;
+                if (!Found) return other;
+                return new Bounds(Mathf.Min(_minX, other._minX), Mathf.Min(_minY, other._minY),
+                                  Mathf.Max(_maxX, other._maxX), Mathf.Max(_maxY, other._maxY));
+            }
         }
     }
 }

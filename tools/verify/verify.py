@@ -1590,7 +1590,11 @@ def check_scene_flow(report: Report) -> None:
                         f"other than {expected}; the studio intro draws the mark from its alpha "
                         "channel and needs it imported as a readable, uncompressed sprite")
             resource_path = "Brand/" + os.path.splitext(name)[0]
-            if script_text and resource_path not in script_text:
+            # The scene serializes the path on the component, so either place may be the one that
+            # names the file; what must not happen is a brand image nothing draws.
+            scene_text = (open(os.path.join(REPO_ROOT, INTRO_SCENE), encoding="utf-8").read()
+                          if os.path.exists(os.path.join(REPO_ROOT, INTRO_SCENE)) else "")
+            if script_text and resource_path not in script_text and resource_path not in scene_text:
                 report.fail(
                     f"brand: '{resource_path}' is in Resources but the studio intro does not name "
                     "it, so the mark in the repository is not the mark on screen")

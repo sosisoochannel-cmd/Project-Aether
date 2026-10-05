@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import zlib
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COPY_DIRS = ("Assets", "ProjectSettings", "Packages", "tools", "docs")
@@ -73,6 +75,53 @@ def level_rows(root: str, edits):
         lines[start + index] = line[:column] + text + line[column + count:]
     open(path, "w", encoding="utf-8").write("\n".join(lines))
     return [(path, original)]
+
+
+def write_png(path: str, width: int, height: int, sample, alpha: bool = False) -> None:
+    """Write an 8-bit PNG whose pixels come from `sample(x, y)`.
+
+    The artwork controls need canvases the repository does not contain: a logo on a dark background,
+    a canvas with nothing drawn on it, and one with a real alpha channel. Building them here keeps
+    those cases testable without committing throwaway images, and this writer is the smallest thing
+    that produces a file the gate's reader accepts.
+    """
+    channels = 4 if alpha else 3
+    colour = 6 if alpha else 2
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)                                   # filter type: none
+        for x in range(width):
+            pixel = sample(x, y)
+            raw.extend(pixel[:4] if alpha else pixel[:3])
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return (struct.pack(">I", len(payload)) + kind + payload
+                + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF))
+
+    body = (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, colour, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+            + chunk(b"IEND", b""))
+    with open(path, "wb") as handle:
+        handle.write(body)
+
+
+def plant_artwork(root: str, sample, alpha: bool = False, size: int = 32):
+    """Replace the studio artwork in the copy with a canvas `sample` draws."""
+    path = os.path.join(root, f"{BRAND_DIR}/VarellonLogo.png")
+    original = open(path, "rb").read()
+    write_png(path, size, size, sample, alpha)
+    return [("WRITE_BYTES", (path, original))]
+
+
+def unlink_artwork(root: str):
+    """Take the studio artwork out of the copy, with its .meta, as a deletion would."""
+    png = os.path.join(root, f"{BRAND_DIR}/VarellonLogo.png")
+    undo = [("WRITE_BYTES", (png, open(png, "rb").read())),
+            ("WRITE_BYTES", (png + ".meta", open(png + ".meta", "rb").read()))]
+    os.remove(png)
+    os.remove(png + ".meta")
+    return undo
 
 
 def empty_folder(root: str):
@@ -439,6 +488,65 @@ def controls() -> list[Control]:
             ["sound"],
             must_fail=False),
 
+        # -- the artwork the intro actually draws --------------------------------------------
+        Control(
+            "intro: the artwork the scene names is not in the project",
+            intro,
+            unlink_artwork,
+            ["no image is at"]),
+        Control(
+            "intro: the artwork is a canvas with nothing drawn on it",
+            intro,
+            lambda root: plant_artwork(root, lambda x, y: (255, 255, 255, 255)),
+            ["keys down to", "would draw nothing"]),
+        Control(
+            "intro: the artwork is a light logo on a dark canvas, which the key cannot remove",
+            intro,
+            lambda root: plant_artwork(
+                root,
+                lambda x, y: ((255, 255, 255, 255) if 8 <= x < 24 and 8 <= y < 24
+                              else (40, 40, 40, 255))),
+            ["border luminance", "grey rectangle"]),
+        Control(
+            "intro: the split leaves no mark above it",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float WordmarkSplit = 0.605f;",
+                              "public const float WordmarkSplit = 0.22f;"),
+            ["no ink above"]),
+        Control(
+            "intro: the wordmark starts after the reveal has finished",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float RevealOverlap = 0.40f;",
+                              "public const float RevealOverlap = 0.95f;"),
+            ["RevealOverlap"]),
+        Control(
+            "intro: the key gap is too narrow to key without smearing",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float BackgroundLuminance = 0.78f;",
+                              "public const float BackgroundLuminance = 0.30f;"),
+            ["separates ink from canvas"]),
+        Control(
+            "intro: a logo exported with a real alpha channel stays silent",
+            intro,
+            lambda root: plant_artwork(
+                root,
+                lambda x, y: ((255, 255, 255, 255) if 8 <= x < 24 and 8 <= y < 24
+                              else (255, 255, 255, 0)),
+                alpha=True),
+            ["sound"],
+            must_fail=False),
+        Control(
+            "intro: a looser split that still cuts between mark and wordmark stays silent",
+            intro,
+            lambda root: edit(root, INTRO_CODE,
+                              "public const float WordmarkSplit = 0.605f;",
+                              "public const float WordmarkSplit = 0.55f;"),
+            ["sound"],
+            must_fail=False),
+
         # -- the scene the app starts in -----------------------------------------------------
         Control(
             "verify: the studio intro is not the first scene in the build order",
@@ -482,6 +590,14 @@ def controls() -> list[Control]:
                               "  m_BackGroundColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}"),
             ["is not black"]),
         Control(
+            "verify: brand art is in the project but nothing draws it",
+            gate,
+            lambda root: (edit(root, INTRO_SCENE, "  _markResourcePath: Brand/VarellonLogo",
+                               "  _markResourcePath: Brand/OtherMark")
+                          + edit(root, INTRO_CODE, '_markResourcePath = "Brand/VarellonLogo"',
+                                 '_markResourcePath = "Brand/OtherMark"')),
+            ["does not name it"]),
+        Control(
             "verify: a brand texture is imported without alpha transparency",
             gate,
             bad_brand_texture,
@@ -519,7 +635,10 @@ def run_control(root: str, control: Control) -> bool:
         # Reverse order: a control that edits the same file twice returns both originals, and the
         # *first* one is the clean copy. Restoring forwards would write the intermediate text back.
         for entry in reversed(undo):
-            if entry[0] == "MISSING_META":
+            if entry[0] == "WRITE_BYTES":
+                with open(entry[1][0], "wb") as fh:
+                    fh.write(entry[1][1])
+            elif entry[0] == "MISSING_META":
                 with open(entry[1][0], "w", encoding="utf-8") as fh:
                     fh.write(entry[1][1])
             elif entry[0] == "DELETE_TREE":
