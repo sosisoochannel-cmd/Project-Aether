@@ -51,17 +51,17 @@ namespace Aether.Gameplay.Menus
             switch (id)
             {
                 case MenuScreenId.Settings:
-                    return SettingsScreen.Create(id, parent, host);
+                    return MenuScreen.Create<SettingsScreen>(id, parent, host);
                 case MenuScreenId.Credits:
-                    return CreditsScreen.Create(id, parent, host);
+                    return MenuScreen.Create<CreditsScreen>(id, parent, host);
                 case MenuScreenId.Chapters:
-                    return ChaptersScreen.Create(id, parent, host);
+                    return MenuScreen.Create<ChaptersScreen>(id, parent, host);
                 case MenuScreenId.Characters:
                 case MenuScreenId.Collection:
                 case MenuScreenId.Achievements:
-                    return PlaceholderScreen.Create(id, parent, host);
+                    return MenuScreen.Create<PlaceholderScreen>(id, parent, host);
                 default:
-                    return MainMenuScreen.Create(id, parent, host);
+                    return MenuScreen.Create<MainMenuScreen>(id, parent, host);
             }
         }
 

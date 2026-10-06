@@ -95,13 +95,13 @@ namespace Aether.Gameplay.Menus.Panels
                           new Vector2(0f, 1f));
 
             panel._cancel = Row("Cancel", panel._plate.rectTransform, MenuStrings.Get("common.cancel"));
-            MenuUi.Corner(panel._cancel.rectTransform, new Vector2(0f, 0f),
+            MenuUi.Corner(panel._cancel.Rect, new Vector2(0f, 0f),
                           new Vector2(MenuTheme.Metrics.DialogPadding, MenuTheme.Metrics.DialogPadding),
                           new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(0f, 0f));
             panel._cancel.Activated = () => panel.Close(false);
 
             panel._confirm = Row("Confirm", panel._plate.rectTransform, MenuStrings.Get("common.confirm"));
-            MenuUi.Corner(panel._confirm.rectTransform, new Vector2(1f, 0f),
+            MenuUi.Corner(panel._confirm.Rect, new Vector2(1f, 0f),
                           new Vector2(-MenuTheme.Metrics.DialogPadding, MenuTheme.Metrics.DialogPadding),
                           new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(1f, 0f));
             panel._confirm.Activated = () => panel.Close(true);

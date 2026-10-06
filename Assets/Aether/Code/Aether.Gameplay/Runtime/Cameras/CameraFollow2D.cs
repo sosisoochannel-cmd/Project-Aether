@@ -1,3 +1,4 @@
+using Aether.Core.Settings;
 using Aether.Gameplay.Settings;
 using UnityEngine;
 

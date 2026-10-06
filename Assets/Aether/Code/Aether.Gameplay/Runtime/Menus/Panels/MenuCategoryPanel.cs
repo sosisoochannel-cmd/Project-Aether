@@ -185,7 +185,7 @@ namespace Aether.Gameplay.Menus.Panels
         {
             if (move != MenuNav.Move.Left && move != MenuNav.Move.Right) return false;
 
-            MenuButton current = Nav == null ? null : Nav.Current;
+            MenuButton current = Nav == null ? null : Nav.Current as MenuButton;
             if (current == null) return false;
 
             Row row = Find(current);
