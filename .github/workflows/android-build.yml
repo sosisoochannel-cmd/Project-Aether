@@ -37,6 +37,9 @@ on:
       - '.github/workflows/relay-apk.yml'
       - '.github/workflows/intro-render.yml'
       - 'tools/ci/**'
+      # The verification tools cannot change a byte of the game either: they read the project's
+      # sources and prove things about them. Editing a gate must not spend a build.
+      - 'tools/verify/**'
       # The play-mode tests are an editor-only assembly (includePlatforms: Editor, and gated on
       # UNITY_INCLUDE_TESTS), so nothing under here can reach a player build. Editing the render
       # test would otherwise spend a Unity Android build to prove that nothing in the APK changed.
