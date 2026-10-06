@@ -53,14 +53,18 @@ Three things were added after the first APK, all because the phone, or a real re
 static gates could not:
 
 * **A play-mode render test.** `Assets/Aether/Code/Aether.Tests.PlayMode` loads the shipped scene in
-  the real engine, lets the shipped component run, captures four frames, and measures them: ink
-  present and centred, inside the frame with margins, aspect preserved, the ground black, and a
-  seven frames of it, and checks the order rather than only the geometry: it opens on black, the
-  mark arrives alone before the wordmark, the light crosses the finished lockup and lights nothing
+  the real engine, lets the shipped component run, captures seven frames, and measures them: ink
+  present and centred, inside the frame with margins, aspect preserved, the ground black — and the
+  order rather than only the geometry: it opens on black, the mark arrives alone before the wordmark,
+  the wordmark extends the lockup downwards, the light crosses the finished lockup and lights nothing
   outside it, two frames of the hold are the same picture to the byte, and the fade ends in black.
-  The frames are uploaded as screenshots. The
-  first build drew the mark several times the width of the screen — the sprite's own
-  pixels-per-unit was left out of its transform scale — and every static check passed while it did.
+  The frames are uploaded as screenshots. The test steps the intro's own clock — a sixtieth of a
+  second per frame, held at each moment until the frame has been taken — because the editor on a
+  runner does not tick the scene once per frame the test sees: a run that measured against the wall
+  clock produced 0.50s and 0.90s as one identical picture, which is indistinguishable from an intro
+  that never drew the wordmark. In a build the intro reads real time, as before. The first build drew
+  the mark several times the width of the screen — the sprite's own pixels-per-unit was left out of
+  its transform scale — and every static check passed while it did.
 * **The ident was retuned into a studio card.** The animation was rebuilt as: black 0.00-0.30, the
   mark's arrival 0.30-0.95 on a sine ease-out with a small scale-and-rise settle, the wordmark
   0.55-1.15 completing it, a pass of light 1.05-1.45 masked to the logo's own ink, a hold that is

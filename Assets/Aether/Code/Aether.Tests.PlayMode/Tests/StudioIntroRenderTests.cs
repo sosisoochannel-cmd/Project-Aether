@@ -79,6 +79,48 @@ namespace Aether.Tests.PlayMode
         /// <summary>The key <see cref="StudioIntroSequence.Preference"/> stores its choice under.</summary>
         private const string IntroPreferenceKey = "aether.studioIntro.play";
 
+        /// <summary>
+        /// The step this run gives the intro's clock: a sixtieth of a second per frame, the rate the
+        /// animation is designed around.
+        /// </summary>
+        private const float ClockStep = 1f / 60f;
+
+        /// <summary>How long the run waits for the animation to reach a moment before giving up.</summary>
+        private const float WaitLimitSeconds = 240f;
+
+        /// <summary>The animation's own time, counted where the intro asks for its next interval.</summary>
+        private static float _clocked;
+
+        /// <summary>
+        /// The moment the animation is being stepped towards. The clock holds the animation there
+        /// until the frame has been taken, so a moment cannot be stepped past: it starts at zero,
+        /// which is what keeps the animation still while the test reads the scene.
+        /// </summary>
+        private static float _moment;
+
+        /// <summary>How many frames the intro has drawn: how far its clock has advanced.</summary>
+        private static int _stepped;
+
+        /// <summary>
+        /// The clock this run hands the intro: every call is one drawn frame of the animation.
+        /// </summary>
+        /// <remarks>
+        /// The frames are tied to the animation rather than to the wall clock, because on the runner
+        /// those are two different things. The editor there does not tick the scene once per frame
+        /// this test sees, so a capture taken by wall time can show the same drawn moment twice: a run
+        /// that failed this way produced 0.50s and 0.90s as one identical picture, which cannot be
+        /// told apart from an intro that never drew the wordmark at all. Stepping the clock here means
+        /// every frame is captured at a time the animation itself reached, so the moments whose order
+        /// this test checks are genuinely different frames.
+        /// </remarks>
+        private static float NextStep()
+        {
+            _stepped++;
+            if (_clocked + ClockStep * 0.5f >= _moment) return 0f;   // held at the moment
+            _clocked += ClockStep;
+            return ClockStep;
+        }
+
         /// <summary>The folder the frames go to, as an absolute path.</summary>
         /// <remarks>
         /// Unity's working directory is a runner's business, not this test's: the frames belong in the
@@ -140,6 +182,14 @@ namespace Aether.Tests.PlayMode
 
                 yield return null;
 
+                // The clock goes in before the scene does, so the intro's very first frame is stepped
+                // too and the animation's time is the test's from the beginning. It is held at zero
+                // while the scene is read below; the captures start it.
+                _clocked = 0f;
+                _stepped = 0;
+                _moment = 0f;
+                StudioIntroSequence.Clock = NextStep;
+
                 stage = "load the intro scene";
                 yield return LoadIntroScene();
 
@@ -171,9 +221,26 @@ namespace Aether.Tests.PlayMode
 
                 stage = "capture the moments";
                 float start = Time.unscaledTime;
+                Note($"the intro is stepped at {ClockStep * 1000f:0.0}ms of its own time per frame, so "
+                     + "how far the animation had got when a frame was taken is known exactly instead "
+                     + "of being guessed from the wall clock");
                 for (int i = 0; i < CaptureTimes.Length; i++)
                 {
-                    while (Time.unscaledTime - start < CaptureTimes[i]) yield return null;
+                    // Step the animation to the moment, and wait for it to get there: it is held at
+                    // the moment until the frame is taken, so it cannot be stepped past unseen.
+                    _moment = CaptureTimes[i];
+                    while (_clocked + ClockStep * 0.5f < CaptureTimes[i])
+                    {
+                        if (Time.unscaledTime - start > WaitLimitSeconds)
+                        {
+                            Assert.Fail(
+                                $"the intro's own clock never reached {CaptureTimes[i]:0.00}s: "
+                                + $"{WaitLimitSeconds:0}s in, the animation stands at {_clocked:0.000}s "
+                                + $"over {_stepped} frames. {SpritesState(intro)}");
+                        }
+
+                        yield return null;
+                    }
 
                     // End of frame is a windowed-player thing: a batch-mode editor refuses it outright
                     // ("UnityTest yielded WaitForEndOfFrame, which is not evoked in batchmode") and
@@ -185,7 +252,7 @@ namespace Aether.Tests.PlayMode
                     Frame frame;
                     try
                     {
-                        frame = Frame.Capture(CaptureTimes[i]);
+                        frame = Frame.Capture(CaptureTimes[i], _clocked, _stepped, intro);
                     }
                     catch (Exception error)
                     {
@@ -301,10 +368,54 @@ namespace Aether.Tests.PlayMode
                 Assert.Greater(leaving.BlackFraction, 0.95f,
                                $"only {leaving.BlackFraction:P1} of the frame is black at 2.70s");
 
+                // The frames claim a moment each, and were taken at it: within half a step. A frame
+                // taken late is a frame about some other moment, and the order above would be a claim
+                // about the test rather than about the animation.
+                stage = "check every frame was taken at the moment it names";
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    Assert.That(frames[i].At, Is.EqualTo(CaptureTimes[i]).Within(ClockStep * 1.5f),
+                                $"the frame named {CaptureTimes[i]:0.00}s was taken at "
+                                + $"{frames[i].At:0.000}s of the animation, so it is not that moment");
+                }
+
+                // What the sequence itself was drawing at each moment, in its own numbers: the order
+                // the ident has to read in, stated independently of the pixels above. The wordmark is
+                // at zero while the mark arrives, which is what "the mark leads" means; the light is
+                // on during the pass and off during the hold; and neither the light nor the fade has
+                // started while the two frames compared for stillness are being taken.
+                stage = "check the sequence was in the right moment for every frame";
+                Assert.That(black.MarkAlpha, Is.EqualTo(0f).Within(0.001f),
+                            $"something is already up at the opening: mark a={black.MarkAlpha:0.000}");
+                Assert.That(markOnly.MarkAlpha, Is.GreaterThan(0.4f),
+                            $"the mark is only at {markOnly.MarkAlpha:0.000} of its weight at 0.50s, "
+                            + "so its arrival has not begun");
+                Assert.That(markOnly.WordAlpha, Is.EqualTo(0f).Within(0.001f),
+                            $"the wordmark is already at {markOnly.WordAlpha:0.000} at 0.50s, so it "
+                            + "does not follow the mark");
+                Assert.That(arriving.WordAlpha, Is.GreaterThan(0.5f),
+                            $"the wordmark is only at {arriving.WordAlpha:0.000} at 0.90s, so it has "
+                            + "not arrived after the mark");
+                Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
+                            "the light is not switched on at 1.25s, so nothing crosses the lockup");
+                Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
+                            $"the light is still switched on ({hold.SheenAlpha:0.000}) at 1.85s");
+                Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
+                            "the light comes back during the hold");
+                Assert.That(still.MarkAlpha, Is.EqualTo(1f).Within(0.001f),
+                            $"the fade has started by 2.15s (mark a={still.MarkAlpha:0.000}), so the "
+                            + "two frames compared for stillness are not both the hold");
+                Assert.That(leaving.MarkAlpha, Is.LessThan(0.5f),
+                            $"the lockup is still at {leaving.MarkAlpha:0.000} of its weight at 2.70s, "
+                            + "so the fade is not under way");
+
                 stage = "done";
             }
             finally
             {
+                // The intro goes back to real time: nothing outside this run is stepped.
+                StudioIntroSequence.Clock = null;
+                _moment = 0f;
                 WriteSummary(frames, stage);
                 Application.logMessageReceived -= Remember;
                 _recording = false;
@@ -386,10 +497,10 @@ namespace Aether.Tests.PlayMode
         /// it built, how big they are and whether they are switched on. A lockup drawn at zero size
         /// or never given a renderer looks exactly like a lockup that never arrived.
         /// </summary>
-        private static void DescribeSprites(StudioIntroSequence intro)
+        private static List<SpriteRenderer> Renderers(StudioIntroSequence intro)
         {
             var seen = new List<SpriteRenderer>();
-            seen.AddRange(intro.GetComponentsInChildren<SpriteRenderer>(true));
+            if (intro != null) seen.AddRange(intro.GetComponentsInChildren<SpriteRenderer>(true));
             if (Camera.main != null)
             {
                 SpriteRenderer[] onCamera = Camera.main.GetComponentsInChildren<SpriteRenderer>(true);
@@ -399,6 +510,12 @@ namespace Aether.Tests.PlayMode
                 }
             }
 
+            return seen;
+        }
+
+        private static void DescribeSprites(StudioIntroSequence intro)
+        {
+            List<SpriteRenderer> seen = Renderers(intro);
             Note($"sprites in play: {seen.Count}");
             for (int i = 0; i < seen.Count; i++)
             {
@@ -412,6 +529,30 @@ namespace Aether.Tests.PlayMode
                     renderer.transform.position.x, renderer.transform.position.y,
                     renderer.sprite == null ? "none" : $"{renderer.sprite.rect.width}x{renderer.sprite.rect.height}"));
             }
+        }
+
+        /// <summary>
+        /// One of the intro's three renderers' opacity, by name: the sequence's own statement of what
+        /// it is drawing, which is what each moment of this run is described by.
+        /// </summary>
+        private static float Opacity(StudioIntroSequence intro, string name)
+        {
+            List<SpriteRenderer> renderers = Renderers(intro);
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                if (renderers[i].name == name) return renderers[i].color.a;
+            }
+
+            return 0f;
+        }
+
+        /// <summary>The three opacities as one line, for the log: what the animation is showing.</summary>
+        private static string SpritesState(StudioIntroSequence intro)
+        {
+            return string.Format(CultureInfo.InvariantCulture,
+                                 "mark a={0:0.000} word a={1:0.000} sheen a={2:0.000}",
+                                 Opacity(intro, "StudioMark"), Opacity(intro, "StudioWordmark"),
+                                 Opacity(intro, "StudioSheen"));
         }
 
         private static void Remember(string message, string stack, LogType type)
@@ -492,13 +633,25 @@ namespace Aether.Tests.PlayMode
             /// <summary>The same frame at half size: small enough to travel in an annotation.</summary>
             public readonly byte[] SmallPng;
 
+            /// <summary>Where the animation's own clock stood when this frame was taken.</summary>
+            public readonly float At;
+
+            /// <summary>How many frames the intro had drawn by then.</summary>
+            public readonly int Steps;
+
+            /// <summary>The opacity the mark, the wordmark and the light had at this moment.</summary>
+            public readonly float MarkAlpha;
+            public readonly float WordAlpha;
+            public readonly float SheenAlpha;
+
             /// <summary>How the frame was taken: the screen, or the camera drawn into a texture.</summary>
             public readonly string How;
 
             /// <summary>The frame itself, so two frames can be told apart or found identical.</summary>
             private readonly Color32[] _pixels;
 
-            private Frame(float seconds, int width, int height, float inkFraction, float blackFraction,
+            private Frame(float seconds, int width, int height, float at, int steps, float markAlpha,
+                          float wordAlpha, float sheenAlpha, float inkFraction, float blackFraction,
                           float brightOfInk, float centreX, float centreY, float left, float right,
                           float bottom, float top, float inkAspect, byte[] png, byte[] smallPng,
                           string how, Color32[] pixels)
@@ -506,6 +659,11 @@ namespace Aether.Tests.PlayMode
                 Seconds = seconds;
                 Width = width;
                 Height = height;
+                At = at;
+                Steps = steps;
+                MarkAlpha = markAlpha;
+                WordAlpha = wordAlpha;
+                SheenAlpha = sheenAlpha;
                 InkFraction = inkFraction;
                 BlackFraction = blackFraction;
                 BrightOfInk = brightOfInk;
@@ -545,7 +703,7 @@ namespace Aether.Tests.PlayMode
                 return worst;
             }
 
-            public static Frame Capture(float time)
+            public static Frame Capture(float beat, float at, int steps, StudioIntroSequence intro)
             {
                 Shot shot = Take();
                 int width = shot.Width;
@@ -588,7 +746,10 @@ namespace Aether.Tests.PlayMode
                 float inkWidth = found ? maxX - minX + 1 : 0f;
                 float inkHeight = found ? maxY - minY + 1 : 0f;
                 return new Frame(
-                    time, width, height,
+                    beat, width, height,
+                    at, steps,
+                    Opacity(intro, "StudioMark"), Opacity(intro, "StudioWordmark"),
+                    Opacity(intro, "StudioSheen"),
                     ink / total, black / total,
                     ink == 0 ? 0f : lit / (float)ink,
                     found ? ((minX + maxX) * 0.5f) / width : 0.5f,
@@ -759,11 +920,13 @@ namespace Aether.Tests.PlayMode
             {
                 return string.Format(
                     CultureInfo.InvariantCulture,
-                    "t={0:0.00}s {1}x{2} via {3} ink={4:P2} black={5:P2} lit={6:P2} of ink "
-                    + "centre=({7:0.000},{8:0.000}) margins L{9:0.000} R{10:0.000} B{11:0.000} "
-                    + "T{12:0.000} aspect={13:0.000}",
-                    Seconds, Width, Height, How, InkFraction, BlackFraction, BrightOfInk,
-                    CentreX, CentreY, Left, Right, Bottom, Top, InkAspect);
+                    "t={0:0.00}s (taken at {1:0.000}s of the animation, {2} frames in; mark "
+                    + "a={3:0.000} word a={4:0.000} sheen a={5:0.000}) {6}x{7} via {8} ink={9:P2} "
+                    + "black={10:P2} lit={11:P2} of ink centre=({12:0.000},{13:0.000}) margins "
+                    + "L{14:0.000} R{15:0.000} B{16:0.000} T{17:0.000} aspect={18:0.000}",
+                    Seconds, At, Steps, MarkAlpha, WordAlpha, SheenAlpha, Width, Height, How,
+                    InkFraction, BlackFraction, BrightOfInk, CentreX, CentreY, Left, Right, Bottom,
+                    Top, InkAspect);
             }
         }
 

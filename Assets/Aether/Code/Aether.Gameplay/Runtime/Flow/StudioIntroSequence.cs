@@ -5,6 +5,11 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
+// The render test steps the intro's clock so that the frames it captures are tied to the
+// animation rather than to the runner's wall clock. Nothing else outside this assembly has any
+// business with its internals.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Aether.Tests.PlayMode")]
+
 namespace Aether.Gameplay.Flow
 {
     /// <summary>
@@ -324,6 +329,27 @@ namespace Aether.Gameplay.Flow
         private const int MaxSheenTexels = 420;
 
         /// <summary>
+        /// The intro's clock: how much time one drawn frame adds, in seconds. Real time in every
+        /// build, so the ident takes the same 2.95 seconds whatever the machine's frame rate is.
+        /// </summary>
+        /// <remarks>
+        /// The render test replaces this with a fixed step, because the clock an animation is
+        /// measured against has to be the clock the animation itself runs on. On the runner the
+        /// editor does not tick the scene once per frame the test sees, so a frame captured against
+        /// the wall clock can show the same drawn moment twice — a run that failed this way showed
+        /// 0.50s and 0.90s of the test's clock as one picture, which cannot be told apart from an
+        /// animation that never drew the wordmark at all. It is internal and it is null in a build:
+        /// with it null the sequence reads <see cref="Time.unscaledDeltaTime"/>, exactly as before.
+        /// </remarks>
+        internal static Func<float> Clock;
+
+        /// <summary>The interval this frame adds to the intro's time.</summary>
+        private static float NextDelta()
+        {
+            return Clock != null ? Clock() : Time.unscaledDeltaTime;
+        }
+
+        /// <summary>
         /// Ends the intro early, starting the exit from wherever the sequence has reached. For a
         /// future "skip" button of the intro's own, or a test that does not want to wait three
         /// seconds.
@@ -388,7 +414,7 @@ namespace Aether.Gameplay.Flow
 
             while (true)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += NextDelta();
 
                 if (!skipped && (_skipRequested || (elapsed >= Timing.SkipGrace && SkipRequested())))
                 {
@@ -473,13 +499,16 @@ namespace Aether.Gameplay.Flow
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
 
-        /// <summary>Waits real seconds, unaffected by time scale: the intro is not gameplay.</summary>
+        /// <summary>
+/// Waits real seconds, unaffected by time scale: the intro is not gameplay. It reads the same
+/// clock the reveal does, so a test stepping that clock steps this with it.
+/// </summary>
         private static IEnumerator WaitUnscaled(float seconds)
         {
             float waited = 0f;
             while (waited < seconds)
             {
-                waited += Time.unscaledDeltaTime;
+                waited += NextDelta();
                 yield return null;
             }
         }

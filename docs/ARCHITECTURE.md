@@ -282,9 +282,15 @@ Four decisions worth recording:
    arrives before the wordmark and the wordmark extends the lockup downwards, that the light crosses
    the finished lockup and lights nothing outside it, that two frames of the hold are the same
    picture to the byte, that the fade ends in black, and the layout numbers on the hold frame — ink
-   present, centred, inside the frame, aspect preserved. That test exists because the one bug that
-   got past every static gate here was a placement bug that drew the mark several times the width of
-   the screen, and only a real render could see it.
+   present, centred, inside the frame, aspect preserved. The test steps the component's own clock
+   (`StudioIntroSequence.Clock`: a fixed sixtieth of a second per frame, held at each moment until
+   that frame has been taken) instead of waiting on the wall clock, because on a runner the editor
+   does not tick the scene once per frame the test sees — a run that measured against wall time
+   produced 0.50s and 0.90s as one identical picture, which cannot be told apart from an intro that
+   never drew the wordmark. The seam is internal and null in every build: there the ident reads real
+   time, exactly as it always has. That test exists because the one bug that got past every static
+   gate here was a placement bug that drew the mark several times the width of the screen, and only a
+   real render could see it.
 2. **The layout is fitted with one scale factor from both limits.** Two factors — one per axis — is
    the classic way a logo ends up stretched on a tablet. The numbers are public constants in
    `StudioIntroSequence.Layout` so the gate reads the same values the runtime uses.
