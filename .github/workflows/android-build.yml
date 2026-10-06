@@ -35,7 +35,12 @@ on:
       # temporary helper be added and taken out again without rebuilding the APK.
       - '.github/workflows/android-build.yml'
       - '.github/workflows/relay-apk.yml'
+      - '.github/workflows/intro-render.yml'
       - 'tools/ci/**'
+      # The play-mode tests are an editor-only assembly (includePlatforms: Editor, and gated on
+      # UNITY_INCLUDE_TESTS), so nothing under here can reach a player build. Editing the render
+      # test would otherwise spend a Unity Android build to prove that nothing in the APK changed.
+      - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
   workflow_dispatch:
 
 permissions:

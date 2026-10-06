@@ -1,0 +1,42 @@
+# Temporary, one-off helper: hand the newest published APK over as an ordinary ZIP on a public host,
+# and prove the APK inside is byte-identical to the release asset. It builds nothing.
+#
+# The phone finishes a ZIP download from these hosts but not a bare .apk one, and the private
+# repository's own download needs a session. Deleted again once the link has been handed over.
+#
+# Neither this file nor tools/ci/** is watched by the build workflow (both are in its paths-ignore),
+# so using this never spends an Android build.
+name: Relay APK (temporary)
+
+on:
+  push:
+    branches:
+      - arena/01a10203-project-aether
+    paths:
+      - '.github/workflows/relay-apk.yml'
+      - 'tools/ci/**'
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    name: Zip the published APK and verify what is inside
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Publish the ZIP and hash the APK inside it back
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/ci/relay_zip.sh
+
+      - name: Keep the links in the run, as a file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relay-links
+          path: links.txt
+          if-no-files-found: ignore
