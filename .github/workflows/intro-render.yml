@@ -9,6 +9,9 @@
 # It builds nothing and is deleted once the screenshots have been handed over.
 name: Intro render (temporary)
 
+# Triggered by this file or by the render test changing. The 2026-10-05 attempt never ran: GitHub's
+# "Incident with Actions" (19:11-22:49 UTC, resolved) cancelled every job with "The job was not
+# acquired by Runner of type hosted", so this workflow has not produced a frame yet.
 on:
   push:
     branches:
