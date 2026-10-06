@@ -160,10 +160,17 @@ jobs:
           # The screenshot itself, out through the one channel that works from here: the artifact zip
           # is on Azure blob storage, which the environment driving this cannot reach. Emitted
           # whenever the frames exist, however the run ended.
-          for f in IntroRender/intro-1.35s-small.png IntroRender/intro-1.95s-small.png; do
+          # Best two, most informative first, whichever of them the run actually produced: a run
+          # that failed early still has one frame, and that frame is the evidence.
+          sent=0
+          for f in IntroRender/intro-1.95s-small.png IntroRender/intro-1.35s-small.png \
+                   IntroRender/intro-2.45s-small.png IntroRender/intro-0.75s-small.png; do
             [ -f "$f" ] || continue
+            [ "$sent" -lt 2 ] || break
             echo "::notice title=Frame $(basename "$f")::$(base64 -w0 "$f" | head -c 60000)"
+            sent=$((sent + 1))
           done
+          [ "$sent" -eq 0 ] && echo "::warning title=No frames::the test wrote no frame at all"
 
           # Always, whichever way it went: the intro's own measurements and anything the engine threw.
           emit_big "Render log signals" intro-render.log 5600

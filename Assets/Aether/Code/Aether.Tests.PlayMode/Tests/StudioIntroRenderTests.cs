@@ -159,7 +159,13 @@ namespace Aether.Tests.PlayMode
                 for (int i = 0; i < CaptureTimes.Length; i++)
                 {
                     while (Time.unscaledTime - start < CaptureTimes[i]) yield return null;
-                    yield return new WaitForEndOfFrame();
+
+                    // End of frame is a windowed-player thing: a batch-mode editor refuses it outright
+                    // ("UnityTest yielded WaitForEndOfFrame, which is not evoked in batchmode") and
+                    // fails the test. Nothing is lost by skipping it - the frame is taken by rendering
+                    // the camera, which happens at the moment of the capture, not by reading whatever
+                    // the window last showed.
+                    if (!Application.isBatchMode) yield return new WaitForEndOfFrame();
 
                     Frame frame;
                     try

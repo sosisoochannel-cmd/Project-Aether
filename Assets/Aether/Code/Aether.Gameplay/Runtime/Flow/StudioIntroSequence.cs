@@ -416,14 +416,10 @@ namespace Aether.Gameplay.Flow
             /// <summary>This piece's centre relative to the lockup's centre, in pixels, y up.</summary>
             public readonly Vector2 OffsetPixels;
 
-            /// <summary>This piece's size in pixels: what the fit multiplies.</summary>
-            public readonly Vector2 SizePixels;
-
-            public Part(SpriteRenderer renderer, Vector2 offsetPixels, Vector2 sizePixels)
+            public Part(SpriteRenderer renderer, Vector2 offsetPixels)
             {
                 Renderer = renderer;
                 OffsetPixels = offsetPixels;
-                SizePixels = sizePixels;
             }
 
             public bool Present => Renderer != null;
@@ -437,7 +433,7 @@ namespace Aether.Gameplay.Flow
         {
             if (part.Renderer == null) return;
             part.Renderer.color = new Color(1f, 1f, 1f, Mathf.Clamp01(presence));
-            Place(part.Renderer.transform, part.SizePixels, part.OffsetPixels, scale, rise);
+            Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
         }
 
         /// <summary>
@@ -617,7 +613,7 @@ namespace Aether.Gameplay.Flow
             renderer.sortingOrder = 1000;
             renderer.color = new Color(1f, 1f, 1f, 0f);
             host.hideFlags = HideFlags.HideAndDontSave;
-            return new Part(renderer, bounds.Centre - lockupCentre, bounds.Size);
+            return new Part(renderer, bounds.Centre - lockupCentre);
         }
 
         /// <summary>
@@ -636,8 +632,7 @@ namespace Aether.Gameplay.Flow
         /// checks the numbers, and the render test in CI checks the pixels that come out.
         /// </para>
         /// </remarks>
-        private void Place(Transform drawn, Vector2 sizePixels, Vector2 offsetPixels, float scale,
-                           float rise)
+        private void Place(Transform drawn, Vector2 offsetPixels, float scale, float rise)
         {
             Rect safe = DrawableArea();
 
@@ -651,11 +646,18 @@ namespace Aether.Gameplay.Flow
                                   (safe.height * Layout.MaxHeightFraction) / _lockupPixels.y);
 
             // World units per artwork pixel at this point in the animation: the fit, converted to
-            // world units, times the reveal's scale. The sprite's transform then carries its own size
-            // in pixels times this, times its pixels-per-unit — the conversion the sprite needs because
-            // its size is already expressed in units.
+            // world units, times the reveal's scale.
             float unitsPerPixel = fit * worldPerPixel * scale;
             float pixelsPerUnit = Mathf.Max(1f, _pixelsPerUnit);
+
+            // And what the transform has to carry to draw at that size. A sprite is already as many
+            // world units across as its pixels over its pixels-per-unit, so the scale is this number
+            // times the pixels-per-unit and nothing else. Multiplying by the piece's pixel size as
+            // well would apply the artwork's own resolution twice: the mark, 681 pixels across at 100
+            // pixels per unit, was drawn 681 times too large and filled the screen. The arithmetic
+            // gates cannot see that - they check the numbers the fit produces, and the fit was right -
+            // which is what the render test in CI is for.
+            float spriteScale = unitsPerPixel * pixelsPerUnit;
 
             Vector2 safeCentre = safe.center - new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Vector3 cameraPosition = _camera.transform.position;
@@ -665,9 +667,7 @@ namespace Aether.Gameplay.Flow
                 cameraPosition.y + (safeCentre.y * worldPerPixel) + (offsetPixels.y * unitsPerPixel)
                     + (rise * safe.height * worldPerPixel),
                 cameraPosition.z + 1f);
-            drawn.localScale = new Vector3(sizePixels.x * unitsPerPixel * pixelsPerUnit,
-                                           sizePixels.y * unitsPerPixel * pixelsPerUnit,
-                                           1f);
+            drawn.localScale = new Vector3(spriteScale, spriteScale, 1f);
         }
 
         /// <summary>
