@@ -6,12 +6,15 @@
 # frames, and measures them: ink present, centred, inside the frame, aspect preserved, black ground,
 # and a reveal and exit that actually change. The PNGs and the measurements are uploaded.
 #
-# It builds nothing and is deleted once the screenshots have been handed over.
+# It builds nothing, and it is ignored by the build workflow's path filter, so iterating on it never
+# spends an Android build. Deleted once the screenshots have been handed over.
+#
+# This job cannot be read from the environment that drives it: the runner logs and the artifact zip
+# both live on Azure blob storage, which that environment cannot reach. So the interesting lines are
+# re-emitted as workflow annotations, which can be read - the same channel the build workflow's
+# Unity log uses.
 name: Intro render (temporary)
 
-# Triggered by this file or by the render test changing. The 2026-10-05 attempt never ran: GitHub's
-# "Incident with Actions" (19:11-22:49 UTC, resolved) cancelled every job with "The job was not
-# acquired by Runner of type hosted", so this workflow has not produced a frame yet.
 on:
   push:
     branches:
@@ -59,6 +62,7 @@ jobs:
           df -h /
           echo "::notice title=Disk::$(df -Ph / | awk 'NR==2 {print $4}') free on /"
 
+      # The import is the slow part and the build job already paid for it once.
       - name: Restore Library cache
         uses: actions/cache/restore@v4
         with:
@@ -93,31 +97,40 @@ jobs:
         run: |
           set -uo pipefail
           status=0
+          # 2>&1 and tee: the whole run is captured to a file so the annotations below can quote it.
           "${{ steps.cli.outputs.bin }}" test --docker \
             --targetPlatform=Android \
             --testPlatforms=playmode \
             --artifactsPath=artifacts \
             --coverageEnabled=false \
-            2>&1 | tee intro-render.log || status=$?
+            > intro-render.log 2>&1 || status=$?
           echo "::notice title=Test exit::test command exited $status"
           exit "$status"
 
+      # Everything that failed is at the end of the log, and everything that says why is in it
+      # somewhere. One annotation carries a lot if the newlines are escaped; %25 goes first so a
+      # literal % in the log cannot be mistaken for an escape.
       - name: Surface what the run said
         if: always()
         run: |
           shopt -s nullglob
-          # The job log is 25,000 lines and unreadable from a phone; the lines that matter are
-          # re-emitted as annotations, which are not.
-          if [ -f intro-render.log ]; then
-            body=$(grep -aE '\[intro-render\]|Tests? (passed|failed)|test result|error CS|Exception|Assert|Fatal|Saved|Uploading' \
-              intro-render.log | cut -c1-400 | tr '\r' '\n' | awk 'NF' | tail -40 \
-              | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5800)
-            [ -n "$body" ] && echo "::notice title=Render run::${body}"
-          fi
+          emit() { # $1 title, $2 file, $3 mode (head|tail), $4 lines
+            local title="$1" file="$2" mode="$3" lines="$4" body
+            [ -f "$file" ] || { echo "::warning title=$title::no file at $file"; return 0; }
+            if [ "$mode" = head ]; then body=$(head -n "$lines" "$file"); else body=$(tail -n "$lines" "$file"); fi
+            body=$(printf '%s' "$body" | tr '\r' '\n' | awk 'NF' | cut -c1-500 \
+                   | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5800)
+            [ -n "$body" ] && echo "::notice title=${title}::${body}"
+          }
+
+          echo "::notice title=Files::$(ls -lR IntroRender artifacts 2>/dev/null | tr '\n' '|' | head -c 1200)"
+          emit "Render log head" intro-render.log head 40
+          emit "Render log tail" intro-render.log tail 120
+          for f in artifacts/*.log artifacts/*.xml; do emit "Artifact $(basename "$f")" "$f" tail 80; done
           if [ -f IntroRender/summary.txt ]; then
-            echo "::notice title=Rendered frames::$(tr '\n' '|' < IntroRender/summary.txt | head -c 5800)"
+            emit "Rendered frames" IntroRender/summary.txt tail 20
           else
-            echo "::warning title=No frames::IntroRender/summary.txt was not written; see the test log."
+            echo "::warning title=No frames::IntroRender/summary.txt was not written; the test did not reach its first capture."
           fi
 
       - name: Save Library cache
@@ -137,5 +150,6 @@ jobs:
           path: |
             IntroRender/**
             artifacts/**
+            intro-render.log
           if-no-files-found: warn
           retention-days: 7
