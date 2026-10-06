@@ -70,7 +70,7 @@ for f in $(find frames -name 'summary.txt' -o -name 'diagnostics.txt' | sort); d
 done
 
 # --- and as links anyone can open ----------------------------------------------------------------
-hold=$(find frames -name 'intro-1.95s.png' | head -1)
+hold=$(find frames -name 'intro-1.85s.png' | head -1)
 [ -n "$hold" ] || hold="${pngs[0]}"
 : > frame-links.txt
 kcode=$(curl -sS --max-time 300 -A "$UA" -F "file=@$hold" -o kappa.json -w '%{http_code}' \
@@ -111,7 +111,7 @@ fi
 
 # --- and the hold frame's bytes, in parts, for anyone who cannot open a link ---------------
 # --- the whole frames, in parts small enough to be kept -------------------------------------------
-for name in intro-1.95s.png; do
+for name in intro-1.85s.png; do
   file=$(find frames -name "$name" | head -1)
   [ -n "$file" ] || continue
   b64=$(base64 -w0 "$file")

@@ -35,10 +35,11 @@ checkpoints, a secret and an exit, and the solver proves the level against the t
 
 ### The studio intro (a stage of its own, before M4)
 
-The app used to open straight into `Boot`. It now opens on the Varellon Studios mark: black, the
-mark, the wordmark settling under it, a short hold, a soft exit, and a hand-over to `Boot` —
-**2.85 seconds**, skippable after 0.4s, and switchable off through a PlayerPref that no screen
-writes yet. It is one scene, one script and one PNG, and it does not know what comes after it
+The app used to open straight into `Boot`. It now opens on the Varellon Studios mark: a short black,
+the mark arriving, the wordmark completing the lockup under it, one restrained pass of light across
+it, a hold in which nothing moves, a fade to black, and a hand-over to `Boot` — **2.95 seconds** from
+the first frame to the hand-over, skippable after 0.45s, and switchable off through a PlayerPref that
+no screen writes yet. It is one scene, one script and one PNG, and it does not know what comes after it
 (`_nextScene` is a string; pointing it at a Main Menu is the next stage's whole change).
 
 `tools/verify/intro.py` is part of the gate set now: it proves the layout on 140 synthetic device
@@ -48,14 +49,24 @@ light canvas with the mark drawn on it — which is exactly the failure the pixe
 catch, and it is recorded here rather than glossed over: the file is used as supplied, and the
 intro subtracts the canvas by luminance.
 
-Two things were added after the first APK, both because the phone showed what the gates could not:
+Three things were added after the first APK, all because the phone, or a real render, showed what the
+static gates could not:
 
 * **A play-mode render test.** `Assets/Aether/Code/Aether.Tests.PlayMode` loads the shipped scene in
   the real engine, lets the shipped component run, captures four frames, and measures them: ink
   present and centred, inside the frame with margins, aspect preserved, the ground black, and a
-  reveal and an exit that actually change the picture. The frames are uploaded as screenshots. The
+  seven frames of it, and checks the order rather than only the geometry: it opens on black, the
+  mark arrives alone before the wordmark, the light crosses the finished lockup and lights nothing
+  outside it, two frames of the hold are the same picture to the byte, and the fade ends in black.
+  The frames are uploaded as screenshots. The
   first build drew the mark several times the width of the screen — the sprite's own
   pixels-per-unit was left out of its transform scale — and every static check passed while it did.
+* **The ident was retuned into a studio card.** The animation was rebuilt as: black 0.00-0.30, the
+  mark's arrival 0.30-0.95 on a sine ease-out with a small scale-and-rise settle, the wordmark
+  0.55-1.15 completing it, a pass of light 1.05-1.45 masked to the logo's own ink, a hold that is
+  completely still 1.45-2.25, and a fade with no movement in it at all 2.25-2.85. Nothing bounces,
+  spins, zooms or shakes. The light is the only flourish, and it is deliberately small: a band
+  narrower than the lockup, never reaching solid white, over a logo taken down 7% while it crosses.
 * **`ProjectSettings.asset` is a gate now.** Landscape only both ways up, driven by the rotation
   sensor rather than the device's lock, with the Made-with-Unity splash off (Unity 6 allows that on
   Personal). `tools/verify/verify.py` checks those values and the near-black ground, because a

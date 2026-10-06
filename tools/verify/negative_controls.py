@@ -473,10 +473,35 @@ def controls() -> list[Control]:
                           + retune(root, INTRO_CODE, "MaxHeightFraction", "0.10")),
             ["larger dimension"]),
         Control(
-            "intro: the mark lunges towards the screen as it leaves",
+            "intro: the light that crosses the logo is a flare",
             intro,
-            lambda root: retune(root, INTRO_CODE, "ExitScale", "1.60"),
-            ["ExitScale"]),
+            lambda root: retune(root, INTRO_CODE, "HighlightPeak", "1.60"),
+            ["HighlightPeak"]),
+        Control(
+            "intro: the light is a wash wider than the lockup it crosses",
+            intro,
+            lambda root: retune(root, INTRO_CODE, "BandHalfWidth", "2.00"),
+            ["BandHalfWidth"]),
+        Control(
+            "intro: the light takes the logo down like a flicker",
+            intro,
+            lambda root: retune(root, INTRO_CODE, "DimWhilePassing", "0.60"),
+            ["DimWhilePassing"]),
+        Control(
+            "intro: the light is still crossing when the logo should be still",
+            intro,
+            lambda root: retune(root, INTRO_CODE, "SheenDuration", "1.50"),
+            ["SheenDuration"]),
+        Control(
+            "intro: the light starts before the mark has resolved",
+            intro,
+            lambda root: retune(root, INTRO_CODE, "SheenStartsAt", "0.60"),
+            ["SheenStartsAt"]),
+        Control(
+            "intro: the logo is cut to black instead of fading",
+            intro,
+            lambda root: retune(root, INTRO_CODE, "Exit", "0.05"),
+            ["Exit"]),
         Control(
             "intro: the sequence runs far longer than the two-to-three seconds it must",
             intro,
@@ -519,10 +544,10 @@ def controls() -> list[Control]:
             lambda root: retune(root, INTRO_CODE, "WordmarkSplit", "0.22"),
             ["no ink above"]),
         Control(
-            "intro: the wordmark starts after the reveal has finished",
+            "intro: the wordmark arrives after the light has already passed",
             intro,
-            lambda root: retune(root, INTRO_CODE, "RevealOverlap", "0.95"),
-            ["RevealOverlap"]),
+            lambda root: retune(root, INTRO_CODE, "WordmarkDelay", "0.90"),
+            ["WordmarkDelay"]),
         Control(
             "intro: the key gap is too narrow to key without smearing",
             intro,

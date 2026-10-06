@@ -26,8 +26,11 @@ namespace Aether.Tests.PlayMode
     /// </para>
     /// <para>
     /// The frames it captures are written to <c>IntroRender/</c> in the project root, which is what
-    /// the CI job uploads, so a run leaves behind a real screenshot of the intro beside the proof —
-    /// four moments: the reveal in progress, the lockup fully arrived, the hold, and the exit. Each
+    /// the CI job uploads, so a run leaves behind a real screenshot of the intro beside the proof:
+    /// the black it opens on, the mark arriving alone, the wordmark completing the lockup, the light
+    /// crossing it, two frames of the still hold, and the end of the fade. The assertions are those
+    /// moments in order — the mark before the wordmark, the light on the finished lockup and nowhere
+    /// else, the hold completely still, the fade finishing in black. Each
     /// frame is written twice: once at the size it was rendered, and once at half size, because the
     /// runner's artifacts live on storage the machine driving this cannot reach and a small PNG is
     /// the only thing that fits through the one channel that does work — the run's annotations.
@@ -52,14 +55,26 @@ namespace Aether.Tests.PlayMode
         /// <summary>Width over height of the lockup the artwork draws, measured from its ink.</summary>
         private const float LockupAspect = 800f / 814f;
 
-        /// <summary>When to look, in seconds after the intro scene came up.</summary>
-        private static readonly float[] CaptureTimes = { 0.75f, 1.35f, 1.95f, 2.45f };
+        /// <summary>
+        /// When to look, in seconds after the intro scene came up: the black it opens on, the mark
+        /// arriving alone, the wordmark extending the lockup downwards, the light crossing the
+        /// finished lockup, two frames of the still hold, and the end of the fade.
+        /// </summary>
+        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.25f, 1.85f, 2.15f, 2.70f };
 
         /// <summary>A pixel at or above this luminance is part of the mark.</summary>
         private const float InkLuminance = 0.35f;
 
         /// <summary>A pixel at or below this luminance is the black the intro is drawn on.</summary>
         private const float BlackLuminance = 0.03f;
+
+        /// <summary>
+        /// A pixel at or above this luminance is brighter than the standing lockup's own ink, which is
+        /// what a light crossing it puts there. The artwork is drawn at a tint just under white, so
+        /// only something laid over it can reach this: it is how "the light is on the logo" is
+        /// measured rather than eyeballed.
+        /// </summary>
+        private const float BrightLuminance = 0.96f;
 
         /// <summary>The key <see cref="StudioIntroSequence.Preference"/> stores its choice under.</summary>
         private const string IntroPreferenceKey = "aether.studioIntro.play";
@@ -154,7 +169,7 @@ namespace Aether.Tests.PlayMode
                             "the intro scene has no StudioIntroSequence, so it can only show black. "
                             + $"What was in the scene: {DescribeRoots(scene)}");
 
-                stage = "capture four frames";
+                stage = "capture the moments";
                 float start = Time.unscaledTime;
                 for (int i = 0; i < CaptureTimes.Length; i++)
                 {
@@ -189,7 +204,57 @@ namespace Aether.Tests.PlayMode
                 UnityEngine.Object.Destroy(intro);
                 yield return null;
 
-                Frame hold = frames[2];
+                Frame black = frames[0];
+                Frame markOnly = frames[1];
+                Frame arriving = frames[2];
+                Frame light = frames[3];
+                Frame hold = frames[4];
+                Frame still = frames[5];
+                Frame leaving = frames[6];
+
+                // 1. The sequence opens on black, and nothing is on it yet: the pause is its own beat.
+                stage = "check the opening black";
+                Assert.Less(black.InkFraction, 0.002f,
+                            "something is drawn during the black the intro opens on");
+                Assert.Greater(black.BlackFraction, 0.99f,
+                               $"the opening frame is only {black.BlackFraction:P1} black");
+
+                // 2. The mark arrives first, on its own, and it is not simply there: at 0.50s it is
+                //    present but well short of the weight it holds later. The wordmark has not begun,
+                //    which is what makes the mark establish the identity before the name completes it.
+                stage = "check the mark arrives first";
+                Assert.Greater(markOnly.InkFraction, 0.002f,
+                               "nothing has been drawn by 0.50s: the mark's arrival is missing");
+                Assert.Less(markOnly.InkFraction, hold.InkFraction,
+                            "the mark carries its final weight at 0.50s, so there is no arrival to see");
+                Assert.Greater(markOnly.Bottom, hold.Bottom + 0.05f,
+                               "the wordmark is already drawn at 0.50s, so the mark does not lead it");
+
+                // 3. The wordmark completes the lockup, and the lockup grows downwards to take it.
+                stage = "check the wordmark arrives after the mark";
+                Assert.Greater(arriving.InkFraction, markOnly.InkFraction,
+                               "the wordmark never arrives: the ink at 0.90s is no more than the mark's");
+                Assert.Less(arriving.Bottom, markOnly.Bottom - 0.02f,
+                            "the lockup does not reach further down at 0.90s, so the wordmark is not drawn");
+
+                // 4. The light crosses the finished lockup. Lit means brighter than the lockup's own ink
+                //    at rest, so it can only be the highlight - and it is on the logo, not around it.
+                stage = "check the light crosses the lockup, and only the lockup";
+                Assert.Greater(light.BrightOfInk, 0.05f,
+                               "no light is crossing the lockup at 1.25s: nothing on the ink is brighter "
+                               + "than the resting logo");
+                Assert.Greater(light.BlackFraction, 0.90f,
+                               $"only {light.BlackFraction:P1} of the frame is black while the light is "
+                               + "on: the highlight is being drawn over the black around the lockup too");
+                Assert.Less(hold.BrightOfInk, 0.01f,
+                            "the standing lockup carries lit pixels, so the light never left it");
+
+                // 5. The hold is completely still: two frames a third of a second apart are the same
+                //    picture, and it is the picture the layout promises.
+                stage = "check the hold is completely still";
+                Assert.That(hold.MaxChannelDifference(still), Is.LessThanOrEqualTo(2),
+                            "the lockup moves during the hold: two frames of it differ");
+
                 stage = "check the frame is landscape";
                 Assert.That(hold.Width, Is.GreaterThan(hold.Height),
                             $"the capture is {hold.Width}x{hold.Height}, not landscape; this test needs a "
@@ -229,12 +294,12 @@ namespace Aether.Tests.PlayMode
                             $"the drawn lockup is {hold.InkAspect:0.000} wide over tall, the artwork is "
                             + $"{LockupAspect:0.000}; the fit is not preserving its aspect ratio");
 
-                // And it animates: the mark arrives, holds, and leaves, rather than cutting in and out.
-                stage = "check the reveal and the exit";
-                Assert.Less(frames[0].InkFraction, hold.InkFraction,
-                            "the mark is as present at 0.75s as at the hold, so there is no reveal");
-                Assert.Less(frames[3].InkFraction, hold.InkFraction,
-                            "the mark is as present at 2.45s as at the hold, so there is no exit");
+                // 6. And the fade takes the complete lockup to black rather than cutting it.
+                stage = "check the fade finishes in black";
+                Assert.Less(leaving.InkFraction, hold.InkFraction * 0.25f,
+                            "the lockup is still on screen at 2.70s, so the fade does not finish");
+                Assert.Greater(leaving.BlackFraction, 0.95f,
+                               $"only {leaving.BlackFraction:P1} of the frame is black at 2.70s");
 
                 stage = "done";
             }
@@ -412,6 +477,9 @@ namespace Aether.Tests.PlayMode
             public readonly int Height;
             public readonly float InkFraction;
             public readonly float BlackFraction;
+
+            /// <summary>How much of the ink is brighter than the standing ink: the light, if any.</summary>
+            public readonly float BrightOfInk;
             public readonly float CentreX;
             public readonly float CentreY;
             public readonly float Left;
@@ -427,15 +495,21 @@ namespace Aether.Tests.PlayMode
             /// <summary>How the frame was taken: the screen, or the camera drawn into a texture.</summary>
             public readonly string How;
 
+            /// <summary>The frame itself, so two frames can be told apart or found identical.</summary>
+            private readonly Color32[] _pixels;
+
             private Frame(float seconds, int width, int height, float inkFraction, float blackFraction,
-                          float centreX, float centreY, float left, float right, float bottom,
-                          float top, float inkAspect, byte[] png, byte[] smallPng, string how)
+                          float brightOfInk, float centreX, float centreY, float left, float right,
+                          float bottom, float top, float inkAspect, byte[] png, byte[] smallPng,
+                          string how, Color32[] pixels)
             {
                 Seconds = seconds;
                 Width = width;
                 Height = height;
                 InkFraction = inkFraction;
                 BlackFraction = blackFraction;
+                BrightOfInk = brightOfInk;
+                _pixels = pixels;
                 CentreX = centreX;
                 CentreY = centreY;
                 Left = left;
@@ -448,6 +522,29 @@ namespace Aether.Tests.PlayMode
                 How = how;
             }
 
+            /// <summary>
+            /// The largest per-channel difference between this frame and another, in 0-255 steps. Used
+            /// to say that the hold really is still: two moments of a still picture are the same
+            /// picture, and two moments of a moving one are not.
+            /// </summary>
+            public int MaxChannelDifference(Frame other)
+            {
+                if (_pixels == null || other._pixels == null) return 255;
+                if (_pixels.Length != other._pixels.Length) return 255;
+
+                int worst = 0;
+                for (int i = 0; i < _pixels.Length; i++)
+                {
+                    Color32 a = _pixels[i];
+                    Color32 b = other._pixels[i];
+                    int difference = Mathf.Max(Mathf.Max(Mathf.Abs(a.r - b.r), Mathf.Abs(a.g - b.g)),
+                                               Mathf.Abs(a.b - b.b));
+                    if (difference > worst) worst = difference;
+                }
+
+                return worst;
+            }
+
             public static Frame Capture(float time)
             {
                 Shot shot = Take();
@@ -457,6 +554,7 @@ namespace Aether.Tests.PlayMode
 
                 int ink = 0;
                 int black = 0;
+                int lit = 0;
                 int minX = width;
                 int minY = height;
                 int maxX = -1;
@@ -468,6 +566,8 @@ namespace Aether.Tests.PlayMode
                     {
                         Color32 pixel = pixels[row + x];
                         float luminance = (0.299f * pixel.r + 0.587f * pixel.g + 0.114f * pixel.b) / 255f;
+                        if (luminance >= BrightLuminance) lit++;
+
                         if (luminance >= InkLuminance)
                         {
                             ink++;
@@ -490,6 +590,7 @@ namespace Aether.Tests.PlayMode
                 return new Frame(
                     time, width, height,
                     ink / total, black / total,
+                    ink == 0 ? 0f : lit / (float)ink,
                     found ? ((minX + maxX) * 0.5f) / width : 0.5f,
                     found ? ((minY + maxY) * 0.5f) / height : 0.5f,
                     found ? minX / (float)width : 0f,
@@ -499,7 +600,8 @@ namespace Aether.Tests.PlayMode
                     found && inkHeight > 0f ? inkWidth / inkHeight : 0f,
                     shot.Png,
                     HalfSize(pixels, width, height, shot.Png),
-                    shot.How);
+                    shot.How,
+                    pixels);
             }
 
             /// <summary>
@@ -657,10 +759,11 @@ namespace Aether.Tests.PlayMode
             {
                 return string.Format(
                     CultureInfo.InvariantCulture,
-                    "t={0:0.00}s {1}x{2} via {3} ink={4:P2} black={5:P2} centre=({6:0.000},{7:0.000}) "
-                    + "margins L{8:0.000} R{9:0.000} B{10:0.000} T{11:0.000} aspect={12:0.000}",
-                    Seconds, Width, Height, How, InkFraction, BlackFraction, CentreX, CentreY,
-                    Left, Right, Bottom, Top, InkAspect);
+                    "t={0:0.00}s {1}x{2} via {3} ink={4:P2} black={5:P2} lit={6:P2} of ink "
+                    + "centre=({7:0.000},{8:0.000}) margins L{9:0.000} R{10:0.000} B{11:0.000} "
+                    + "T{12:0.000} aspect={13:0.000}",
+                    Seconds, Width, Height, How, InkFraction, BlackFraction, BrightOfInk,
+                    CentreX, CentreY, Left, Right, Bottom, Top, InkAspect);
             }
         }
 

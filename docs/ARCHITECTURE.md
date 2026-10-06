@@ -260,8 +260,11 @@ danger, dull and cool means it is safe to approach, and the shape says what a th
 ## 6c. The studio intro: the first thing the app shows
 
 The app opens in `Assets/Aether/Scenes/StudioIntro.unity`, which is scene **0** in the build order.
-It is the only scene whose whole job is to be looked at: black, the Varellon mark, the wordmark
-settling under it, a short hold, a soft exit, and then it hands the app to `Boot`.
+It is the only scene whose whole job is to be looked at: a short black, the Varellon mark arriving,
+the wordmark completing the lockup a beat later, one restrained pass of light across it, a hold in
+which nothing moves at all, a fade back to black, and then it hands the app to `Boot`. The order is
+the point — the symbol establishes the identity before the name completes it — and the whole thing
+is 2.95s from the first frame to the hand-over, 2.85s of it to the last of the logo.
 
 > **A scene that owns its own flow declares itself, and the boot stands down.**
 > `SceneFlowOwner` is an empty abstract base; `AetherBoot.BootIfUnclaimed` looks for one and returns
@@ -275,10 +278,13 @@ Four decisions worth recording:
    Editor, and the intro is two images that fade. Layout is fractions of `Screen.safeArea`, so
    `tools/verify/intro.py` can prove it on 140 synthetic device shapes — and because arithmetic
    cannot see what a renderer draws, a play-mode test (`Assets/Aether/Code/Aether.Tests.PlayMode`)
-   plays the real scene and measures the frames that come out: ink present, centred, inside the
-   frame, aspect preserved, black ground, and a reveal and an exit that change the picture. That
-   test exists because the one bug that got past every static gate here was a placement bug that
-   drew the mark several times the width of the screen.
+   plays the real scene and measures seven frames of it: that it opens on black, that the mark
+   arrives before the wordmark and the wordmark extends the lockup downwards, that the light crosses
+   the finished lockup and lights nothing outside it, that two frames of the hold are the same
+   picture to the byte, that the fade ends in black, and the layout numbers on the hold frame — ink
+   present, centred, inside the frame, aspect preserved. That test exists because the one bug that
+   got past every static gate here was a placement bug that drew the mark several times the width of
+   the screen, and only a real render could see it.
 2. **The layout is fitted with one scale factor from both limits.** Two factors — one per axis — is
    the classic way a logo ends up stretched on a tablet. The numbers are public constants in
    `StudioIntroSequence.Layout` so the gate reads the same values the runtime uses.
@@ -296,7 +302,16 @@ Four decisions worth recording:
    than Unity's. `tools/verify/verify.py` checks all of it in the project file, CI inspects the
    built APK's manifest for the orientation it actually shipped with, and the phone is the final
    word.
-5. **The intro may be skipped, and switched off.** A tap, key or face button after a short grace
+5. **The light is drawn on the logo's own ink.** The pass is a soft band of white masked by the
+   artwork's coverage — the same mask the mark and the wordmark are built from, sampled down because
+   it carries only a gradient — so it is invisible everywhere the logo is not. An unmasked highlight
+   would be a grey streak across the black, which is the one thing this ident must not be, and the
+   render test measures it: pixels brighter than the resting ink appear during the pass and nowhere
+   outside the logo, and they are gone by the hold. The lockup is taken down a few percent while the
+   light crosses it and returns to its exact resting colour afterwards, or the highlight would have
+   nothing to be brighter than. `tools/verify/intro.py` holds the band's width, brightness, dip and
+   tilt in bands, so the restraint is checked rather than remembered.
+6. **The intro may be skipped, and switched off.** A tap, key or face button after a short grace
    ends it early; `Preference` (a PlayerPref) is what a future settings screen writes. Nothing in
    the intro knows what comes after it: `_nextScene` is a string, and pointing it at a Main Menu is
    the only change the next stage needs.

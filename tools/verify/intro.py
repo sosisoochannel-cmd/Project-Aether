@@ -74,22 +74,42 @@ MARKS = {
 MIN_LIMIT_FRACTION = 0.10      # below this the mark is a watermark on every shape
 MAX_LIMIT_FRACTION = 0.90      # above this it is a banner that can be cropped by a cutout
 MIN_REVEAL_SCALE = 0.90        # a smaller start is a pop, not a reveal
-MAX_EXIT_SCALE = 1.10          # a larger finish is a lunge
 MAX_RISE_FRACTION = 0.08       # of the safe height; more than this is a slide, not a settle
 
 # Floors on the drawn lockup, as fractions of the safe height, measured over the whole animation.
 MIN_MAJOR_EXTENT = 0.25        # the lockup's larger dimension is never a speck
 MIN_MINOR_EXTENT = 0.08        # and its smaller dimension is never a hairline
 
-# The length the finished intro has to be, in seconds. Stated as a requirement because it is one.
-MIN_TOTAL = 2.0
-MAX_TOTAL = 3.0
+# The length the finished intro has to be, in seconds, counted from the first frame of the scene to
+# the hand-over. Stated as a requirement because it is one.
+MIN_TOTAL = 2.80
+MAX_TOTAL = 3.00
 MIN_PHASE = {
-    "Reveal": 0.50,            # a faster fade reads as a flicker
-    "Hold": 0.30,              # the pause is what makes it a signature
-    "Exit": 0.20,
+    "Reveal": 0.50,            # a faster arrival reads as a flicker
+    "WordmarkReveal": 0.30,    # a faster one reads as a cut
+    "SheenDuration": 0.25,     # a faster light is a flash
+    "Hold": 0.50,              # the pause is what makes it a signature
+    "Exit": 0.40,              # a faster fade is a cut to black
     "HandOver": 0.05,          # a beat of black, so the next scene is not a cut
 }
+
+# The opening black is a beat, not a wait: long enough to let the app's first frame settle, short
+# enough that nobody wonders whether the app has hung.
+MIN_BLACK_HOLD = 0.15
+MAX_BLACK_HOLD = 0.45
+
+# The light that crosses the finished lockup has to stay a light and not become a sting: these are
+# the bands its shape is held in. A wider band is a wash over the whole logo, a brighter one is a
+# flare, a deeper dip is a flicker, and a longer edge fade is a slow pulse rather than a pass.
+MIN_BAND_HALF_WIDTH = 0.15
+MAX_BAND_HALF_WIDTH = 0.60
+MAX_TILT = 0.35                # more than this is a diagonal wipe across the screen
+MIN_HIGHLIGHT_PEAK = 0.25
+MAX_HIGHLIGHT_PEAK = 0.95
+MIN_DIM_WHILE_PASSING = 0.85
+MIN_EDGE_FADE = 0.02
+MAX_EDGE_FADE = 0.35
+MAX_MASK_RESOLUTION = 1.0      # the mask carries a soft gradient; finer than the artwork is waste
 
 # Rules on the artwork's half of the constants: where the lockup splits, how far the wordmark lags
 # the mark, and how a file without an alpha channel is keyed.
@@ -111,10 +131,12 @@ def csharp_float(text: str) -> float:
 
 
 CONSTANTS = (
-    "MaxWidthFraction", "MaxHeightFraction", "RevealScale", "RevealRise", "ExitScale", "ExitRise",
-    "WordmarkSplit", "RevealOverlap", "WordmarkRise",
+    "MaxWidthFraction", "MaxHeightFraction", "RevealScale", "RevealRise", "WordmarkRise",
+    "WordmarkSplit",
     "BackgroundLuminance", "InkLuminance",
-    "BlackHold", "Reveal", "Hold", "Exit", "HandOver", "SkipGrace", "SkipExit",
+    "BlackHold", "Reveal", "WordmarkDelay", "WordmarkReveal", "SheenStartsAt", "SheenDuration",
+    "Hold", "Exit", "HandOver", "SkipGrace", "SkipExit",
+    "BandHalfWidth", "Tilt", "HighlightPeak", "DimWhilePassing", "EdgeFade", "Resolution",
 )
 
 
@@ -146,10 +168,7 @@ def check_constants(values: dict) -> list:
     if not MIN_REVEAL_SCALE <= values["RevealScale"] <= 1.0:
         problems.append(f"constants: RevealScale is {values['RevealScale']:.3f}; a reveal starts "
                         f"between {MIN_REVEAL_SCALE} and 1.0 of the final size")
-    if not 1.0 <= values["ExitScale"] <= MAX_EXIT_SCALE:
-        problems.append(f"constants: ExitScale is {values['ExitScale']:.3f}; an exit ends between "
-                        f"1.0 and {MAX_EXIT_SCALE} of the resting size")
-    for name in ("RevealRise", "ExitRise", "WordmarkRise"):
+    for name in ("RevealRise", "WordmarkRise"):
         if not 0.0 <= values[name] <= MAX_RISE_FRACTION:
             problems.append(f"constants: {name} is {values[name]:.3f}, outside 0-"
                             f"{MAX_RISE_FRACTION} of the safe height; that is a slide, not a settle")
@@ -158,9 +177,26 @@ def check_constants(values: dict) -> list:
         problems.append(f"constants: WordmarkSplit is {values['WordmarkSplit']:.3f}, outside "
                         f"{MIN_SPLIT}-{MAX_SPLIT} of the artwork's height; one half of the lockup "
                         "would have nowhere to come from")
-    if not 0.0 <= values["RevealOverlap"] <= MAX_REVEAL_OVERLAP:
-        problems.append(f"constants: RevealOverlap is {values['RevealOverlap']:.3f}; the wordmark "
-                        f"cannot start after {MAX_REVEAL_OVERLAP} of the reveal")
+    if not MIN_BAND_HALF_WIDTH <= values["BandHalfWidth"] <= MAX_BAND_HALF_WIDTH:
+        problems.append(f"constants: BandHalfWidth is {values['BandHalfWidth']:.3f}, outside "
+                        f"{MIN_BAND_HALF_WIDTH}-{MAX_BAND_HALF_WIDTH}; the light would be a pinprick "
+                        "or a wash over the whole lockup")
+    if not 0.0 <= values["Tilt"] <= MAX_TILT:
+        problems.append(f"constants: Tilt is {values['Tilt']:.3f}; a light that leans more than "
+                        f"{MAX_TILT} is a diagonal wipe rather than a sheen")
+    if not MIN_HIGHLIGHT_PEAK <= values["HighlightPeak"] <= MAX_HIGHLIGHT_PEAK:
+        problems.append(f"constants: HighlightPeak is {values['HighlightPeak']:.3f}, outside "
+                        f"{MIN_HIGHLIGHT_PEAK}-{MAX_HIGHLIGHT_PEAK}; the light is either invisible "
+                        "or a flare")
+    if not MIN_DIM_WHILE_PASSING <= values["DimWhilePassing"] <= 1.0:
+        problems.append(f"constants: DimWhilePassing is {values['DimWhilePassing']:.3f}; a logo taken "
+                        f"down past {MIN_DIM_WHILE_PASSING} reads as a flicker, not a light")
+    if not MIN_EDGE_FADE <= values["EdgeFade"] <= MAX_EDGE_FADE:
+        problems.append(f"constants: EdgeFade is {values['EdgeFade']:.3f}, outside "
+                        f"{MIN_EDGE_FADE}-{MAX_EDGE_FADE}; the light would switch on, or pulse")
+    if not 0.0 < values["Resolution"] <= MAX_MASK_RESOLUTION:
+        problems.append(f"constants: the light's mask resolution is {values['Resolution']:.3f}; it "
+                        "carries a soft gradient, so it is never finer than the artwork")
     if not 0.0 <= values["InkLuminance"] < values["BackgroundLuminance"] <= 1.0:
         problems.append(f"constants: the key runs from ink at {values['InkLuminance']:.3f} to "
                         f"background at {values['BackgroundLuminance']:.3f}, which is not an "
@@ -175,7 +211,7 @@ def check_constants(values: dict) -> list:
 
 def check_timing(values: dict) -> list:
     problems = []
-    total = (values["BlackHold"] + values["Reveal"] + values["Hold"]
+    total = (values["SheenStartsAt"] + values["SheenDuration"] + values["Hold"]
              + values["Exit"] + values["HandOver"])
 
     if not MIN_TOTAL <= total <= MAX_TOTAL:
@@ -186,9 +222,35 @@ def check_timing(values: dict) -> list:
         if values[phase] < floor:
             problems.append(f"timing: {phase} lasts {values[phase]:.2f}s, below the {floor}s floor")
 
-    if values["BlackHold"] <= 0.0:
-        problems.append("timing: the black hold is zero, so the mark can appear before the app "
-                        "has drawn a first frame")
+    if not MIN_BLACK_HOLD <= values["BlackHold"] <= MAX_BLACK_HOLD:
+        problems.append(f"timing: the opening black lasts {values['BlackHold']:.2f}s, outside the "
+                        f"{MIN_BLACK_HOLD}-{MAX_BLACK_HOLD}s this beat is meant to be")
+
+    # The order the sequence is meant to read in, as arithmetic: the symbol first, the wordmark
+    # completing it while the mark is still arriving, and the light only once the mark has resolved
+    # and the wordmark is done.
+    mark_ends = values["BlackHold"] + values["Reveal"]
+    wordmark_starts = values["BlackHold"] + values["WordmarkDelay"]
+    wordmark_ends = wordmark_starts + values["WordmarkReveal"]
+    sheen_ends = values["SheenStartsAt"] + values["SheenDuration"]
+
+    if wordmark_starts <= values["BlackHold"]:
+        problems.append(f"timing: WordmarkDelay is {values['WordmarkDelay']:.2f}s, so the wordmark "
+                        "arrives with the mark instead of completing it")
+    if wordmark_starts >= mark_ends:
+        problems.append(f"timing: WordmarkDelay puts the wordmark at {wordmark_starts:.2f}s, after "
+                        f"the mark has already resolved at {mark_ends:.2f}s; the lockup should read "
+                        "as one arrival")
+    if values["SheenDuration"] > values["Hold"]:
+        problems.append(f"timing: SheenDuration is {values['SheenDuration']:.2f}s against a Hold of "
+                        f"{values['Hold']:.2f}s; the hold has to be the longer of the two, or the "
+                        "light is still moving when the logo is meant to be still")
+    if values["SheenStartsAt"] < mark_ends:
+        problems.append(f"timing: SheenStartsAt is {values['SheenStartsAt']:.2f}s, before the mark "
+                        f"has resolved at {mark_ends:.2f}s; there is nothing finished to light")
+    if wordmark_ends > sheen_ends:
+        problems.append(f"timing: the wordmark resolves at {wordmark_ends:.2f}s, after the light has "
+                        f"finished crossing at {sheen_ends:.2f}s; the light has to cross a lockup")
 
     if values["SkipGrace"] >= values["BlackHold"] + values["Reveal"]:
         problems.append(f"timing: the {values['SkipGrace']:.2f}s skip grace covers the whole "
@@ -238,7 +300,6 @@ def check_shape(values: dict, aspect_name: str, aspect: float,
     states = (
         ("reveal start", values["RevealScale"], -values["RevealRise"]),
         ("rest", 1.0, 0.0),
-        ("exit end", values["ExitScale"], values["ExitRise"]),
     )
     for label, scale, rise in states:
         half_w, half_h = (width * scale) / 2.0, (height * scale) / 2.0
@@ -256,10 +317,8 @@ def check_shape(values: dict, aspect_name: str, aspect: float,
             problems.append(f"{where}: the safe area's centre pushes the mark off the screen")
 
     # 4. Neither a banner nor a watermark, measured over the animation.
-    major = max(width * max(values["RevealScale"], values["ExitScale"]),
-                height * max(values["RevealScale"], values["ExitScale"])) / safe[3]
-    minor = min(width * min(values["RevealScale"], values["ExitScale"]),
-                height * min(values["RevealScale"], values["ExitScale"])) / safe[3]
+    major = max(width, height) / safe[3]
+    minor = min(width * values["RevealScale"], height * values["RevealScale"]) / safe[3]
     if major < MIN_MAJOR_EXTENT:
         problems.append(f"{where}: the mark's larger dimension is {major:.3f} of the safe height, "
                         f"below the {MIN_MAJOR_EXTENT} this tool treats as readable")
@@ -595,19 +654,28 @@ def main() -> int:
     script_text = open(path, encoding="utf-8").read()
     values = parse_constants(path)
 
-    total = (values["BlackHold"] + values["Reveal"] + values["Hold"]
+    total = (values["SheenStartsAt"] + values["SheenDuration"] + values["Hold"]
              + values["Exit"] + values["HandOver"])
+    mark_ends = values["BlackHold"] + values["Reveal"]
+    wordmark_starts = values["BlackHold"] + values["WordmarkDelay"]
+    wordmark_ends = wordmark_starts + values["WordmarkReveal"]
     print(f"studio intro: {SEQUENCE}")
-    print(f"  black {values['BlackHold']:.2f}s -> reveal {values['Reveal']:.2f}s -> "
-          f"hold {values['Hold']:.2f}s -> exit {values['Exit']:.2f}s -> "
+    print(f"  black {values['BlackHold']:.2f}s -> mark {values['Reveal']:.2f}s "
+          f"(to {mark_ends:.2f}s) -> wordmark {values['WordmarkReveal']:.2f}s "
+          f"from {wordmark_starts:.2f}s (to {wordmark_ends:.2f}s)")
+    print(f"  light {values['SheenStartsAt']:.2f}-{values['SheenStartsAt'] + values['SheenDuration']:.2f}s "
+          f"-> still hold {values['Hold']:.2f}s -> fade {values['Exit']:.2f}s -> "
           f"hand-over {values['HandOver']:.2f}s   total {total:.2f}s")
     print(f"  skip: grace {values['SkipGrace']:.2f}s, then a {values['SkipExit']:.2f}s exit")
     print(f"  lockup: up to {values['MaxWidthFraction']:.2f} of the safe width, "
-          f"{values['MaxHeightFraction']:.2f} of its height; scale "
-          f"{values['RevealScale']:.2f}->{values['ExitScale']:.2f}")
+          f"{values['MaxHeightFraction']:.2f} of its height; the reveal settles from "
+          f"{values['RevealScale']:.2f} of it, and the fade moves nothing")
     print(f"  parts: split at {values['WordmarkSplit']:.3f} of the artwork, wordmark lags the mark "
-          f"by {values['RevealOverlap'] * values['Reveal']:.2f}s and rises "
+          f"by {values['WordmarkDelay']:.2f}s and rises "
           f"{values['WordmarkRise']:.3f} of the safe height")
+    print(f"  light: band half-width {values['BandHalfWidth']:.2f} at tilt {values['Tilt']:.2f}, "
+          f"peak {values['HighlightPeak']:.2f} over a logo taken to "
+          f"{values['DimWhilePassing']:.2f} while it crosses")
     print(f"  key: ink at {values['InkLuminance']:.2f} luminance, canvas at "
           f"{values['BackgroundLuminance']:.2f}")
     print()

@@ -55,8 +55,20 @@ namespace Aether.Gameplay.Flow
     /// <para>
     /// <b>Everything is eased and nothing snaps.</b> Presence, scale and a small vertical rise are
     /// curves over elapsed time, the exit starts from wherever either part currently is (skipping
-    /// mid-reveal fades from the current presence, not from full), and the whole sequence is under
-    /// three seconds because an intro is a signature, not a wait.
+    /// mid-reveal fades from the current presence, not from full), and the whole sequence runs under
+    /// three seconds because an intro is a signature, not a wait. In order: a short black, the mark
+    /// arriving, the wordmark completing the lockup a beat later, one restrained light pass across
+    /// it, a still hold, and a fade back to black — <see cref="Timing"/> holds the numbers.
+    /// </para>
+    /// <para>
+    /// <b>The light that crosses the lockup is drawn on the logo's own ink.</b> A sheen is the one
+    /// flourish a studio ident is allowed and the easiest thing to get wrong: a bright band laid over
+    /// the screen is a grey streak across the black, and a glow around the mark is the lens-flare look
+    /// this intro exists not to be. So the band is masked by the artwork's own coverage — the mask the
+    /// mark and the wordmark are built from, sampled down because it carries only a soft gradient —
+    /// and it is invisible everywhere the logo is not. The lockup is taken down a few percent while
+    /// the light crosses it and returns to its exact resting colour afterwards, so the still hold is
+    /// the same picture it would have been without the pass.
     /// </para>
     /// <para>
     /// <b>Skipping and switching it off are both seams that already exist.</b> A tap, a key or a
@@ -110,12 +122,6 @@ namespace Aether.Gameplay.Flow
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
             public const float RevealRise = 0.018f;
 
-            /// <summary>Scale the lockup grows to as it leaves.</summary>
-            public const float ExitScale = 1.015f;
-
-            /// <summary>How far the lockup drifts upwards as it leaves, in safe-area heights.</summary>
-            public const float ExitRise = 0.010f;
-
             /// <summary>
             /// Where the artwork splits into mark and wordmark, as a fraction of its height
             /// <b>from the top</b>: above this line is the mark, below it is the wordmark.
@@ -127,9 +133,6 @@ namespace Aether.Gameplay.Flow
             /// this number and fails if either half would come out empty.
             /// </remarks>
             public const float WordmarkSplit = 0.605f;
-
-            /// <summary>Fraction of the reveal before the wordmark starts: the mark leads.</summary>
-            public const float RevealOverlap = 0.17f;
 
             /// <summary>How far the wordmark rises into its place, in safe-area heights.</summary>
             public const float WordmarkRise = 0.008f;
@@ -159,33 +162,97 @@ namespace Aether.Gameplay.Flow
         /// How long each part of the intro lasts, in seconds.
         /// </summary>
         /// <remarks>
-        /// Black hold, reveal, hold, exit: 2.80 seconds including the beat of black before the next
-        /// scene loads. That budget is a requirement, not a taste — an intro of this kind is two to
-        /// three seconds — and <c>tools/verify/intro.py</c> fails the build if the parts stop adding
-        /// up to it, so buying a longer reveal means shortening something else on purpose.
+        /// <para>
+        /// The sequence, in seconds from the first frame of the scene: pure black 0.00-0.30, the mark
+        /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, the light pass
+        /// 1.05-1.45, the complete lockup held completely still 1.45-2.25, and the fade to black
+        /// 2.25-2.85. The hand-over to the next scene comes <see cref="HandOver"/> after the last of
+        /// the logo has gone.
+        /// </para>
+        /// <para>
+        /// The light starts before the wordmark has quite finished, deliberately: that overlap is what
+        /// makes the pass read as one continuous arrival instead of a separate beat bolted onto it.
+        /// </para>
+        /// <para>
+        /// That budget is a requirement, not a taste — an intro of this kind is two to three seconds —
+        /// and <c>tools/verify/intro.py</c> reads these numbers and fails if the phases stop making
+        /// that shape, so buying a longer reveal means shortening something else on purpose.
+        /// </para>
         /// </remarks>
         public static class Timing
         {
-            /// <summary>Black before the mark appears. Covers the first frames of the app.</summary>
-            public const float BlackHold = 0.35f;
+            /// <summary>Pure black before the mark appears. Covers the first frames of the app.</summary>
+            public const float BlackHold = 0.30f;
 
-            /// <summary>Fade-in and settle of the mark, and then of the wordmark behind it.</summary>
-            public const float Reveal = 1.05f;
+            /// <summary>The mark's arrival, from nothing to full presence: 0.30s to 0.95s.</summary>
+            public const float Reveal = 0.65f;
 
-            /// <summary>The lockup at full presence. The pause that makes it read as a signature.</summary>
-            public const float Hold = 0.70f;
+            /// <summary>How much later than the mark the wordmark starts: the hierarchy.</summary>
+            public const float WordmarkDelay = 0.25f;
 
-            /// <summary>Fade-out of the lockup.</summary>
-            public const float Exit = 0.55f;
+            /// <summary>The wordmark's arrival: 0.55s to 1.15s.</summary>
+            public const float WordmarkReveal = 0.60f;
+
+            /// <summary>When the light pass begins, in seconds from the first frame.</summary>
+            public const float SheenStartsAt = 1.05f;
+
+            /// <summary>How long the light takes to cross the lockup: 1.05s to 1.45s.</summary>
+            public const float SheenDuration = 0.40f;
+
+            /// <summary>The complete lockup, completely still: 1.45s to 2.25s.</summary>
+            public const float Hold = 0.80f;
+
+            /// <summary>The fade from the complete lockup to pure black: 2.25s to 2.85s.</summary>
+            public const float Exit = 0.60f;
 
             /// <summary>Black held after the lockup has gone, so the hand-over is not a hard cut.</summary>
-            public const float HandOver = 0.15f;
+            public const float HandOver = 0.10f;
 
             /// <summary>Input before this is ignored: the tap that launched the app is still landing.</summary>
             public const float SkipGrace = 0.45f;
 
             /// <summary>How long the shortened exit lasts when the player skips.</summary>
             public const float SkipExit = 0.35f;
+        }
+
+        /// <summary>
+        /// The light that crosses the finished lockup: how wide it is, how bright, and how far the
+        /// logo is taken down while it passes.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// It is a soft band of white, masked by the artwork's own ink, travelling on a diagonal that
+        /// is nearly level. Every number here is deliberately small: this is the one moment in the
+        /// sequence that could turn into a logo sting, and the brief is the opposite — a light an eye
+        /// notices on the second viewing rather than the first. The band is never wider than the
+        /// lockup it crosses, the highlight never reaches solid white, and the logo never dips far
+        /// enough for the dip itself to read as a change.
+        /// </para>
+        /// <para>
+        /// <c>tools/verify/intro.py</c> holds these numbers in bands — a wider band is a wash, a
+        /// brighter one is a flare, a deeper dip is a flicker — so the restraint is checked rather
+        /// than remembered.
+        /// </para>
+        /// </remarks>
+        public static class Sheen
+        {
+            /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
+            public const float BandHalfWidth = 0.42f;
+
+            /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
+            public const float Tilt = 0.14f;
+
+            /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
+            public const float HighlightPeak = 0.85f;
+
+            /// <summary>How far the logo is taken down while the light is crossing it.</summary>
+            public const float DimWhilePassing = 0.93f;
+
+            /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
+            public const float EdgeFade = 0.12f;
+
+            /// <summary>Mask texels per artwork pixel. It carries a soft gradient, nothing finer.</summary>
+            public const float Resolution = 0.45f;
         }
 
         /// <summary>
@@ -246,6 +313,15 @@ namespace Aether.Gameplay.Flow
         private Sprite _markSprite;
         private Sprite _wordmarkSprite;
         private bool _skipRequested;
+        private Texture2D _sheenTexture;
+        private Sprite _sheenSprite;
+        private SpriteRenderer _sheenRenderer;
+        private Color32[] _sheenPixels;
+        private byte[] _sheenMask;
+        private float[] _sheenAcross;
+
+        /// <summary>Most texels the light's mask may have on its longer side.</summary>
+        private const int MaxSheenTexels = 420;
 
         /// <summary>
         /// Ends the intro early, starting the exit from wherever the sequence has reached. For a
@@ -302,7 +378,10 @@ namespace Aether.Gameplay.Flow
             bool exitCued = false;
             float markFadeFrom = 1f;
             float wordmarkFadeFrom = 1f;
-            float exitStartsAt = Timing.BlackHold + Timing.Reveal + Timing.Hold;
+            // The still hold runs from the moment the light has left the lockup to the moment the fade
+            // begins, which is why it is not simply the reveal's end plus a pause: between them are the
+            // wordmark's arrival and the pass itself.
+            float exitStartsAt = Timing.SheenStartsAt + Timing.SheenDuration + Timing.Hold;
             float exitLength = Timing.Exit;
 
             HideAll();
@@ -335,18 +414,21 @@ namespace Aether.Gameplay.Flow
 
                 if (elapsed >= exitStartsAt)
                 {
+                    // The exit is a fade and nothing else: the lockup leaves at the size and in the
+                    // place the hold gave it, so the last thing seen is the picture that was held.
                     float exit = EaseInOutCubic(Ramp(elapsed, exitStartsAt, exitLength));
-                    float scale = Mathf.Lerp(1f, Layout.ExitScale, exit);
-                    float rise = Layout.ExitRise * exit;
-                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, scale, rise);
-                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, scale, rise);
+                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
+                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
+                    HideSheen();
                 }
                 else
                 {
                     RevealAt(elapsed, false, out float markPresence, out float markScale, out float markRise);
                     RevealAt(elapsed, true, out float wordPresence, out float wordScale, out float wordRise);
-                    Draw(_mark, markPresence, markScale, markRise);
-                    Draw(_wordmark, wordPresence, wordScale, wordRise);
+                    float dim = SheenDim(elapsed);
+                    Draw(_mark, markPresence, markScale, markRise, dim);
+                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim);
+                    DrawSheen(elapsed);
                 }
 
                 if (elapsed >= exitStartsAt + exitLength) break;
@@ -364,23 +446,29 @@ namespace Aether.Gameplay.Flow
         /// How present, how large and how high the given part is during the reveal.
         /// </summary>
         /// <remarks>
-        /// The mark starts at <see cref="Timing.BlackHold"/>; the wordmark starts a fraction of the
-        /// reveal later, so the mark arrives first and the wordmark resolves under it. Both end at the
-        /// same moment, which is the moment the hold begins.
         /// <para>
-        /// Presence and movement ride separate curves. The mark's opacity follows a curve that is soft
-        /// at both ends, which is what makes it bloom rather than appear; the wordmark's arrives
-        /// sooner and settles later, so it reads as resolving. The scale and the small rise behind both
-        /// are gentler still, and never overshoot: nothing here bounces.
+        /// The mark starts at <see cref="Timing.BlackHold"/> and takes <see cref="Timing.Reveal"/>; the
+        /// wordmark starts <see cref="Timing.WordmarkDelay"/> later and takes
+        /// <see cref="Timing.WordmarkReveal"/>, so the symbol establishes the identity and the wordmark
+        /// completes it. Both curves are ease-outs: they arrive promptly enough to feel deliberate and
+        /// settle softly enough to feel expensive, and neither overshoots — a bounce is the one thing
+        /// this sequence must not do.
+        /// </para>
+        /// <para>
+        /// Presence and movement ride separate curves. The mark's opacity follows a sine ease-out, the
+        /// gentlest of them; the wordmark's arrives on a slightly more decisive cubic. The scale and the
+        /// small rise behind both settle on a curve that is soft at both ends, and the movement is small
+        /// enough to be felt rather than watched.
         /// </para>
         /// </remarks>
         private static void RevealAt(float elapsed, bool wordmark,
                                      out float presence, out float scale, out float rise)
         {
-            float delay = wordmark ? Layout.RevealOverlap * Timing.Reveal : 0f;
-            float linear = Ramp(elapsed, Timing.BlackHold + delay, Timing.Reveal - delay);
+            float startsAt = Timing.BlackHold + (wordmark ? Timing.WordmarkDelay : 0f);
+            float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
+            float linear = Ramp(elapsed, startsAt, duration);
             float settle = EaseInOutSine(linear);
-            presence = wordmark ? EaseOutCubic(linear) : settle;
+            presence = wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
             scale = Mathf.Lerp(Layout.RevealScale, 1f, settle);
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
@@ -426,14 +514,90 @@ namespace Aether.Gameplay.Flow
         }
 
         /// <summary>
-        /// Draws one piece for one frame: presence is its opacity, scale its size, and rise how far
-        /// it has drifted up from its resting place, in safe-area heights.
+        /// Draws one piece for one frame: presence is its opacity, scale its size, rise how far it has
+        /// drifted up from its resting place in safe-area heights, and dim how far the light passing
+        /// over the lockup has taken it down. The dip belongs to the light, not to the piece: both are
+        /// given the same one, so the lockup dims as one picture.
         /// </summary>
-        private void Draw(Part part, float presence, float scale, float rise)
+        private void Draw(Part part, float presence, float scale, float rise, float dim)
         {
             if (part.Renderer == null) return;
-            part.Renderer.color = new Color(1f, 1f, 1f, Mathf.Clamp01(presence));
+            part.Renderer.color = new Color(dim, dim, dim, Mathf.Clamp01(presence));
             Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
+        }
+
+        // -- the light pass ------------------------------------------------------------------------
+
+        /// <summary>
+        /// Moves the light across the lockup for this frame, or takes it away when the pass is over.
+        /// </summary>
+        /// <remarks>
+        /// The crest starts off one side of the lockup and ends off the other, so the light arrives
+        /// from outside the logo rather than switching on over it, and the mask is rewritten only
+        /// while the pass is on screen. What is drawn is the artwork's own ink at its resting place:
+        /// the light's sprite is the lockup's box, placed by the same fit as the pieces, which is why
+        /// it lines up with them on every shape of screen without a second set of numbers.
+        /// </remarks>
+        private void DrawSheen(float elapsed)
+        {
+            if (_sheenRenderer == null) return;
+
+            float progress = Mathf.Clamp01((elapsed - Timing.SheenStartsAt) / Timing.SheenDuration);
+            if (progress <= 0f || progress >= 1f)
+            {
+                HideSheen();
+                return;
+            }
+
+            float crest = Mathf.Lerp(-Sheen.BandHalfWidth, 1f + Sheen.BandHalfWidth,
+                                     EaseInOutSine(progress));
+            float presence = EaseInOutSine(Mathf.Clamp01(progress / Sheen.EdgeFade)) *
+                             EaseInOutSine(Mathf.Clamp01((1f - progress) / Sheen.EdgeFade));
+
+            for (int i = 0; i < _sheenPixels.Length; i++)
+            {
+                float strength = _sheenMask[i] / 255f * SheenBand(_sheenAcross[i] - crest);
+                _sheenPixels[i].a = (byte)(Mathf.Clamp01(strength * presence * Sheen.HighlightPeak) * 255f);
+            }
+
+            _sheenTexture.SetPixels32(_sheenPixels);
+            _sheenTexture.Apply(false, false);
+            _sheenRenderer.color = new Color(1f, 1f, 1f, 1f);
+            Place(_sheenRenderer.transform, Vector2.zero, 1f, 0f);
+        }
+
+        /// <summary>
+        /// Takes the light off the screen, without rebuilding the mask: the still hold and the fade
+        /// must not carry a hidden layer that could show at the edge of a frame.
+        /// </summary>
+        private void HideSheen()
+        {
+            if (_sheenRenderer != null) _sheenRenderer.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        /// <summary>The band's own shape: full where it is centred, nothing at its edges.</summary>
+        private static float SheenBand(float distance)
+        {
+            float away = Mathf.Abs(distance) / Sheen.BandHalfWidth;
+            if (away >= 1f) return 0f;
+            return 0.5f * (1f + Mathf.Cos(Mathf.PI * away));
+        }
+
+        /// <summary>
+        /// How far the lockup is taken down at this moment, if the light is crossing it.
+        /// </summary>
+        /// <remarks>
+        /// The dip is what lets the pass read as light rather than as a change of colour: it is the
+        /// only way a highlight can be brighter than a logo that is already nearly white. It rises and
+        /// falls smoothly across the pass and is exactly 1.0 before it and after it, so the still hold
+        /// and every frame either side of the pass are the picture the rest of the sequence draws.
+        /// </remarks>
+        private static float SheenDim(float elapsed)
+        {
+            float progress = Mathf.Clamp01((elapsed - Timing.SheenStartsAt) / Timing.SheenDuration);
+            if (progress <= 0f || progress >= 1f) return 1f;
+            float bell = progress < 0.5f ? progress * 2f : (1f - progress) * 2f;
+            return Mathf.Lerp(1f, Sheen.DimWhilePassing, EaseInOutSine(bell));
         }
 
         /// <summary>
@@ -527,6 +691,94 @@ namespace Aether.Gameplay.Flow
                 _wordmarkSprite = BuildSprite(_generatedTexture, wordmarkBounds, source.pixelsPerUnit);
                 _wordmark = BuildPart("StudioWordmark", _wordmarkSprite, wordmarkBounds, lockupCentre);
             }
+
+            BuildSheen(coverage, width, lockup);
+        }
+
+        /// <summary>
+        /// Builds the mask the light travels across: the lockup's own ink, at the resolution a soft
+        /// gradient needs and no more.
+        /// </summary>
+        /// <remarks>
+        /// This is what keeps the pass on the logo. The mask is the same coverage the mark and the
+        /// wordmark are built from, so the light is bright where there is ink and completely absent
+        /// everywhere else — no band of grey crossing the black around the lockup, which is what an
+        /// unmasked highlight would be. It is sampled down because a gradient has no fine detail to
+        /// lose, and at a few hundred texels it costs a fraction of a megabyte and nothing measurable
+        /// per frame.
+        /// </remarks>
+        private void BuildSheen(byte[] coverage, int width, Bounds lockup)
+        {
+            Vector2 size = lockup.Size;
+            float scale = Mathf.Max(0.02f, Mathf.Min(Sheen.Resolution, MaxSheenTexels / Mathf.Max(size.x, size.y)));
+            int maskWidth = Mathf.Max(8, Mathf.RoundToInt(size.x * scale));
+            int maskHeight = Mathf.Max(8, Mathf.RoundToInt(size.y * scale));
+            int sourceWidth = Mathf.Max(1, Mathf.RoundToInt(size.x));
+            int sourceHeight = Mathf.Max(1, Mathf.RoundToInt(size.y));
+
+            _sheenMask = new byte[maskWidth * maskHeight];
+            _sheenAcross = new float[maskWidth * maskHeight];
+            _sheenPixels = new Color32[maskWidth * maskHeight];
+
+            for (int my = 0; my < maskHeight; my++)
+            {
+                int yFrom = Mathf.Clamp(my * sourceHeight / maskHeight, 0, sourceHeight - 1);
+                int yTo = Mathf.Clamp((my + 1) * sourceHeight / maskHeight, yFrom + 1, sourceHeight);
+                for (int mx = 0; mx < maskWidth; mx++)
+                {
+                    int xFrom = Mathf.Clamp(mx * sourceWidth / maskWidth, 0, sourceWidth - 1);
+                    int xTo = Mathf.Clamp((mx + 1) * sourceWidth / maskWidth, xFrom + 1, sourceWidth);
+
+                    int sum = 0;
+                    int count = 0;
+                    for (int y = yFrom; y < yTo; y++)
+                    {
+                        int row = (lockup.MinY + y) * width;
+                        for (int x = xFrom; x < xTo; x++)
+                        {
+                            sum += coverage[row + lockup.MinX + x];
+                            count++;
+                        }
+                    }
+
+                    int index = (my * maskWidth) + mx;
+                    _sheenMask[index] = (byte)(count == 0 ? 0 : sum / count);
+
+                    // Where the texel sits along the pass, and how far up the lockup it is: the band
+                    // crosses nearly level, leaning so its leading edge leads at the top.
+                    float across = mx / (float)Mathf.Max(1, maskWidth - 1);
+                    float up = my / (float)Mathf.Max(1, maskHeight - 1);
+                    _sheenAcross[index] = ((1f - Sheen.Tilt) * across) + (Sheen.Tilt * (1f - up));
+                    _sheenPixels[index] = new Color32(255, 255, 255, 0);
+                }
+            }
+
+            _sheenTexture = new Texture2D(maskWidth, maskHeight, TextureFormat.RGBA32, false)
+            {
+                name = _markResourcePath + " (studio intro sheen)",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _sheenTexture.SetPixels32(_sheenPixels);
+            _sheenTexture.Apply(false, false);
+
+            // The sprite is the lockup's own box. Its pixels-per-unit is scaled with the mask, so the
+            // same fit that places the mark and the wordmark places the light over them, at the size
+            // the lockup is drawn, and it keeps doing so on every shape of screen.
+            float texelsPerPixel = maskWidth / size.x;
+            _sheenSprite = Sprite.Create(_sheenTexture, new Rect(0f, 0f, maskWidth, maskHeight),
+                                         new Vector2(0.5f, 0.5f), _pixelsPerUnit * texelsPerPixel);
+            _sheenSprite.name = _markResourcePath + " (studio intro sheen)";
+            _sheenSprite.hideFlags = HideFlags.HideAndDontSave;
+
+            var host = new GameObject("StudioSheen");
+            host.transform.SetParent(_camera.transform, false);
+            _sheenRenderer = host.AddComponent<SpriteRenderer>();
+            _sheenRenderer.sprite = _sheenSprite;
+            _sheenRenderer.sortingOrder = 1001;   // the mark and the wordmark are at 1000
+            _sheenRenderer.color = new Color(1f, 1f, 1f, 0f);
+            host.hideFlags = HideFlags.HideAndDontSave;
         }
 
         /// <summary>True when the artwork carries its own transparency, rather than needing a key.</summary>
@@ -758,8 +1010,9 @@ namespace Aether.Gameplay.Flow
         /// <summary>Draws nothing, which is how the intro starts and how it ends.</summary>
         private void HideAll()
         {
-            Draw(_mark, 0f, 1f, 0f);
-            Draw(_wordmark, 0f, 1f, 0f);
+            Draw(_mark, 0f, 1f, 0f, 1f);
+            Draw(_wordmark, 0f, 1f, 0f, 1f);
+            HideSheen();
         }
 
         /// <summary>
@@ -774,13 +1027,22 @@ namespace Aether.Gameplay.Flow
             // disabled and invisible.
             if (_mark.Renderer != null) Destroy(_mark.Renderer.gameObject);
             if (_wordmark.Renderer != null) Destroy(_wordmark.Renderer.gameObject);
+            if (_sheenRenderer != null) Destroy(_sheenRenderer.gameObject);
 
             if (_markSprite != null) Destroy(_markSprite);
             if (_wordmarkSprite != null) Destroy(_wordmarkSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
+            if (_sheenSprite != null) Destroy(_sheenSprite);
+            if (_sheenTexture != null) Destroy(_sheenTexture);
             _markSprite = null;
             _wordmarkSprite = null;
             _generatedTexture = null;
+            _sheenSprite = null;
+            _sheenTexture = null;
+            _sheenRenderer = null;
+            _sheenPixels = null;
+            _sheenMask = null;
+            _sheenAcross = null;
             _mark = default;
             _wordmark = default;
         }
@@ -793,7 +1055,13 @@ namespace Aether.Gameplay.Flow
             return 1f - (inverse * inverse * inverse);
         }
 
-        /// <summary>A curve that starts and ends soft: the one the mark's arrival rides.</summary>
+        /// <summary>The gentlest ease-out: the one the mark's arrival rides.</summary>
+        private static float EaseOutSine(float t)
+        {
+            return Mathf.Sin(t * Mathf.PI * 0.5f);
+        }
+
+        /// <summary>A curve that starts and ends soft: what the settle, the dip and the light ride.</summary>
         private static float EaseInOutSine(float t)
         {
             return -(Mathf.Cos(Mathf.PI * t) - 1f) * 0.5f;
@@ -825,6 +1093,10 @@ namespace Aether.Gameplay.Flow
             }
 
             public bool Found => _maxX >= _minX && _maxY >= _minY;
+
+            public int MinX => _minX;
+
+            public int MinY => _minY;
 
             public Vector2 Size => new Vector2(_maxX - _minX + 1, _maxY - _minY + 1);
 
