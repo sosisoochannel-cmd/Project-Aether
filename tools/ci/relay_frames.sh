@@ -69,21 +69,6 @@ for f in $(find frames -name 'summary.txt' -o -name 'diagnostics.txt' | sort); d
   echo "::notice title=$(basename "$f")::$(tr '\r' '\n' < "$f" | awk 'NF' | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5600)"
 done
 
-# --- the whole frames, in parts small enough to be kept -------------------------------------------
-for name in intro-1.95s.png intro-1.35s.png intro-0.75s.png intro-2.45s.png; do
-  file=$(find frames -name "$name" | head -1)
-  [ -n "$file" ] || continue
-  b64=$(base64 -w0 "$file")
-  total=$(( (${#b64} + 3799) / 3800 ))
-  part=1
-  while [ -n "$b64" ]; do
-    echo "::notice title=Frame $name part $part/$total::$(printf '%s' "$b64" | cut -c1-3800)"
-    b64=${b64:3800}
-    part=$((part + 1))
-  done
-  add "sent $name in $total part(s), part 1 is the whole picture's first 3800 characters"
-done
-
 # --- and as links anyone can open ----------------------------------------------------------------
 hold=$(find frames -name 'intro-1.95s.png' | head -1)
 [ -n "$hold" ] || hold="${pngs[0]}"
@@ -123,3 +108,20 @@ if [ -n "$xurl" ]; then
     add "x0.at: link did not come back identical (http=$xcode, sha=$xsha, want=$want)"
   fi
 fi
+
+# --- and the hold frame's bytes, in parts, for anyone who cannot open a link ---------------
+# --- the whole frames, in parts small enough to be kept -------------------------------------------
+for name in intro-1.95s.png; do
+  file=$(find frames -name "$name" | head -1)
+  [ -n "$file" ] || continue
+  b64=$(base64 -w0 "$file")
+  total=$(( (${#b64} + 3799) / 3800 ))
+  part=1
+  while [ -n "$b64" ]; do
+    echo "::notice title=Frame $name part $part/$total::$(printf '%s' "$b64" | cut -c1-3800)"
+    b64=${b64:3800}
+    part=$((part + 1))
+  done
+  add "sent $name in $total part(s), part 1 is the whole picture's first 3800 characters"
+done
+

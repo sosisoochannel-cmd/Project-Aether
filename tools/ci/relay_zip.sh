@@ -6,18 +6,22 @@
 # APK is stored in it (not deflated), it is the only entry, and after upload the archive is
 # downloaded back, unpacked and hashed against the file that was uploaded.
 #
-# Why the artifact and not a release: the repository is private and its workflow token is currently
-# read-only, so the build job's "create a release" step is refused with "Resource not accessible by
-# integration" - but the APK itself was produced and verified, and it is in the run's artifact.
+# Why the artifact and not a release: the repository is private and its workflow token is read-only,
+# so the build job's "create a release" step is refused with "Resource not accessible by
+# integration" - but the APK itself is built, verified and uploaded by the build job, and that
+# artifact is what this takes.
 #
-# Run:  GITHUB_TOKEN=... EXPECT_SIZE=... EXPECT_SHA=... bash tools/ci/relay_zip.sh
+# Run:  GITHUB_TOKEN=... bash tools/ci/relay_zip.sh
+# Optional: RUN_ID or ARTIFACT_ID to pin, EXPECT_SIZE / EXPECT_SHA to override the recorded numbers.
 set -uo pipefail
 
 REPO="${GITHUB_REPOSITORY:-sosisoochannel-cmd/Project-Aether}"
+BRANCH="${GITHUB_REF_NAME:-arena/01a10203-project-aether}"
+ARTIFACT_ID="${ARTIFACT_ID:-}"
 RUN_ID="${RUN_ID:-}"
 EXPECT_SIZE="${EXPECT_SIZE:-}"
 EXPECT_SHA="${EXPECT_SHA:-}"
-UA="aether-zip-relay/3.0 (+https://github.com/$REPO)"
+UA="aether-zip-relay/4.0 (+https://github.com/$REPO)"
 API="https://api.github.com/repos/$REPO"
 
 say() { echo "$@"; }
@@ -28,66 +32,58 @@ short() { tr -d '\r\n' < "$1" 2>/dev/null | head -c "$2"; }
 hdr() { grep -i "^$2" "$1" 2>/dev/null | head -1 | tr -d '\r\n' | sed "s/$2: //I"; }
 auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json")
 
-# --- the build run whose APK is wanted ----------------------------------------------------------
-# The branch has to be named: the runs endpoint answers about the default branch otherwise, and every
-# build this session cares about is on the arena branch.
-BRANCH="${GITHUB_REF_NAME:-arena/01a10203-project-aether}"
-if [ -z "$RUN_ID" ]; then
-  code=$(curl -sS --max-time 60 -o runs.json -w '%{http_code}' "${auth[@]}" \
-         "$API/actions/workflows/android-build.yml/runs?status=completed&per_page=20&branch=$BRANCH" || echo 000)
-  RUN_ID=$(jq -r '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty' runs.json 2>/dev/null)
+# --- which APK: the newest one a build job actually produced -------------------------------------
+# Not the newest run that succeeded. A run is marked failed when its release step is refused - this
+# private repository's workflow token is read-only, so creating a release always is - even though
+# the build job inside it succeeded and uploaded its APK. The artifact is the honest evidence: it
+# exists only because a build job got as far as uploading what it built, and it names its run.
+if [ -z "$ARTIFACT_ID" ] && [ -z "$RUN_ID" ]; then
+  code=$(curl -sS --max-time 60 -o arts.json -w '%{http_code}' "${auth[@]}" \
+         "$API/actions/artifacts?name=Aether-dev-apk&per_page=30" || echo 000)
+  read -r ARTIFACT_ID ARTIFACT_NAME RUN_ID < <(jq -r '[.artifacts[] | select(.expired == false)]
+      | sort_by(.created_at) | last | "\(.id) \(.name) \(.workflow_run.id)"' arts.json 2>/dev/null)
 fi
-if [ -z "$RUN_ID" ]; then
-  add "build runs API: http=${code:-?}, body=$(short runs.json 600)"
+if [ -z "$ARTIFACT_ID" ] && [ -n "$RUN_ID" ]; then
+  branch_query=""
+  [ -n "$BRANCH" ] && branch_query="&branch=$BRANCH"
+  code=$(curl -sS --max-time 60 -o arts.json -w '%{http_code}' "${auth[@]}" \
+         "$API/actions/runs/$RUN_ID/artifacts?per_page=30$branch_query" || echo 000)
+  read -r ARTIFACT_ID ARTIFACT_NAME < <(jq -r '[.artifacts[] | select(.name | test("apk"; "i"))
+      | select(.size_in_bytes > 1000000)] | sort_by(.created_at) | last | "\(.id) \(.name)"' arts.json 2>/dev/null)
+fi
+if [ -z "$ARTIFACT_ID" ] || [ "$ARTIFACT_ID" = "null" ]; then
+  add "artifacts API: http=${code:-?}, body=$(short arts.json 600)"
   flush
-  printf '::error::no successful Android APK run to take an artifact from\n'
+  printf '::error::no APK artifact to publish\n'
   exit 1
 fi
-add "build run: $RUN_ID (branch $BRANCH)"
+add "APK artifact: $ARTIFACT_NAME ($ARTIFACT_ID) from build run $RUN_ID (branch $BRANCH)"
 
-# What that run said it built. The build job reports the APK's name, size and hash as an annotation
-# ("Release asset :: ... matches the build: yes"); reading it back means the relay checks the bytes
-# against the number the job that produced them recorded, instead of against a number typed here.
+# --- what that run said it built -----------------------------------------------------------------
+# The build job reports the APK's size and hash as an annotation ("Release asset :: ... matches the
+# build: yes"). Reading it back means the bytes are checked against the number recorded by the job
+# that produced them, not against a number typed in here. It sits on the release job, which is the
+# one whose step is refused, so every job of the run is asked rather than the first successful one.
 if [ -z "$EXPECT_SHA" ] || [ -z "$EXPECT_SIZE" ]; then
-  jid=$(curl -sS --max-time 60 "${auth[@]}" "$API/actions/runs/$RUN_ID/jobs" \
-        | jq -r '[.jobs[] | select(.conclusion == "success")] | first | .id // empty' 2>/dev/null)
-  if [ -n "$jid" ]; then
+  curl -sS --max-time 60 "${auth[@]}" "$API/actions/runs/$RUN_ID/jobs" -o jobs.json || true
+  for jid in $(jq -r '.jobs[].id' jobs.json 2>/dev/null); do
     curl -sS --max-time 60 "${auth[@]}" "$API/check-runs/$jid/annotations?per_page=100" -o ann.json || true
     ref=$(jq -r '[.[] | .message | select(test("Release asset ::"))] | first // empty' ann.json 2>/dev/null)
     if [ -n "$ref" ]; then
       [ -n "$EXPECT_SIZE" ] || EXPECT_SIZE=$(printf '%s' "$ref" | sed -n 's/.* - \([0-9][0-9]*\) bytes.*/\1/p')
       [ -n "$EXPECT_SHA" ] || EXPECT_SHA=$(printf '%s' "$ref" | sed -n 's/.*sha256 \([0-9a-f]\{64\}\).*/\1/p')
-      add "run $RUN_ID recorded: $(short ann.json 0)$(printf '%s' "$ref" | cut -c1-200)"
-    else
-      add "run $RUN_ID did not report its asset in an annotation (http=$(cat /dev/null; echo -))"
+      add "run $RUN_ID recorded: $(printf '%s' "$ref" | cut -c1-220)"
+      break
     fi
-  fi
+  done
+  [ -n "$EXPECT_SHA" ] || add "run $RUN_ID recorded no asset numbers; the ZIP check below still applies"
 fi
 
-# --- its APK artifact, fetched the way a runner can (the artifact lives on blob storage) --------
-# The listing needs actions:read on the job's token, which is why relay-apk.yml asks for it: a
-# workflow that names any permission gets none of the others, and without it this call answers 403
-# "Resource not accessible by integration" - which looks exactly like a run with no artifact unless
-# the response itself is reported. So the response is reported.
-code=$(curl -sS --max-time 120 -o artifacts.json -w '%{http_code}' "${auth[@]}" \
-       "$API/actions/runs/$RUN_ID/artifacts" || echo 000)
-artifact=$(jq -r '[.artifacts[] | select(.name | test("apk"; "i")) | select(.size_in_bytes > 1000000)]
-                  | sort_by(.created_at) | last | "\(.id) \(.name)"' artifacts.json 2>/dev/null)
-if [ -z "$artifact" ] || [ "$artifact" = "null" ]; then
-  add "artifacts API: http=$code, body=$(short artifacts.json 600)"
-  flush
-  printf '::error::run %s has no APK artifact\n' "$RUN_ID"
-  exit 1
-fi
-set -- $artifact
-ARTIFACT_ID="$1"
-ARTIFACT_NAME="$2"
-add "artifact: $ARTIFACT_NAME ($ARTIFACT_ID)"
-
+# --- the artifact itself -------------------------------------------------------------------------
 for attempt in 1 2 3; do
   curl -sSL --max-time 1800 --retry 3 --retry-all-errors "${auth[@]}" \
     -o artifact.zip "$API/actions/artifacts/$ARTIFACT_ID/zip" && break
-  say "artifact download attempt $attempt failed; retrying"
+  add "artifact download attempt $attempt failed; retrying"
   sleep 5
 done
 rm -rf unpacked && mkdir unpacked
@@ -105,16 +101,16 @@ APK_SHA=$(sha256sum "$APK" | awk '{print $1}')
 add "APK: $ASSET, $APK_SIZE bytes, sha256 $APK_SHA"
 
 if [ -n "$EXPECT_SHA" ] && [ "$APK_SHA" != "$EXPECT_SHA" ]; then
-  printf '::error::the artifact APK hashes %s, the build verified %s\n' "$APK_SHA" "$EXPECT_SHA"
+  printf '::error::the artifact APK hashes %s, the build reported %s\n' "$APK_SHA" "$EXPECT_SHA"
   exit 1
 fi
 if [ -n "$EXPECT_SIZE" ] && [ "$APK_SIZE" != "$EXPECT_SIZE" ]; then
-  printf '::error::the artifact APK is %s bytes, the build verified %s\n' "$APK_SIZE" "$EXPECT_SIZE"
+  printf '::error::the artifact APK is %s bytes, the build reported %s\n' "$APK_SIZE" "$EXPECT_SIZE"
   exit 1
 fi
-add "matches the hash and size the build job recorded for run $RUN_ID"
+[ -z "$EXPECT_SHA" ] || add "matches the size and hash the build run recorded for it"
 
-# --- the archive: one entry, the APK, stored -----------------------------------------------------
+# --- the archive: one entry, the APK, stored ------------------------------------------------------
 ZIPNAME="${ASSET%.apk}.zip"
 python3 - "$APK" "$ZIPNAME" <<'PY'
 import sys, zipfile
@@ -180,13 +176,11 @@ check() { # $1 label, $2 url
   got_size=$(stat -c %s "$out" 2>/dev/null || echo 0)
   got_sha=$(sha256sum "$out" 2>/dev/null | awk '{print $1}')
   inner=$(verify_zip "$out" "$APK_SHA" 2>&1)
-  if [ "$code" = 200 ] && [ "$got_size" = "$ZIP_SIZE" ] && [ "$got_sha" = "$ZIP_SHA" ] && [ "${inner##* }" = "$APK_SHA" ]; then
+  if [ "$code" = 200 ] && [ "$got_size" = "$ZIP_SIZE" ] && [ "$got_sha" = "$ZIP_SHA" ] && [ "${inner%% *}" = "$ASSET" ]; then
     add "$label: VERIFIED $url [zip ${got_size}B; inside: $inner; $(hdr "hdr-$1.txt" content-disposition)]"
     printf '%s|%s|%s|%s\n' "$label" "$url" "$got_size" "$inner" >> links.txt
-    if [ "$verified" -lt 6 ]; then
-      printf '::notice title=Verified %s::%s - %s bytes - contains %s - sha256 %s - downloaded back, unpacked, identical\n' \
-        "$label" "$url" "$ZIP_SIZE" "${inner% *}" "$APK_SHA"
-    fi
+    printf '::notice title=Verified %s::%s - %s bytes - contains %s - sha256 %s - downloaded back, unpacked, identical\n' \
+      "$label" "$url" "$ZIP_SIZE" "$ASSET" "$APK_SHA"
     verified=$((verified + 1))
     return 0
   fi
