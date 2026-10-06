@@ -1,6 +1,7 @@
 using Aether.Data.Levels;
 using Aether.Gameplay.Cameras;
 using Aether.Gameplay.Controls;
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
 using UnityEngine;
@@ -61,6 +62,9 @@ namespace Aether.Gameplay.Levels
         /// <summary>The on-screen controls, or null when the device has none.</summary>
         public TouchControlsView TouchControls { get; private set; }
 
+        /// <summary>The region's interface and run state, or null before boot.</summary>
+        public GameplayShell Shell { get; private set; }
+
         private void Start()
         {
             if (_bootOnStart) Boot();
@@ -75,6 +79,12 @@ namespace Aether.Gameplay.Levels
         {
             if (Level != null) return;
 
+            // The cover goes up before a single byte of level data is read. Everything below this
+            // line is work the player should not watch happen — parsing, geometry, enemies, the
+            // player, the camera — and the rule the product is held to is that the screen is never
+            // empty: not on the way in, not on the way out, and not when something fails.
+            GameplayCurtain.Hold("loading.title", "loading.region");
+
             // One way to get a session, which is also the thing that installs the store progress
             // is written to. This used to build one here and never load anything into it, so a
             // restart began from scratch however much the player had done.
@@ -82,12 +92,23 @@ namespace Aether.Gameplay.Levels
 
             LevelContent content = LevelContent.Load();
             LevelData data = LoadLevelData();
-            if (data == null || content.PlayerTuning == null) return;
+            if (data == null || content.PlayerTuning == null)
+            {
+                // Nothing to play, and saying so is the whole job now. The curtain becomes the
+                // failure screen with a real way back to the menu on it.
+                GameplayCurtain.Fail(
+                    "The region could not start: the level data or the content catalogue did not " +
+                    "load. There is no playable level in this build configuration.");
+                return;
+            }
 
             Level = LevelRuntimeBuilder.Build(data, content, transform, _buildGeometry);
             if (Level.PlayerStartFeet == Vector2.zero && data.PlayerStart == null)
             {
                 Debug.LogError($"Level '{data.Id}' has no player start; nothing can be spawned.", this);
+                GameplayCurtain.Fail(
+                    $"Level '{data.Id}' has no player start, so there is nowhere to put the player. " +
+                    "This is a level data problem, not something the player did.");
                 return;
             }
 
@@ -108,6 +129,13 @@ namespace Aether.Gameplay.Levels
             directorHost.transform.SetParent(transform, false);
             Director = directorHost.AddComponent<LevelDirector>();
             Director.Initialize(_session, Level, player, follow);
+
+            // The region's own interface, and the thing that makes this a session rather than a
+            // level: objective, counters, pause, the clock that the run's playtime comes from, and
+            // the summary at the end of it.
+            Shell = GameplayShell.Attach(_session, Level, Director, player, TouchControls);
+            Shell.transform.SetParent(transform, false);
+            Shell.Reveal();
         }
 
         private LevelData LoadLevelData()

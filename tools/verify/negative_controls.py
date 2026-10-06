@@ -40,6 +40,10 @@ PLAYER_MOTOR = f"{CODE}/Aether.Gameplay/Runtime/Player/PlayerMotor.cs"
 MENU_FLOW_TESTS = f"{CODE}/Aether.Tests.PlayMode/Tests/MenuFlowTests.cs"
 PLACEHOLDER = f"{CODE}/Aether.Gameplay/Runtime/Support/PlaceholderVisuals.cs"
 MENU_BUTTON = f"{MENUS}/Components/MenuButton.cs"
+INTERFACE = f"{CODE}/Aether.Gameplay/Runtime/Interface"
+INTERFACE_HUD = f"{INTERFACE}/GameplayHud.cs"
+INTERFACE_PAUSE = f"{INTERFACE}/GameplayPause.cs"
+INTERFACE_SHELL = f"{INTERFACE}/GameplayShell.cs"
 THEME = f"{MENUS}/MenuTheme.cs"
 CATALOG = f"{CODE}/Aether.Core/Runtime/Settings/SettingsCatalog.cs"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
@@ -169,6 +173,7 @@ def empty_folder(root: str):
 
 def controls() -> list[Control]:
     gate = ["python3", "tools/verify/verify.py"]
+    strings = ["python3", "tools/verify/localization.py"]
     solver = ["python3", "tools/verify/levelcheck.py"]
     intro = ["python3", "tools/verify/intro.py"]
     menu = ["python3", "tools/verify/mainmenu.py"]
@@ -890,6 +895,67 @@ def controls() -> list[Control]:
             lambda root: edit(root, CATALOG,
                               '\"setting.haptics.help\"', '\"setting.haptics.helpx\"'),
             ["no 'setting.haptics.helpx'"]),
+        Control(
+            "gameplay: the region's strip shows a literal instead of a key",
+            menu,
+            lambda root: edit(root, INTERFACE_HUD,
+                              'MenuButton.Create("Pause", parent, MenuStrings.Get("hud.pause"),',
+                              'MenuButton.Create("Pause", parent, "PAUSE",'),
+            ["shows the literal"]),
+        Control(
+            "gameplay: the pause menu asks for a string key the table does not hold",
+            menu,
+            lambda root: edit(root, INTERFACE_PAUSE,
+                              'MenuStrings.Get("pause.resume")',
+                              'MenuStrings.Get("pause.resumee")'),
+            ["which the string table does not hold"]),
+        Control(
+            "gameplay: the region's shell searches the scene every frame",
+            menu,
+            lambda root: edit(root, INTERFACE_SHELL,
+                              "            _clock += Time.unscaledDeltaTime;",
+                              "            _clock += Time.unscaledDeltaTime;\n"
+                              "            var _ = Camera.main;"),
+            ["a per-frame search or allocation"]),
+        Control(
+            "gameplay: a second place in the region loads a scene",
+            menu,
+            lambda root: edit(root, INTERFACE_SHELL,
+                              "            ReadPauseKey();",
+                              "            ReadPauseKey();\n"
+                              "            if (UnityEngine.SceneManagement.SceneManager."
+                              "GetActiveScene().name == \"never\") return;"),
+            ["scene loading happens in"]),
+        Control(
+            "localization: a generated table ends its last argument like an initialiser",
+            # The build caught this one before any tool did: brackets balance, and the file still
+            # does not compile. The generator now refuses to write it, and this proves it refuses.
+            ["python3", "tools/verify/localization.py", "--write"],
+            lambda root: edit(root, "tools/verify/localization.py",
+                              'comma = "," if index + 1 < len(pairs) else ""',
+                              'comma = "," if index + 1 < len(pairs) else ";"'),
+            ["has a ';' between its arguments"]),
+        Control(
+            "localization: a translation drops a placeholder English has",
+            strings,
+            lambda root: edit(root, "tools/localization/strings_es.txt",
+                              "menu.slots.used={0} DE {1} RANURAS USADAS",
+                              "menu.slots.used={0} RANURAS USADAS"),
+            ["placeholders do not match English"]),
+        Control(
+            "localization: a sheet invents a key English does not have",
+            strings,
+            lambda root: edit(root, "tools/localization/strings_es.txt",
+                              "menu.title=PROJECT AETHER",
+                              "menu.title=PROJECT AETHER\nmenu.titulo=PROYECTO AETHER"),
+            ["key(s) that English does not have"]),
+        Control(
+            "localization: a sheet is left incomplete",
+            strings,
+            lambda root: edit(root, "tools/localization/strings_es.txt",
+                              "ach.unbroken.body=Llega a la salida norte sin morir ni una vez.\n",
+                              ""),
+            ["not translated"]),
         Control(
             "mainmenu: a legitimate change to the composition is silent",
             menu,

@@ -143,16 +143,16 @@ def sheet(code: str) -> "list[tuple[str, str]]":
             continue
 
         if "=" not in stripped:
-            raise SystemExit("localization: %s:%d has no '=' in it" % (path, number))
+            raise Refused("localization: %s:%d has no '=' in it" % (path, number))
 
         key, _, text = stripped.partition("=")
         key = key.strip()
         text = text.strip()
 
         if not text:
-            raise SystemExit("localization: %s:%d is empty; delete the line instead" % (path, number))
+            raise Refused("localization: %s:%d is empty; delete the line instead" % (path, number))
         if key in seen:
-            raise SystemExit("localization: %s:%d repeats the key '%s'" % (path, number, key))
+            raise Refused("localization: %s:%d repeats the key '%s'" % (path, number, key))
         seen.add(key)
         pairs.append((key, text))
 
@@ -190,8 +190,10 @@ def render_table(code: str, pairs: "list[tuple[str, str]]") -> str:
     lines.append("    internal static class %s" % class_name)
     lines.append("    {")
     lines.append("        internal static readonly Strings Table = Strings.Of(")
+    # A comma after every pair but the last: these are the arguments of one call, not the entries
+    # of an initialiser, and a ';' on the last one is a compile error in a file nobody edits by hand.
     for index, (key, text) in enumerate(pairs):
-        comma = "," if index + 1 < len(pairs) else ";"
+        comma = "," if index + 1 < len(pairs) else ""
         lines.append('            "%s", "%s"%s' % (escape(key), escape(text), comma))
     lines.append("        );")
     lines.append("    }")
@@ -235,6 +237,42 @@ def render_registry(codes: "list[str]") -> str:
     lines.append("")
 
     return "\n".join(lines)
+
+
+class Refused(Exception):
+    """Raised when the tool will not write something it can see is wrong."""
+
+
+def validate_table(code: str, text: str) -> None:
+    """Refuses to write a table that is not the shape of a C# call it claims to be.
+
+    A compiler is the real judge and this is not one. What it does catch is the mistake that
+    actually happened: an argument list whose last entry was terminated like an initialiser's,
+    which is a syntax error in every version of C# and which the bracket counter cannot see,
+    because the brackets still balance. The build found it; this finds it here.
+    """
+    lines = [line for line in text.splitlines() if line.strip()]
+
+    if not lines or lines[-1] != "}":
+        raise Refused("localization: %s does not end with a closing brace" % code)
+    if lines[-2] != "    }":
+        raise Refused("localization: %s does not close its class" % code)
+    if lines[-3] != "        );":
+        raise Refused("localization: %s does not close its Strings.Of( call" % code)
+
+    # Everything between the opening call and its close is the argument list. Semicolons inside the
+    # strings are punctuation; only the code between the arguments is judged, so the literals come
+    # out first, and a Spanish sentence with a ';' in it cannot stop a table being written.
+    body = text.split("Strings.Of(", 1)
+    if len(body) != 2:
+        raise Refused("localization: %s does not open a Strings.Of( call" % code)
+
+    arguments = body[1].rsplit("        );", 1)[0]
+    code_only = re.sub(r'"(?:[^"\\]|\\.)*"', '""', arguments)
+    if ";" in code_only:
+        raise Refused("localization: %s has a ';' between its arguments" % code)
+    if '"' not in arguments:
+        raise Refused("localization: %s has no strings in it at all" % code)
 
 
 def table_path(code: str) -> str:
@@ -310,8 +348,18 @@ def main() -> int:
             os.makedirs(TABLE_DIR)
 
         for code, pairs in generated:
+            rendered = render_table(code, pairs)
+            try:
+                validate_table(code, rendered)
+            except Refused as refused:
+                # Printed to stdout rather than raised: the message is what CI and the control
+                # harness read, and a traceback on stderr is not a readable failure.
+                print("FAIL " + str(refused))
+                print("localization: refused to write a table that would not compile")
+                return 1
+
             with open(table_path(code), "w", encoding="utf-8") as handle:
-                handle.write(render_table(code, pairs))
+                handle.write(rendered)
             print("wrote %s" % os.path.relpath(table_path(code), ROOT))
 
         registry = os.path.join(TABLE_DIR, "StringsTables.cs")

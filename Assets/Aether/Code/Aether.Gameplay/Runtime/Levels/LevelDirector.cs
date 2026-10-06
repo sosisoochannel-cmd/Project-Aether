@@ -96,10 +96,53 @@ namespace Aether.Gameplay.Levels
         {
             if (_player == null) return;
 
+            // The run counts its own deaths: the achievement for never falling, the pause menu's
+            // summary and the save file's meta line all read this number, and a death that is not
+            // counted here is a death the game forgets.
+            if (_session != null) _session.RecordDeath();
+
             // Control is removed immediately: an input that arrives during the death beat must not
             // queue a jump that fires the instant the player is back on their feet.
             _player.InputEnabled = false;
             _respawnAt = Time.time + RespawnDelay;
+        }
+
+        /// <summary>
+        /// Begins the region again from its own start, with every encounter restored.
+        /// </summary>
+        /// <remarks>
+        /// The pause menu's restart. It reuses the respawn path deliberately — the same enemy reset,
+        /// the same checkpoint rearm, the same camera snap — and differs in one thing: where the
+        /// player lands. A respawn returns them to the checkpoint they lit; a restart returns them to
+        /// where the region begins, which is the only reading of "restart" that is not a no-op.
+        /// </remarks>
+        public void RestartRegion()
+        {
+            if (_player == null || _built == null) return;
+
+            RespawnFeet = _built.PlayerStartFeet;
+
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i] != null) _enemies[i].ResetForSpawn(_enemyFeet[i]);
+            }
+
+            for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();
+
+            // A find the player already took stays taken: it is recorded in the save file, and a
+            // restart that let them collect it twice would make the collection's count a lie.
+            for (int i = 0; i < _built.Discoveries.Count; i++)
+            {
+                DiscoveryTrigger discovery = _built.Discoveries[i];
+                if (discovery != null && discovery.AlreadyRecorded) discovery.gameObject.SetActive(false);
+            }
+
+            _respawnAt = float.NegativeInfinity;
+            float halfHeight = _player.Tuning != null ? _player.Tuning.BodyHeight * 0.5f : 0.7f;
+            _player.ResetForRespawn(RespawnFeet + new Vector2(0f, halfHeight));
+            _player.InputEnabled = true;
+
+            if (_camera != null) _camera.SnapToTarget();
         }
 
         /// <summary>

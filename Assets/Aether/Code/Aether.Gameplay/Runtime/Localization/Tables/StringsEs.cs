@@ -279,7 +279,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.coverage", "{0} · {1} DE {2} TEXTOS",
             "language.coverage.label", "TRADUCCIÓN",
             "language.coverage.note", "Cuánto de la interfaz cubre este idioma. Un texto que falta cae al inglés en lugar de quedarse en blanco.",
-            "language.offered.count", "{0} DE {1} IDIOMAS OFRECIDOS";
+            "language.offered.count", "{0} DE {1} IDIOMAS OFRECIDOS"
         );
     }
 }

@@ -2,8 +2,6 @@ using Aether.Gameplay.Localization;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Settings;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 
 namespace Aether.Gameplay.Menus
 {
@@ -81,7 +79,9 @@ namespace Aether.Gameplay.Menus
 
             _backdrop = MenuBackdrop.Create(_canvas.Root);
 
-            EnsureEventSystem();
+            // One event system for the whole game: the menu and the region both build interface, and
+            // both need the Input System's module. See Presentation.UiEventSystem.
+            UiEventSystem.Ensure();
 
             _input = MenuInput.Create(transform);
             _system = MenuSystem.Create(_canvas, _input);
@@ -185,29 +185,5 @@ namespace Aether.Gameplay.Menus
             if (_system != null) _system.RequestRebuild();
         }
 
-        /// <summary>
-        /// Finds the scene's event system, or makes one, and makes sure it speaks the Input System.
-        /// </summary>
-        private static EventSystem EnsureEventSystem()
-        {
-            EventSystem events = EventSystem.current;
-            if (events == null)
-            {
-                var host = new GameObject("Event System");
-                events = host.AddComponent<EventSystem>();
-            }
-
-            // A legacy module in the same scene would fight this one for every event, and on an
-            // Input System Only project it also throws the first time it reads a key.
-            StandaloneInputModule legacy = events.GetComponent<StandaloneInputModule>();
-            if (legacy != null) Destroy(legacy);
-
-            if (events.GetComponent<InputSystemUIInputModule>() == null)
-            {
-                events.gameObject.AddComponent<InputSystemUIInputModule>();
-            }
-
-            return events;
-        }
     }
 }

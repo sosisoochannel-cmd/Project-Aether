@@ -32,6 +32,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 GAMEPLAY = "Assets/Aether/Code/Aether.Gameplay/Runtime"
 MENUS = f"{GAMEPLAY}/Menus"
 SCREENS = f"{MENUS}/Screens"
+
+# What the player reads while they are playing, held to the menu's own rules: real string keys,
+# no per-frame searches, and no second way to load a scene or quit the game.
+INTERFACE = f"{GAMEPLAY}/Interface"
 PRESENTATION = f"{GAMEPLAY}/Presentation"
 
 THEME = f"{MENUS}/MenuTheme.cs"
@@ -427,7 +431,8 @@ def check_localisation(gate: Gate) -> None:
     """No screen holds a sentence: every visible string is a key."""
     table = read(STRINGS)
     files = []
-    for folder in (MENUS, f"{MENUS}/Panels", f"{MENUS}/Components", f"{MENUS}/Widgets", SCREENS):
+    for folder in (MENUS, f"{MENUS}/Panels", f"{MENUS}/Components", f"{MENUS}/Widgets", SCREENS,
+                   INTERFACE):
         for name in sorted(os.listdir(os.path.join(REPO_ROOT, folder))):
             if name.endswith(".cs"):
                 files.append(f"{folder}/{name}")
@@ -549,14 +554,24 @@ def check_discipline(gate: Gate) -> None:
     """No per-frame searches, no second transition system, no scattered persistence."""
     menu_files = []
     for folder in (MENUS, f"{MENUS}/Panels", f"{MENUS}/Components", f"{MENUS}/Widgets", SCREENS,
-                   PRESENTATION):
+                   PRESENTATION, INTERFACE):
         for name in sorted(os.listdir(os.path.join(REPO_ROOT, folder))):
             if name.endswith(".cs"):
                 menu_files.append(f"{folder}/{name}")
 
-    # Per frame: only two components are allowed to have a per-frame callback at all — the menu
-    # root, which compares one size and copies one bool, and the backdrop, which drifts.
-    allowed_frame_callbacks = {ROOT: ("LateUpdate",), f"{PRESENTATION}/MenuBackdrop.cs": ("Update",)}
+    # Per frame: five components are allowed a per-frame callback, and each one is named here with
+    # the work it does. The menu root compares one size and copies one bool; the backdrop drifts;
+    # the region's shell reads one key and adds one float to a clock; the region's strip compares one
+    # rect and retires a toast; the pause overlay does nothing at all until a "SAVED" note needs
+    # retiring. Everything else in the interface is event-driven, and a sixth entry here is a
+    # decision rather than an oversight.
+    allowed_frame_callbacks = {
+        ROOT: ("LateUpdate",),
+        f"{PRESENTATION}/MenuBackdrop.cs": ("Update",),
+        f"{INTERFACE}/GameplayShell.cs": ("Update",),
+        f"{INTERFACE}/GameplayHud.cs": ("Update",),
+        f"{INTERFACE}/GameplayPause.cs": ("Update",),
+    }
     forbidden = ("GetComponent", "FindAnyObjectByType", "FindFirstObjectByType", "FindObjectOfType",
                  "Instantiate", "Destroy(", "new GameObject", "Camera.main", "Resources.Load",
                  "PlayerPrefs", "SceneManager", "AudioMixer")

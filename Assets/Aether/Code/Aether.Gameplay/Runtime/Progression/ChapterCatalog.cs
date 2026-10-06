@@ -51,11 +51,23 @@ namespace Aether.Gameplay.Progression
         /// <summary>Resource path of the level, without extension, or null when not in the build.</summary>
         public readonly string LevelPath;
 
+        /// <summary>
+        /// Localisation key of what the chapter asks the player to do, or null when it asks nothing.
+        /// </summary>
+        /// <remarks>
+        /// The objective is part of the chapter rather than of the level, because it is the thing the
+        /// region's interface says out loud and the thing completion is measured against. The body
+        /// line the strip shows under it is this key with <c>.body</c> appended, so a chapter's
+        /// objective is one string and one explanation rather than a special case per region.
+        /// </remarks>
+        public readonly string ObjectiveId;
+
         /// <summary>Where the chapter stands.</summary>
         public readonly ChapterAvailability Availability;
 
         public ChapterDefinition(string id, string titleKey, string subtitleKey, string bodyKey,
-                                 string levelPath, ChapterAvailability availability)
+                                 string levelPath, ChapterAvailability availability,
+                                 string objectiveId = null)
         {
             Id = id;
             TitleKey = titleKey;
@@ -63,6 +75,7 @@ namespace Aether.Gameplay.Progression
             BodyKey = bodyKey;
             LevelPath = levelPath;
             Availability = availability;
+            ObjectiveId = objectiveId;
         }
 
         /// <summary>True when this chapter can be started.</summary>
@@ -99,7 +112,8 @@ namespace Aether.Gameplay.Progression
                 "chapter.greenway.subtitle",
                 "chapter.greenway.body",
                 "Levels/region1.greenway.level",
-                ChapterAvailability.Playable),
+                ChapterAvailability.Playable,
+                "objective.greenway.exit"),
 
             new ChapterDefinition(
                 "hollow",

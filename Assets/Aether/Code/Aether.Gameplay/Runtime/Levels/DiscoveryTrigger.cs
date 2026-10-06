@@ -61,7 +61,12 @@ namespace Aether.Gameplay.Levels
             if (session == null) return;
 
             Found = true;
-            session.SetWorldFlag(_entity.Flag);
+
+            // Recorded as a find rather than only as a world flag: the flag is what the level and the
+            // save agree on, and the collection entry is what the collection screen lists. Recording
+            // both here is what keeps the counter in the strip and the list in the menu from ever
+            // disagreeing about how many secrets the region holds.
+            session.RecordFinding(_entity.Flag, _entity.Id);
 
             // The find is hidden once taken, so a player who comes back does not read a second,
             // emptier secret sitting where the first one was.
