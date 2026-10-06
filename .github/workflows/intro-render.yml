@@ -190,6 +190,12 @@ jobs:
           total=$(printf '%s' "$results" | grep -o 'total="[0-9]*"' | head -1 | grep -o '[0-9]*' || echo "?")
           frames=$(ls IntroRender/*-small.png 2>/dev/null | wc -l)   # one per moment, not per copy
           echo "::notice title=Verdict::tests total=$total failed=$failed, frames written=$frames"
+          if [ -z "$results" ]; then
+            # No results file at all means the editor never got as far as running the tests - a
+            # compilation error, a licence, a crash. Saying "? test(s) failed" would hide that.
+            echo "::error::no test results were produced; the editor did not get as far as running the tests (see the log signals above)"
+            exit 1
+          fi
           if [ "$failed" != "0" ]; then
             # Why it failed, in the runner's own words, so the next run does not have to guess.
             why=$(printf '%s' "$results" | tr '\r' '\n' \

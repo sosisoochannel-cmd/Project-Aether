@@ -133,12 +133,12 @@ namespace Aether.Tests.PlayMode
                 Note($"root objects: {DescribeRoots(scene)}");
 
                 stage = "find the intro";
-                StudioIntroSequence intro = Object.FindFirstObjectByType<StudioIntroSequence>();
+                StudioIntroSequence intro = UnityEngine.Object.FindFirstObjectByType<StudioIntroSequence>();
                 if (intro == null)
                 {
                     // A component on an inactive object is still the intro, and a scene loaded for a
                     // test may have arrived that way; look again including what is switched off.
-                    intro = Object.FindAnyObjectByType<StudioIntroSequence>(FindObjectsInactive.Include);
+                    intro = UnityEngine.Object.FindAnyObjectByType<StudioIntroSequence>(FindObjectsInactive.Include);
                     Note(intro == null
                         ? "no StudioIntroSequence on an active or inactive object"
                         : "the StudioIntroSequence is on an inactive object");
@@ -147,6 +147,8 @@ namespace Aether.Tests.PlayMode
                 Note($"Camera.main: {(Camera.main == null ? "none" : Camera.main.name + " (" + Camera.main.orthographicSize.ToString("0.###", CultureInfo.InvariantCulture) + " half-height)")}");
                 Note($"Resources.Load<Sprite>('Brand/VarellonLogo'): "
                      + (Resources.Load<Sprite>("Brand/VarellonLogo") == null ? "returned nothing" : "ok"));
+                Note($"safe area {Describe(Screen.safeArea)} of {Screen.width}x{Screen.height}");
+                DescribeSprites(intro);
 
                 Assert.That(intro, Is.Not.Null,
                             "the intro scene has no StudioIntroSequence, so it can only show black. "
@@ -178,7 +180,7 @@ namespace Aether.Tests.PlayMode
                 // This test is about what the intro draws, not about what Boot does afterwards: taking
                 // the component out stops the hand-over and leaves the measurement above standing.
                 stage = "stop the hand-over";
-                Object.Destroy(intro);
+                UnityEngine.Object.Destroy(intro);
                 yield return null;
 
                 Frame hold = frames[2];
@@ -300,6 +302,45 @@ namespace Aether.Tests.PlayMode
             }
 
             return roots.Length == 0 ? "(none)" : text.ToString();
+        }
+
+        private static string Describe(Rect rect)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0:0.#},{1:0.#} {2:0.#}x{3:0.#}",
+                                 rect.x, rect.y, rect.width, rect.height);
+        }
+
+        /// <summary>
+        /// What the intro actually put on screen, as opposed to what its numbers say: the renderers
+        /// it built, how big they are and whether they are switched on. A lockup drawn at zero size
+        /// or never given a renderer looks exactly like a lockup that never arrived.
+        /// </summary>
+        private static void DescribeSprites(StudioIntroSequence intro)
+        {
+            var seen = new List<SpriteRenderer>();
+            seen.AddRange(intro.GetComponentsInChildren<SpriteRenderer>(true));
+            if (Camera.main != null)
+            {
+                SpriteRenderer[] onCamera = Camera.main.GetComponentsInChildren<SpriteRenderer>(true);
+                for (int i = 0; i < onCamera.Length; i++)
+                {
+                    if (!seen.Contains(onCamera[i])) seen.Add(onCamera[i]);
+                }
+            }
+
+            Note($"sprites in play: {seen.Count}");
+            for (int i = 0; i < seen.Count; i++)
+            {
+                SpriteRenderer renderer = seen[i];
+                Note(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "  {0}: enabled={1}, active={2}, colour={3:0.##}, size {4:0.###}x{5:0.###} world, "
+                    + "centre {6:0.###},{7:0.###}, sprite {8}",
+                    renderer.name, renderer.enabled, renderer.gameObject.activeInHierarchy,
+                    renderer.color.a, renderer.bounds.size.x, renderer.bounds.size.y,
+                    renderer.transform.position.x, renderer.transform.position.y,
+                    renderer.sprite == null ? "none" : $"{renderer.sprite.rect.width}x{renderer.sprite.rect.height}"));
+            }
         }
 
         private static void Remember(string message, string stack, LogType type)
@@ -500,7 +541,7 @@ namespace Aether.Tests.PlayMode
                     int width = screen.width;
                     int height = screen.height;
                     byte[] png = Encode(pixels, width, height);
-                    Object.Destroy(screen);
+                    UnityEngine.Object.Destroy(screen);
                     return new Shot(pixels, width, height, png, "screen capture");
                 }
 
@@ -508,7 +549,7 @@ namespace Aether.Tests.PlayMode
                 {
                     Note($"ScreenCapture returned {screen.width}x{screen.height}, too small to measure; "
                          + "rendering the camera into a texture instead");
-                    Object.Destroy(screen);
+                    UnityEngine.Object.Destroy(screen);
                 }
 
                 return FromCamera();
@@ -548,7 +589,7 @@ namespace Aether.Tests.PlayMode
                     texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
                     texture.Apply(false, false);
                     pixels = texture.GetPixels32();
-                    Object.Destroy(texture);
+                    UnityEngine.Object.Destroy(texture);
                 }
                 finally
                 {
@@ -567,7 +608,7 @@ namespace Aether.Tests.PlayMode
                 texture.SetPixels32(pixels);
                 texture.Apply(false, false);
                 byte[] png = ImageConversion.EncodeToPNG(texture);
-                Object.Destroy(texture);
+                UnityEngine.Object.Destroy(texture);
                 return png;
             }
 
