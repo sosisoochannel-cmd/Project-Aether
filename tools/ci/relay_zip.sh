@@ -29,9 +29,12 @@ hdr() { grep -i "^$2" "$1" 2>/dev/null | head -1 | tr -d '\r\n' | sed "s/$2: //I
 auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json")
 
 # --- the build run whose APK is wanted ----------------------------------------------------------
+# The branch has to be named: the runs endpoint answers about the default branch otherwise, and every
+# build this session cares about is on the arena branch.
+BRANCH="${GITHUB_REF_NAME:-arena/01a10203-project-aether}"
 if [ -z "$RUN_ID" ]; then
   code=$(curl -sS --max-time 60 -o runs.json -w '%{http_code}' "${auth[@]}" \
-         "$API/actions/workflows/android-build.yml/runs?status=completed&per_page=10" || echo 000)
+         "$API/actions/workflows/android-build.yml/runs?status=completed&per_page=20&branch=$BRANCH" || echo 000)
   RUN_ID=$(jq -r '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty' runs.json 2>/dev/null)
 fi
 if [ -z "$RUN_ID" ]; then
@@ -40,7 +43,26 @@ if [ -z "$RUN_ID" ]; then
   printf '::error::no successful Android APK run to take an artifact from\n'
   exit 1
 fi
-add "build run: $RUN_ID"
+add "build run: $RUN_ID (branch $BRANCH)"
+
+# What that run said it built. The build job reports the APK's name, size and hash as an annotation
+# ("Release asset :: ... matches the build: yes"); reading it back means the relay checks the bytes
+# against the number the job that produced them recorded, instead of against a number typed here.
+if [ -z "$EXPECT_SHA" ] || [ -z "$EXPECT_SIZE" ]; then
+  jid=$(curl -sS --max-time 60 "${auth[@]}" "$API/actions/runs/$RUN_ID/jobs" \
+        | jq -r '[.jobs[] | select(.conclusion == "success")] | first | .id // empty' 2>/dev/null)
+  if [ -n "$jid" ]; then
+    curl -sS --max-time 60 "${auth[@]}" "$API/check-runs/$jid/annotations?per_page=100" -o ann.json || true
+    ref=$(jq -r '[.[] | .message | select(test("Release asset ::"))] | first // empty' ann.json 2>/dev/null)
+    if [ -n "$ref" ]; then
+      [ -n "$EXPECT_SIZE" ] || EXPECT_SIZE=$(printf '%s' "$ref" | sed -n 's/.* - \([0-9][0-9]*\) bytes.*/\1/p')
+      [ -n "$EXPECT_SHA" ] || EXPECT_SHA=$(printf '%s' "$ref" | sed -n 's/.*sha256 \([0-9a-f]\{64\}\).*/\1/p')
+      add "run $RUN_ID recorded: $(short ann.json 0)$(printf '%s' "$ref" | cut -c1-200)"
+    else
+      add "run $RUN_ID did not report its asset in an annotation (http=$(cat /dev/null; echo -))"
+    fi
+  fi
+fi
 
 # --- its APK artifact, fetched the way a runner can (the artifact lives on blob storage) --------
 # The listing needs actions:read on the job's token, which is why relay-apk.yml asks for it: a

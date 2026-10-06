@@ -20,26 +20,39 @@ on:
 # so this job has to ask for it explicitly.
 permissions:
   actions: read
+  checks: read
   contents: read
 
 jobs:
   relay:
-    name: Zip the published APK and verify what is inside
+    name: Zip the newest built APK and verify what is inside
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
-      # The numbers the build job itself recorded for run 37440861973 ("matches the build: yes").
-      # The relay refuses to publish if the artifact it fetched is not that exact file.
+      # No pinned run: the script takes the newest successful Android build on this branch, and reads
+      # the size and hash that run recorded for its own APK. Nothing here to keep in step by hand.
       - name: Publish the ZIP and hash the APK inside it back
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: '37440861973'
-          EXPECT_SIZE: '53220967'
-          EXPECT_SHA: '4759755ec422986d3734be68551ffe35dc0329b1fc8050ed1e29aecaaa27ca73'
         run: bash tools/ci/relay_zip.sh
+
+  frames:
+    name: Hand the rendered intro frames over
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Each frame comes out as numbered parts of base64, because GitHub keeps only about 4 KB of an
+      # annotation, and as two ordinary image links verified by downloading them back.
+      - name: Fetch the newest render artifact and send the frames
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/ci/relay_frames.sh
 
       - name: Keep the links in the run, as a file
         if: always()
