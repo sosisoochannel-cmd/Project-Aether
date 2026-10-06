@@ -33,6 +33,8 @@ PLAYER_SETTINGS = "ProjectSettings/ProjectSettings.asset"
 BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
 BRAND_DIR = "Assets/Aether/Resources/Brand"
 MENUS = f"{CODE}/Aether.Gameplay/Runtime/Menus"
+CAMERA_FOLLOW = f"{CODE}/Aether.Gameplay/Runtime/Cameras/CameraFollow2D.cs"
+MENU_BUTTON = f"{MENUS}/Components/MenuButton.cs"
 THEME = f"{MENUS}/MenuTheme.cs"
 CATALOG = f"{CODE}/Aether.Core/Runtime/Settings/SettingsCatalog.cs"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
@@ -242,6 +244,57 @@ def controls() -> list[Control]:
         return [("MISSING_META", (path, original))]
 
     return [
+        Control(
+            "verify: a type declares the same member twice",
+            # The exact shape the Unity compiler caught after every gate was green: the camera had
+            # grown a second OnEnable, one of them subscribing to the settings service.
+            gate,
+            lambda root: edit(root, CAMERA_FOLLOW,
+                              "        private void OnEnable()\n        {\n",
+                              "        private void OnEnable()\n        {\n"
+                              "            _currentLookAhead = Vector2.zero;\n        }\n\n"
+                              "        private void OnEnable()\n        {\n"),
+            ["duplicate", "OnEnable"]),
+        Control(
+            "verify: an override of a member the base does not declare",
+            # Selectable implements neither IPointerClickHandler nor ISubmitHandler - only Button
+            # does - so this override compiles nowhere, and nothing else in the gate can see it.
+            gate,
+            lambda root: edit(root, MENU_BUTTON,
+                              "public void OnPointerClick(PointerEventData eventData)",
+                              "public override void OnPointerClick(PointerEventData eventData)"),
+            ["override", "OnPointerClick"]),
+        Control(
+            "verify: a legal overload is not reported as a duplicate",
+            # Proves the duplicate rule compares signatures rather than names. A second Activate
+            # that takes an argument is an overload, which C# allows, and a rule that keyed on the
+            # name alone would call it a compile error.
+            gate,
+            lambda root: edit(root, MENU_BUTTON,
+                              "        public void Activate()\n",
+                              "        /// <summary>An overload, for the control.</summary>\n"
+                              "        internal void Activate(int times)\n"
+                              "        {\n"
+                              "            for (int i = 0; i < times; i++) Activate();\n"
+                              "        }\n\n"
+                              "        public void Activate()\n"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
+            "verify: overriding a member object declares is silent",
+            # The same rule, looking the other way: ToString is virtual on System.Object and every
+            # Unity type inherits it, so this override is exactly what the rule must accept.
+            gate,
+            lambda root: edit(root, CAMERA_FOLLOW,
+                              "        private void Awake()\n        {\n"
+                              "            _camera = GetComponent<Camera>();\n        }",
+                              "        private void Awake()\n        {\n"
+                              "            _camera = GetComponent<Camera>();\n        }\n\n"
+                              "        /// <summary>An override of an inherited member, for the control.</summary>\n"
+                              "        public override string ToString()\n        {\n"
+                              "            return name + \" camera\";\n        }"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
         Control(
             "verify: an asset points at a GUID that does not exist",
             gate,

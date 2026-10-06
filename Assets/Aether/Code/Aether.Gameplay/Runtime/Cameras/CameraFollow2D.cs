@@ -89,6 +89,13 @@ namespace Aether.Gameplay.Cameras
 
         private void OnEnable()
         {
+            // The camera starts still and follows from rest. Zeroing here rather than in Awake is
+            // deliberate: this is also what happens when a pooled or disabled camera comes back, and
+            // a camera that kept last run's velocity would arrive at its target with a lurch.
+            _followVelocity = Vector3.zero;
+            _lookAheadVelocity = Vector2.zero;
+            _currentLookAhead = Vector2.zero;
+
             AetherSettings.Ensure().Changed += OnSettingsChanged;
             ApplySettings();
         }
@@ -131,13 +138,6 @@ namespace Aether.Gameplay.Cameras
         private void Awake()
         {
             _camera = GetComponent<Camera>();
-        }
-
-        private void OnEnable()
-        {
-            _followVelocity = Vector3.zero;
-            _lookAheadVelocity = Vector2.zero;
-            _currentLookAhead = Vector2.zero;
         }
 
         /// <summary>

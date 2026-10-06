@@ -49,6 +49,59 @@ EXTERNAL_ASSEMBLIES = {
     "nunit.framework.dll",
 }
 
+# What the engine's own types declare as virtual, for the one check that needs it. This is a
+# hand-written model of the C# surface, not a guess: a member that is absent here is a member the
+# compiler refuses to accept an `override` for, which is exactly the failure this exists to catch.
+#
+# It is deliberately short. Only the types this project actually derives from appear, and only
+# their genuinely virtual members:
+#
+# * `UnityEngine.Object` declares ToString/Equals/GetHashCode/Finalize as virtual, and nothing
+#   else a game class may override. Every UnityEngine type inherits those.
+# * `Component`, `Behaviour`, `MonoBehaviour` and `ScriptableObject` add no virtual members of
+#   their own. That is the reason `private void OnEnable()` is the correct shape for an engine
+#   message and `protected override void OnEnable()` is not: the message is found by name, never
+#   overridden.
+# * `UnityEngine.EventSystems.UIBehaviour` and `UnityEngine.UI.Selectable` are the two uGUI bases
+#   the menu uses. Their members below are from uGUI's own source (com.unity.ugui). Notably absent,
+#   and this is the whole point of the table: `OnPointerClick` and `OnSubmit`, which `Selectable`
+#   does *not* declare - only `Button`, through IPointerClickHandler and ISubmitHandler, does.
+OBJECT_VIRTUALS = frozenset({"ToString", "Equals", "GetHashCode", "Finalize"})
+
+# A base this tool cannot resolve and that is not one of the modelled engine types. "Is it an
+# interface?" is answered from the name, because C# writes both in one list and the difference is
+# only visible in the assembly that declares the type. The shape required is I followed by another
+# capital, which is the .NET convention and, at that, the convention this project follows in its
+# own code: it accepts IPointerClickHandler and IPanelBuilder, and it does not mistake Image,
+# InputAction or InstantHolder for interfaces. Guessing "interface" is the safe direction here: an
+# interface's members cannot be overridden, so nothing is lost by not judging them, whereas calling
+# an unmodelled *class* an interface would silently stop checking real overrides.
+INTERFACE_NAME_RE = re.compile(r"^I[A-Z]")
+
+UI_BEHAVIOUR_VIRTUALS = frozenset({
+    "Awake", "OnEnable", "Start", "OnDisable", "OnDestroy", "OnValidate", "Reset",
+    "IsActive", "IsDestroyed",
+    "OnRectTransformDimensionsChange", "OnBeforeTransformParentChanged",
+    "OnTransformParentChanged", "OnDidApplyAnimationProperties", "OnCanvasGroupChanged",
+    "OnCanvasHierarchyChanged",
+})
+
+SELECTABLE_VIRTUALS = UI_BEHAVIOUR_VIRTUALS | frozenset({
+    "IsInteractable", "InstantClearState", "DoStateTransition",
+    "OnMove", "OnPointerDown", "OnPointerUp", "OnPointerEnter", "OnPointerExit",
+    "OnSelect", "OnDeselect",
+})
+
+ENGINE_VIRTUALS = {
+    "Object": OBJECT_VIRTUALS,
+    "Component": OBJECT_VIRTUALS,
+    "Behaviour": OBJECT_VIRTUALS,
+    "MonoBehaviour": OBJECT_VIRTUALS,
+    "ScriptableObject": OBJECT_VIRTUALS,
+    "UIBehaviour": OBJECT_VIRTUALS | UI_BEHAVIOUR_VIRTUALS,
+    "Selectable": OBJECT_VIRTUALS | SELECTABLE_VIRTUALS,
+}
+
 # Members our MonoBehaviours/ScriptableObjects inherit from UnityEngine. Needed so that
 # `_motor.transform` is not reported as a missing member of PlayerMotor.
 INHERITED_MEMBERS = {
@@ -458,12 +511,33 @@ def parse_members(body: str) -> list[dict]:
     return members
 
 
+def parameter_types(params: list[str]) -> list[str]:
+    """The declared type of each parameter, for signature comparison.
+
+    `params` is the split parameter list, so each entry is one parameter's whole text. The name is
+    its last identifier and the type everything before that; a default value, when present, has
+    already been cut by the caller only for arity, so it is removed here too.
+    """
+    types = []
+    for param in params:
+        text = param.split("=")[0].strip()
+        text = re.sub(r"\b[A-Za-z_]\w*\s*$", "", text).strip()
+        types.append(re.sub(r"\s+", " ", text))
+    return types
+
+
 def parse_declaration(chunk: str, terminated_by: str) -> dict | None:
     chunk = strip_attributes(chunk.replace("\n", " ")).strip()
     if not chunk:
         return None
 
     if chunk.startswith("~"):
+        return None
+
+    # What follows an auto-property's closing brace is its initialiser, not a member of its own:
+    # `public List<X> Items { get; } = new List<X>();` is one property, and reading the tail
+    # separately made the model invent a method named after the type in the initialiser.
+    if chunk.startswith("="):
         return None
 
     # Split off any expression body first: `Type Name => expr` is a property, while
@@ -505,6 +579,8 @@ def parse_declaration(chunk: str, terminated_by: str) -> dict | None:
             "type": None,
             "min_args": required - (1 if variadic else 0),
             "max_args": None if variadic else len(params),
+            "params": tuple(parameter_types(params)),
+            "override": bool(re.search(r"\boverride\b", head)),
         }
 
     # Discard the initialiser before reading the declared type and name.
@@ -527,6 +603,8 @@ def parse_declaration(chunk: str, terminated_by: str) -> dict | None:
         "type": type_text,
         "min_args": 0,
         "max_args": 0,
+        "params": (),
+        "override": bool(re.search(r"\boverride\b", type_text)),
     }
 
 
@@ -621,6 +699,32 @@ class Project:
             for base in record["bases"]:
                 if base in self.types or base in self.merge_sets:
                     names |= self.members_of(base, seen)
+        return names
+
+    def declared_members_of(self, type_name: str, seen: set[str] | None = None) -> set[str]:
+        """Member names declared by this type or any of its *project* bases.
+
+        Unlike members_of this never consults the engine's inherited-member set. It answers a
+        narrower question - "did anybody in this project declare this?" - which is the question an
+        `override` has to be judged against, because the compiler needs a declaration to override.
+        """
+        if type_name in self.ambiguous:
+            return set()
+
+        seen = seen or set()
+        if type_name in seen:
+            return set()
+        seen.add(type_name)
+
+        records = self.records_for(type_name)
+        if not records:
+            return set()
+
+        names = self._merged_members(type_name)
+        for record in records:
+            for base in record["bases"]:
+                if base in self.types or base in self.merge_sets:
+                    names |= self.declared_members_of(base, seen)
         return names
 
     def arity_of(self, type_name: str, member: str) -> tuple[int, int | None] | None:
@@ -1481,6 +1585,139 @@ ENGINE_TYPE_NAMES = (
 ENGINE_USING_RE = re.compile(r"^\s*using\s+UnityEngine(?:\.[\w.]+)?\s*;", re.M)
 
 
+def check_duplicate_members(report: Report, project: Project) -> None:
+    """Two declarations of the same member inside one type do not compile.
+
+    C# answers a repeated name with CS0102 (a field, property or event declared twice) or CS0111
+    (a method declared twice with the same signature). Neither is visible to any other check here:
+    every rule in this file asks whether a name exists, and a name that exists twice passes all of
+    them. The editor's compiler found exactly that - a camera with two OnEnable methods - after the
+    whole gate had gone green, which is why this rule exists.
+
+    Overloads are legal and must stay legal, so methods are compared by name and parameter types.
+    Constructors are skipped: a static constructor and an instance constructor share the type's
+    name and are not duplicates of each other.
+    """
+    findings = 0
+
+    for declaration in project.declarations:
+        record = declaration["record"]
+        seen: dict[tuple, dict] = {}
+
+        for member in record["members"]:
+            if member["name"] == record["name"]:
+                continue          # a constructor, not a duplicate
+
+            if member["kind"] == "method":
+                key = ("method", member["name"], member["params"])
+            elif member["kind"] in ("field", "property", "event"):
+                key = ("value", member["name"])
+            else:
+                key = (member["kind"], member["name"])
+
+            if key in seen:
+                rel = os.path.relpath(record["file"], REPO_ROOT).replace(os.sep, "/")
+                signature = member["name"]
+                if member["kind"] == "method":
+                    signature += "(" + ", ".join(member["params"]) + ")"
+                report.fail(
+                    f"duplicate: '{rel}' declares '{record['name']}.{signature}' more than once, "
+                    f"which is a compile error (CS0102/CS0111)")
+                findings += 1
+                continue
+
+            seen[key] = member
+
+    if not findings:
+        report.note(
+            f"duplicate: no type declares a member twice "
+            f"({len(project.declarations)} type declaration(s) checked)")
+
+
+def check_overrides(report: Report, project: Project) -> None:
+    """An `override` has to name something its base actually declares.
+
+    The compiler rejects the rest with CS0115, and nothing else in this file can see the mistake:
+    the member's name is never called, so the member-existence rule has nothing to look at. The
+    fault this catches is not hypothetical - `public override void OnPointerClick(...)` on a
+    `Selectable` subclass compiles nowhere, because Selectable implements neither
+    IPointerClickHandler nor ISubmitHandler, and it reached a real build before this rule existed.
+
+    A base the model does not know is skipped with a note rather than failed: this tool cannot see
+    an engine assembly's surface, and guessing at it in either direction would be worse than
+    saying so.
+
+    The judgement is by name, not by signature. Arity is the difference between an override and an
+    overload, and modelling the engine's parameter lists by hand would put a wrong number in the
+    gate's mouth; a name that exists on the base is accepted here and left to the compiler.
+    """
+    findings = 0
+    unmodelled: set[str] = set()
+
+    for declaration in project.declarations:
+        record = declaration["record"]
+        class_bases = []
+        for base in record["bases"]:
+            known = project.types.get(base) or (project.merge_sets.get(base) or [None])[0]
+            if known is not None and known["kind"] == "interface":
+                continue
+            class_bases.append(base)
+
+        # A class with no class base inherits object, and an interface on its own does not change
+        # that - which is what makes `public override string ToString()` legal there.
+        if not class_bases:
+            class_bases = ["Object"]
+
+        targets = set()
+        engine = set()
+        unknown = []
+        judged = []
+        for base in class_bases:
+            if base in project.types or base in project.merge_sets:
+                targets.add(base)
+                judged.append(base)
+            elif base in ENGINE_VIRTUALS:
+                engine |= ENGINE_VIRTUALS[base]
+                judged.append(base)
+            elif INTERFACE_NAME_RE.match(base):
+                continue          # implemented, never overridden
+            else:
+                unknown.append(base)
+
+        if unknown:
+            unmodelled.update(unknown)
+            continue
+
+        for member in record["members"]:
+            if not member.get("override"):
+                continue
+
+            if member["name"] in engine:
+                continue
+
+            allowed = set()
+            for target in targets:
+                allowed |= project.declared_members_of(target)
+            if member["name"] in allowed:
+                continue
+
+            rel = os.path.relpath(record["file"], REPO_ROOT).replace(os.sep, "/")
+            bases = " or ".join(sorted(judged))
+            report.fail(
+                f"override: '{rel}' declares '{record['name']}.{member['name']}' as an override, "
+                f"but {bases} does not declare it (CS0115)")
+            findings += 1
+
+    if unmodelled:
+        report.note("override: base(s) this tool cannot model, so overrides of theirs went "
+                    "unjudged: " + ", ".join(sorted(unmodelled)))
+
+    if not findings:
+        report.note(
+            f"override: every override names a member its base declares "
+            f"({len(ENGINE_VIRTUALS)} engine base(s) modelled by hand)")
+
+
 def check_nested_member_scope(report: Report, project: Project) -> None:
     """A member of a nested type is not in scope in the enclosing type.
 
@@ -1994,6 +2231,8 @@ def main() -> int:
     check_asmdefs(report, project)
     check_asset_fields(report, project)
     check_symbols(report, project)
+    check_duplicate_members(report, project)
+    check_overrides(report, project)
     check_nested_member_scope(report, project)
     check_engine_names(report, project)
     check_lints(report, project)

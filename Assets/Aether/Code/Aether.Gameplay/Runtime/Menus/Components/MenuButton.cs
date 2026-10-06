@@ -29,7 +29,7 @@ namespace Aether.Gameplay.Menus.Components
     /// word.
     /// </para>
     /// </remarks>
-    public class MenuButton : Selectable
+    public class MenuButton : Selectable, IPointerClickHandler, ISubmitHandler
     {
         /// <summary>How much weight a row carries in the composition.</summary>
         public enum Weight
@@ -546,19 +546,26 @@ namespace Aether.Gameplay.Menus.Components
             if (handler != null) handler(this);
         }
 
-        /// <inheritdoc />
-        public override void OnPointerClick(PointerEventData eventData)
+        /// <summary>
+        /// A tap or a click on the row.
+        /// </summary>
+        /// <remarks>
+        /// The interface rather than an override, and that is not a detail: <c>Selectable</c> handles
+        /// the pointer's down, up, enter, exit and selection events, but it does not implement
+        /// <see cref="IPointerClickHandler"/> or <see cref="ISubmitHandler"/> — only <c>Button</c>
+        /// does. A row that wants the click and the submit implements them itself, which is what
+        /// this class does and what the editor's compiler insisted on.
+        /// </remarks>
+        public void OnPointerClick(PointerEventData eventData)
         {
-            base.OnPointerClick(eventData);
             if (eventData != null && eventData.button != PointerEventData.InputButton.Left) return;
 
             Activate();
         }
 
         /// <inheritdoc />
-        public override void OnSubmit(BaseEventData eventData)
+        public void OnSubmit(BaseEventData eventData)
         {
-            base.OnSubmit(eventData);
             Activate();
         }
 
