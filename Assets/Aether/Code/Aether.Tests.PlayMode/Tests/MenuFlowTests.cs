@@ -8,11 +8,13 @@ using Aether.Gameplay.Menus.Screens;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Settings;
+using Aether.Gameplay.Sound;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace Aether.Tests.PlayMode
 {
@@ -533,6 +535,54 @@ namespace Aether.Tests.PlayMode
             }
 
             Assert.Greater(visited, 10, "the walk stopped early");
+        }
+
+        [UnityTest]
+        public IEnumerator Every_audio_bus_is_one_gain_path_and_master_scales_all_of_them()
+        {
+            // The brief asks for MASTER / MUSIC / SFX / UI / VOICE / AMBIENCE with smooth fades and
+            // a future mixer behind them. What that means in code is one formula, and this is it:
+            // a bus's gain is its own level times master, master's own gain is its level, and
+            // silencing master silences everything. Every cue in the menu reads through here.
+            Assert.AreEqual(6, AudioBuses.All.Length, "the audio layer does not list six buses");
+            Assert.AreEqual(AudioBusId.Master, AudioBuses.All[0],
+                            "master is not the first bus, so the settings order is not the enum's");
+
+            AudioSettings audio = AetherSettings.Ensure().Values.Audio;
+            float master = audio.Master;
+            float music = audio.Music;
+            try
+            {
+                audio.Master = 0.5f;
+                audio.Music = 0.4f;
+
+                Assert.AreEqual(0.5f, AudioBuses.Gain(AudioBusId.Master), 0.0001f,
+                                "master's gain is not its own level");
+                Assert.AreEqual(0.2f, AudioBuses.Gain(AudioBusId.Music), 0.0001f,
+                                "a bus's gain is not its level times master");
+                Assert.IsFalse(AudioBuses.IsSilent(AudioBusId.Music),
+                               "a bus at a fifth of full scale reports itself silent");
+
+                audio.Master = 0f;
+                for (int i = 0; i < AudioBuses.All.Length; i++)
+                {
+                    Assert.IsTrue(AudioBuses.IsSilent(AudioBuses.All[i]),
+                                  $"master at zero left {AudioBuses.All[i]} audible");
+                }
+
+                // The readout a settings row shows is the same number, as a percentage.
+                audio.Master = 1f;
+                audio.Music = 0.5f;
+                Assert.AreEqual("50%", AudioBuses.Describe(AudioBusId.Music),
+                                "the bus readout does not follow the gain");
+            }
+            finally
+            {
+                audio.Master = master;
+                audio.Music = music;
+            }
+
+            yield return null;
         }
 
         /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>

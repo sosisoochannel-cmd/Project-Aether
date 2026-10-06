@@ -676,6 +676,49 @@ class Project:
         """
         return {m["name"] for record in self.records_for(name) for m in record["members"]}
 
+    def visible_type(self, rel: str, simple: str) -> str | None:
+        """The project type a bare simple name means in one file, or None when it cannot be one.
+
+        Three things have to line up before a simple name is read as one of our types:
+
+        * it names exactly one top-level declaration. A nested type is reachable only inside its
+          own container or as ``Outer.Inner``, so `Bounds` — the private struct inside the intro
+          sequence — is not the `Bounds` an enemy motor declares for a collider;
+        * the name is not shared by several declarations, which the model records as ambiguous;
+        * the namespace reaches this file: the file is in it or under it, or imports it.
+
+        Returning None means the name refers to something this tool does not model, and the caller
+        skips it rather than guessing. The third clause is the mistake a real compile punished:
+        CameraFollow2D named CameraSettings without importing Aether.Core.Settings, and nothing
+        here noticed until the editor did.
+        """
+        record = self.types.get(simple)
+        if record is None or simple in self.ambiguous:
+            return None
+
+        records = self.records_for(simple)
+        if len(records) == 1 and record["container"] is not None:
+            # One nested type, declared somewhere else, is not claimed. The name may just as well
+            # be the engine's: `Bounds` is a private struct inside the intro sequence and also a
+            # UnityEngine struct, and reading the latter as the former accuses `bounds.center` of
+            # not existing.
+            return simple if record["file"] == rel else None
+
+        entry = self.files.get(rel)
+        if entry is None:
+            return None
+
+        own = entry["namespace"]
+        for candidate in records:
+            if candidate["file"] == rel:
+                return simple          # declared in this very file
+            for namespace in candidate["namespaces"]:
+                if namespace in entry["usings"]:
+                    return simple
+                if own and (own == namespace or own.startswith(namespace + ".")):
+                    return simple
+        return None
+
     def type_of(self, name: str) -> dict | None:
         if name in self.ambiguous:
             return None
@@ -894,6 +937,12 @@ def finalise_types(project: Project) -> None:
             project.ambiguous.add(name)
 
 
+# `using Aether.Core.Settings;` — a namespace import. A using *statement* (`using (var x = ...)`)
+# and `using static X;` / `using X = Y;` are deliberately not matched: the name has to be the whole
+# of what follows the keyword.
+USING_NAMESPACE_RE = re.compile(r"^[ \t]*using\s+([A-Za-z_][\w.]*)\s*;", re.M)
+
+
 def load_project() -> Project:
     project = Project()
     for root, _dirs, files in os.walk(CODE_ROOT):
@@ -906,7 +955,10 @@ def load_project() -> Project:
             rel = os.path.relpath(full, REPO_ROOT).replace(os.sep, "/")
             code = strip_noncode(raw)
             project.files[rel] = {"raw": raw, "code": code,
-                                  "calls": strip_comments_only(raw)}
+                                  "calls": strip_comments_only(raw),
+                                  "usings": set(USING_NAMESPACE_RE.findall(code)),
+                                  "namespace": next(
+                                      (m.group(1) for m in NAMESPACE_RE.finditer(code)), "")}
             collect_namespaces_and_types(rel, code, project)
     finalise_types(project)
     return project
@@ -1318,6 +1370,25 @@ DECLARED_METHOD_RE = re.compile(
 
 DECLARED_USING_ALIAS_RE = re.compile(r"^using\s+([A-Za-z_]\w*)\s*=", re.M)
 
+# Words that can stand where a declared type stands but are not one. `return panel;` matched the
+# local-declaration pattern with `return` as the type, which added an unmodelled type to a name
+# that was perfectly well understood and therefore dropped the name from scope entirely - the
+# reason a planted `panel._cancel.rectTransform` was not reported.
+# `var screen = (MainMenuScreen)root.System.Current;` — a cast is a type the file states, and
+# recording it is what keeps an untyped local from being confused with a differently typed local of
+# the same name elsewhere in the file. Without it, the `screen` in a helper (a MenuScreen) and the
+# `screen` in a test (cast to MainMenuScreen) merged into one type, and the test's `screen.Play`
+# was reported against the base class.
+CAST_VARIABLE_RE = re.compile(
+    r"\bvar\s+([A-Za-z_]\w*)\s*=\s*\(\s*([A-Za-z_]\w*)\s*\)\s*(?![=])")
+
+NOT_A_TYPE = frozenset({
+    "return", "throw", "new", "await", "yield", "case", "else", "do", "if", "while", "for",
+    "foreach", "switch", "using", "lock", "goto", "break", "continue", "typeof", "default",
+    "checked", "unchecked", "fixed", "unsafe", "delegate", "sizeof", "stackalloc", "is", "as",
+    "in", "out", "ref", "true", "false", "null", "this", "base", "operator", "when", "var",
+})
+
 BALANCE_PAIRS = {"{": "}", "(": ")", "[": "]"}
 
 
@@ -1444,7 +1515,7 @@ def check_symbols(report: Report, project: Project) -> None:
             for m in record["members"]:
                 if m["kind"] in ("field", "property") and m["type"]:
                     simple = simple_type_name(m["type"])
-                    candidates[m["name"]].add(simple if simple in project.types else unknown)
+                    candidates[m["name"]].add(project.visible_type(rel, simple) or unknown)
                     kind = collection_kind(m["type"])
                     if kind:
                         collection_kinds[m["name"]].add(kind)
@@ -1466,7 +1537,7 @@ def check_symbols(report: Report, project: Project) -> None:
                 pname = bits[1].strip()
                 if not re.fullmatch(r"[A-Za-z_]\w*", pname):
                     continue
-                candidates[pname].add(simple if simple in project.types else unknown)
+                candidates[pname].add(project.visible_type(rel, simple) or unknown)
 
                 # A parameter declared as an array or a list: `SettingDefinition[] rows`.
                 kind = collection_kind(bits[0])
@@ -1474,12 +1545,37 @@ def check_symbols(report: Report, project: Project) -> None:
                     collection_kinds[pname].add(kind)
                     candidates[pname].add(COLLECTION_PREFIX + kind)
 
+        # A local whose declared type is one of ours is a receiver like any other, and leaving
+        # locals out is how `MenuConfirmPanel panel = ...; panel._cancel.rectTransform` reached a
+        # real compile: a row is a Selectable, and a Selectable has no rectTransform. The declared
+        # type is read from the text between the separator and the variable's own name, so
+        # `List<EnemySpawn> spawns` is a List and not an EnemySpawn.
+        modifier_strip = re.compile(r"^" + DECLARATION_MODIFIERS)
+        for match in DECLARED_VARIABLE_RE.finditer(code):
+            declared = modifier_strip.sub(
+                "", code[match.start():match.start(1)].strip(";{(, \t\n"))
+            simple = simple_type_name(declared)
+            if simple in NOT_A_TYPE or not simple:
+                continue
+
+            candidates[match.group(1)].add(project.visible_type(rel, simple) or unknown)
+
+            kind = collection_kind(declared)
+            if kind:
+                collection_kinds[match.group(1)].add(kind)
+                candidates[match.group(1)].add(COLLECTION_PREFIX + kind)
+
+        # A cast on the right of a `var` local, for the same reason.
+        for match in CAST_VARIABLE_RE.finditer(code):
+            candidates[match.group(1)].add(
+                project.visible_type(rel, match.group(2)) or unknown)
+
         # foreach (PlayableNode node in nodes) — the loop variable is a real declaration, and
         # reading it makes member checks *stronger*: what it points at is now known.
         for match in re.finditer(
                 r"\bforeach\s*\(\s*([A-Za-z_][\w.]*(?:<[^<>]*>)?)\s+([A-Za-z_]\w*)\s+in\b", code):
             simple = simple_type_name(match.group(1))
-            candidates[match.group(2)].add(simple if simple in project.types else unknown)
+            candidates[match.group(2)].add(project.visible_type(rel, simple) or unknown)
 
             kind = collection_kind(match.group(1))
             if kind:
@@ -1571,6 +1667,30 @@ LINT_RULES = [
 ]
 
 
+# Engine types that live outside `UnityEngine` itself, with the namespace that has to be imported
+# to name them. The list is curated, and deliberately short: it holds the uGUI, EventSystems and
+# Input System types this project actually uses. The engine's own surface cannot be enumerated from
+# here, but a *using directive* can be checked, and this is the mistake that costs a compile: the
+# play-mode tests named CanvasScaler with only `using UnityEngine;` in scope.
+ENGINE_UI_NAMES = {
+    "UnityEngine.UI": (
+        "Image", "RawImage", "Text", "Selectable", "Button", "Slider", "Toggle", "ScrollRect",
+        "Mask", "Graphic", "CanvasScaler", "GraphicRaycaster", "LayoutElement", "LayoutGroup",
+        "HorizontalLayoutGroup", "VerticalLayoutGroup", "GridLayoutGroup", "ContentSizeFitter",
+        "AspectRatioFitter", "Scrollbar", "InputField", "CanvasUpdateRegistry",
+    ),
+    "UnityEngine.EventSystems": (
+        "EventSystem", "BaseEventData", "PointerEventData", "AxisEventData", "UIBehaviour",
+        "StandaloneInputModule", "IPointerClickHandler", "IPointerEnterHandler",
+        "IPointerExitHandler", "IPointerDownHandler", "IPointerUpHandler", "ISelectHandler",
+        "IDeselectHandler", "IMoveHandler", "ISubmitHandler", "IDragHandler", "IBeginDragHandler",
+        "IEndDragHandler", "ICancelHandler", "IScrollHandler", "IPointerMoveHandler",
+    ),
+    # The assembly is Unity.InputSystem; the namespace inside it is UnityEngine.InputSystem, which
+    # is what a file has to import for the UI module.
+    "UnityEngine.InputSystem.UI": ("InputSystemUIInputModule",),
+}
+
 ENGINE_TYPE_NAMES = (
     # Names that exist in UnityEngine and not in the BCL namespaces these files import by default.
     # Deliberately excludes MonoBehaviour, Object, GameObject, Transform, Debug, Camera,
@@ -1583,6 +1703,109 @@ ENGINE_TYPE_NAMES = (
     "TilemapCollider2D", "CompositeCollider2D", "GridLayout", "Animator", "Light2D", "Sprite",
 )
 ENGINE_USING_RE = re.compile(r"^\s*using\s+UnityEngine(?:\.[\w.]+)?\s*;", re.M)
+
+
+# A name is being *declared* rather than *used* when what follows it is a value separator:
+# `public bool Haptics = true;` is a field named after a type, not a reference to it, and reporting
+# it would be the false accusation this tool's own history warns about.
+VALUE_FOLLOWS_RE = re.compile(r"\s*(?:[=;,:\)\]])")
+BARE_NAME_RE = re.compile(r"(?<![\w.])([A-Za-z_]\w*)")
+
+
+def check_engine_usings(report: Report, project: Project) -> None:
+    """A uGUI, EventSystems or Input System type needs the directive that brings it in.
+
+    `using UnityEngine;` does not reach `UnityEngine.UI`, and the play-mode tests proved it: a file
+    that named CanvasScaler with only the engine's own namespace in scope does not compile. Static
+    analysis cannot enumerate what the engine declares, but for the handful of namespaces this
+    project actually uses it can check the directive, which is the half of the mistake that is
+    visible from here.
+
+    A name that is qualified (`UnityEngine.UI.CanvasScaler`) or introduced by the directive is
+    fine, and a name that is being *declared* rather than referenced is an identifier choice, not a
+    type - the same guard the project-name rule uses.
+    """
+    findings = 0
+
+    for rel, entry in project.files.items():
+        code = entry["code"]
+        for namespace, names in ENGINE_UI_NAMES.items():
+            if namespace in entry["usings"]:
+                continue
+            for name in names:
+                reported = False
+                for match in re.finditer(r"(?<![\w.])" + name + r"(?![\w])", code):
+                    if VALUE_FOLLOWS_RE.match(code[match.end():]):
+                        continue
+                    line = code[:match.start()].count("\n") + 1
+                    report.fail(
+                        f"engine: '{rel}' line {line} names '{name}' but never imports "
+                        f"'{namespace}' (add 'using {namespace};' or qualify the name)")
+                    findings += 1
+                    reported = True
+                    break
+                if reported:
+                    continue
+
+    if not findings:
+        names = sum(len(v) for v in ENGINE_UI_NAMES.values())
+        report.note(
+            f"engine: every uGUI, EventSystems and Input System type named is imported "
+            f"({names} name(s) across {len(ENGINE_UI_NAMES)} namespace(s))")
+
+
+def check_project_names(report: Report, project: Project) -> None:
+    """A file that names one of our types by simple name has to be able to see that type.
+
+    C# resolves a bare name through the file's own namespace and its using directives, and nothing
+    else. A file that names a type it cannot see does not compile (CS0246), and the editor said so
+    about the shipped code: CameraFollow2D declared `CameraSettings wanted` without importing
+    Aether.Core.Settings. The member-existence check had looked right at that line and passed,
+    because it has no opinion about whether a type is in scope.
+
+    Three deliberate silences, all of them the safe direction:
+
+    * a nested type is skipped unless the file declares it, because a bare name that happens to
+      match a private nested `Bounds` somewhere else may just as well be UnityEngine's own type;
+    * a name that is being declared rather than used (`public bool Haptics = true;`) is a choice of
+      identifier, not a reference;
+    * a name this tool cannot tell apart - two declarations, two namespaces - is skipped.
+
+    One file and one name are reported once, at the first line that names it.
+    """
+    findings = 0
+
+    for rel, entry in project.files.items():
+        code = entry["code"]
+        reported: set[str] = set()
+
+        for match in BARE_NAME_RE.finditer(code):
+            name = match.group(1)
+            if name in reported:
+                continue
+
+            record = project.types.get(name)
+            if record is None or name in project.ambiguous or name in project.merge_sets:
+                continue
+            if record["container"] is not None:
+                continue
+            if project.visible_type(rel, name) is not None:
+                continue
+            if VALUE_FOLLOWS_RE.match(code[match.end():]):
+                continue
+
+            reported.add(name)
+            namespace = record["namespaces"][0] if record["namespaces"] else "the global namespace"
+            line = code[:match.start()].count("\n") + 1
+            report.fail(
+                f"using: '{rel}' line {line} names the type '{name}' ({namespace}) without "
+                f"importing it; the bare name resolves to nothing the compiler can see (CS0246)")
+            findings += 1
+
+    if not findings:
+        report.note(
+            f"using: every project type a file names by simple name is one it imports "
+            f"({len(project.types)} name(s) known)")
 
 
 def check_duplicate_members(report: Report, project: Project) -> None:
@@ -2231,6 +2454,8 @@ def main() -> int:
     check_asmdefs(report, project)
     check_asset_fields(report, project)
     check_symbols(report, project)
+    check_project_names(report, project)
+    check_engine_usings(report, project)
     check_duplicate_members(report, project)
     check_overrides(report, project)
     check_nested_member_scope(report, project)

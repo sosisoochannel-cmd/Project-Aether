@@ -34,6 +34,11 @@ BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
 BRAND_DIR = "Assets/Aether/Resources/Brand"
 MENUS = f"{CODE}/Aether.Gameplay/Runtime/Menus"
 CAMERA_FOLLOW = f"{CODE}/Aether.Gameplay/Runtime/Cameras/CameraFollow2D.cs"
+CONFIRM_PANEL = f"{MENUS}/Panels/MenuConfirmPanel.cs"
+MOTOR = f"{CODE}/Aether.Gameplay/Runtime/Enemies/EnemyMotor2D.cs"
+PLAYER_MOTOR = f"{CODE}/Aether.Gameplay/Runtime/Player/PlayerMotor.cs"
+MENU_FLOW_TESTS = f"{CODE}/Aether.Tests.PlayMode/Tests/MenuFlowTests.cs"
+PLACEHOLDER = f"{CODE}/Aether.Gameplay/Runtime/Support/PlaceholderVisuals.cs"
 MENU_BUTTON = f"{MENUS}/Components/MenuButton.cs"
 THEME = f"{MENUS}/MenuTheme.cs"
 CATALOG = f"{CODE}/Aether.Core/Runtime/Settings/SettingsCatalog.cs"
@@ -244,6 +249,70 @@ def controls() -> list[Control]:
         return [("MISSING_META", (path, original))]
 
     return [
+        Control(
+            "verify: a member read on a project type that does not have it",
+            # The exact second-compile error: a row is a Selectable, a Selectable is not a Graphic,
+            # and rectTransform therefore does not exist on it. The read is reached through a local,
+            # which is what made it invisible before locals counted as receivers.
+            gate,
+            lambda root: edit(root, CONFIRM_PANEL,
+                              "MenuUi.Corner(panel._cancel.Rect, new Vector2(0f, 0f),",
+                              "MenuUi.Corner(panel._cancel.rectTransform, new Vector2(0f, 0f),"),
+            ["rectTransform", "no member"]),
+        Control(
+            "verify: a type named by simple name without importing its namespace",
+            # The exact first-compile error: CameraSettings lives in Aether.Core.Settings, and this
+            # file used the bare name with no using directive to reach it.
+            gate,
+            lambda root: edit(root, CAMERA_FOLLOW,
+                              "using Aether.Core.Settings;\nusing Aether.Gameplay.Settings;",
+                              "using Aether.Gameplay.Settings;"),
+            ["CameraSettings", "without importing it"]),
+        Control(
+            "verify: a nested type of the same name elsewhere does not capture an engine type",
+            # UnityEngine.Bounds is a struct with centre, extents and size. A private nested struct
+            # called Bounds lives in the intro sequence. A name is not a type: this must stay silent,
+            # and it was not silent until the model learned to ask whether a name can be seen at all.
+            gate,
+            lambda root: edit(root, MOTOR,
+                              "            float halfHeight = bounds.extents.y;",
+                              "            float halfHeight = bounds.extents.y;\n"
+                              "            float slop = bounds.center.y - bounds.min.y;"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
+            "verify: a name being declared is not a type being referenced",
+            # A field called Haptics, in a file that does not import the Haptics type. The name is
+            # an identifier here, and a rule about imports must not read it as a reference.
+            gate,
+            lambda root: edit(root, PLAYER_MOTOR,
+                              "        private float _groundProbeInset = 0.03f;",
+                              "        private float _groundProbeInset = 0.03f;\n"
+                              "        private bool Haptics = true;"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
+            "verify: a uGUI type named without the directive that brings it in",
+            # The last error the editor found in this change set: the play-mode tests named
+            # CanvasScaler with only `using UnityEngine;` in scope. It is the mirror of the
+            # missing-import rule above, on the other side of the assembly boundary.
+            gate,
+            lambda root: edit(root, MENU_FLOW_TESTS,
+                              "using UnityEngine.TestTools;\nusing UnityEngine.UI;",
+                              "using UnityEngine.TestTools;"),
+            ["CanvasScaler", "never imports 'UnityEngine.UI'"]),
+        Control(
+            "verify: a qualified uGUI name needs no directive at all",
+            # A name written out in full - UnityEngine.UI.Image - compiles without any using, and
+            # the rule must not demand one. Without this control the check could be satisfied by
+            # banning the names outright.
+            gate,
+            lambda root: edit(root, PLACEHOLDER,
+                              "        private const int TextureSize = 64;",
+                              "        private const int TextureSize = 64;\n"
+                              "        private UnityEngine.UI.Image _qualified;"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
         Control(
             "verify: a type declares the same member twice",
             # The exact shape the Unity compiler caught after every gate was green: the camera had

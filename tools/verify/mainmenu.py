@@ -277,6 +277,17 @@ def check_flow(gate: Gate) -> None:
     gate.check("!u!81 &" in scene, f"'{MAIN_SCENE}' has no AudioListener, so the menu is silent")
 
 
+def builds(text: str, screen: str) -> bool:
+    """Whether a factory body builds one screen type, however it spells the call.
+
+    `MenuScreen.Create<T>` is generic on the screen, and C# infers nothing from a return type, so
+    every call has to name its screen explicitly - `MenuScreen.Create<ChaptersScreen>(...)`. The
+    older spelling this gate was written against was `ChaptersScreen.Create(...)`, the inherited
+    static, and both are accepted here rather than one being treated as a rule.
+    """
+    return f"{screen}.Create(" in text or f"Create<{screen}>(" in text
+
+
 def check_screens(gate: Gate) -> None:
     """Every screen exists, is reachable, and every row leads somewhere."""
     registry = read(SCREEN_REGISTRY)
@@ -294,7 +305,7 @@ def check_screens(gate: Gate) -> None:
     for member in members:
         if member == "MainMenu":
             # The main menu is the default branch: it is what an unknown id falls back to.
-            gate.check("MainMenuScreen.Create" in create,
+            gate.check(builds(create, "MainMenuScreen"),
                        "MenuScreens.Create never builds the main menu screen")
             continue
 
@@ -312,7 +323,7 @@ def check_screens(gate: Gate) -> None:
                        "have no sentence to show")
 
     # The three ids with no system behind them have to be the honest screen, not a blank one.
-    gate.check("PlaceholderScreen.Create" in create,
+    gate.check(builds(create, "PlaceholderScreen"),
                "the screens with no system behind them are not mapped to the placeholder screen")
 
     # Keys the screens ask for have to exist, or the interface shows the key itself.
