@@ -548,7 +548,10 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(AudioBusId.Master, AudioBuses.All[0],
                             "master is not the first bus, so the settings order is not the enum's");
 
-            AudioSettings audio = AetherSettings.Ensure().Values.Audio;
+            // `var`, deliberately: AudioSettings exists in both namespaces this file imports -
+            // Aether.Core.Settings and UnityEngine - so naming the type is ambiguous, and the
+            // editor said so. The value is the settings group either way.
+            var audio = AetherSettings.Ensure().Values.Audio;
             float master = audio.Master;
             float music = audio.Music;
             try
