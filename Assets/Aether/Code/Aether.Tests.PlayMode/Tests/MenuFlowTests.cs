@@ -505,6 +505,36 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator The_selection_never_lands_on_a_row_that_cannot_be_used()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            yield return Settle(root);
+
+            // A walk down the main menu. Every row the navigation stops on must be a row that can
+            // actually be pressed: the locked destinations are skipped, not stepped over on the way
+            // to somewhere else, and a read-only fact is never a stop. This is the property that
+            // makes a locked row an honest thing to show rather than a trap.
+            int visited = 0;
+            for (int i = 0; i < 14; i++)
+            {
+                MenuNav nav = root.System.Current.ActiveNav;
+                Assert.IsNotNull(nav, "the screen has no navigation");
+                Assert.IsNotNull(nav.Current, "the navigation has nothing selected");
+
+                MenuButton row = nav.Current as MenuButton;
+                Assert.IsNotNull(row, "the selection is not on a row");
+                Assert.IsTrue(row.Usable, $"the selection landed on '{row.name}', which cannot be used");
+
+                visited++;
+                root.System.Move(MenuNav.Move.Down);
+                yield return null;
+            }
+
+            Assert.Greater(visited, 10, "the walk stopped early");
+        }
+
         /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>
         private static IEnumerator WaitForEntrance(MenuRoot root, float seconds)
         {
