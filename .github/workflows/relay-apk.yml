@@ -16,7 +16,10 @@ on:
       - '.github/workflows/relay-apk.yml'
       - 'tools/ci/**'
 
+# actions:read is what the artifact listing needs; naming any permission leaves the rest at none,
+# so this job has to ask for it explicitly.
 permissions:
+  actions: read
   contents: read
 
 jobs:

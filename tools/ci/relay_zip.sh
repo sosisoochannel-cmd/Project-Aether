@@ -30,21 +30,30 @@ auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.git
 
 # --- the build run whose APK is wanted ----------------------------------------------------------
 if [ -z "$RUN_ID" ]; then
-  RUN_ID=$(curl -sS --max-time 60 "${auth[@]}" \
-    "$API/actions/workflows/android-build.yml/runs?status=completed&per_page=10" \
-    | jq -r '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty')
+  code=$(curl -sS --max-time 60 -o runs.json -w '%{http_code}' "${auth[@]}" \
+         "$API/actions/workflows/android-build.yml/runs?status=completed&per_page=10" || echo 000)
+  RUN_ID=$(jq -r '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty' runs.json 2>/dev/null)
 fi
 if [ -z "$RUN_ID" ]; then
+  add "build runs API: http=${code:-?}, body=$(short runs.json 600)"
+  flush
   printf '::error::no successful Android APK run to take an artifact from\n'
   exit 1
 fi
 add "build run: $RUN_ID"
 
 # --- its APK artifact, fetched the way a runner can (the artifact lives on blob storage) --------
-artifact=$(curl -sS --max-time 120 "${auth[@]}" "$API/actions/runs/$RUN_ID/artifacts" \
-           | jq -r '[.artifacts[] | select(.name | test("apk"; "i")) | select(.size_in_bytes > 1000000)]
-                    | sort_by(.created_at) | last | "\(.id) \(.name)"')
+# The listing needs actions:read on the job's token, which is why relay-apk.yml asks for it: a
+# workflow that names any permission gets none of the others, and without it this call answers 403
+# "Resource not accessible by integration" - which looks exactly like a run with no artifact unless
+# the response itself is reported. So the response is reported.
+code=$(curl -sS --max-time 120 -o artifacts.json -w '%{http_code}' "${auth[@]}" \
+       "$API/actions/runs/$RUN_ID/artifacts" || echo 000)
+artifact=$(jq -r '[.artifacts[] | select(.name | test("apk"; "i")) | select(.size_in_bytes > 1000000)]
+                  | sort_by(.created_at) | last | "\(.id) \(.name)"' artifacts.json 2>/dev/null)
 if [ -z "$artifact" ] || [ "$artifact" = "null" ]; then
+  add "artifacts API: http=$code, body=$(short artifacts.json 600)"
+  flush
   printf '::error::run %s has no APK artifact\n' "$RUN_ID"
   exit 1
 fi
