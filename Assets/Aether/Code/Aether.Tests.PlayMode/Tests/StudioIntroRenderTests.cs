@@ -26,7 +26,10 @@ namespace Aether.Tests.PlayMode
     /// <para>
     /// The frames it captures are written to <c>IntroRender/</c> in the project root, which is what
     /// the CI job uploads, so a run leaves behind a real screenshot of the intro beside the proof —
-    /// four moments: the reveal in progress, the lockup fully arrived, the hold, and the exit.
+    /// four moments: the reveal in progress, the lockup fully arrived, the hold, and the exit. Each
+    /// frame is written twice: once at the size it was rendered, and once at half size, because the
+    /// runner's artifacts live on storage the machine driving this cannot reach and a small PNG is
+    /// the only thing that fits through the one channel that does work — the run's annotations.
     /// </para>
     /// <para>
     /// What it cannot check: how the arrival reads in motion, and how it looks on a real panel. Four
@@ -131,6 +134,8 @@ namespace Aether.Tests.PlayMode
             foreach (Frame frame in frames)
             {
                 File.WriteAllBytes(Path.Combine(folder, $"intro-{frame.Seconds:0.00}s.png"), frame.Png);
+                File.WriteAllBytes(Path.Combine(folder, $"intro-{frame.Seconds:0.00}s-small.png"),
+                                   frame.SmallPng);
                 summary.AppendLine(frame.Describe());
             }
 
@@ -154,9 +159,12 @@ namespace Aether.Tests.PlayMode
             public readonly float InkAspect;
             public readonly byte[] Png;
 
+            /// <summary>The same frame at half size: small enough to travel in an annotation.</summary>
+            public readonly byte[] SmallPng;
+
             private Frame(float seconds, int width, int height, float inkFraction, float blackFraction,
                           float centreX, float centreY, float left, float right, float bottom,
-                          float top, float inkAspect, byte[] png)
+                          float top, float inkAspect, byte[] png, byte[] smallPng)
             {
                 Seconds = seconds;
                 Width = width;
@@ -171,6 +179,7 @@ namespace Aether.Tests.PlayMode
                 Top = top;
                 InkAspect = inkAspect;
                 Png = png;
+                SmallPng = smallPng;
             }
 
             public static Frame Capture(float time)
@@ -224,7 +233,48 @@ namespace Aether.Tests.PlayMode
                     found ? minY / (float)height : 0f,
                     found ? (height - 1 - maxY) / (float)height : 0f,
                     found && inkHeight > 0f ? inkWidth / inkHeight : 0f,
-                    png);
+                    png,
+                    HalfSize(pixels, width, height, png));
+            }
+
+            /// <summary>
+            /// A half-size copy of a frame, as PNG. Averaging four pixels into one keeps the mark's
+            /// soft edges soft; a nearest-neighbour halving would make them jagged, which is the one
+            /// thing a screenshot of a logo must not do.
+            /// </summary>
+            private static byte[] HalfSize(Color32[] pixels, int width, int height, byte[] full)
+            {
+                int halfWidth = Mathf.Max(1, width / 2);
+                int halfHeight = Mathf.Max(1, height / 2);
+                if (halfWidth < 8 || halfHeight < 8) return full;
+
+                var small = new Color32[halfWidth * halfHeight];
+                for (int y = 0; y < halfHeight; y++)
+                {
+                    int top = (y * 2) * width;
+                    int bottom = Mathf.Min(height - 1, (y * 2) + 1) * width;
+                    for (int x = 0; x < halfWidth; x++)
+                    {
+                        int left = x * 2;
+                        int right = Mathf.Min(width - 1, left + 1);
+                        Color32 a = pixels[top + left];
+                        Color32 b = pixels[top + right];
+                        Color32 c = pixels[bottom + left];
+                        Color32 d = pixels[bottom + right];
+                        small[(y * halfWidth) + x] = new Color32(
+                            (byte)((a.r + b.r + c.r + d.r) / 4),
+                            (byte)((a.g + b.g + c.g + d.g) / 4),
+                            (byte)((a.b + b.b + c.b + d.b) / 4),
+                            (byte)((a.a + b.a + c.a + d.a) / 4));
+                    }
+                }
+
+                var texture = new Texture2D(halfWidth, halfHeight, TextureFormat.RGBA32, false);
+                texture.SetPixels32(small);
+                texture.Apply(false, false);
+                byte[] encoded = ImageConversion.EncodeToPNG(texture);
+                Object.Destroy(texture);
+                return encoded ?? full;
             }
 
             public string Describe()

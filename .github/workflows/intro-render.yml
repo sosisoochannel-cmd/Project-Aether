@@ -90,6 +90,10 @@ jobs:
           echo "bin=$bin" >> "$GITHUB_OUTPUT"
           echo "::notice title=game-ci CLI::installed $version -> $bin"
 
+      # The CLI's own exit code is recorded, not obeyed: it crashes after the run with
+      # "InvalidCharacterError: The string contains invalid characters" from its Android keystore
+      # setup (setupAndroidRun), which has nothing to do with the test. What actually happened is
+      # judged below, from the test framework's own results and from whether frames were written.
       - name: Run the intro render test
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -97,15 +101,15 @@ jobs:
         run: |
           set -uo pipefail
           status=0
-          # 2>&1 and tee: the whole run is captured to a file so the annotations below can quote it.
           "${{ steps.cli.outputs.bin }}" test --docker \
             --targetPlatform=Android \
             --testPlatforms=playmode \
             --artifactsPath=artifacts \
             --coverageEnabled=false \
             > intro-render.log 2>&1 || status=$?
-          echo "::notice title=Test exit::test command exited $status"
-          exit "$status"
+          echo "$status" > test-status.txt
+          echo "::notice title=Test command exit::$status (recorded, not obeyed - see the verdict step)"
+          true
 
       # Everything that failed is at the end of the log, and everything that says why is in it
       # somewhere. One annotation carries a lot if the newlines are escaped; %25 goes first so a
@@ -123,15 +127,22 @@ jobs:
             [ -n "$body" ] && echo "::notice title=${title}::${body}"
           }
 
+          echo "::notice title=Test command exit::$(cat test-status.txt 2>/dev/null || echo '?')"
           echo "::notice title=Files::$(ls -lR IntroRender artifacts 2>/dev/null | tr '\n' '|' | head -c 1200)"
-          emit "Render log head" intro-render.log head 40
-          emit "Render log tail" intro-render.log tail 120
-          for f in artifacts/*.log artifacts/*.xml; do emit "Artifact $(basename "$f")" "$f" tail 80; done
+
           if [ -f IntroRender/summary.txt ]; then
             emit "Rendered frames" IntroRender/summary.txt tail 20
+            # The screenshot itself, out through the one channel that works from here: the artifact
+            # zip is on Azure blob storage, which the environment driving this cannot reach.
+            for f in IntroRender/intro-1.35s-small.png IntroRender/intro-1.95s-small.png; do
+              [ -f "$f" ] || continue
+              echo "::notice title=Frame $(basename "$f")::$(base64 -w0 "$f" | head -c 60000)"
+            done
           else
-            echo "::warning title=No frames::IntroRender/summary.txt was not written; the test did not reach its first capture."
+            emit "Render log head" intro-render.log head 40
+            emit "Render log tail" intro-render.log tail 150
           fi
+          for f in artifacts/*.log artifacts/*.xml; do emit "Artifact $(basename "$f")" "$f" tail 60; done
 
       - name: Save Library cache
         if: always()
@@ -141,6 +152,31 @@ jobs:
         with:
           path: Library
           key: Library-Android-${{ github.sha }}
+
+      # The verdict: the test framework's own numbers, and whether the frames exist. A run that
+      # produced four measured frames with nothing failing has done its job, whatever the CLI's
+      # exit code was.
+      - name: Judge the run
+        if: always()
+        run: |
+          results=$(cat artifacts/playmode-results.xml 2>/dev/null || echo "")
+          failed=$(printf '%s' "$results" | grep -o 'failed="[0-9]*"' | head -1 | grep -o '[0-9]*' || echo "?")
+          total=$(printf '%s' "$results" | grep -o 'total="[0-9]*"' | head -1 | grep -o '[0-9]*' || echo "?")
+          frames=$(ls IntroRender/*.png 2>/dev/null | wc -l)
+          echo "::notice title=Verdict::tests total=$total failed=$failed, frames written=$frames"
+          if [ "$total" = "0" ] || [ -z "$results" ]; then
+            echo "::error::the test framework ran no tests; the render test was not discovered"
+            exit 1
+          fi
+          if [ "$failed" != "0" ]; then
+            echo "::error::$failed test(s) failed; see the frame measurements above"
+            exit 1
+          fi
+          if [ "$frames" -lt 4 ]; then
+            echo "::error::only $frames frame(s) were written; four moments were expected"
+            exit 1
+          fi
+          echo "::notice title=Verdict::four frames rendered and measured, no test failures"
 
       - name: Keep the frames
         if: always()
