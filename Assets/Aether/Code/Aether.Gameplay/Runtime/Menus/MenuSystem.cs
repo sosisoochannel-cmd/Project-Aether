@@ -44,6 +44,7 @@ namespace Aether.Gameplay.Menus
         private MenuScreen _current;
         private float _width;
         private float _height;
+        private bool _rebuildPending;
 
         private MenuSystem(MenuCanvas canvas, MenuInput input)
         {
@@ -106,6 +107,81 @@ namespace Aether.Gameplay.Menus
             }
 
             return system;
+        }
+
+        /// <summary>True when a rebuild is waiting for a transition to finish.</summary>
+        public bool RebuildPending
+        {
+            get { return _rebuildPending; }
+        }
+
+        /// <summary>
+        /// Builds every screen again from scratch, keeping the player where they are.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A screen is built once and cached, and its labels are written at that moment rather than
+        /// every frame — that is what keeps a menu of this size cheap. So the one thing that cannot be
+        /// a per-row refresh is a change of language: every word on every screen, including the words
+        /// on the screen that made the change, is a different word afterwards.
+        /// </para>
+        /// <para>
+        /// Rebuilding is the honest way to do that: throw the built screens away and build them again
+        /// in the new language. It happens once per change and never per frame, and any dialog that is
+        /// up is thrown away with them, because a confirmation in the old language over a screen in
+        /// the new one is exactly the halfway state this menu does not have.
+        /// </para>
+        /// </remarks>
+        public void RequestRebuild()
+        {
+            // Not while a transition is running: the screen on its way out is still visible through
+            // the veil, and pulling it apart mid-fade would show the player a half-built menu.
+            if (MenuTransition.Instance.Busy)
+            {
+                _rebuildPending = true;
+                return;
+            }
+
+            Rebuild();
+        }
+
+        /// <summary>Performs a deferred rebuild once the transition that deferred it has finished.</summary>
+        public void ApplyPendingRebuild()
+        {
+            if (!_rebuildPending) return;
+            if (MenuTransition.Instance.Busy) return;
+
+            _rebuildPending = false;
+            Rebuild();
+        }
+
+        private void Rebuild()
+        {
+            MenuScreenId id = CurrentId;
+            _rebuildPending = false;
+
+            for (int i = 0; i < _screens.Count; i++)
+            {
+                MenuScreen screen = _screens[i];
+                if (screen == null) continue;
+
+                screen.Hide();
+
+                // Qualified: this is a plain class, not a component, so a bare Destroy would not
+                // resolve — and the objects go at the end of the frame, which is why the new screen
+                // is built straight away and drawn over the empty shells of the old ones.
+                UnityEngine.Object.Destroy(screen.gameObject);
+            }
+
+            _screens.Clear();
+            _current = null;
+
+            for (int i = _dialogRoot.childCount - 1; i >= 0; i--)
+            {
+                UnityEngine.Object.Destroy(_dialogRoot.GetChild(i).gameObject);
+            }
+
+            Show(id, true);
         }
 
         /// <summary>Lays the screen that is up out in a content box.</summary>

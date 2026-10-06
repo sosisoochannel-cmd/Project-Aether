@@ -6,48 +6,89 @@ using UnityEngine;
 namespace Aether.Gameplay.Progression
 {
     /// <summary>
-    /// The one place the game decides that there is a session, where progress is stored, and when a
-    /// new game begins.
+    /// The one place the game decides which run is being played, where it is stored, and when a new
+    /// one begins.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>GameSession</c> owns the snapshot and its rules; this owns the lifetime. Before it existed
-    /// there were two ways to get a session — the level bootstrap made one when it found none — and
-    /// nothing installed a store at all, which is why progress could not survive a restart. Both the
-    /// main menu and the region now ask for a session here, so "is there a save", "start a new game"
-    /// and "write this down" all have one answer.
+    /// <c>GameSession</c> owns the snapshot and its rules; this owns the lifetime and the slot. Both
+    /// the menu and the region ask for a session here, so "which run", "is there one", "start a new
+    /// game" and "write this down" all have one answer, and the answer is the same in the menu, in
+    /// gameplay and in the pause menu.
     /// </para>
     /// <para>
-    /// <b>The store is created without a session.</b> The menu has to know whether a stored run
-    /// exists <i>before</i> it builds anything, and asking that question must not drag a session into
+    /// <b>The store is created without a session.</b> The menu has to know what is in the slots
+    /// <i>before</i> it builds anything, and asking that question must not drag a session into
     /// being — a menu on a device that is about to be closed should cost nothing.
+    /// </para>
+    /// <para>
+    /// <b>Continue and New Game are both slot operations.</b> Continue is
+    /// <see cref="ContinueMostRecent"/>: the most recent slot that can actually be loaded. New Game
+    /// is <see cref="BeginNewGameIn"/>: one named slot, cleared and restamped, never "whichever slot
+    /// happened to be current", because that is how a player loses a run they did not mean to
+    /// touch.
     /// </para>
     /// </remarks>
     public static class SaveHost
     {
-        private static FileSaveStore _store;
+        private static SaveSlotStore _store;
+        private static int _activeSlot;
 
-        /// <summary>The store, created on first ask.</summary>
-        public static FileSaveStore Store
+        /// <summary>The store for the run being played, created on first ask.</summary>
+        /// <remarks>
+        /// Before a slot is chosen this is slot one's store, which is what the Data/Save screen and
+        /// the settings layer have always read. Choosing a slot replaces it.
+        /// </remarks>
+        public static SaveSlotStore Store
         {
             get
             {
                 if (_store != null) return _store;
 
-                _store = new FileSaveStore();
+                _store = SaveSlots.For(_activeSlot < 1 ? 1 : _activeSlot);
                 _store.AutomaticWrites = AetherSettings.Ensure().Values.Gameplay.Autosave;
                 return _store;
             }
         }
 
-        /// <summary>True when a stored run exists on disk right now.</summary>
-        public static bool HasStoredProgress => Store.HasStoredProgress;
+        /// <summary>Which slot the game is playing, or 0 when none has been chosen yet.</summary>
+        public static int ActiveSlot
+        {
+            get { return _activeSlot; }
+        }
+
+        /// <summary>True when a run exists that could be continued, in any slot.</summary>
+        public static bool HasStoredProgress
+        {
+            get { return SaveSlots.HasAnyRun(); }
+        }
+
+        /// <summary>Whether a specific slot holds a loadable run.</summary>
+        public static bool HasRunIn(int slot)
+        {
+            return SaveSlots.Describe(slot).Playable;
+        }
+
+        /// <summary>Every slot's header, for the save screen.</summary>
+        public static SaveSlotInfo[] DescribeSlots()
+        {
+            return SaveSlots.DescribeAll();
+        }
+
+        /// <summary>The most recent slot that can be loaded, or 0. This is what CONTINUE uses.</summary>
+        public static int MostRecentSlot()
+        {
+            return SaveSlots.MostRecent();
+        }
 
         /// <summary>Where progress is kept, for the Data/Save screen and for support.</summary>
-        public static string Location => Store.Location;
+        public static string Location
+        {
+            get { return Store.Location; }
+        }
 
         /// <summary>
-        /// The session for this run, created and loaded from disk if this is the first ask.
+        /// The session for this run, created and loaded from the active slot if this is the first ask.
         /// </summary>
         /// <remarks>
         /// Loading happens here rather than at every read: a session is created once per scene load
@@ -67,21 +108,104 @@ namespace Aether.Gameplay.Progression
         }
 
         /// <summary>
-        /// Asks for a session without creating one. Null when nothing has booted yet.
+        /// Points the game at a slot and loads it. This is both CONTINUE and "load this slot".
         /// </summary>
         /// <remarks>
-        /// Used by the Data/Save screen, which must be able to show "no session yet" rather than
-        /// quietly creating one to have something to display.
+        /// Returns false when the slot cannot be loaded — it is empty, or its document is damaged —
+        /// and in that case nothing is changed: the game keeps whatever run it had rather than
+        /// silently starting from nothing. The caller decides what to tell the player.
         /// </remarks>
-        public static GameSession Existing => GameSession.Instance;
+        public static bool LoadSlot(int slot)
+        {
+            SaveSlotInfo info = SaveSlots.Describe(slot);
+            if (!info.Playable) return false;
+
+            SaveSlotStore wanted = SaveSlots.For(info.Slot);
+            wanted.AutomaticWrites = AetherSettings.Ensure().Values.Gameplay.Autosave;
+
+            GameSession existing = GameSession.Instance;
+            if (existing != null)
+            {
+                existing.Store = wanted;
+                if (!existing.TryLoadFromStore()) return false;
+            }
+
+            _store = wanted;
+            _activeSlot = info.Slot;
+            return true;
+        }
+
+        /// <summary>Loads the most recent playable slot. False when there is nothing to continue.</summary>
+        public static bool ContinueMostRecent()
+        {
+            int slot = SaveSlots.MostRecent();
+            return slot != 0 && LoadSlot(slot);
+        }
+
+        /// <summary>
+        /// Starts a new run in one slot, erasing whatever was there.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Destructive, and therefore only ever reached from a confirmed action in the interface —
+        /// or from a slot the player explicitly chose as the place to start. The erase is a real
+        /// erase: the slot's document is written over with a fresh snapshot, so the old run is gone
+        /// the moment this returns rather than whenever the next autosave happens.
+        /// </para>
+        /// <para>
+        /// The session is created if there is none, so this is safe to call from the menu before a
+        /// region has ever run.
+        /// </para>
+        /// </remarks>
+        public static GameSession BeginNewGameIn(int slot, string chapterId)
+        {
+            SaveSlotStore target = SaveSlots.For(slot);
+            target.AutomaticWrites = AetherSettings.Ensure().Values.Gameplay.Autosave;
+
+            _store = target;
+            _activeSlot = target.Slot;
+
+            GameSession session = GameSession.Instance;
+            if (session == null)
+            {
+                var host = new GameObject("GameSession");
+                session = host.AddComponent<GameSession>();
+            }
+
+            session.Store = target;
+
+            // clearStore: true — the run on disk is the old one, and leaving it would let a reset
+            // be undone by closing the app before the next autosave.
+            session.StartNewGame(true);
+            if (session.Save.Meta == null) session.Save.Meta = new SaveMeta();
+            session.Save.Meta.Slot = target.Slot;
+            session.Save.Meta.ChapterId = string.IsNullOrEmpty(chapterId) ? string.Empty : chapterId;
+
+            target.Save(session.Save, true);
+            return session;
+        }
+
+        /// <summary>Deletes one slot's run. Destructive; the interface confirms first.</summary>
+        public static void DeleteSlot(int slot)
+        {
+            SaveSlots.Delete(slot);
+
+            // A session standing on the slot that was just deleted must not write it back: it is
+            // reset to a blank snapshot so the next autosave creates a new, empty run rather than
+            // resurrecting the one the player asked to be rid of.
+            if (_activeSlot == slot)
+            {
+                GameSession session = GameSession.Instance;
+                if (session != null) session.StartNewGame(true);
+            }
+        }
 
         /// <summary>
         /// Writes progress now, whatever the autosave preference says.
         /// </summary>
         /// <remarks>
-        /// The explicit half of the autosave setting. It is what "Save now" calls, and what the menu
-        /// calls before it hands the app over to a region — the one moment where a write is worth
-        /// spending on a transition that is about to load a scene anyway.
+        /// The explicit half of the autosave setting. It is what "Save now" calls, what the pause
+        /// menu calls, and what the menu calls before it hands the app over to a region.
         /// </remarks>
         public static bool SaveNow()
         {
@@ -95,27 +219,7 @@ namespace Aether.Gameplay.Progression
         /// <summary>Re-reads the autosave preference. Called when that setting changes.</summary>
         public static void ApplySettings()
         {
-            if (_store == null) return;
-            _store.AutomaticWrites = AetherSettings.Ensure().Values.Gameplay.Autosave;
-        }
-
-        /// <summary>
-        /// Begins a new game: the stored run is deleted and the session is reset.
-        /// </summary>
-        /// <remarks>
-        /// Destructive, and therefore only ever reached from a confirmed action in the interface.
-        /// The session is created if there is none, so this is safe to call from the menu before a
-        /// region has ever run.
-        /// </remarks>
-        public static GameSession BeginNewGame()
-        {
-            GameSession session = Ensure();
-
-            // clearStore: true — the run on disk is the old one, and leaving it would let a reset
-            // be undone by closing the app before the next autosave.
-            session.StartNewGame(true);
-            Store.Save(session.Save, true);
-            return session;
+            SaveSlots.ApplyAutosave(AetherSettings.Ensure().Values.Gameplay.Autosave);
         }
 
         /// <summary>Forgets the store and session. Used by tests, which must not touch real files.</summary>
@@ -123,6 +227,8 @@ namespace Aether.Gameplay.Progression
         {
             if (session != null) Object.DestroyImmediate(session.gameObject);
             _store = null;
+            _activeSlot = 0;
+            SaveSlots.ResetForTests();
         }
 
         /// <summary>A one-line description of the stored run, for the Data/Save screen.</summary>
@@ -132,22 +238,51 @@ namespace Aether.Gameplay.Progression
         /// </remarks>
         public static ProgressSummary DescribeStoredRun()
         {
+            return DescribeStoredRun(_activeSlot < 1 ? SaveSlots.MostRecent() : _activeSlot);
+        }
+
+        /// <summary>Counts for one slot, for the Data/Save screen and the slot list.</summary>
+        public static ProgressSummary DescribeStoredRun(int slot)
+        {
             var summary = new ProgressSummary();
-            summary.HasRun = Store.TryLoad(out SaveData data) && data != null;
+            if (slot < 1) return summary;
+
+            SaveSlotInfo info = SaveSlots.Describe(slot);
+            summary.Slot = info.Slot;
+            summary.HasRun = info.Playable;
+            summary.Corrupt = info.Corrupt;
+            summary.PlaySeconds = info.PlaySeconds;
+            summary.SavedUtcTicks = info.SavedUtcTicks;
+            summary.Discoveries = info.Discoveries;
+            summary.Achievements = info.Achievements;
+            summary.Deaths = info.Deaths;
+            summary.ChapterId = info.ChapterId;
+
             if (!summary.HasRun) return summary;
 
-            summary.AbilitesOwned = data.Progression != null && data.Progression.HasAbility(AbilityId.Rootbind) ? 1 : 0;
-            summary.FlagsEstablished = data.World != null ? data.World.FlagCount : 0;
-            summary.HasCheckpoint = data.World != null && !string.IsNullOrEmpty(data.World.ActiveCheckpointId);
+            if (SaveSlots.For(slot).TryLoad(out SaveData data) && data != null)
+            {
+                summary.AbilitesOwned =
+                    data.Progression != null && data.Progression.HasAbility(AbilityId.Rootbind) ? 1 : 0;
+                summary.FlagsEstablished = data.World != null ? data.World.FlagCount : 0;
+                summary.HasCheckpoint = data.World != null && !string.IsNullOrEmpty(data.World.ActiveCheckpointId);
+            }
+
             return summary;
         }
     }
 
-    /// <summary>What the Data/Save screen shows about the stored run.</summary>
+    /// <summary>What the Data/Save screen and the slot list show about a stored run.</summary>
     public struct ProgressSummary
     {
+        /// <summary>Which slot this describes. 0 when there is none.</summary>
+        public int Slot;
+
         /// <summary>True when a stored run exists and could be read.</summary>
         public bool HasRun;
+
+        /// <summary>True when something is stored and could not be read.</summary>
+        public bool Corrupt;
 
         /// <summary>How many abilities the stored run has.</summary>
         public int AbilitesOwned;
@@ -157,5 +292,23 @@ namespace Aether.Gameplay.Progression
 
         /// <summary>Whether the stored run is standing at a checkpoint rather than the start.</summary>
         public bool HasCheckpoint;
+
+        /// <summary>Seconds played in the stored run.</summary>
+        public float PlaySeconds;
+
+        /// <summary>When it was last written, as UTC ticks.</summary>
+        public long SavedUtcTicks;
+
+        /// <summary>How many findings the stored run has recorded.</summary>
+        public int Discoveries;
+
+        /// <summary>How many achievements it has unlocked.</summary>
+        public int Achievements;
+
+        /// <summary>How many times the player died in it.</summary>
+        public int Deaths;
+
+        /// <summary>Stable id of the chapter the run is in.</summary>
+        public string ChapterId;
     }
 }

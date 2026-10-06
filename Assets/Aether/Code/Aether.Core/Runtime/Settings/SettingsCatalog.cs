@@ -269,13 +269,56 @@ namespace Aether.Core.Settings
                 SettingKind.Toggle, "setting.highContrast", "setting.highContrast.help", 0f, 1f, 0f,
                 null, null, "MenuTheme.Palette contrast"),
 
-            // -- Language. One entry today; the architecture is what this row proves.
+            // -- Language. The options are the languages this build can actually draw; the ones it
+            //    cannot are named on the screen by a note row rather than offered and then failed.
             new SettingDefinition("language.primary", SettingCategory.Language, SettingKind.Choice,
                 "setting.language", "setting.language.help", 0f, 0f, 1f,
-                new[] { "language.en" }, new[] { 0f },
-                "MenuStrings.Language"),
+                LanguageOptionKeys(), LanguageOptionValues(),
+                "LanguageService.Set -> GameSettings.Language -> Aether/settings.json"),
 
         };
+
+        /// <summary>
+        /// Localisation keys for the language row's options, in catalogue order.
+        /// </summary>
+        /// <remarks>
+        /// Built from the language catalogue rather than written out, so a language that gains a font
+        /// and a table appears in the row without anybody remembering to edit a second list — and,
+        /// more to the point, a language that <i>cannot</i> be drawn cannot appear in it by accident.
+        /// </remarks>
+        public static string[] LanguageOptionKeys()
+        {
+            var keys = new List<string>();
+            for (int i = 0; i < Aether.Core.Localization.LanguageCatalog.All.Length; i++)
+            {
+                Aether.Core.Localization.LanguageDefinition language =
+                    Aether.Core.Localization.LanguageCatalog.All[i];
+
+                if (language.BundledFontCovers) keys.Add(language.LabelKey);
+            }
+
+            return keys.ToArray();
+        }
+
+        /// <summary>
+        /// The values those options stand for: the language's index in the catalogue.
+        /// </summary>
+        /// <remarks>
+        /// An index rather than a code because a setting's value is a float and every other row on
+        /// the screen is a number. The index is looked up by code on read, so a catalogue that is
+        /// reordered between versions still resolves to the language the player chose — a stored
+        /// index is only ever a position, never an identity.
+        /// </remarks>
+        public static float[] LanguageOptionValues()
+        {
+            var values = new List<float>();
+            for (int i = 0; i < Aether.Core.Localization.LanguageCatalog.All.Length; i++)
+            {
+                if (Aether.Core.Localization.LanguageCatalog.All[i].BundledFontCovers) values.Add(i);
+            }
+
+            return values.ToArray();
+        }
 
         /// <summary>Every setting on one screen, in catalog order.</summary>
         public static List<SettingDefinition> InCategory(SettingCategory category)
@@ -358,7 +401,7 @@ namespace Aether.Core.Settings
                 case "accessibility.highContrast":
                     return settings.Accessibility.HighContrast ? 1f : 0f;
                 case "language.primary":
-                    return 0f;
+                    return Aether.Core.Localization.LanguageCatalog.IndexOf(settings.Language);
                 default:
                     return 0f;
             }
@@ -439,6 +482,10 @@ namespace Aether.Core.Settings
                     break;
                 case "accessibility.highContrast":
                     settings.Accessibility.HighContrast = clean >= 0.5f;
+                    break;
+                case "language.primary":
+                    // The stored value is a position in the catalogue; the code is what is filed.
+                    settings.Language = Aether.Core.Localization.LanguageCatalog.CodeAt((int)Math.Round(clean));
                     break;
                 default:
                     break;

@@ -46,4 +46,58 @@ namespace Aether.Core.Events
             RespawnPosition = respawnPosition;
         }
     }
+
+    /// <summary>
+    /// Raised when a one-shot world fact is recorded for the first time — a secret found, a region
+    /// completed.
+    /// </summary>
+    /// <remarks>
+    /// The save file is a list of these facts, so anything that wants to react to "the world
+    /// changed" needs exactly this and nothing more. Achivements and the collection screen are the
+    /// two listeners today; both would otherwise have to poll the world state every frame for
+    /// something that happens a handful of times in a run.
+    /// </remarks>
+    public readonly struct WorldFlagSetEvent
+    {
+        /// <summary>The flag that was set, exactly as authored in level data.</summary>
+        public readonly string FlagId;
+
+        public WorldFlagSetEvent(string flagId)
+        {
+            FlagId = flagId;
+        }
+    }
+
+    /// <summary>Raised when the player dies, before the respawn beat starts.</summary>
+    /// <remarks>
+    /// A run's death count is part of its record — it is what a "no deaths" achievement is measured
+    /// against — so it is counted where the death happens rather than derived later.
+    /// </remarks>
+    public readonly struct PlayerDiedEvent
+    {
+        /// <summary>How many times the player has died in this run, this death included.</summary>
+        public readonly int Deaths;
+
+        public PlayerDiedEvent(int deaths)
+        {
+            Deaths = deaths;
+        }
+    }
+
+    /// <summary>Raised when a region has been built and the player is standing in it.</summary>
+    /// <remarks>
+    /// Deliberately after the level exists rather than before the load: a listener that wants to
+    /// look at the region — the collection counting its secrets, a character list noting what lives
+    /// there — has to be able to, and "we are about to load" would not allow that.
+    /// </remarks>
+    public readonly struct RegionEnteredEvent
+    {
+        /// <summary>Stable id of the chapter, as the chapter catalogue knows it.</summary>
+        public readonly string ChapterId;
+
+        public RegionEnteredEvent(string chapterId)
+        {
+            ChapterId = chapterId;
+        }
+    }
 }

@@ -231,17 +231,11 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void DeleteRun()
         {
-            GameSession session = SaveHost.Existing;
-            if (session != null)
-            {
-                // The same call the main menu makes when a new game begins: reset the run in memory
-                // and clear the file, so the deletion cannot be undone by closing the app.
-                session.StartNewGame(true);
-            }
-            else
-            {
-                SaveHost.Store.Clear();
-            }
+            // One call, from the layer that owns the files: it deletes the slot that is being played
+            // and resets the session standing on it, so a run cannot be deleted and then written back
+            // by an autosave a second later. Deleting a slot the session is not standing on would
+            // leave the session alone, which is the same rule seen from the other side.
+            SaveHost.DeleteSlot(SaveHost.ActiveSlot);
 
             MenuAudio.Confirm();
             _rows.Refresh();

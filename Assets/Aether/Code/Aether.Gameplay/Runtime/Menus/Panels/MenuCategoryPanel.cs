@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Aether.Core.Localization;
 using Aether.Core.Settings;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Widgets;
 using Aether.Gameplay.Progression;
@@ -68,6 +70,15 @@ namespace Aether.Gameplay.Menus.Panels
 
             /// <summary>Close the game. Desktop only, where closing is what a menu row means.</summary>
             Quit = 8,
+
+            /// <summary>How complete the language on screen is, and how many are offered.</summary>
+            LanguageState = 9,
+
+            /// <summary>Languages that are named, catalogued and not translated yet.</summary>
+            LanguageMissing = 10,
+
+            /// <summary>Languages whose script the bundled font cannot draw at all.</summary>
+            LanguageFont = 11,
         }
 
         /// <summary>One row that is not a catalogue setting.</summary>
@@ -96,6 +107,10 @@ namespace Aether.Gameplay.Menus.Panels
         // Order within a category is this table's order, appended after the catalogue's own rows.
         private static readonly Extra[] Extras =
         {
+            new Extra { Category = SettingCategory.Language, LabelKey = "language.coverage.label", Kind = ExtraKind.LanguageState },
+            new Extra { Category = SettingCategory.Language, LabelKey = "language.notWritten", Kind = ExtraKind.LanguageMissing },
+            new Extra { Category = SettingCategory.Language, LabelKey = "language.needsFont", Kind = ExtraKind.LanguageFont },
+
             new Extra { Category = SettingCategory.Data, LabelKey = "data.info.none", Kind = ExtraKind.RunState },
             new Extra { Category = SettingCategory.Data, LabelKey = "about.storage", Kind = ExtraKind.StorageName },
             new Extra { Category = SettingCategory.Data, LabelKey = "data.saveNow", Kind = ExtraKind.SaveNow },
@@ -107,6 +122,9 @@ namespace Aether.Gameplay.Menus.Panels
             new Extra { Category = SettingCategory.About, LabelKey = "about.credits", Kind = ExtraKind.Credits },
             new Extra { Category = SettingCategory.About, LabelKey = "menu.quit", Kind = ExtraKind.Quit },
         };
+
+        /// <summary>The one settings row whose effect reaches beyond the row itself.</summary>
+        private const string LanguageSettingId = "language.primary";
 
         private readonly List<Row> _rows = new List<Row>(40);
         private readonly List<Row> _visible = new List<Row>(12);
@@ -346,6 +364,27 @@ namespace Aether.Gameplay.Menus.Panels
                 case ExtraKind.Platform:
                     row.Button.SetLabel(MenuStrings.Format("about.platform", Application.platform));
                     break;
+
+                case ExtraKind.LanguageState:
+                    // Real numbers, read from the tables that are actually in the build: how much of
+                    // the interface this language carries, and how many languages are offered.
+                    int present;
+                    int total;
+                    LanguageService.Coverage(LanguageService.Code, out present, out total);
+                    row.Button.SetLabel(MenuStrings.Format("language.coverage",
+                                                           LanguageService.Code.ToUpperInvariant(),
+                                                           present, total));
+                    row.Button.SetMeta(MenuStrings.Format("language.offered.count",
+                                                         LanguageService.OfferedCount, LanguageCatalog.Count));
+                    break;
+
+                case ExtraKind.LanguageMissing:
+                    row.Button.SetMeta(LanguageService.DescribeNotOffered(false));
+                    break;
+
+                case ExtraKind.LanguageFont:
+                    row.Button.SetMeta(LanguageService.DescribeNotOffered(true));
+                    break;
             }
         }
 
@@ -397,6 +436,17 @@ namespace Aether.Gameplay.Menus.Panels
             settings.Flush();
 
             MenuAudio.Adjust();
+
+            // Every other option on this screen shows its new value on the row that changed. The
+            // language does not: it changes the words on every row, on every screen, including the
+            // row being stepped. So the change is applied through the one service that owns it, and
+            // the menu answers by building its screens again — see MenuSystem.RequestRebuild.
+            if (row.Definition.Id == LanguageSettingId)
+            {
+                LanguageService.Set(LanguageCatalog.CodeAt((int)Math.Round(row.Definition.OptionValues[wanted])));
+                return true;
+            }
+
             Refresh();
             return true;
         }

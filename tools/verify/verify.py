@@ -1393,8 +1393,16 @@ BALANCE_PAIRS = {"{": "}", "(": ")", "[": "]"}
 
 
 def check_syntax(report: Report, project: Project) -> None:
+    """Brackets balance, counted in code rather than in prose.
+
+    Counting the raw characters would read a bracket inside a string as a bracket in the
+    program, and a translation sheet is full of prose: 'HALLAZGO(S)' is balanced by luck,
+    and a smiley in a French string would not be. Strings and comments are blanked first,
+    through the same function the rest of the tool uses, so what is counted is what the
+    compiler sees.
+    """
     for rel, entry in project.files.items():
-        code = entry["code"]
+        code = strip_noncode(entry["code"])
         for opener, closer in BALANCE_PAIRS.items():
             depth = 0
             for ch in code:

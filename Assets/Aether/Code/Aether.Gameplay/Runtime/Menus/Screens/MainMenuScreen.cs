@@ -1,6 +1,7 @@
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Storage;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -228,22 +229,37 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void NewGame()
         {
-            if (!SaveHost.HasStoredProgress)
+            // A new run goes in a free slot, and there are three. While one is free, nothing is
+            // thrown away and nothing needs asking about; when all three are used, the player is
+            // choosing which run to lose, so the screen asks first — and the dialog starts on Cancel.
+            int free = SaveSlots.FirstEmpty();
+            if (free > 0)
             {
                 MenuAudio.Confirm();
-                SaveHost.BeginNewGame();
+                SaveHost.BeginNewGameIn(free, ChapterCatalog.First.Id);
                 Host.PlayRegion();
                 return;
             }
 
-            // There is a run on disk and starting again throws it away, so the screen asks. The
-            // dialog starts on Cancel, never on the answer that destroys something.
             _confirm.Open(MenuStrings.Get("menu.newGame"), MenuStrings.Get("menu.newGame.confirm"),
                           () =>
                           {
-                              SaveHost.BeginNewGame();
+                              SaveHost.BeginNewGameIn(ReplaceSlot, ChapterCatalog.First.Id);
                               Host.PlayRegion();
                           });
+        }
+
+        /// <summary>
+        /// Which run a new game replaces once every slot is full.
+        /// </summary>
+        /// <remarks>
+        /// The least recently played one is the run its owner is least likely to be in the middle of.
+        /// Until slot selection is on screen, this is the rule; the confirm names no slot, which is
+        /// why the wording of <c>menu.newGame.confirm</c> stays generic.
+        /// </remarks>
+        private static int ReplaceSlot
+        {
+            get { return SaveSlots.LeastRecent(); }
         }
 
         /// <summary>Asks before closing the game: back is a thumb's width from the rows on a phone.</summary>

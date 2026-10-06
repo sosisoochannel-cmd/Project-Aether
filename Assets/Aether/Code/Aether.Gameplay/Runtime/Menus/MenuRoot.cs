@@ -1,3 +1,4 @@
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Settings;
 using UnityEngine;
@@ -93,6 +94,7 @@ namespace Aether.Gameplay.Menus
             _audio.PlayMenuMusic();
 
             MenuPreferences.Subscribe(OnSettingChanged);
+            LanguageService.Changed += OnLanguageChanged;
             _listening = true;
 
             // The rects are only meaningful once the canvas has laid out, and the menu should be
@@ -109,6 +111,7 @@ namespace Aether.Gameplay.Menus
             if (_listening)
             {
                 MenuPreferences.Unsubscribe(OnSettingChanged);
+                LanguageService.Changed -= OnLanguageChanged;
                 _listening = false;
             }
         }
@@ -121,6 +124,10 @@ namespace Aether.Gameplay.Menus
             if (_canvas.ContentRoot.rect.size != _box) LayoutNow();
 
             if (_input != null) _input.Locked = MenuTransition.Instance.Busy;
+
+            // A language change asked for while a transition was running waits here, and is built the
+            // frame the fade finishes. One boolean read per frame, and no work in the usual case.
+            if (_system != null) _system.ApplyPendingRebuild();
         }
 
         /// <summary>Re-measures the box and lays the menu out in it. Safe to call at any time.</summary>
@@ -162,6 +169,20 @@ namespace Aether.Gameplay.Menus
             // forced update is paid once here instead of the menu laying out twice.
             Canvas.ForceUpdateCanvases();
             LayoutNow();
+        }
+
+        /// <summary>
+        /// Builds the screens again in the language that was just chosen.
+        /// </summary>
+        /// <remarks>
+        /// The setting is stored, applied and flushed by the localization service; what is left for
+        /// the menu is to stop showing the old language. It does that by building its screens again
+        /// rather than by updating labels row by row — there is no per-label update pass in this menu
+        /// and there is not meant to be one, because every string is written when its screen is built.
+        /// </remarks>
+        private void OnLanguageChanged()
+        {
+            if (_system != null) _system.RequestRebuild();
         }
 
         /// <summary>

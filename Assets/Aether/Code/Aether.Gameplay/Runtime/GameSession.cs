@@ -52,6 +52,35 @@ namespace Aether.Gameplay
         /// Storage backend hook. Null until a save layer is installed; callers must tolerate that,
         /// which is why <see cref="RequestSave"/> is a no-op rather than an error.
         /// </summary>
+        /// <summary>The whole snapshot, including the run's own record.</summary>
+        /// <remarks>
+        /// <see cref="Save"/> is the same object; this name exists because half of gameplay reads it
+        /// for the collection and the achievements rather than for progression, and two names for
+        /// the same field used consistently is clearer than one used for two jobs.
+        /// </remarks>
+        public SaveData Snapshot
+        {
+            get { return Save; }
+        }
+
+        /// <summary>What the run has found, met and achieved.</summary>
+        public CollectionState Collection
+        {
+            get { return Save.Collection; }
+        }
+
+        /// <summary>Who the run has met.</summary>
+        public CharacterState Characters
+        {
+            get { return Save.Characters; }
+        }
+
+        /// <summary>What the run has achieved.</summary>
+        public AchievementState Achievements
+        {
+            get { return Save.Achievements; }
+        }
+
         public ISaveStore Store { get; set; }
 
         /// <summary>True when a storage backend has been installed.</summary>
@@ -96,8 +125,71 @@ namespace Aether.Gameplay
         {
             if (!World.Set(flagId)) return false;
 
+            Events.Publish(new WorldFlagSetEvent(flagId));
             RequestSave();
             return true;
+        }
+
+        /// <summary>
+        /// Records a find: the world fact, the collection entry, and the event, once.
+        /// </summary>
+        /// <remarks>
+        /// The two records are written in one place on purpose. The world flag is what makes the
+        /// find stay found; the collection entry is what the collection screen lists; and a find
+        /// that existed in one and not the other would be a screen that lies about a level. Public
+        /// so a discovery trigger — and a test — can record a find without knowing either rule.
+        /// </remarks>
+        public bool RecordFinding(string flagId, string collectionId)
+        {
+            if (string.IsNullOrEmpty(flagId)) return false;
+
+            bool recorded = Collection.Record(string.IsNullOrEmpty(collectionId) ? flagId : collectionId);
+            bool set = SetWorldFlag(flagId);
+
+            return recorded || set;
+        }
+
+        /// <summary>Counts a death in this run and announces it.</summary>
+        /// <remarks>
+        /// The count lives in the run's own record rather than in a counter somewhere in the scene,
+        /// because a run that ends and is loaded again must still remember how it went.
+        /// </remarks>
+        public void RecordDeath()
+        {
+            if (Save.Meta == null) Save.Meta = new SaveMeta();
+
+            Save.Meta.Deaths++;
+            Events.Publish(new PlayerDiedEvent(Save.Meta.Deaths));
+            RequestSave();
+        }
+
+        /// <summary>Notes that the player is standing in a region, and which chapter it belongs to.</summary>
+        /// <param name="chapterId">Stable chapter id from <c>ChapterCatalog</c>.</param>
+        /// <param name="objectiveId">Stable objective id the region starts on, or empty.</param>
+        public void NoteRegionEntered(string chapterId, string objectiveId)
+        {
+            if (Save.Meta == null) Save.Meta = new SaveMeta();
+
+            bool changed = Save.Meta.ChapterId != chapterId;
+            Save.Meta.ChapterId = chapterId ?? string.Empty;
+            if (!string.IsNullOrEmpty(objectiveId)) Save.Meta.ObjectiveId = objectiveId;
+
+            Events.Publish(new RegionEnteredEvent(Save.Meta.ChapterId));
+            RequestSave();
+            if (changed) Events.Publish(new WorldFlagSetEvent("chapter.entered." + Save.Meta.ChapterId));
+        }
+
+        /// <summary>Updates how long this run has been played, in seconds.</summary>
+        /// <remarks>
+        /// Called by the gameplay clock rather than by a timer here: gameplay pauses, and a run's
+        /// time should stop while it is paused.
+        /// </remarks>
+        public void AddPlayTime(float seconds)
+        {
+            if (seconds <= 0f) return;
+            if (Save.Meta == null) Save.Meta = new SaveMeta();
+
+            Save.Meta.PlaySeconds += seconds;
         }
 
         /// <summary>
