@@ -1,3 +1,4 @@
+using Aether.Gameplay.Settings;
 using UnityEngine;
 
 namespace Aether.Gameplay.Cameras
@@ -69,6 +70,38 @@ namespace Aether.Gameplay.Cameras
         [Tooltip("Maximum corner of the camera's allowed centre, in world units.")]
         [SerializeField]
         private Vector2 _boundsMax = new Vector2(20f, 20f);
+
+        /// <summary>
+        /// Takes the player's camera preferences: how softly the camera catches up, and how far it
+        /// looks ahead.
+        /// </summary>
+        /// <remarks>
+        /// Subscribed while the camera is alive rather than read every frame. The two values are
+        /// smoothing constants — a frame that used the old value while the slider moved would be a
+        /// frame nobody could see — so the work belongs on the change, not in <c>LateUpdate</c>.
+        /// </remarks>
+        public void ApplySettings()
+        {
+            CameraSettings wanted = AetherSettings.Ensure().Values.Camera;
+            _smoothTime = wanted.FollowSmoothing;
+            _lookAhead = new Vector2(wanted.LookAhead, _lookAhead.y);
+        }
+
+        private void OnEnable()
+        {
+            AetherSettings.Ensure().Changed += OnSettingsChanged;
+            ApplySettings();
+        }
+
+        private void OnDisable()
+        {
+            AetherSettings.Current.Changed -= OnSettingsChanged;
+        }
+
+        private void OnSettingsChanged(string id)
+        {
+            ApplySettings();
+        }
 
         /// <summary>
         /// Points the camera at a target and confines it to the level's rectangle. Objects built at

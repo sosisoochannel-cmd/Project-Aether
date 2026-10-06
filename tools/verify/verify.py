@@ -41,6 +41,9 @@ CODE_ROOT = os.path.join(ASSETS, "Aether", "Code")
 # Assemblies provided by packages rather than by an .asmdef in this repository.
 EXTERNAL_ASSEMBLIES = {
     "Unity.InputSystem",
+    # uGUI: referenced by Aether.Gameplay for the menu. It is a package-provided assembly
+    # (com.unity.ugui), not one of ours, so it belongs on this list rather than in an asmdef here.
+    "UnityEngine.UI",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner",
     "nunit.framework.dll",
@@ -179,6 +182,101 @@ def strip_noncode(text: str) -> str:
     return "".join(out)
 
 
+def strip_comments_only(text: str) -> str:
+    """Replace comments with spaces, preserving length, and leave string literals alone.
+
+    The call-argument reader needs the literals: an argument that happens to be a string is
+    still an argument, and a pass that blanks it turns a three-argument call into a two-argument
+    one. Comments still have to go, or a call quoted inside prose would be read as code.
+
+    Offsets and line breaks match :func:`strip_noncode` exactly, so a position found in one view
+    is a valid position in the other.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    state = "code"  # code | line | block | str | verbatim | char
+
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+
+        if state == "code":
+            if c == "/" and nxt == "/":
+                state = "line"
+                out[i] = out[i + 1] = " "
+                i += 2
+                continue
+            if c == "/" and nxt == "*":
+                state = "block"
+                out[i] = out[i + 1] = " "
+                i += 2
+                continue
+            if c == '"':
+                state = "verbatim" if (i > 0 and text[i - 1] == "@") else "str"
+                i += 1
+                continue
+            if c == "'":
+                state = "char"
+                i += 1
+                continue
+            i += 1
+            continue
+
+        if state == "line":
+            if c == "\n":
+                state = "code"
+            else:
+                out[i] = " "
+            i += 1
+            continue
+
+        if state == "block":
+            if c == "*" and nxt == "/":
+                out[i] = out[i + 1] = " "
+                i += 2
+                state = "code"
+                continue
+            if c != "\n":
+                out[i] = " "
+            i += 1
+            continue
+
+        if state == "verbatim":
+            if c == '"' and nxt == '"':
+                i += 2
+                continue
+            if c == '"':
+                i += 1
+                state = "code"
+                continue
+            i += 1
+            continue
+
+        if state == "str":
+            if c == "\\":
+                i += 2
+                continue
+            if c == '"':
+                i += 1
+                state = "code"
+                continue
+            i += 1
+            continue
+
+        if state == "char":
+            if c == "\\":
+                i += 2
+                continue
+            if c == "'":
+                i += 1
+                state = "code"
+                continue
+            i += 1
+            continue
+
+    return "".join(out)
+
+
 def match_bracket(text: str, open_index: int) -> int:
     """Index of the bracket closing the one at open_index, or -1."""
     pairs = {"{": "}", "(": ")", "[": "]"}
@@ -198,7 +296,23 @@ def match_bracket(text: str, open_index: int) -> int:
 def split_top_level(text: str, separator: str = ",") -> list[str]:
     """Split on a separator that is not nested inside brackets or angle brackets."""
     parts, depth, angle, current = [], 0, 0, []
-    for ch in text:
+    quote = ""
+    for index, ch in enumerate(text):
+        if quote:
+            # Inside a literal nothing counts: a comma in a sentence is not an argument.
+            if ch == "\\" and quote != "'":
+                current.append(ch)
+                continue
+            if ch == quote:
+                quote = ""
+            current.append(ch)
+            continue
+
+        if ch in "\"'":
+            quote = ch
+            current.append(ch)
+            continue
+
         if ch in "([{":
             depth += 1
         elif ch in ")]}":
@@ -374,17 +488,23 @@ def parse_declaration(chunk: str, terminated_by: str) -> dict | None:
 
         params = [p.strip() for p in split_top_level(params_text) if p.strip()]
         required = 0
+        variadic = False
         for p in params:
             # Parameters carrying a default value are optional, so a call may omit them.
             if find_top_level_assignment(p) < 0:
                 required += 1
 
+            # `params object[] args` takes a call with any number of arguments past the fixed
+            # ones, so an arity range ending at the declaration's own count would be wrong.
+            if re.match(r"params\b", p) or re.search(r"(?<![\w])params\s", p):
+                variadic = True
+
         return {
             "name": name_match.group(1),
             "kind": "method",
             "type": None,
-            "min_args": required,
-            "max_args": len(params),
+            "min_args": required - (1 if variadic else 0),
+            "max_args": None if variadic else len(params),
         }
 
     # Discard the initialiser before reading the declared type and name.
@@ -426,7 +546,11 @@ def parse_enum_members(body: str) -> list[dict]:
 def base_type_names(bases: str | None) -> list[str]:
     if not bases:
         return []
-    text = bases.lstrip(":").strip()
+    # The capture is " : Base" when a declaration writes a space before its colon, which is the
+    # usual style here: strip the space *before* the colon or the colon itself is not leading.
+    text = bases.strip()
+    text = text[1:] if text.startswith(":") else text
+    text = text.strip()
     names = []
     for part in split_top_level(text):
         part = part.strip()
@@ -499,10 +623,10 @@ class Project:
                     names |= self.members_of(base, seen)
         return names
 
-    def arity_of(self, type_name: str, member: str) -> tuple[int, int] | None:
+    def arity_of(self, type_name: str, member: str) -> tuple[int, int | None] | None:
         if type_name in self.ambiguous:
             return None
-        widest: tuple[int, int] | None = None
+        widest: tuple[int, int | None] | None = None
         for record in self.records_for(type_name):
             for m in record["members"]:
                 if m["name"] != member or m["kind"] != "method":
@@ -510,6 +634,10 @@ class Project:
                 call = (m["min_args"], m["max_args"])
                 if widest is None:
                     widest = call
+                elif widest[1] is None or call[1] is None:
+                    # A variadic overload accepts any number past the smallest fixed count, so the
+                    # merged range is open at the top rather than the larger of the two maxima.
+                    widest = (min(widest[0], call[0]), None)
                 else:
                     widest = (min(widest[0], call[0]), max(widest[1], call[1]))
         return widest
@@ -524,12 +652,14 @@ class Project:
         found = set()
         for record in self.records_for(type_name):
             for m in record["members"]:
-                if m["name"] == member and m["type"]:
-                    found.add(simple_type_name(m["type"]))
+                if m["name"] != member or not m["type"]:
+                    continue
+                kind = collection_kind(m["type"])
+                found.add(COLLECTION_PREFIX + kind if kind else simple_type_name(m["type"]))
         for simple in found:
-            if simple in self.types and simple not in self.ambiguous:
+            if simple.startswith(COLLECTION_PREFIX) or (
+                    simple in self.types and simple not in self.ambiguous):
                 return None if len(found) > 1 else simple
-        return None
         return None
 
 
@@ -671,7 +801,8 @@ def load_project() -> Project:
                 raw = handle.read()
             rel = os.path.relpath(full, REPO_ROOT).replace(os.sep, "/")
             code = strip_noncode(raw)
-            project.files[rel] = {"raw": raw, "code": code}
+            project.files[rel] = {"raw": raw, "code": code,
+                                  "calls": strip_comments_only(raw)}
             collect_namespaces_and_types(rel, code, project)
     finalise_types(project)
     return project
@@ -1050,7 +1181,7 @@ def check_asmdefs(report: Report, project: Project) -> None:
             if name in flagged or name in shadowed:
                 continue
             record = project.types.get(name)
-            if record is None:
+            if record is None or record.get("container"):
                 continue
             owner = assembly_for(os.path.join(REPO_ROOT, record["file"]))
             if owner is None or owner in visible:
@@ -1067,11 +1198,20 @@ def check_asmdefs(report: Report, project: Project) -> None:
 # Names a file declares itself. Used to decide whether a bare identifier that matches a project
 # type is really that type, or a local/field/method that merely shares its name.
 DECLARED_TYPE_RE = re.compile(r"\b(?:class|struct|interface|enum|record)\s+([A-Z]\w*)")
+# Modifiers in front of a declaration are part of the declaration, not part of its type. Without
+# them the pattern missed `public bool Haptics = true;` entirely, so the bare name `Haptics` looked
+# exactly like a reference to the unrelated `Haptics` type in another assembly and was reported as
+# an illegal cross-assembly use. Found by a field named after a type that lives somewhere else.
+# The indent belongs *after* the separator above, never inside it: a field sitting under a doc
+# comment has a newline before it, not a `;`/`{`/`(`/`,`, and was invisible for that reason alone.
+DECLARATION_MODIFIERS = (
+    r"(?:(?:public|private|protected|internal|static|readonly|const|volatile|new|override|virtual|sealed|abstract|partial|extern|unsafe|ref|in|out|event|async)\s+)*")
 DECLARED_VARIABLE_RE = re.compile(
-    r"(?:^|[;{(,]\s*)(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?(?:\?)?)\s+([A-Za-z_]\w*)\s*(?=[=;,)])",
+    r"(?:^|[;{(,])\s*(?:(?:public|private|protected|internal|static|readonly|const|volatile|new|override|virtual|sealed|abstract|partial|extern|unsafe|ref|in|out|event|async)\s+)*(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?(?:[?])?)\s+([A-Za-z_]\w*)\s*(?=[=;,)])\s*",
     re.M)
 DECLARED_METHOD_RE = re.compile(
-    r"(?:^|[;{}\s])(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?)\s+([A-Za-z_]\w*)\s*\(")
+    r"(?:^|[;{}\s])(?:(?:public|private|protected|internal|static|readonly|const|volatile|new|override|virtual|sealed|abstract|partial|extern|unsafe|ref|in|out|event|async)\s+)*(?:[A-Za-z_]\w*(?:<[^<>()]*>)?(?:\[\])?)\s+([A-Za-z_]\w*)\s*\(")
+
 DECLARED_USING_ALIAS_RE = re.compile(r"^using\s+([A-Za-z_]\w*)\s*=", re.M)
 
 BALANCE_PAIRS = {"{": "}", "(": ")", "[": "]"}
@@ -1097,6 +1237,59 @@ def check_syntax(report: Report, project: Project) -> None:
         report.note(f"syntax: brackets balance in {len(project.files)} file(s)")
 
 
+# What a collection offers, by kind, so that member access on it is not checked against its
+# element type. A declared type is reduced to a bare name and `Thing[]` reduces to `Thing`, which
+# is how `All.Length` — All being `SettingDefinition[]` — came to be reported as
+# `SettingDefinition` having no member `Length`. Modelling the container fixes the false accusation
+# and checks more than before: `All.Lenght` is now a failure rather than silence.
+COLLECTION_MEMBERS = {
+    "array": {"Length", "LongLength", "Rank", "GetLength", "GetLongLength", "GetLowerBound",
+              "GetUpperBound", "GetValue", "SetValue", "Clone", "CopyTo", "GetEnumerator"},
+    "List": {"Count", "Capacity", "Add", "AddRange", "Insert", "InsertRange", "Remove",
+             "RemoveAt", "RemoveAll", "RemoveRange", "Clear", "Contains", "IndexOf",
+             "LastIndexOf", "Sort", "Reverse", "ToArray", "Find", "FindAll", "FindIndex",
+             "FindLast", "ForEach", "GetRange", "GetEnumerator", "CopyTo", "TrimExcess",
+             "EnsureCapacity", "BinarySearch", "TrueForAll", "Exists"},
+    "IReadOnlyList": {"Count", "Contains", "IndexOf", "CopyTo", "GetEnumerator"},
+    "IEnumerable": {"GetEnumerator"},
+    "Dictionary": {"Count", "Add", "Remove", "Clear", "Contains", "ContainsKey", "ContainsValue",
+                   "TryAdd", "TryGetValue", "GetEnumerator", "Keys", "Values", "EnsureCapacity",
+                   "TrimExcess"},
+    "HashSet": {"Count", "Add", "Remove", "Clear", "Contains", "UnionWith", "IntersectWith",
+                "ExceptWith", "SymmetricExceptWith", "IsSubsetOf", "IsSupersetOf", "Overlaps",
+                "SetEquals", "CopyTo", "GetEnumerator", "TrimExcess", "EnsureCapacity"},
+    "Queue": {"Count", "Enqueue", "Dequeue", "Peek", "Clear", "Contains", "ToArray",
+              "GetEnumerator", "TrimExcess"},
+    "Stack": {"Count", "Push", "Pop", "Peek", "Clear", "Contains", "ToArray", "GetEnumerator",
+              "TrimExcess"},
+}
+
+# Longest first: "IReadOnlyList<" contains "List<", and matching the shorter name first would
+# model the interface as the concrete list and allow members it does not have.
+COLLECTION_NAMES = tuple(sorted(
+    ("List", "IList", "IReadOnlyList", "IEnumerable", "Dictionary", "IDictionary", "HashSet",
+     "Queue", "Stack"),
+    key=len, reverse=True))
+
+COLLECTION_PREFIX = "@"
+
+
+def collection_kind(declared: str) -> str | None:
+    """Which collection a declared type is, or None when it is not one this tool models."""
+    if not declared:
+        return None
+
+    spelled = declared.strip()
+    if "[]" in spelled:
+        return "array"
+
+    for name in COLLECTION_NAMES:
+        if name + "<" in spelled:
+            return name
+
+    return None
+
+
 IDENT_CHAIN_RE = re.compile(r"(?<![\w.])([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)")
 CALL_SUFFIX_RE = re.compile(r"^\s*\(")
 
@@ -1112,6 +1305,7 @@ def check_symbols(report: Report, project: Project) -> None:
 
     for rel, entry in project.files.items():
         code = entry["code"]
+        calls = entry["calls"]
 
         # Build the scope of resolvable names for this file: fields, properties, method
         # parameters and foreach variables whose type is one of our types.
@@ -1135,6 +1329,11 @@ def check_symbols(report: Report, project: Project) -> None:
         unknown = "?"
         candidates: dict[str, set[str]] = defaultdict(set)
 
+        # Names declared as collections, and every kind each name was seen declared as. A name
+        # declared as two different things is dropped rather than guessed, exactly like a name
+        # declared with two different element types.
+        collection_kinds: dict[str, set[str]] = defaultdict(set)
+
         for type_name, record in project.types.items():
             if record["file"] != rel:
                 continue
@@ -1142,6 +1341,10 @@ def check_symbols(report: Report, project: Project) -> None:
                 if m["kind"] in ("field", "property") and m["type"]:
                     simple = simple_type_name(m["type"])
                     candidates[m["name"]].add(simple if simple in project.types else unknown)
+                    kind = collection_kind(m["type"])
+                    if kind:
+                        collection_kinds[m["name"]].add(kind)
+                        candidates[m["name"]].add(COLLECTION_PREFIX + kind)
 
         not_parameters = {"if", "while", "for", "foreach", "switch", "catch", "using", "lock",
                           "fixed", "checked", "unchecked", "when", "return", "do", "else", "in"}
@@ -1161,6 +1364,12 @@ def check_symbols(report: Report, project: Project) -> None:
                     continue
                 candidates[pname].add(simple if simple in project.types else unknown)
 
+                # A parameter declared as an array or a list: `SettingDefinition[] rows`.
+                kind = collection_kind(bits[0])
+                if kind:
+                    collection_kinds[pname].add(kind)
+                    candidates[pname].add(COLLECTION_PREFIX + kind)
+
         # foreach (PlayableNode node in nodes) — the loop variable is a real declaration, and
         # reading it makes member checks *stronger*: what it points at is now known.
         for match in re.finditer(
@@ -1168,8 +1377,15 @@ def check_symbols(report: Report, project: Project) -> None:
             simple = simple_type_name(match.group(1))
             candidates[match.group(2)].add(simple if simple in project.types else unknown)
 
+            kind = collection_kind(match.group(1))
+            if kind:
+                collection_kinds[match.group(2)].add(kind)
+                candidates[match.group(2)].add(COLLECTION_PREFIX + kind)
+
         scope: dict[str, str] = {}
         for name, types in candidates.items():
+            if name in collection_kinds and len(collection_kinds[name]) > 1:
+                continue
             if len(types) == 1:
                 scope[name] = next(iter(types))
 
@@ -1181,6 +1397,18 @@ def check_symbols(report: Report, project: Project) -> None:
 
             for index in range(1, len(chain)):
                 member = chain[index]
+
+                # A collection's members are its own; what its elements offer is not modelled here,
+                # so the walk stops rather than guessing.
+                if current.startswith(COLLECTION_PREFIX):
+                    allowed = COLLECTION_MEMBERS.get(current[len(COLLECTION_PREFIX):])
+                    if allowed is not None and member not in allowed:
+                        line = code[: match.start()].count("\n") + 1
+                        report.fail(
+                            f"symbol: '{rel}' line {line}: '{chain[0]}.{member}' — "
+                            f"a {current[len(COLLECTION_PREFIX):]} has no member '{member}'")
+                    break
+
                 if current not in project.types:
                     break
 
@@ -1194,7 +1422,9 @@ def check_symbols(report: Report, project: Project) -> None:
 
                 # Arity, when the final chain element is a call.
                 if index == len(chain) - 1:
-                    call = code[match.end():]
+                    # The argument list is read from the view that keeps string literals, at an
+                    # offset found in the view that blanks them: the two are the same length.
+                    call = calls[match.end():]
                     if CALL_SUFFIX_RE.match(call):
                         open_paren = call.find("(")
                         close = match_bracket(call, open_paren)
@@ -1202,7 +1432,9 @@ def check_symbols(report: Report, project: Project) -> None:
                             args = [a for a in split_top_level(call[open_paren + 1:close])
                                     if a.strip()]
                             arity = project.arity_of(current, member)
-                            if arity and not (arity[0] <= len(args) <= arity[1]):
+                            within = arity is not None and arity[0] <= len(args) and (
+                                arity[1] is None or len(args) <= arity[1])
+                            if arity and not within:
                                 line = code[: match.start()].count("\n") + 1
                                 report.fail(
                                     f"symbol: '{rel}' line {line}: '{current}.{member}' called "
@@ -1257,8 +1489,9 @@ def check_nested_member_scope(report: Report, project: Project) -> None:
     stopped on - six times in three lines. The symbol check could not see it either: it resolves
     members accessed *on a receiver*, and these had no receiver at all.
 
-    An occurrence inside the nested type's own body is legal (members are in scope there), and a
-    name the enclosing type also declares is legal by C# name lookup, so both are skipped.
+    An occurrence inside the nested type's own body is legal (members are in scope there), a name
+    the enclosing type also declares is legal by C# name lookup, and the target of an assignment
+    is legal inside an object initialiser (`new Extra { Kind = ... }`), so all three are skipped.
     """
     enclosing_member_names: dict[str, set[str]] = {}
     for decl in project.declarations:
@@ -1286,16 +1519,31 @@ def check_nested_member_scope(report: Report, project: Project) -> None:
             continue
 
         legal = enclosing_member_names.get(rel, set())
+
+        # A declaration shadows the nested name only when it is *outside* the nested type. The
+        # nested type's own fields are declarations too — `public static readonly Vector2
+        # JumpCentre` — and counting those as shadowing would turn this rule off for every name
+        # it exists to check, which is what happened when the declaration patterns learned to see
+        # indented fields.
         shadowing = set()
         for pattern in (DECLARED_TYPE_RE, DECLARED_VARIABLE_RE, DECLARED_METHOD_RE,
                         DECLARED_USING_ALIAS_RE):
-            shadowing.update(pattern.findall(code))
+            for found in pattern.finditer(code):
+                if any(start <= found.start() <= end for start, end in own_ranges):
+                    continue
+                shadowing.add(found.group(1) if found.groups() else found.group(0))
 
         for name in sorted(nested):
             if name in legal or name in shadowing:
                 continue
             for match in re.finditer(r"(?<![\w.])" + re.escape(name) + r"(?![\w])", code):
                 if any(start <= match.start() <= end for start, end in own_ranges):
+                    continue
+
+                # `Kind = ExtraKind.RunState` inside `new Extra { ... }` is an object initialiser,
+                # where the nested member is the assignment's target and lookup runs in the nested
+                # type's own context. Only reads are this rule's business.
+                if re.match(r"\s*=(?!=)", code[match.end():]):
                     continue
                 line = code[: match.start()].count("\n") + 1
                 report.fail(

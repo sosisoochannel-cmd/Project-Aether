@@ -2,6 +2,7 @@ using Aether.Data.Levels;
 using Aether.Gameplay.Cameras;
 using Aether.Gameplay.Controls;
 using Aether.Gameplay.Player;
+using Aether.Gameplay.Progression;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
@@ -74,11 +75,10 @@ namespace Aether.Gameplay.Levels
         {
             if (Level != null) return;
 
-            _session = GameSession.Instance;
-            if (_session == null)
-            {
-                _session = new GameObject("GameSession").AddComponent<GameSession>();
-            }
+            // One way to get a session, which is also the thing that installs the store progress
+            // is written to. This used to build one here and never load anything into it, so a
+            // restart began from scratch however much the player had done.
+            _session = SaveHost.Ensure();
 
             LevelContent content = LevelContent.Load();
             LevelData data = LoadLevelData();

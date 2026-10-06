@@ -32,6 +32,9 @@ BUILD_SETTINGS = "ProjectSettings/EditorBuildSettings.asset"
 PLAYER_SETTINGS = "ProjectSettings/ProjectSettings.asset"
 BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
 BRAND_DIR = "Assets/Aether/Resources/Brand"
+MENUS = f"{CODE}/Aether.Gameplay/Runtime/Menus"
+THEME = f"{MENUS}/MenuTheme.cs"
+CATALOG = f"{CODE}/Aether.Core/Runtime/Settings/SettingsCatalog.cs"
 LEVEL = "Assets/Aether/Resources/Levels/region1.greenway.level.txt"
 STRIKE = "Assets/Aether/Resources/Content/Attack.Strike.asset"
 ENEMY = "Assets/Aether/Resources/Content/Enemies/ForestStalker.asset"
@@ -161,6 +164,7 @@ def controls() -> list[Control]:
     gate = ["python3", "tools/verify/verify.py"]
     solver = ["python3", "tools/verify/levelcheck.py"]
     intro = ["python3", "tools/verify/intro.py"]
+    menu = ["python3", "tools/verify/mainmenu.py"]
 
     def bad_brand_texture(root):
         """A brand PNG imported without alpha transparency.
@@ -207,8 +211,12 @@ def controls() -> list[Control]:
                      "  wrapU: 1\n"
                      "  wrapV: 1\n"
                      "  textureCompression: 0\n")
-        undo = [("DELETE_TREE", folder)]
+        undo = [("DELETE", png), ("DELETE", meta)]
+        # Only remove the folder when this control created it. The tree delete the first version
+        # used removed the studio's real mark along with the planted one and left the folder's
+        # .meta behind, which failed every control that ran after it.
         if not folder_existed:
+            undo.append(("DELETE_TREE", folder))
             undo.append(("DELETE", folder + ".meta"))
         return undo
 
@@ -333,8 +341,8 @@ def controls() -> list[Control]:
             gate,
             lambda root: edit(root,
                               f"{CODE}/Aether.Gameplay/Runtime/Controls/TouchControlsView.cs",
-                              "CircleHit(position, Layout.JumpCentre, Layout.JumpRadius)",
-                              "CircleHit(position, JumpCentre, Layout.JumpRadius)"),
+                              "Layout.Centre(Layout.JumpCentre)",
+                              "Layout.Centre(JumpCentre)"),
             ["scope:", "JumpCentre", "not in scope"]),
         Control(
             "verify: a local variable that shadows a nested member name is silent",
@@ -624,7 +632,7 @@ def controls() -> list[Control]:
         Control(
             "verify: the intro hands over to a scene the build does not contain",
             gate,
-            lambda root: edit(root, INTRO_SCENE, "  _nextScene: Boot", "  _nextScene: MainMenu"),
+            lambda root: edit(root, INTRO_SCENE, "  _nextScene: Boot", "  _nextScene: Nowhere"),
             ["is not an enabled"]),
         Control(
             "verify: a component in a scene names a field that does not exist",
@@ -663,6 +671,111 @@ def controls() -> list[Control]:
             gate,
             bad_brand_texture,
             ["alphaIsTransparency"]),
+
+        # -- the repairs the menu work needed, each guarded in both directions -----------------
+        #
+        # Three of these cover rules that were *wrong* rather than missing, and a wrong rule is the
+        # more dangerous kind: it fails correct code, and the failure looks like a real problem.
+        # The pair below is the shape to use for that — one mutation that must be reported and one
+        # that must not, so a rule that simply stopped checking cannot pass both.
+        Control(
+            "verify: a member inherited from a base class resolves",
+            # `class MenuSettingsPanel : MenuPanel`, written with a space before the colon, lost its
+            # base entirely — so every inherited member looked missing and the rule failed correct
+            # code. Show() is declared in MenuPanel and reached here through a derived-typed field.
+            gate,
+            lambda root: edit(root, f"{MENUS}/Screens/SettingsScreen.cs",
+                              "            _categories.Hide();",
+                              "            _categories.Hide();\n            _categories.Show(false);"),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
+            "verify: a member that exists on neither a type nor its base is caught",
+            gate,
+            lambda root: edit(root, f"{MENUS}/Screens/SettingsScreen.cs",
+                              "            _categories.Hide();",
+                              "            _categories.Hide();\n            _categories.NotAMember();"),
+            ["MenuSettingsPanel", "NotAMember"]),
+        Control(
+            "verify: a call whose first argument is a string literal is counted correctly",
+            # The argument reader used to run over the view of the source with string literals
+            # blanked. A blanked first argument is an empty argument, and the empty ones were
+            # dropped — so every correct call whose first argument was a literal looked one
+            # argument short, and the arity rule reported a failure that did not exist.
+            gate,
+            lambda root: edit(root, f"{MENUS}/Panels/MenuTitlePanel.cs",
+                              "            float y = 0f;",
+                              '            MenuUi.CreateImage("Probe", Rect, MenuArt.Glow, '
+                              'MenuTheme.Palette.Accent);\n\n            float y = 0f;'),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+        Control(
+            "verify: an over-long call is caught",
+            gate,
+            lambda root: edit(root, f"{MENUS}/Panels/MenuCreditsPanel.cs",
+                              'MenuUi.CreateParagraph("Body " + block.BodyKey, _content,',
+                              'MenuUi.CreateParagraph("Body " + block.BodyKey, _content, 1f,'),
+            ["CreateParagraph", "called with"]),
+        Control(
+            "verify: a variadic method takes as many arguments as it is given",
+            # `params object[] arguments` accepts any number past the first; a range that stopped
+            # at the declaration's own count reported every formatted string as an error.
+            gate,
+            lambda root: edit(root, f"{MENUS}/Panels/MenuCategoryPanel.cs",
+                              'MenuStrings.Format("data.info.run", summary.AbilitesOwned, summary.FlagsEstablished)',
+                              'MenuStrings.Format("data.info.run", 1, 2, 3, 4)'),
+            ["VERIFICATION PASSED"],
+            must_fail=False),
+
+        # -- the menu's own gate ---------------------------------------------------------------
+        Control(
+            "mainmenu: the menu scene is not in the build order",
+            menu,
+            lambda root: edit(root, BUILD_SETTINGS,
+                              "  - enabled: 1\n"
+                              "    path: Assets/Aether/Scenes/MainMenu.unity\n"
+                              "    guid: d2c67318bdf89dd04b5d9c73766abe15\n",
+                              ""),
+            ["is not in the build order"]),
+        Control(
+            "mainmenu: a taller row pitch pushes the main menu off the screen",
+            # The composition is arithmetic, and this is the arithmetic failing: two bands of
+            # secondary rows a hundred units taller each do not fit a 1080-unit canvas.
+            menu,
+            lambda root: edit(root, THEME,
+                              "            public const float SecondaryPitch = 148f;",
+                              "            public const float SecondaryPitch = 248f;"),
+            ["would scroll at the default interface size"]),
+        Control(
+            "mainmenu: a screen shows a literal instead of a string key",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              'MenuButton row = panel.AddEntry(destination.ToString(), '
+                              'MenuStrings.Get(labelKey),',
+                              'MenuButton row = panel.AddEntry(destination.ToString(), "CONTINUE",'),
+            ["shows the literal"]),
+        Control(
+            "mainmenu: the main menu drops one of its entry points",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              "AddDestination(_explore, MenuScreenId.Achievements, "
+                              "\"menu.achievements\");",
+                              ""),
+            ["no row for Achievements"]),
+        Control(
+            "mainmenu: a setting row names a value the string table does not hold",
+            menu,
+            lambda root: edit(root, CATALOG,
+                              '\"setting.haptics.help\"', '\"setting.haptics.helpx\"'),
+            ["no 'setting.haptics.helpx'"]),
+        Control(
+            "mainmenu: a legitimate change to the composition is silent",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              "        private const float FooterHeight = 40f;",
+                              "        private const float FooterHeight = 44f;"),
+            ["checks passed"],
+            must_fail=False),
     ]
 
 

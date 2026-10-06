@@ -4,7 +4,8 @@
     "references": [
         "Aether.Core",
         "Aether.Data",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,5 +1,6 @@
 using Aether.Core.Combat;
 using Aether.Gameplay.Levels;
+using Aether.Gameplay.Settings;
 using UnityEngine;
 
 namespace Aether.Gameplay.Player
@@ -34,6 +35,7 @@ namespace Aether.Gameplay.Player
         private Vector3 _baseScale;
 
         private Color _target = Color.white;
+        private bool _reducedMotion;
         private float _hitFlash;
         private float _landedFlash;
         private float _attackPulse;
@@ -45,6 +47,34 @@ namespace Aether.Gameplay.Player
             _visual = renderer != null ? renderer.transform : null;
             _baseScale = _visual != null ? _visual.localScale : Vector3.one;
             _target = LevelPalette.Player;
+        }
+
+        private void OnEnable()
+        {
+            AetherSettings.Ensure().Changed += OnSettingsChanged;
+            ApplySettings();
+        }
+
+        private void OnDisable()
+        {
+            AetherSettings.Current.Changed -= OnSettingsChanged;
+        }
+
+        /// <summary>
+        /// Reads whether the player has asked for reduced motion.
+        /// </summary>
+        /// <remarks>
+        /// Read into a field rather than looked up in <c>Update</c>: this component runs only while
+        /// something is changing, and it should cost nothing while it does.
+        /// </remarks>
+        private void ApplySettings()
+        {
+            _reducedMotion = AetherSettings.Ensure().Values.Accessibility.ReducedMotion;
+        }
+
+        private void OnSettingsChanged(string id)
+        {
+            ApplySettings();
         }
 
         private void Awake()
@@ -141,8 +171,16 @@ namespace Aether.Gameplay.Player
             if (_attackPulse > 0f)
             {
                 _attackPulse -= Time.deltaTime;
-                float t = Mathf.Clamp01(_attackPulse / AttackPulseSeconds);
-                scale = Mathf.Lerp(1f, AttackPulseScale, t);
+
+                // The attack pulse is the only movement this component owns, and it is exactly the
+                // kind of thing reduced motion is for. The timer keeps running while it is off, so
+                // the pulse still ends when it always did and the component still switches itself
+                // off afterwards: the setting removes the movement, not the bookkeeping.
+                if (!_reducedMotion)
+                {
+                    float t = Mathf.Clamp01(_attackPulse / AttackPulseSeconds);
+                    scale = Mathf.Lerp(1f, AttackPulseScale, t);
+                }
             }
 
             _renderer.color = Color.Lerp(_renderer.color, colour,
