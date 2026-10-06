@@ -28,9 +28,14 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      # The numbers the build job itself recorded for run 37440861973 ("matches the build: yes").
+      # The relay refuses to publish if the artifact it fetched is not that exact file.
       - name: Publish the ZIP and hash the APK inside it back
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: '37440861973'
+          EXPECT_SIZE: '53220967'
+          EXPECT_SHA: '4759755ec422986d3734be68551ffe35dc0329b1fc8050ed1e29aecaaa27ca73'
         run: bash tools/ci/relay_zip.sh
 
       - name: Keep the links in the run, as a file

@@ -111,38 +111,63 @@ jobs:
           echo "::notice title=Test command exit::$status (recorded, not obeyed - see the verdict step)"
           true
 
-      # Everything that failed is at the end of the log, and everything that says why is in it
-      # somewhere. One annotation carries a lot if the newlines are escaped; %25 goes first so a
-      # literal % in the log cannot be mistaken for an escape.
+      # Everything that says why the run failed is somewhere in the results or the log, and the whole
+      # point of this step is to get it out of the runner: the logs and artifacts themselves live on
+      # storage the environment driving this cannot read. Annotations carry a lot if the newlines are
+      # flattened, and %25 goes first so a literal % in the text cannot be read as an escape.
+      #
+      # Nothing here is cut per line. The first version of this step cut every line at 500 characters,
+      # which silently removed the one thing it exists to report: a test failure message is a single
+      # very long line of XML, so the annotation showed the <testsuite> header and none of the reason.
+      #
+      # The one deliberate cut is on a file that is known to be enormous.
       - name: Surface what the run said
         if: always()
         run: |
           shopt -s nullglob
-          emit() { # $1 title, $2 file, $3 mode (head|tail), $4 lines
-            local title="$1" file="$2" mode="$3" lines="$4" body
+          emit() { # $1 title, $2 file, $3 chars
+            local title="$1" file="$2" chars="${3:-5600}" body
             [ -f "$file" ] || { echo "::warning title=$title::no file at $file"; return 0; }
-            if [ "$mode" = head ]; then body=$(head -n "$lines" "$file"); else body=$(tail -n "$lines" "$file"); fi
-            body=$(printf '%s' "$body" | tr '\r' '\n' | awk 'NF' | cut -c1-500 \
-                   | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5800)
+            body=$(tr '\r' '\n' < "$file" | awk 'NF' | sed -e 's/%/%25/g' | tr '\n' '|' | head -c "$chars")
+            [ -n "$body" ] && echo "::notice title=${title}::${body}"
+          }
+          emit_big() { # same, but only lines worth carrying
+            local title="$1" file="$2" chars="${3:-5600}" body
+            [ -f "$file" ] || { echo "::warning title=$title::no file at $file"; return 0; }
+            body=$(tr '\r' '\n' < "$file" \
+                   | grep -n -E '\[intro-render\]|Exception|error CS|Assert|Expected|But was|failed|Error|Crash|Aborting|not supported|Captur|Batchmode|batchmode|safe ?area' \
+                   | sed -e 's/%/%25/g' | tr '\n' '|' | head -c "$chars")
             [ -n "$body" ] && echo "::notice title=${title}::${body}"
           }
 
           echo "::notice title=Test command exit::$(cat test-status.txt 2>/dev/null || echo '?')"
           echo "::notice title=Files::$(ls -lR IntroRender artifacts 2>/dev/null | tr '\n' '|' | head -c 1200)"
 
+          # The test framework's own results: the message and stack of any failure are attributes on
+          # the <test-case> element, so the whole file is what needs reading.
+          for f in artifacts/*.xml *.xml; do emit "Results $(basename "$f")" "$f" 5600; done
+
+          # The test writes what it saw as it goes, so a failure explains itself here.
+          [ -f IntroRender/diagnostics.txt ] && emit "Diagnostics" IntroRender/diagnostics.txt 5600
+
           if [ -f IntroRender/summary.txt ]; then
-            emit "Rendered frames" IntroRender/summary.txt tail 20
-            # The screenshot itself, out through the one channel that works from here: the artifact
-            # zip is on Azure blob storage, which the environment driving this cannot reach.
-            for f in IntroRender/intro-1.35s-small.png IntroRender/intro-1.95s-small.png; do
-              [ -f "$f" ] || continue
-              echo "::notice title=Frame $(basename "$f")::$(base64 -w0 "$f" | head -c 60000)"
-            done
+            emit "Rendered frames" IntroRender/summary.txt 3000
           else
-            emit "Render log head" intro-render.log head 40
-            emit "Render log tail" intro-render.log tail 150
+            emit "Render log head" intro-render.log 4000
+            emit "Render log tail" intro-render.log 5600
           fi
-          for f in artifacts/*.log artifacts/*.xml; do emit "Artifact $(basename "$f")" "$f" tail 60; done
+
+          # The screenshot itself, out through the one channel that works from here: the artifact zip
+          # is on Azure blob storage, which the environment driving this cannot reach. Emitted
+          # whenever the frames exist, however the run ended.
+          for f in IntroRender/intro-1.35s-small.png IntroRender/intro-1.95s-small.png; do
+            [ -f "$f" ] || continue
+            echo "::notice title=Frame $(basename "$f")::$(base64 -w0 "$f" | head -c 60000)"
+          done
+
+          # Always, whichever way it went: the intro's own measurements and anything the engine threw.
+          emit_big "Render log signals" intro-render.log 5600
+          for f in artifacts/*.log artifacts/*/*.log; do emit_big "Artifact $(basename "$f")" "$f" 5600; done
 
       - name: Save Library cache
         if: always()
@@ -160,16 +185,22 @@ jobs:
         if: always()
         run: |
           results=$(cat artifacts/playmode-results.xml 2>/dev/null || echo "")
+          [ -n "$results" ] || results=$(cat $(ls artifacts/*results*.xml artifacts/*.xml 2>/dev/null | head -1) 2>/dev/null || echo "")
           failed=$(printf '%s' "$results" | grep -o 'failed="[0-9]*"' | head -1 | grep -o '[0-9]*' || echo "?")
           total=$(printf '%s' "$results" | grep -o 'total="[0-9]*"' | head -1 | grep -o '[0-9]*' || echo "?")
-          frames=$(ls IntroRender/*.png 2>/dev/null | wc -l)
+          frames=$(ls IntroRender/*-small.png 2>/dev/null | wc -l)   # one per moment, not per copy
           echo "::notice title=Verdict::tests total=$total failed=$failed, frames written=$frames"
-          if [ "$total" = "0" ] || [ -z "$results" ]; then
-            echo "::error::the test framework ran no tests; the render test was not discovered"
+          if [ "$failed" != "0" ]; then
+            # Why it failed, in the runner's own words, so the next run does not have to guess.
+            why=$(printf '%s' "$results" | tr '\r' '\n' \
+                  | grep -o -E '<failure>.*</failure>|<failure[^>]*/>|message="[^"]{20,}"' \
+                  | head -4 | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5600)
+            [ -n "$why" ] && echo "::notice title=Why it failed::${why}"
+            echo "::error::$failed test(s) failed; the message above is the test framework's own"
             exit 1
           fi
-          if [ "$failed" != "0" ]; then
-            echo "::error::$failed test(s) failed; see the frame measurements above"
+          if [ "$total" = "0" ] || [ -z "$results" ]; then
+            echo "::error::the test framework ran no tests; the render test was not discovered"
             exit 1
           fi
           if [ "$frames" -lt 4 ]; then
