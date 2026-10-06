@@ -70,9 +70,17 @@ for f in $(find frames -name 'summary.txt' -o -name 'diagnostics.txt' | sort); d
 done
 
 # --- and as links anyone can open ----------------------------------------------------------------
-hold=$(find frames -name 'intro-1.85s.png' | head -1)
-[ -n "$hold" ] || hold="${pngs[0]}"
 : > frame-links.txt
+# The hold, and the light crossing the lockup: the two frames of the animation worth looking at.
+# The hold is the ident at rest; the light is the one moment that only exists while it is playing.
+link_frames=()
+for want in intro-1.85s.png intro-1.25s.png; do
+  found=$(find frames -name "$want" | head -1)
+  [ -n "$found" ] && link_frames+=("$found")
+done
+[ "${#link_frames[@]}" -gt 0 ] || link_frames+=("${pngs[0]}")
+
+for hold in "${link_frames[@]}"; do
 kcode=$(curl -sS --max-time 300 -A "$UA" -F "file=@$hold" -o kappa.json -w '%{http_code}' \
         https://kappa.lol/api/upload || echo 000)
 klink=$(jq -r '.link // empty' kappa.json 2>/dev/null)
@@ -108,6 +116,8 @@ if [ -n "$xurl" ]; then
     add "x0.at: link did not come back identical (http=$xcode, sha=$xsha, want=$want)"
   fi
 fi
+
+done
 
 # --- and the hold frame's bytes, in parts, for anyone who cannot open a link ---------------
 # --- the whole frames, in parts small enough to be kept -------------------------------------------

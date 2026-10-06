@@ -59,6 +59,23 @@ if [ -z "$ARTIFACT_ID" ] || [ "$ARTIFACT_ID" = "null" ]; then
 fi
 add "APK artifact: $ARTIFACT_NAME ($ARTIFACT_ID) from build run $RUN_ID (branch $BRANCH)"
 
+# Which commit the APK was actually built from. The phone cannot be rebuilt from a hash, so this is
+# not a gate: it is the one thing a reader of this run needs and cannot get from the numbers below,
+# and a run whose head is not the branch tip is delivering an older tree than the branch holds.
+apk_head=$(curl -sS --max-time 60 "${auth[@]}" "$API/actions/runs/$RUN_ID" 2>/dev/null | jq -r '.head_sha // empty' 2>/dev/null)
+# The runner has this branch checked out, so the tip needs no request and no slash-in-ref guesswork.
+tip=$(git rev-parse HEAD 2>/dev/null)
+if [ -n "$apk_head" ]; then
+  add "built from commit $apk_head"
+  if [ -n "$tip" ] && [ "$apk_head" != "$tip" ]; then
+    add "NOTE: the branch tip is $tip, so this APK does not carry the commits after $apk_head"
+  else
+    add "that is the branch tip"
+  fi
+else
+  add "could not read the commit this run was built from"
+fi
+
 # --- what that run said it built -----------------------------------------------------------------
 # The build job reports the APK's size and hash as an annotation ("Release asset :: ... matches the
 # build: yes"). Reading it back means the bytes are checked against the number recorded by the job

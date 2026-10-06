@@ -76,6 +76,15 @@ static gates could not:
   Personal). `tools/verify/verify.py` checks those values and the near-black ground, because a
   setting nobody reads back is a setting that silently changes.
 
+Render run `37473352359` (head `601a304`) is the first green run of the retuned intro: seven frames,
+each taken at its named moment — black, then the mark alone with the wordmark still absent, then the
+finished lockup at 800/814 with nothing cropped, then the light at a third of the ink's luminance and
+nothing lit outside it, then two hold frames that are the same picture, then a fade already under way
+back to black. With that the temporary build-ignore on `StudioIntroSequence.cs` came back out of
+`android-build.yml`, and the redesign's APK is the artifact that build had already uploaded — built
+from `358604e`, whose animation code is what the green run measured; the only change after it is the
+test's own clock seam, which is null in a build.
+
 What is **not** verified: the app's launch has never been watched on a device. The arithmetic, the
 settings and the rendered frames are checked; how the splash behaves on a real phone is not.
 

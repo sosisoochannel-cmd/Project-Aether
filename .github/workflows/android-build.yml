@@ -44,10 +44,6 @@ on:
       # UNITY_INCLUDE_TESTS), so nothing under here can reach a player build. Editing the render
       # test would otherwise spend a Unity Android build to prove that nothing in the APK changed.
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
-      # TEMPORARY, and it comes out as soon as the studio intro's render test is green: while that
-      # animation is being reworked, a push that only retunes it must not spend an APK build. The
-      # render job is the gate for that work, and the APK is built deliberately once it passes.
-      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs'
   workflow_dispatch:
 
 permissions:
