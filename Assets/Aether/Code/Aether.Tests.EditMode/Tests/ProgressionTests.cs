@@ -1,4 +1,6 @@
 using Aether.Core.Progression;
+using Aether.Core.Settings;
+using Aether.Gameplay.Progression;
 using NUnit.Framework;
 
 namespace Aether.Tests
@@ -152,6 +154,65 @@ namespace Aether.Tests
 
             Assert.That(save.Progression.HasAbility(AbilityId.Rootbind), Is.False);
             Assert.That(save.World.FlagCount, Is.Zero);
+        }
+
+        [Test]
+        public void CopyFrom_CopiesEveryPersistentSectionWithoutSharingIt()
+        {
+            var source = new SaveData();
+            source.Meta.Slot = 3;
+            source.Meta.ChapterId = "region1.greenway";
+            source.Meta.Discoveries = 1;
+            source.Progression.GrantAbility(AbilityId.Rootbind);
+            source.World.Set("secret.greenway.overhang");
+            source.World.ActiveCheckpointId = "checkpoint.greenway.overhang";
+            source.Collection.Record("secret.greenway.overhang");
+            source.Characters.Record(CharacterCatalog.StalkerId);
+            source.Achievements.Ensure("achievement.first.find").Progress = 1;
+
+            var destination = new SaveData();
+            destination.Collection.Record("stale.entry");
+            destination.CopyFrom(source);
+
+            Assert.That(destination.Meta.ChapterId, Is.EqualTo("region1.greenway"));
+            Assert.That(destination.Progression.HasAbility(AbilityId.Rootbind), Is.True);
+            Assert.That(destination.World.ActiveCheckpointId, Is.EqualTo("checkpoint.greenway.overhang"));
+            Assert.That(destination.Collection.Has("secret.greenway.overhang"), Is.True);
+            Assert.That(destination.Collection.Has("stale.entry"), Is.False);
+            Assert.That(destination.Characters.HasMet(CharacterCatalog.StalkerId), Is.True);
+            Assert.That(destination.Achievements.Find("achievement.first.find").Progress, Is.EqualTo(1));
+
+            destination.Collection.Record("destination.only");
+            Assert.That(source.Collection.Has("destination.only"), Is.False,
+                        "loaded data must not share collection list storage with the live snapshot");
+        }
+
+        [Test]
+        public void RecordEncounter_UnlocksOnlyWhenTheEnemyTypeIsKnown()
+        {
+            var save = new SaveData();
+
+            Assert.That(CharacterCatalog.RecordEncounter(save, "unknown.enemy"), Is.Null);
+            Assert.That(save.Characters.HasMet(CharacterCatalog.StalkerId), Is.False);
+            Assert.That(CharacterCatalog.RecordEncounter(save, CharacterCatalog.StalkerId), Is.Not.Null);
+            Assert.That(CharacterCatalog.RecordEncounter(save, CharacterCatalog.StalkerId), Is.Null,
+                        "the same perception event must not repeat the codex notification");
+        }
+    }
+
+    public sealed class SettingsDataTests
+    {
+        [Test]
+        public void FrameRateClampUsesOnlySupportedRequests()
+        {
+            var settings = new GameSettings();
+            settings.Graphics.FrameRateLimit = 0;
+            settings.Clamp();
+            Assert.That(settings.Graphics.FrameRateLimit, Is.EqualTo(30f));
+
+            settings.Graphics.FrameRateLimit = 61;
+            settings.Clamp();
+            Assert.That(settings.Graphics.FrameRateLimit, Is.EqualTo(120f));
         }
     }
 }

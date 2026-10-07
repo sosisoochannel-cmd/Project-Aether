@@ -231,8 +231,10 @@ namespace Aether.Gameplay
             if (Store == null) return false;
             if (!Store.TryLoad(out SaveData loaded) || loaded == null) return false;
 
-            loaded.Progression.CopyTo(Save.Progression);
-            loaded.World.CopyTo(Save.World);
+            // Keep the session object stable while copying every persistent section. The previous
+            // two-section copy silently lost findings, characters, achievements and run metadata on
+            // Continue, making the menu and the gameplay session disagree about the same save.
+            Save.CopyFrom(loaded);
             return true;
         }
 

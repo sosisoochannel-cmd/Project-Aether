@@ -240,6 +240,10 @@ namespace Aether.Gameplay.Progression
         /// <summary>Deletes one slot's run. Destructive; the interface confirms first.</summary>
         public static void DeleteSlot(int slot)
         {
+            // Slot zero means "no active slot", not slot one. Reject it here so a caller cannot
+            // accidentally delete the first run while the player is browsing the menu.
+            if (slot < 1 || slot > SaveSlots.Count) return;
+
             SaveSlots.Delete(slot);
 
             // A session standing on the slot that was just deleted must not write it back: it is

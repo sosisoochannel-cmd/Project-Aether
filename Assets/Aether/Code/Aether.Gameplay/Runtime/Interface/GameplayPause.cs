@@ -1,5 +1,6 @@
 using Aether.Gameplay.Controls;
 using Aether.Gameplay.Levels;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
@@ -19,9 +20,9 @@ namespace Aether.Gameplay.Interface
     /// <b>Every row does something, and the list says what.</b> Resume returns to the region. Save now
     /// writes the run and says so on the row that asked. Restart region returns the player to the
     /// region's own start with the encounters restored. Settings saves first and then leaves for the
-    /// menu, because settings live in the menu scene and a trip that costs progress would be a trap.
-    /// Save and leave writes the run and goes back to the main menu, where Continue returns the
-    /// player to their last checkpoint.
+    /// the pause overlay, so changing a value does not abandon the region or its context. Save and
+    /// leave writes the run and goes back to the main menu, where Continue returns the player to their
+    /// last checkpoint.
     /// </para>
     /// <para>
     /// <b>Freezing is <c>Time.timeScale = 0</c>, and that is the whole of it.</b> Physics stops,
@@ -63,6 +64,13 @@ namespace Aether.Gameplay.Interface
         private MenuNav _nav;
         private CanvasGroup _group;
         private RectTransform _overlay;
+
+        // Settings is a contextual overlay, not a trip to the title screen. It reuses the same
+        // catalogue-driven SettingsScreen on a second canvas and returns to this pause overlay.
+        private MenuCanvas _settingsCanvas;
+        private MenuSystem _settingsSystem;
+        private MenuInput _settingsInput;
+        private bool _settingsOpen;
         private GameplayHud _hud;
         private float _savedNoteUntil = float.NegativeInfinity;
         private bool _open;
@@ -78,6 +86,12 @@ namespace Aether.Gameplay.Interface
         public bool IsOpen
         {
             get { return _open; }
+        }
+
+        /// <summary>True while the contextual settings overlay is in front of pause.</summary>
+        public bool IsSettingsOpen
+        {
+            get { return _settingsOpen; }
         }
 
         /// <summary>The rows, in order, for a test to read and press.</summary>
@@ -128,6 +142,13 @@ namespace Aether.Gameplay.Interface
         public void Close()
         {
             if (!_open) return;
+            if (_settingsOpen)
+            {
+                _settingsOpen = false;
+                if (_settingsInput != null) _settingsInput.gameObject.SetActive(false);
+                if (_settingsCanvas != null) _settingsCanvas.GameObject.SetActive(false);
+            }
+
             _open = false;
             _confirm.Cancel();
 
@@ -210,16 +231,7 @@ namespace Aether.Gameplay.Interface
             _restartRow.Activated = () => Ask("pause.restart.title", "pause.restart.body", RestartRegion);
             _leaveRow.Activated = () => Ask("pause.leave.title", "pause.leave.body", LeaveRegion);
 
-            _settingsRow.Activated = () =>
-            {
-                // Settings live in the menu scene. Leaving the region for them is a real trip, so the
-                // run is written down first: a trip that costs progress would be a trap, and this is
-                // the same promise the leave row makes, kept the same way.
-                MenuAudio.Confirm();
-                SaveHost.SaveNow();
-                GameplayCurtain.Hold("loading.title", "loading.leaving");
-                GameplayCurtain.LeaveToMenu();
-            };
+            _settingsRow.Activated = OpenSettings;
 
             _stats = MenuUi.CreateText("Stats", column, string.Empty, MenuTheme.Metrics.SettingHelpSize,
                                        MenuTheme.Palette.InkMuted, TextAnchor.MiddleCenter);
@@ -228,9 +240,80 @@ namespace Aether.Gameplay.Interface
             _confirm.Closed = OnConfirmClosed;
 
             PlaceColumn();
+            BuildSettingsOverlay();
 
             _overlay.gameObject.SetActive(false);
             MenuReveal.Attach(_rows.Rect).Settle();
+            MenuPreferences.Subscribe(OnSettingChanged);
+            LanguageService.Changed += OnLanguageChanged;
+        }
+
+        /// <summary>
+        /// Builds the same settings screen used by the main menu, but keeps it in the paused region
+        /// so Back returns to the pause choices instead of loading MainMenu.
+        /// </summary>
+        private void BuildSettingsOverlay()
+        {
+            // Keep it below the persistent transition veil so credits/settings navigation still uses
+            // the same cover without leaving the gameplay pause canvas above the fade.
+            _settingsCanvas = MenuCanvas.Create("Pause Settings Canvas", 480);
+            _settingsCanvas.GameObject.transform.SetParent(transform, false);
+            _settingsCanvas.SetScale(MenuPreferences.ClampedUiScale);
+
+            SafeAreaFitter safe = _settingsCanvas.SafeRoot.gameObject.AddComponent<SafeAreaFitter>();
+            safe.Mode = MenuPreferences.SafeArea;
+
+            _settingsInput = MenuInput.Create(transform);
+            _settingsSystem = MenuSystem.Create(_settingsCanvas, _settingsInput);
+            _settingsSystem.BackFallback = CloseSettings;
+
+            _settingsInput.gameObject.SetActive(false);
+            _settingsCanvas.GameObject.SetActive(false);
+        }
+
+        private void OpenSettings()
+        {
+            if (!_open || _settingsOpen || _settingsSystem == null) return;
+
+            MenuAudio.Confirm();
+            SaveHost.SaveNow();
+            _settingsOpen = true;
+            _overlay.gameObject.SetActive(false);
+            _settingsInput.gameObject.SetActive(true);
+            _settingsCanvas.GameObject.SetActive(true);
+
+            Canvas.ForceUpdateCanvases();
+            Rect box = _settingsCanvas.ContentRoot.rect;
+            _settingsSystem.Layout(box.width, box.height);
+            _settingsSystem.Show(MenuScreenId.Settings, true);
+        }
+
+        private void CloseSettings()
+        {
+            if (!_settingsOpen) return;
+
+            MenuAudio.Back();
+            _settingsOpen = false;
+            _settingsInput.gameObject.SetActive(false);
+            _settingsCanvas.GameObject.SetActive(false);
+            _overlay.gameObject.SetActive(true);
+            _group.alpha = 1f;
+            _group.blocksRaycasts = true;
+            _nav.SelectFirst();
+        }
+
+        private void OnSettingChanged(string id)
+        {
+            if (_canvas != null) _canvas.SetScale(MenuPreferences.ClampedUiScale);
+            if (_safeArea != null) _safeArea.Mode = MenuPreferences.SafeArea;
+            if (_settingsCanvas != null) _settingsCanvas.SetScale(MenuPreferences.ClampedUiScale);
+
+            if (_settingsSystem != null)
+            {
+                Rect box = _settingsCanvas.ContentRoot.rect;
+                _settingsSystem.Layout(box.width, box.height);
+                _settingsSystem.Refresh();
+            }
         }
 
         /// <summary>
@@ -284,8 +367,13 @@ namespace Aether.Gameplay.Interface
         /// </remarks>
         private void RestartRegion()
         {
-            if (_session != null) _session.World.ActiveCheckpointId = null;
+            if (_session != null) _session.World.ActiveCheckpointId = string.Empty;
             if (_director != null) _director.RestartRegion();
+
+            // Restart is a persistent state change, not only a teleport. Write the cleared
+            // checkpoint before returning control so a crash, force-close or Android suspend cannot
+            // resurrect the old checkpoint on the next boot.
+            SaveHost.SaveNow();
 
             MenuAudio.Confirm();
             Close();
@@ -297,6 +385,18 @@ namespace Aether.Gameplay.Interface
             SaveHost.SaveNow();
             GameplayCurtain.Hold("loading.title", "loading.leaving");
             GameplayCurtain.LeaveToMenu();
+        }
+
+        private void OnDestroy()
+        {
+            MenuPreferences.Unsubscribe(OnSettingChanged);
+            LanguageService.Changed -= OnLanguageChanged;
+            if (_open && Time.timeScale == 0f) Time.timeScale = 1f;
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (_settingsSystem != null) _settingsSystem.RequestRebuild();
         }
 
         private void Refresh()

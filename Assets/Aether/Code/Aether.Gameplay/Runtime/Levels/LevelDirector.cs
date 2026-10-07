@@ -28,6 +28,7 @@ namespace Aether.Gameplay.Levels
     {
         /// <summary>How long the death beat lasts before control returns.</summary>
         private const float RespawnDelay = 0.9f;
+        private const float InteractDistance = 1.5f;
 
         private readonly List<EnemyController> _enemies = new List<EnemyController>();
         private readonly List<Vector2> _enemyFeet = new List<Vector2>();
@@ -86,10 +87,20 @@ namespace Aether.Gameplay.Levels
 
         private void Update()
         {
-            if (_respawnAt <= float.NegativeInfinity || Time.time < _respawnAt) return;
+            if (_respawnAt > float.NegativeInfinity && Time.time >= _respawnAt)
+            {
+                _respawnAt = float.NegativeInfinity;
+                PerformRespawn();
+            }
 
-            _respawnAt = float.NegativeInfinity;
-            PerformRespawn();
+            if (_player == null || !_player.InputEnabled || _player.Input == null) return;
+            if (!_player.Input.InteractPressed) return;
+
+            // Consume once at the gameplay boundary. Interact is now a real command for keyboard
+            // and gamepad players: it can activate the nearest checkpoint, finding or exit without
+            // creating a second input path for the mobile touch overlay.
+            _player.Input.ConsumeInteract();
+            TryInteract();
         }
 
         private void OnPlayerDied()
@@ -105,6 +116,64 @@ namespace Aether.Gameplay.Levels
             // queue a jump that fires the instant the player is back on their feet.
             _player.InputEnabled = false;
             _respawnAt = Time.time + RespawnDelay;
+        }
+
+        /// <summary>
+        /// Uses Interact on the closest nearby level object. Trigger entry remains the primary
+        /// touch-friendly path; this command is the deliberate path for keyboard and gamepad.
+        /// </summary>
+        private void TryInteract()
+        {
+            if (_built == null || _player == null) return;
+
+            Vector2 playerPosition = _player.transform.position;
+            float best = InteractDistance * InteractDistance;
+            CheckpointTrigger checkpoint = null;
+            DiscoveryTrigger discovery = null;
+            LevelExitTrigger exit = null;
+
+            for (int i = 0; i < _built.Checkpoints.Count; i++)
+            {
+                CheckpointTrigger candidate = _built.Checkpoints[i];
+                if (candidate == null || candidate.Activated) continue;
+                float distance = ((Vector2)candidate.transform.position - playerPosition).sqrMagnitude;
+                if (distance < best)
+                {
+                    best = distance;
+                    checkpoint = candidate;
+                    discovery = null;
+                    exit = null;
+                }
+            }
+
+            for (int i = 0; i < _built.Discoveries.Count; i++)
+            {
+                DiscoveryTrigger candidate = _built.Discoveries[i];
+                if (candidate == null || candidate.Found || !candidate.gameObject.activeInHierarchy) continue;
+                float distance = ((Vector2)candidate.transform.position - playerPosition).sqrMagnitude;
+                if (distance < best)
+                {
+                    best = distance;
+                    checkpoint = null;
+                    discovery = candidate;
+                    exit = null;
+                }
+            }
+
+            if (_built.Exit != null && !_built.Exit.Reached)
+            {
+                float distance = ((Vector2)_built.Exit.transform.position - playerPosition).sqrMagnitude;
+                if (distance < best)
+                {
+                    checkpoint = null;
+                    discovery = null;
+                    exit = _built.Exit;
+                }
+            }
+
+            if (checkpoint != null) checkpoint.TryInteract(_player);
+            else if (discovery != null) discovery.TryInteract(_player);
+            else if (exit != null) exit.TryInteract(_player);
         }
 
         /// <summary>

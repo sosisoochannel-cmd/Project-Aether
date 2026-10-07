@@ -60,10 +60,44 @@ namespace Aether.Core.Progression
             Characters.Reset();
             Achievements.Reset();
 
-            int slot = Meta.Slot;
-            string chapter = Meta.ChapterId;
+            int slot = Meta != null ? Meta.Slot : 1;
+            string chapter = Meta != null ? Meta.ChapterId : string.Empty;
             Meta = new SaveMeta { Slot = slot, ChapterId = chapter };
             Version = CurrentVersion;
+        }
+
+        /// <summary>
+        /// Replaces this live snapshot with a deep copy of a loaded document.
+        /// </summary>
+        /// <remarks>
+        /// A session object is intentionally stable while a scene is running, so references held by
+        /// HUD, progression and achievement systems remain valid. Loading therefore copies every
+        /// section into that stable object instead of swapping the root or only copying the two
+        /// original progression sections.
+        /// </remarks>
+        public void CopyFrom(SaveData other)
+        {
+            if (other == null) return;
+
+            Version = other.Version;
+            if (Progression == null) Progression = new ProgressionState();
+            if (World == null) World = new WorldState();
+            if (Meta == null) Meta = new SaveMeta();
+            if (Collection == null) Collection = new CollectionState();
+            if (Characters == null) Characters = new CharacterState();
+            if (Achievements == null) Achievements = new AchievementState();
+
+            if (other.Progression != null) other.Progression.CopyTo(Progression);
+            else Progression.Reset();
+            if (other.World != null) other.World.CopyTo(World);
+            else World.Reset();
+            Meta.CopyFrom(other.Meta);
+            if (other.Collection != null) Collection.CopyFrom(other.Collection);
+            else Collection.Reset();
+            if (other.Characters != null) Characters.CopyFrom(other.Characters);
+            else Characters.Reset();
+            if (other.Achievements != null) Achievements.CopyFrom(other.Achievements);
+            else Achievements.Reset();
         }
     }
 
@@ -106,6 +140,30 @@ namespace Aether.Core.Progression
 
         /// <summary>How many findings the run has recorded, for the slot's progress line.</summary>
         public int Discoveries;
+
+        /// <summary>Copies the run summary without sharing mutable state.</summary>
+        public void CopyFrom(SaveMeta other)
+        {
+            if (other == null)
+            {
+                Slot = 1;
+                ChapterId = string.Empty;
+                ObjectiveId = string.Empty;
+                SavedUtcTicks = 0L;
+                PlaySeconds = 0f;
+                Deaths = 0;
+                Discoveries = 0;
+                return;
+            }
+
+            Slot = other.Slot;
+            ChapterId = other.ChapterId ?? string.Empty;
+            ObjectiveId = other.ObjectiveId ?? string.Empty;
+            SavedUtcTicks = other.SavedUtcTicks;
+            PlaySeconds = other.PlaySeconds;
+            Deaths = other.Deaths;
+            Discoveries = other.Discoveries;
+        }
 
         /// <summary>True once the run has been written at least once.</summary>
         public bool HasBeenWritten

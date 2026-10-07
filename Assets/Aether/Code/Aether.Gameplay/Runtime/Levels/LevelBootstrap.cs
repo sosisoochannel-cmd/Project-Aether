@@ -4,9 +4,9 @@ using Aether.Gameplay.Controls;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
@@ -128,11 +128,10 @@ namespace Aether.Gameplay.Levels
 
             AttachTouchControls(camera, player);
 
-            // Who the player has now met. The region's own contents are the evidence: the creatures
-            // it placed are creatures the player has been in a region with, and the catalogue turns
-            // that into characters. Called here, once, because a region is built once — and without
-            // the call the characters screen would report a cast nobody can ever meet.
-            RecordEncounters();
+            // An enemy is not "met" because its GameObject was spawned off-screen. Give each one
+            // the real player target and record the codex entry only when its perception system
+            // actually spots that player.
+            ConfigureEnemies(player);
 
             var directorHost = new GameObject("LevelDirector");
             directorHost.transform.SetParent(transform, false);
@@ -147,33 +146,48 @@ namespace Aether.Gameplay.Levels
             Shell.Reveal();
         }
 
-        /// <summary>Records every character this region's enemies prove the player has met.</summary>
-        private void RecordEncounters()
+        /// <summary>
+        /// Gives enemies the player target and listens for the first real perception event.
+        /// </summary>
+        private void ConfigureEnemies(PlayerController player)
         {
-            if (_session == null || Level == null || Level.Enemies == null || Level.Enemies.Count == 0)
-            {
-                // A region with nothing in it introduces nobody, and that is not a failure: the
-                // protagonist's own entry is the catalogue's business, not this loop's.
-                return;
-            }
+            if (Level == null || player == null) return;
 
-            var types = new List<string>(Level.Enemies.Count);
             for (int i = 0; i < Level.Enemies.Count; i++)
             {
-                LevelEntity entity = Level.Enemies[i].Source;
-                if (entity == null || string.IsNullOrEmpty(entity.TypeId)) continue;
-                if (!types.Contains(entity.TypeId)) types.Add(entity.TypeId);
+                EnemyController enemy = Level.Enemies[i].Controller;
+                if (enemy == null) continue;
+
+                enemy.Initialize(enemy.Definition, player.transform);
+                enemy.PlayerSpotted += OnEnemySpotted;
             }
+        }
 
-            List<CharacterDefinition> met = CharacterCatalog.RecordEncounters(_session.Save, types);
-            if (met.Count == 0) return;
+        private void OnDestroy()
+        {
+            if (Level != null)
+            {
+                for (int i = 0; i < Level.Enemies.Count; i++)
+                {
+                    EnemyController enemy = Level.Enemies[i].Controller;
+                    if (enemy != null) enemy.PlayerSpotted -= OnEnemySpotted;
+                }
+            }
+        }
 
-            // Said out loud, the way an achievement is: a record that changes and says nothing is a
-            // record the player never learns about.
+        private void OnEnemySpotted(EnemyController enemy)
+        {
+            if (_session == null || enemy == null || enemy.Definition == null) return;
+
+            CharacterDefinition met = CharacterCatalog.RecordEncounter(_session.Save,
+                                                                        enemy.Definition.TypeId);
+            if (met == null) return;
+
+            _session.RequestSave();
             if (Shell != null && Shell.Hud != null)
             {
                 Shell.Hud.Announce("characters.met.title",
-                                   MenuStrings.Format("characters.met.banner", met.Count));
+                                   MenuStrings.Format("characters.met.banner", 1));
             }
         }
 

@@ -729,7 +729,9 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Moves into the alert state and records the transition.</summary>
         private void BeginAlert()
         {
-            _hasAlerted = true;
+            // AlertState.Enter owns the one-shot latch and the PlayerSpotted event. Setting it here
+            // first would suppress both, making the enemy look at the player without ever recording
+            // the logical encounter.
             _machine.ChangeState(this, EnemyStateId.Alert);
         }
     }

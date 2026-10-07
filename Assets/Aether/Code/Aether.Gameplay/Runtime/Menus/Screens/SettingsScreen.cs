@@ -235,7 +235,8 @@ namespace Aether.Gameplay.Menus.Screens
             // and resets the session standing on it, so a run cannot be deleted and then written back
             // by an autosave a second later. Deleting a slot the session is not standing on would
             // leave the session alone, which is the same rule seen from the other side.
-            SaveHost.DeleteSlot(SaveHost.ActiveSlot);
+            int slot = SaveHost.ActiveSlot > 0 ? SaveHost.ActiveSlot : SaveHost.DescribedSlot();
+            if (slot > 0) SaveHost.DeleteSlot(slot);
 
             MenuAudio.Confirm();
             _rows.Refresh();

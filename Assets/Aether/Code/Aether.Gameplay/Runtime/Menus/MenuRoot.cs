@@ -1,4 +1,5 @@
 using Aether.Gameplay.Localization;
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Settings;
 using UnityEngine;
@@ -65,6 +66,11 @@ namespace Aether.Gameplay.Menus
 
         private void Awake()
         {
+            // A region may have arrived here through the persistent gameplay curtain. The menu owns
+            // the next frame now, so release that cover before building any menu UI; otherwise a
+            // perfectly loaded menu would remain hidden behind the old loading/error veil.
+            GameplayCurtain.Drop();
+
             // Settings first: the interface scale, the safe area rule and the quality tier all decide
             // what is built below, and asking for them here means no other system has to.
             AetherSettings.Ensure();

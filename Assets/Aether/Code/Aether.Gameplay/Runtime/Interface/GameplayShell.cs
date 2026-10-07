@@ -198,6 +198,7 @@ namespace Aether.Gameplay.Interface
             if (keyboard == null || !keyboard.escapeKey.wasPressedThisFrame) return;
 
             if (_pause == null) return;
+            if (_pause.IsSettingsOpen) return; // contextual settings owns Escape/back while it is open
 
             if (_pause.Confirm != null && _pause.Confirm.IsOpen)
             {

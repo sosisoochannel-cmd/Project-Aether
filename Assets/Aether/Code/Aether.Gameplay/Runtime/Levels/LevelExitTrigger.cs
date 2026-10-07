@@ -33,17 +33,26 @@ namespace Aether.Gameplay.Levels
 
         private void OnTriggerEnter2D(Collider2D other)
         {
-            if (_entity == null || Reached) return;
-            if (other.GetComponent<Player.PlayerController>() == null) return;
+            Player.PlayerController player = other.GetComponent<Player.PlayerController>();
+            if (player != null) TryInteract(player);
+        }
+
+        /// <summary>Completes the region from the keyboard/gamepad Interact command when nearby.</summary>
+        public bool TryInteract(Player.PlayerController player)
+        {
+            if (_entity == null || Reached || player == null) return false;
+            if (((Vector2)player.transform.position - (Vector2)transform.position).sqrMagnitude > 2.25f)
+                return false;
 
             GameSession session = GameSession.Instance;
-            if (session == null) return;
+            if (session == null) return false;
 
             Reached = true;
             session.SetWorldFlag(CompletionFlag);
             Debug.Log(
                 $"The Greenway is complete. '{CompletionFlag}' recorded; region 2 is not part of this milestone.",
                 this);
+            return true;
         }
     }
 }

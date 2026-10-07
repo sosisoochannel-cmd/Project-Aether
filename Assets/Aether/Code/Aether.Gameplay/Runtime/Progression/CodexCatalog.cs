@@ -160,13 +160,27 @@ namespace Aether.Gameplay.Progression
         }
 
         /// <summary>
-        /// Records every character a region's contents prove the player has met.
+        /// Records one encounter after an enemy's perception system has actually spotted the player.
         /// </summary>
         /// <remarks>
-        /// Called once when a region has been built, with the enemy type ids it placed. "Met" means
-        /// the player has been in a region where the creature lives, which is a fact the level itself
-        /// establishes — no proximity test, no chance of a player missing a character that was
-        /// standing in front of them.
+        /// Spawning an enemy is not a meeting: it may be behind the player, outside the reachable
+        /// path, or never noticed at all. The gameplay layer calls this from <c>PlayerSpotted</c>, so
+        /// the codex state follows the player's experience rather than the level builder's object list.
+        /// </remarks>
+        public static CharacterDefinition RecordEncounter(SaveData save, string enemyTypeId)
+        {
+            if (save == null || string.IsNullOrEmpty(enemyTypeId)) return null;
+            CharacterDefinition character = ForEnemyType(enemyTypeId);
+            if (character == null || save.Characters == null) return null;
+            return save.Characters.Record(character.Id) ? character : null;
+        }
+
+        /// <summary>
+        /// Records every character in a supplied encounter list.
+        /// </summary>
+        /// <remarks>
+        /// Kept as a data-layer helper for import and test callers. Runtime level boot does not use
+        /// it, because a list of spawned enemies is not evidence that the player met them.
         /// </remarks>
         public static List<CharacterDefinition> RecordEncounters(SaveData save, IReadOnlyList<string> enemyTypeIds)
         {

@@ -49,15 +49,27 @@ namespace Aether.Gameplay.Levels
 
         private void OnTriggerEnter2D(Collider2D other)
         {
-            if (_entity == null || Activated) return;
-            if (other.GetComponent<Player.PlayerController>() == null) return;
+            Player.PlayerController player = other.GetComponent<Player.PlayerController>();
+            if (player != null) TryInteract(player);
+        }
+
+        /// <summary>
+        /// Activates from the keyboard/gamepad Interact command when the player is close enough.
+        /// Touching the trigger still uses the same operation, so both paths persist identical state.
+        /// </summary>
+        public bool TryInteract(Player.PlayerController player)
+        {
+            if (_entity == null || Activated || player == null) return false;
+            if (((Vector2)player.transform.position - (Vector2)transform.position).sqrMagnitude > 2.25f)
+                return false;
 
             GameSession session = GameSession.Instance;
-            if (session == null) return;
+            if (session == null) return false;
 
             Activated = true;
             session.ActivateCheckpoint(_entity.Id, _feet);
             ActivatedChanged?.Invoke(true);
+            return true;
         }
 
         /// <summary>

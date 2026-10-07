@@ -46,6 +46,12 @@ namespace Aether.Gameplay.Menus
         private float _height;
         private bool _rebuildPending;
 
+        /// <summary>
+        /// Optional context return used by overlays such as pause settings. When no in-menu history
+        /// remains, the owner gets the back request instead of being sent to the main menu.
+        /// </summary>
+        public System.Action BackFallback { get; set; }
+
         private MenuSystem(MenuCanvas canvas, MenuInput input)
         {
             _canvas = canvas;
@@ -220,12 +226,22 @@ namespace Aether.Gameplay.Menus
         /// </summary>
         public void GoTo(MenuScreenId id)
         {
+            NavigateTo(id, true);
+        }
+
+        /// <summary>
+        /// Moves to a screen without adding the current screen to history. Back uses this when it is
+        /// consuming an existing entry; without the distinction, A to B then back would remember B
+        /// again and make the back button oscillate between the two screens.
+        /// </summary>
+        private void NavigateTo(MenuScreenId id, bool remember)
+        {
             if (_current != null && _current.Id == id) return;
 
             MenuTransition transition = MenuTransition.Instance;
             if (transition.Busy) return;
 
-            Remember();
+            if (remember) Remember();
             transition.Cover(() => Show(id, false));
         }
 
@@ -260,13 +276,21 @@ namespace Aether.Gameplay.Menus
             {
                 MenuScreenId previous = Pop();
                 MenuAudio.Back();
-                GoTo(previous);
+                NavigateTo(previous, false);
                 return true;
             }
 
             if (screen.Id == MenuScreenId.MainMenu) return false;
 
-            GoTo(MenuScreenId.MainMenu);
+            if (BackFallback != null)
+            {
+                MenuAudio.Back();
+                BackFallback();
+                return true;
+            }
+
+            MenuAudio.Back();
+            NavigateTo(MenuScreenId.MainMenu, false);
             return true;
         }
 

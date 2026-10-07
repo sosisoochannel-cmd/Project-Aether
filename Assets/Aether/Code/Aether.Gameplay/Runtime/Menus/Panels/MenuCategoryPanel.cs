@@ -142,6 +142,9 @@ namespace Aether.Gameplay.Menus.Panels
         public static MenuCategoryPanel Create(string name, Transform parent, MenuNav nav)
         {
             MenuCategoryPanel panel = Create<MenuCategoryPanel>(name, parent, nav);
+            // Rows are built before the first screen layout. Create their scroll content first so
+            // every row is parented to the viewport rather than accidentally becoming a scene root.
+            panel.EnsureScroll();
             panel.BuildRows();
             return panel;
         }
@@ -165,16 +168,7 @@ namespace Aether.Gameplay.Menus.Panels
         {
             Remember(width, height);
 
-            if (_scroll == null)
-            {
-                _scroll = MenuUi.CreateScroll("Scroll", Rect, out _content);
-                MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
-
-                _note = MenuUi.CreateParagraph("Note", _content, string.Empty,
-                                               MenuTheme.Metrics.ParagraphSize,
-                                               MenuTheme.Palette.InkMuted,
-                                               MenuTheme.Metrics.ParagraphLineHeight);
-            }
+            EnsureScroll();
 
             _columnWidth = width;
             SetPanelSize(width, height);
@@ -218,6 +212,19 @@ namespace Aether.Gameplay.Menus.Panels
         }
 
         // -- construction --------------------------------------------------------------------
+
+        private void EnsureScroll()
+        {
+            if (_scroll != null) return;
+
+            _scroll = MenuUi.CreateScroll("Scroll", Rect, out _content);
+            MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
+
+            _note = MenuUi.CreateParagraph("Note", _content, string.Empty,
+                                           MenuTheme.Metrics.ParagraphSize,
+                                           MenuTheme.Palette.InkMuted,
+                                           MenuTheme.Metrics.ParagraphLineHeight);
+        }
 
         private void BuildRows()
         {

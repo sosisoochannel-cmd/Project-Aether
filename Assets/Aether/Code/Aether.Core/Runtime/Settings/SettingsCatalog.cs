@@ -211,7 +211,7 @@ namespace Aether.Core.Settings
                 "MenuBackdrop detail + QualitySettings.SetQualityLevel"),
 
             new SettingDefinition("graphics.frameRate", SettingCategory.Graphics, SettingKind.Choice,
-                "setting.frameRate", "setting.frameRate.help", 0f, 60f, 0f,
+                "setting.frameRate", "setting.frameRate.help", 30f, 120f, 0f,
                 new[] { "setting.fps.30", "setting.fps.60", "setting.fps.max" },
                 new[] { 30f, 60f, 120f },
                 "Application.targetFrameRate + QualitySettings.vSyncCount"),

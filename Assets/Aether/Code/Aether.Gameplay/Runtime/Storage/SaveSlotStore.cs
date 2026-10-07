@@ -117,10 +117,11 @@ namespace Aether.Gameplay.Storage
             if (!_file.TryRead(out SaveData stored)) return false;
 
             // Guard the shape rather than trusting the file: a save with a missing section would
-            // otherwise null-reference the first system that reads it. A document written before a
-            // section existed is repaired here rather than rejected — that is what the version
-            // number is for, and losing a run over an added field would be the wrong trade.
+            // otherwise null-reference the first system that reads it. Older documents are repaired
+            // by the defaults below; a document from a newer build is not safe to reinterpret and is
+            // reported to the slot screen as a damaged save instead of being overwritten.
             if (stored == null) return false;
+            if (stored.Version > SaveData.CurrentVersion) return false;
 
             if (stored.Progression == null) stored.Progression = new ProgressionState();
             if (stored.World == null) stored.World = new WorldState();

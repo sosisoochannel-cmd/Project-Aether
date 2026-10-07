@@ -69,21 +69,19 @@ namespace Aether.Gameplay.Settings
         }
 
         /// <summary>
-        /// Caps the frame rate.
+        /// Applies one of the supported frame-rate requests.
         /// </summary>
         /// <remarks>
         /// vSync is turned off as part of setting a cap. On a device where vSync is on, the platform
         /// silently ignores <c>targetFrameRate</c>, and a settings row that does nothing is exactly
-        /// the kind of thing this project refuses to ship: the two are set together, here, so that
-        /// cannot happen. Zero means "no cap of ours" and leaves the platform's own default alone.
+        /// the kind of thing this project refuses to ship: the two are set together, here. The
+        /// runtime snaps legacy or direct-call values to the same 30, 60 or 120 choices as the UI.
         /// </remarks>
         public static void ApplyFrameRate(int framesPerSecond)
         {
-            if (framesPerSecond <= 0)
-            {
-                Application.targetFrameRate = -1;
-                return;
-            }
+            if (framesPerSecond <= 30) framesPerSecond = 30;
+            else if (framesPerSecond <= 60) framesPerSecond = 60;
+            else framesPerSecond = 120;
 
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = framesPerSecond;

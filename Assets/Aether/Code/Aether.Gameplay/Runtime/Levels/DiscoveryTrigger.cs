@@ -53,12 +53,23 @@ namespace Aether.Gameplay.Levels
 
         private void OnTriggerEnter2D(Collider2D other)
         {
-            if (_entity == null || Found) return;
-            if (string.IsNullOrEmpty(_entity.Flag)) return;
-            if (other.GetComponent<Player.PlayerController>() == null) return;
+            Player.PlayerController player = other.GetComponent<Player.PlayerController>();
+            if (player != null) TryInteract(player);
+        }
+
+        /// <summary>
+        /// Records the finding from the Interact command when the player is beside it. Automatic
+        /// trigger entry remains available for touch-first play and calls this same path.
+        /// </summary>
+        public bool TryInteract(Player.PlayerController player)
+        {
+            if (_entity == null || Found || player == null) return false;
+            if (string.IsNullOrEmpty(_entity.Flag)) return false;
+            if (((Vector2)player.transform.position - (Vector2)transform.position).sqrMagnitude > 2.25f)
+                return false;
 
             GameSession session = GameSession.Instance;
-            if (session == null) return;
+            if (session == null) return false;
 
             Found = true;
 
@@ -71,6 +82,7 @@ namespace Aether.Gameplay.Levels
             // The find is hidden once taken, so a player who comes back does not read a second,
             // emptier secret sitting where the first one was.
             gameObject.SetActive(false);
+            return true;
         }
     }
 }

@@ -34,6 +34,7 @@ namespace Aether.Gameplay.Presentation
     public sealed class MenuTransition : MonoBehaviour
     {
         private const int VeilSortingOrder = 500;
+        private const float SceneLoadTimeoutSeconds = 20f;
         private const string UiBusCue = "ui.transition";
 
         private static MenuTransition _instance;
@@ -136,36 +137,97 @@ namespace Aether.Gameplay.Presentation
             _busy = true;
             MenuAudio.Request(UiBusCue, 0.6f);
 
-            yield return Fade(1f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
-
-            AsyncOperation load = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-            if (load != null)
+            try
             {
-                while (!load.isDone) yield return null;
+                yield return Fade(1f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+
+                AsyncOperation load;
+                try
+                {
+                    load = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+                }
+                catch (System.Exception exception)
+                {
+                    Debug.LogError($"[transition] Could not load '{sceneName}'. {exception.Message}", this);
+                    yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                    yield break;
+                }
+
+                if (load == null)
+                {
+                    Debug.LogError($"[transition] Unity returned no load operation for '{sceneName}'.", this);
+                    yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                    yield break;
+                }
+
+                float startedAt = Time.unscaledTime;
+                while (!load.isDone)
+                {
+                    // A failed or stalled asynchronous operation must not leave a persistent veil
+                    // and a permanent input lock over the only recoverable screen. Unity cannot
+                    // cancel a Single-mode operation, but releasing the cover restores the current
+                    // scene and gives the player a usable retry path instead of a black hang.
+                    if (Time.unscaledTime - startedAt > SceneLoadTimeoutSeconds)
+                    {
+                        Debug.LogError($"[transition] Loading '{sceneName}' exceeded " +
+                                       $"{SceneLoadTimeoutSeconds:0} seconds. The current screen was " +
+                                       "restored so the player can retry.", this);
+                        yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                        yield break;
+                    }
+
+                    yield return null;
+                }
+
+                // One frame of the new scene before the cover lifts, so the destination's first
+                // frames are not the ones the player sees appear through the fade.
+                yield return null;
+                yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
             }
-
-            // One frame of the new scene before the cover lifts, so the region's own first frames
-            // are not the ones the player sees appear through the fade.
-            yield return null;
-            yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
-
-            _busy = false;
+            catch (System.Exception exception)
+            {
+                Debug.LogError($"[transition] Loading '{sceneName}' failed. {exception.Message}", this);
+                if (_veil != null)
+                {
+                    _veil.color = new Color(_veil.color.r, _veil.color.g, _veil.color.b, 0f);
+                }
+                if (_veilRoot != null) _veilRoot.gameObject.SetActive(false);
+            }
+            finally
+            {
+                // Also covers an exception thrown by a scene callback while activation is finishing:
+                // the transition can never strand the app with Busy=true.
+                _busy = false;
+                if (_veilRoot != null && _veil != null && _veilRoot.gameObject.activeSelf && _veil.color.a <= 0.01f)
+                    _veilRoot.gameObject.SetActive(false);
+            }
         }
 
         private IEnumerator CoverRoutine(System.Action whileCovered, bool fadeBack)
         {
             _busy = true;
-
-            yield return Fade(1f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
-
-            whileCovered();
-
-            if (fadeBack)
+            try
             {
-                yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
-            }
+                yield return Fade(1f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
 
-            _busy = false;
+                whileCovered();
+
+                if (fadeBack)
+                {
+                    yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                }
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogError($"[transition] Covered menu action failed. {exception.Message}", this);
+                if (_veil != null)
+                    _veil.color = new Color(_veil.color.r, _veil.color.g, _veil.color.b, 0f);
+                if (_veilRoot != null) _veilRoot.gameObject.SetActive(false);
+            }
+            finally
+            {
+                _busy = false;
+            }
         }
 
         private IEnumerator Fade(float target, float duration)

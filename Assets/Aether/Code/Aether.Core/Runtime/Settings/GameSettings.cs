@@ -329,7 +329,7 @@ namespace Aether.Core.Settings
     {
         public GraphicsTier Tier = GraphicsTier.Medium;
 
-        /// <summary>Target frame rate. 0 means "do not cap". 30 and 60 are the useful values.</summary>
+        /// <summary>Requested frame-rate cap. The Android display may still present fewer frames than requested.</summary>
         public int FrameRateLimit = 60;
 
         /// <summary>
@@ -360,7 +360,11 @@ namespace Aether.Core.Settings
         public void Clamp()
         {
             if (Tier < GraphicsTier.Low || Tier > GraphicsTier.High) Tier = GraphicsTier.Medium;
-            FrameRateLimit = Mathf.Clamp(FrameRateLimit, 0, 120);
+            // The UI offers explicit supported requests only. Snap hand-edited or older values to
+            // one of the same three choices so the engine and the selector can never disagree.
+            if (FrameRateLimit <= 30) FrameRateLimit = 30;
+            else if (FrameRateLimit <= 60) FrameRateLimit = 60;
+            else FrameRateLimit = 120;
         }
     }
 
