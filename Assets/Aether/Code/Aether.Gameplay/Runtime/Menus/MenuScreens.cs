@@ -32,8 +32,11 @@ namespace Aether.Gameplay.Menus
         /// <summary>What the player has found. Not in the build yet.</summary>
         Collection = 5,
 
-        /// <summary>What the player has achieved. Not in the build yet.</summary>
+        /// <summary>What the player has achieved.</summary>
         Achievements = 6,
+
+        /// <summary>Where a new run is put, and what each stored run contains.</summary>
+        SaveSlots = 7,
     }
 
     /// <summary>
@@ -57,9 +60,13 @@ namespace Aether.Gameplay.Menus
                 case MenuScreenId.Chapters:
                     return MenuScreen.Create<ChaptersScreen>(id, parent, host);
                 case MenuScreenId.Characters:
+                    return MenuScreen.Create<CharactersScreen>(id, parent, host);
                 case MenuScreenId.Collection:
+                    return MenuScreen.Create<CollectionScreen>(id, parent, host);
                 case MenuScreenId.Achievements:
-                    return MenuScreen.Create<PlaceholderScreen>(id, parent, host);
+                    return MenuScreen.Create<AchievementsScreen>(id, parent, host);
+                case MenuScreenId.SaveSlots:
+                    return MenuScreen.Create<SaveSlotScreen>(id, parent, host);
                 default:
                     return MenuScreen.Create<MainMenuScreen>(id, parent, host);
             }
@@ -76,6 +83,7 @@ namespace Aether.Gameplay.Menus
                 case MenuScreenId.Characters: return "menu.characters";
                 case MenuScreenId.Collection: return "menu.collection";
                 case MenuScreenId.Achievements: return "menu.achievements";
+                case MenuScreenId.SaveSlots: return "slots.title";
                 default: return "menu.title";
             }
         }

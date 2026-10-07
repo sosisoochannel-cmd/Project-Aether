@@ -1,3 +1,4 @@
+using Aether.Gameplay.Menus.Panels;
 using UnityEngine;
 
 namespace Aether.Gameplay.Menus.Screens
@@ -51,7 +52,48 @@ namespace Aether.Gameplay.Menus.Screens
         /// </summary>
         public virtual MenuNav ActiveNav
         {
-            get { return Nav; }
+            get { return DialogOpen ? DialogNav : Nav; }
+        }
+
+        /// <summary>
+        /// The screen's own dialog, built on first ask.
+        /// </summary>
+        /// <remarks>
+        /// Four screens ask a question before doing something that cannot be undone — replace a run,
+        /// delete one, leave a region — and every one of them asks it the same way: a
+        /// <see cref="MenuConfirmPanel"/> under the menu's dialog root, with its own navigation so a
+        /// dialog takes over the input without a second input path, and with Cancel selected first so
+        /// a double tap on a destructive row cannot answer its own question. Building it here means
+        /// the fifth screen that needs one gets all of that by asking for it.
+        /// </remarks>
+        protected MenuConfirmPanel Dialog { get; private set; }
+
+        /// <summary>The navigation a dialog drives while it is open.</summary>
+        protected MenuNav DialogNav { get; private set; }
+
+        /// <summary>Builds the screen's dialog once and returns it.</summary>
+        protected MenuConfirmPanel EnsureDialog()
+        {
+            if (Dialog != null) return Dialog;
+
+            DialogNav = new MenuNav();
+            Dialog = MenuConfirmPanel.Create("Confirm", Host.DialogRoot, DialogNav);
+            Dialog.Closed = OnDialogClosed;
+            return Dialog;
+        }
+
+        /// <summary>Called after the screen's dialog closes. Puts the selection back by default.</summary>
+        protected virtual void OnDialogClosed()
+        {
+            Refocus();
+        }
+
+        /// <summary>
+        /// Whether the dialog is up, and should be given the input.
+        /// </summary>
+        public bool DialogOpen
+        {
+            get { return Dialog != null && Dialog.IsOpen; }
         }
 
         /// <summary>Creates a screen under the menu's content root.</summary>
@@ -100,6 +142,14 @@ namespace Aether.Gameplay.Menus.Screens
         /// </summary>
         public virtual bool OnBack()
         {
+            // A question outranks the screen's own back: closing a dialog is what back means while
+            // one is open, and it is the answer that destroys nothing.
+            if (DialogOpen)
+            {
+                Dialog.Cancel();
+                return true;
+            }
+
             return false;
         }
 

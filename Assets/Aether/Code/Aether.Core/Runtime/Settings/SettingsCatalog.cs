@@ -294,7 +294,14 @@ namespace Aether.Core.Settings
                 Aether.Core.Localization.LanguageDefinition language =
                     Aether.Core.Localization.LanguageCatalog.All[i];
 
-                if (language.BundledFontCovers) keys.Add(language.LabelKey);
+                // Offered means drawable *and* written: a language with no sheet of its own is not in
+                // the row, because choosing it would do nothing. The catalogue holds that list, and
+                // tools/verify/localization.py holds the catalogue to the sheets.
+                if (language.BundledFontCovers &&
+                    Aether.Core.Localization.LanguageCatalog.IsOffered(language.Code))
+                {
+                    keys.Add(language.LabelKey);
+                }
             }
 
             return keys.ToArray();
@@ -314,7 +321,13 @@ namespace Aether.Core.Settings
             var values = new List<float>();
             for (int i = 0; i < Aether.Core.Localization.LanguageCatalog.All.Length; i++)
             {
-                if (Aether.Core.Localization.LanguageCatalog.All[i].BundledFontCovers) values.Add(i);
+                Aether.Core.Localization.LanguageDefinition option =
+                    Aether.Core.Localization.LanguageCatalog.All[i];
+                if (option.BundledFontCovers &&
+                    Aether.Core.Localization.LanguageCatalog.IsOffered(option.Code))
+                {
+                    values.Add(i);
+                }
             }
 
             return values.ToArray();

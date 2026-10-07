@@ -152,8 +152,8 @@ namespace Aether.Gameplay.Interface
 
             _title = MenuUi.CreateTrackedText("Title", block, string.Empty,
                                                MenuTheme.Metrics.ScreenTitleSize,
-                                               MenuTheme.Palette.Ink, TextAnchor.MiddleCenter,
-                                               MenuTheme.Metrics.ScreenTitleTracking);
+                                               MenuTheme.Palette.Ink,
+                                               MenuTheme.Metrics.ScreenTitleTracking, TextAnchor.MiddleCenter);
             MenuUi.Row(_title.rectTransform, 0f, 90f);
 
             _note = MenuUi.CreateText("Note", block, string.Empty, MenuTheme.Metrics.ParagraphSize,

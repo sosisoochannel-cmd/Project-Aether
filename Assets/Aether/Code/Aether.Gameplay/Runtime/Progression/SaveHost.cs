@@ -75,6 +75,58 @@ namespace Aether.Gameplay.Progression
             return SaveSlots.DescribeAll();
         }
 
+        /// <summary>
+        /// Reads a stored run without playing it, or null when there is nothing readable there.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The screens that report on a run — chapters, characters, collection, achievements — must
+        /// show the run that is <i>stored</i> when the player is still in the menu, and they must not
+        /// start one to do it. This reads the file and hands back the data; the active session is not
+        /// touched, no run is loaded, and nothing is written.
+        /// </para>
+        /// <para>
+        /// A damaged file returns null rather than throwing, which is the same answer as an empty
+        /// slot: a screen that cannot read a run has nothing to report about it, and the slot screen
+        /// is where the damage itself is named.
+        /// </para>
+        /// </remarks>
+        public static SaveData Peek(int slot)
+        {
+            SaveSlotStore store = SaveSlots.For(slot);
+            if (store == null || !store.HasStoredProgress) return null;
+
+            return store.TryLoad(out SaveData data) ? data : null;
+        }
+
+        /// <summary>
+        /// The run the menu should describe: the active slot's if it is standing on one, otherwise
+        /// the most recent loadable one.
+        /// </summary>
+        /// <remarks>
+        /// Which run a menu screen describes is a decision, not a lookup, so it is made once here:
+        /// a session that is already playing a slot reports that slot, and a menu opened fresh
+        /// reports the run CONTINUE would load. Anything else would have the main menu offer to
+        /// continue one run while the achievements screen described another.
+        /// </remarks>
+        public static SaveData Peek()
+        {
+            GameSession session = GameSession.Instance;
+            if (session != null && _activeSlot > 0 && session.Save != null) return session.Save;
+
+            int slot = SaveSlots.MostRecent();
+            return slot > 0 ? Peek(slot) : null;
+        }
+
+        /// <summary>The slot <see cref="Peek()"/> reads, or 0 when there is nothing stored.</summary>
+        public static int DescribedSlot()
+        {
+            GameSession session = GameSession.Instance;
+            if (session != null && _activeSlot > 0) return _activeSlot;
+
+            return SaveSlots.MostRecent();
+        }
+
         /// <summary>The most recent slot that can be loaded, or 0. This is what CONTINUE uses.</summary>
         public static int MostRecentSlot()
         {

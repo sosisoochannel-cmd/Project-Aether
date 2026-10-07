@@ -216,8 +216,8 @@ namespace Aether.Gameplay.Interface
 
             _objective = MenuUi.CreateTrackedText("Title", block, string.Empty,
                                                   MenuTheme.Metrics.ParagraphSize,
-                                                  MenuTheme.Palette.Ink, TextAnchor.UpperLeft,
-                                                  MenuTheme.Metrics.SubtitleTracking);
+                                                  MenuTheme.Palette.Ink,
+                                                  MenuTheme.Metrics.SubtitleTracking, TextAnchor.UpperLeft);
             MenuUi.Row(_objective.rectTransform, 0f, 46f);
 
             _objectiveHelp = MenuUi.CreateText("Help", block, string.Empty,
@@ -238,8 +238,8 @@ namespace Aether.Gameplay.Interface
 
             _findings = MenuUi.CreateTrackedText("Findings", block, string.Empty,
                                                  MenuTheme.Metrics.SettingHelpSize,
-                                                 MenuTheme.Palette.Accent, TextAnchor.LowerLeft,
-                                                 MenuTheme.Metrics.SubtitleTracking);
+                                                 MenuTheme.Palette.Accent,
+                                                 MenuTheme.Metrics.SubtitleTracking, TextAnchor.LowerLeft);
             MenuUi.Row(_findings.rectTransform, 0f, 40f);
 
             _falls = MenuUi.CreateText("Falls", block, string.Empty, MenuTheme.Metrics.SettingHelpSize,
@@ -292,8 +292,8 @@ namespace Aether.Gameplay.Interface
 
             _toastTitle = MenuUi.CreateTrackedText("Label", _toast, string.Empty,
                                                    MenuTheme.Metrics.SectionLabelSize,
-                                                   MenuTheme.Palette.Accent, TextAnchor.UpperCenter,
-                                                   MenuTheme.Metrics.SectionLabelTracking);
+                                                   MenuTheme.Palette.Accent,
+                                                   MenuTheme.Metrics.SectionLabelTracking, TextAnchor.UpperCenter);
             MenuUi.Row(_toastTitle.rectTransform, 12f, 34f);
 
             _toastBody = MenuUi.CreateText("Title", _toast, string.Empty, MenuTheme.Metrics.ParagraphSize,

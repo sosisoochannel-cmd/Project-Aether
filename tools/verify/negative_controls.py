@@ -956,6 +956,41 @@ def controls() -> list[Control]:
                               "ach.unbroken.body=Llega a la salida norte sin morir ni una vez.\n",
                               ""),
             ["not translated"]),
+        # The two controls for the screens that used to be placeholders. The first is the fault
+        # that actually happened: a label key that the table does not hold, which the player would
+        # have seen as the key itself. The second is the opposite fault, and the more dangerous
+        # one — a screen that exists, is reachable, and reads nothing real.
+        Control(
+            "mainmenu: a label key the table does not hold is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              'MenuScreenId.SaveSlots, "menu.saveSlots"',
+                              'MenuScreenId.SaveSlots, "menu.saveSlotz"'),
+            ["passes 'menu.saveSlotz' as a label key"]),
+        Control(
+            "mainmenu: a catalogue screen that reads nothing real is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/AchievementsScreen.cs",
+                              "AchievementCatalog.All.Length",
+                              "3"),
+            ["never reads AchievementCatalog.All.Length"]),
+        # The fault that reached CI twice: an alignment where a tracking metric belongs. The call
+        # still parses, still balances, and would not compile — which is exactly the class of
+        # mistake this gate has to be able to see.
+        Control(
+            "mainmenu: a builder called with its arguments out of order is caught",
+            menu,
+            lambda root: edit(root, f"{INTERFACE_HUD}",
+                              "MenuTheme.Metrics.SubtitleTracking, TextAnchor.UpperLeft",
+                              "TextAnchor.UpperLeft, MenuTheme.Metrics.SubtitleTracking"),
+            ["argument 6"]),
+        Control(
+            "mainmenu: a format call with the wrong number of arguments is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              'MenuStrings.Format("about.version", Application.version)',
+                              'MenuStrings.Format("about.version", Application.version, 1)'),
+            ["placeholder(s)"]),
         Control(
             "mainmenu: a legitimate change to the composition is silent",
             menu,

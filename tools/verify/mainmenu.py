@@ -319,22 +319,55 @@ def check_screens(gate: Gate) -> None:
         gate.check(f"MenuScreenId.{member}" in title,
                    f"MenuScreens.TitleKey has no title for {member}, so its header would say "
                    "'menu.title'")
-        # A screen with a system behind it has nothing to explain. The ones that do are the
-        # chapter list (the regions that are not in the build) and the three placeholders.
-        if member not in ("Settings", "Credits", "Chapters"):
-            gate.check(f"MenuScreenId.{member}" in body,
-                       f"MenuScreens.BodyKey says nothing about {member}, so that screen would "
-                       "have no sentence to show")
 
-    # The three ids with no system behind them have to be the honest screen, not a blank one.
-    gate.check(builds(create, "PlaceholderScreen"),
-               "the screens with no system behind them are not mapped to the placeholder screen")
+    # A screen that opens something has to explain nothing; a screen whose subject is partly absent
+    # has to say which part. One of each remains: the chapter list names the regions that are not in
+    # the build, and every other screen now has its system behind it.
+    gate.check("MenuScreenId.Chapters" in body,
+               "MenuScreens.BodyKey says nothing about Chapters, so that screen would have no "
+               "sentence for the regions that are not in the build")
+
+    # The screens that used to have nothing behind them now have systems, and this is the rule that
+    # says so: each one has to read the catalogue its subject lives in. A screen that drew three
+    # greyed rows from a literal list would pass a reachability check and be exactly the fake the
+    # brief forbids, so the check is on what it reads rather than on the fact that it exists.
+    # A screen that reads a catalogue has to read the whole of it: the list it draws from, and the
+    # total it reports. Checking only the list would pass a screen that hard-coded "3 of 5" beside
+    # rows it really drew, which is the subtler half of the same fake.
+    # The expressions are written out rather than named by member, because the fault this catches
+    # is a screen that keeps drawing real rows and writes the total above them by hand: after that
+    # edit the catalogue is still mentioned, and only the expression that counts it has gone.
+    systems = {
+        "CharactersScreen": ("CharacterCatalog",
+                             ("CharacterCatalog.All.Length", "CharacterCatalog.MetCount")),
+        "CollectionScreen": ("CollectionCatalog",
+                             ("CollectionCatalog.All", "Entries.Length")),
+        "AchievementsScreen": ("AchievementCatalog",
+                               ("AchievementCatalog.All.Length", "AchievementCatalog.Count")),
+        "ChaptersScreen": ("ChapterCatalog", ("ChapterCatalog.All.Length",)),
+        "SaveSlotScreen": ("SaveSlots", ("SaveSlots.Count", "SaveSlots.Describe")),
+    }
+    for screen, (catalogue, members) in systems.items():
+        gate.check(builds(create, screen),
+                   f"MenuScreens.Create does not build {screen}, so the id it serves opens nothing")
+        path = f"{SCREENS}/{screen}.cs"
+        gate.check(os.path.exists(os.path.join(REPO_ROOT, path)),
+                   f"{path} does not exist, but the factory builds it")
+
+        source = read(path)
+        gate.check(catalogue in source,
+                   f"{path} never reads {catalogue}, so the screen behind that entry point has "
+                   "nothing real to show")
+        for expression in members:
+            gate.check(expression in source,
+                       f"{path} never reads {expression}, so at least one number or row on that "
+                       "screen is written by hand rather than read from the catalogue")
 
     # Keys the screens ask for have to exist, or the interface shows the key itself.
     for key in ("menu.title", "menu.subtitle", "menu.settings", "menu.credits", "chapters.title",
-                "locked.title", "locked.characters.body", "locked.collection.body",
-                "locked.achievements.body", "chapters.locked", "menu.quit.confirm",
-                "menu.newGame.confirm", "data.reset.title", "data.reset.body"):
+                "chapters.locked", "chapters.notInBuild", "slots.title", "slots.damaged",
+                "characters.title", "collection.title", "achievements.title",
+                "menu.quit.confirm", "menu.newGame.confirm", "data.reset.title", "data.reset.body"):
         gate.check(f'"{key}"' in table, f"the string table has no '{key}'")
 
     # The brief's entry points, each of which has to exist as a row on the main menu.
@@ -447,12 +480,52 @@ def check_localisation(gate: Gate) -> None:
                 if f"{key}" not in table.split("Dictionary<string, string>")[-1]:
                     gate.check(False, f"{rel} asks for {key}, which the string table does not hold")
 
+    # A format call has to be given as many arguments as its string has placeholders. Too few and
+    # String.Format throws on the frame the screen is drawn; too many and the sentence silently
+    # loses what it was going to say. Neither is visible in a screenshot, and both are visible here.
+    english = dict(re.findall(r'\{\s*"([^"]+)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\}',
+                              table.split("Dictionary<string, string>")[-1]))
+    for rel in files:
+        text = without_comments(read(rel))
+        for arguments in call_arguments(text, "MenuStrings.Format"):
+            key = _literal(arguments[0])
+            if not key:
+                continue
+            if key not in english:
+                gate.check(False, f"{rel} formats '{key}', which the string table does not hold")
+                continue
+
+            wanted = len(set(re.findall(r"\{(\d+)\}", english[key])))
+            given = len(arguments) - 1
+            gate.check(wanted == given,
+                       f"{rel} formats '{key}' with {given} argument(s), but that string has "
+                       f"{wanted} placeholder(s)")
+
     # A literal passed where the interface shows text is a sentence that ships untranslated. A
     # gameObject name is allowed to be a literal — it is for the hierarchy, not for the player —
     # so each call is checked at the argument that ends up on screen.
     # Keyed by the name as it is written. The static calls are written with their type; the ones
     # that are called on a receiver are written with a bare method name, which is why the names
     # here are mixed.
+    # A key handed to a private helper that forwards it to a panel is a string key like any
+    # other, and the check above cannot see it: the literal is an argument of AddDestination, not
+    # of MenuStrings.Get. That is how 'menu.saveSlots' reached the main menu while the table did
+    # not hold it — the row would have shown the key itself to the player. Any literal passed
+    # where a label key is expected is now checked against the table, whoever forwards it.
+    for rel in files:
+        text = read(rel)
+        for name in ("AddDestination", "SetLabel"):
+            for arguments in call_arguments(text, name):
+                for argument in arguments:
+                    key = _literal(argument)
+                    if not key or " " in key:
+                        continue
+                    if re.fullmatch(r"[a-z][a-zA-Z0-9]*\.[a-zA-Z0-9.]+", key) is None:
+                        continue
+                    gate.check(f'"{key}"' in table.split("Dictionary<string, string>")[-1],
+                               f"{rel} passes '{key}' as a label key, which the string table does "
+                               "not hold, so the row would show the key itself")
+
     shown = {
         "MenuUi.CreateText": 2,
         "MenuUi.CreateTrackedText": 2,
@@ -474,6 +547,142 @@ def check_localisation(gate: Gate) -> None:
                 if content.lstrip().startswith('"'):
                     gate.check(False, f"{rel} shows the literal {content.strip()} in "
                                       f"{name}(...) instead of a string key")
+
+
+# The argument kinds of the interface builders, by the type the call site writes. Enough to tell a
+# metric from an alignment, and nothing more: an argument that is none of these is left alone rather
+# than guessed at.
+ARGUMENT_KINDS = (
+    (r"^TextAnchor\s*\.", "TextAnchor"),
+    (r"^FontStyle\s*\.", "FontStyle"),
+    (r"^MenuTheme\s*\.\s*Palette\s*\.", "Color"),
+    (r"^Color\s*\.", "Color"),
+    (r"^MenuTheme\s*\.\s*Metrics\s*\.", "float"),
+    (r"^\d+(\.\d+)?f$", "float"),
+    (r"^\d+$", "int"),
+    (r'^"', "string"),
+    (r"^string\s*\.\s*Empty$", "string"),
+    (r"^MenuStrings\s*\.", "string"),
+    (r"^null$", "null"),
+    (r"^(true|false)$", "bool"),
+    (r"^new\s+Color", "Color"),
+)
+
+# What each declared type accepts. Deliberately narrow: an int is a float, a float is not an
+# alignment, and nothing is a string unless it is written as one.
+KIND_ACCEPTS = {
+    "float": ("float", "int"),
+    "int": ("int",),
+    "string": ("string", "null"),
+    "TextAnchor": ("TextAnchor",),
+    "FontStyle": ("FontStyle",),
+    "Color": ("Color",),
+    "bool": ("bool", "int"),
+}
+
+# The builders whose argument order the interface depends on. A wrong order here is a compile
+# error on a machine nobody can reach from this sandbox, and it has already been one twice.
+BUILDERS = (
+    "MenuUi.CreateText", "MenuUi.CreateTrackedText", "MenuUi.CreateParagraph",
+    "MenuUi.CreateNode", "MenuUi.CreateScroll",
+    "MenuButton.Create", "MenuHeader.Create",
+)
+
+
+def declared_parameters(text: str, name: str) -> "list[str] | None":
+    """The declared type of every parameter of a method, in order, or None if it cannot be read."""
+    simple = name.split(".")[-1]
+    pattern = (r"(?:public|internal|protected|private)\s+(?:static\s+)?"
+               r"[\w<>\[\],\s\.]+?\s+" + re.escape(simple) + r"\s*\(")
+    match = re.search(pattern, text)
+    if match is None:
+        return None
+
+    start = match.end() - 1
+    depth, index = 0, start
+    while index < len(text):
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+    if index >= len(text):
+        return None
+
+    types = []
+    for parameter in split_arguments(text[start + 1:index]):
+        cleaned = parameter.split("=")[0].strip()
+        words = cleaned.replace("<", " ").replace(">", " ").split()
+        if len(words) < 2:
+            return None
+        # The last word is the parameter's name; everything before it is its type. A generic or an
+        # array keeps its punctuation, which is what the kind table is keyed by.
+        types.append("".join(words[:-1]))
+    return types
+
+
+def check_signatures(gate: Gate) -> None:
+    """Every call to an interface builder passes the kind of argument the builder declared.
+
+    A gate that counts brackets cannot see a call whose arguments are in the wrong order and whose
+    types still line up — and the build can, which is how 'CreateTrackedText(name, parent, text,
+    size, colour, alignment, tracking)' reached CI with alignment and tracking swapped, twice. The
+    method's own declaration is the source of truth here: the call sites are checked against the
+    signature as it is written, so reordering a parameter makes the calls that were not updated
+    fail here rather than on a runner.
+    """
+    files = []
+    for folder in (MENUS, f"{MENUS}/Panels", f"{MENUS}/Components", f"{MENUS}/Widgets", SCREENS,
+                   INTERFACE):
+        for name in sorted(os.listdir(os.path.join(REPO_ROOT, folder))):
+            if name.endswith(".cs"):
+                files.append(f"{folder}/{name}")
+
+    sources = {rel: read(rel) for rel in files}
+
+    # The declaration is read from the file that declares the class it was called on, not from the
+    # whole of the interface: every one of these classes has a static `Create`, and searching the
+    # concatenation finds whichever of them happens to come first.
+    signatures = {}
+    for builder in BUILDERS:
+        owner = builder.split(".")[0]
+        marker = "class " + owner
+        home = [text for rel, text in sources.items()
+                if re.search(r"\b" + re.escape(marker) + r"\b", text) is not None]
+        parameters = declared_parameters(home[0], builder) if len(home) == 1 else None
+
+        if parameters is None:
+            gate.check(False, f"{builder} is declared in {len(home)} file(s), which this check "
+                              "cannot read, so its call sites are unchecked")
+            continue
+        signatures[builder] = parameters
+
+    for rel, text in sources.items():
+        for builder, parameters in signatures.items():
+            for arguments in call_arguments(text, builder):
+                if len(arguments) > len(parameters):
+                    gate.check(False, f"{rel}: {builder}(...) is called with {len(arguments)} "
+                                      f"arguments but declares {len(parameters)}")
+                    continue
+
+                for index, argument in enumerate(arguments):
+                    if index >= len(parameters):
+                        break
+                    declared = parameters[index]
+                    kind = None
+                    for pattern, name in ARGUMENT_KINDS:
+                        if re.match(pattern, argument.strip()):
+                            kind = name
+                            break
+                    if kind is None or kind == "null":
+                        continue
+                    if not any(accepted == declared or declared.startswith(accepted)
+                               for accepted in KIND_ACCEPTS.get(kind, ())):
+                        gate.check(False, f"{rel}: {builder}(...) argument {index + 1} is "
+                                          f"{argument.strip()} ({kind}) where the method declares "
+                                          f"'{declared}' — the call would not compile")
 
 
 def check_composition(gate: Gate) -> None:
@@ -662,6 +871,7 @@ def main() -> int:
     check_screens(gate)
     check_settings(gate)
     check_localisation(gate)
+    check_signatures(gate)
     check_composition(gate)
     check_discipline(gate)
 

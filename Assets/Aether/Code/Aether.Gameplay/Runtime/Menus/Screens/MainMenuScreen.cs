@@ -97,6 +97,7 @@ namespace Aether.Gameplay.Menus.Screens
             AddDestination(_explore, MenuScreenId.Achievements, "menu.achievements");
 
             _system = MenuEntryPanel.Create("System", _content, Nav, "menu.systemSection", columns);
+            AddDestination(_system, MenuScreenId.SaveSlots, "menu.saveSlots");
             AddDestination(_system, MenuScreenId.Settings, "menu.settings");
             AddDestination(_system, MenuScreenId.Credits, "menu.credits");
 
@@ -229,37 +230,12 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void NewGame()
         {
-            // A new run goes in a free slot, and there are three. While one is free, nothing is
-            // thrown away and nothing needs asking about; when all three are used, the player is
-            // choosing which run to lose, so the screen asks first — and the dialog starts on Cancel.
-            int free = SaveSlots.FirstEmpty();
-            if (free > 0)
-            {
-                MenuAudio.Confirm();
-                SaveHost.BeginNewGameIn(free, ChapterCatalog.First.Id);
-                Host.PlayRegion();
-                return;
-            }
-
-            _confirm.Open(MenuStrings.Get("menu.newGame"), MenuStrings.Get("menu.newGame.confirm"),
-                          () =>
-                          {
-                              SaveHost.BeginNewGameIn(ReplaceSlot, ChapterCatalog.First.Id);
-                              Host.PlayRegion();
-                          });
-        }
-
-        /// <summary>
-        /// Which run a new game replaces once every slot is full.
-        /// </summary>
-        /// <remarks>
-        /// The least recently played one is the run its owner is least likely to be in the middle of.
-        /// Until slot selection is on screen, this is the rule; the confirm names no slot, which is
-        /// why the wording of <c>menu.newGame.confirm</c> stays generic.
-        /// </remarks>
-        private static int ReplaceSlot
-        {
-            get { return SaveSlots.LeastRecent(); }
+            // A new run needs somewhere to live, and there are three slots. NEW GAME opens the slot
+            // list instead of picking one: which slot a run goes in is the player's decision, and the
+            // question "replace this one?" only makes sense once a slot has been named — the reason
+            // the confirm dialog lives on that screen and names the slot it is about.
+            MenuAudio.Confirm();
+            Request(MenuScreenId.SaveSlots);
         }
 
         /// <summary>Asks before closing the game: back is a thumb's width from the rows on a phone.</summary>

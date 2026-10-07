@@ -194,12 +194,34 @@ namespace Aether.Gameplay.Progression
             for (int i = 0; i < All.Length; i++)
             {
                 if (!All[i].Playable) continue;
-                if (completedFlags != null && completedFlags.Contains(CompletionFlagOf(All[i].Id))) continue;
+                if (completedFlags != null && Holds(completedFlags, CompletionFlagOf(All[i].Id)))
+                {
+                    continue;
+                }
 
                 return All[i];
             }
 
             return First;
+        }
+
+        /// <summary>
+        /// Whether a list of flags holds one.
+        /// </summary>
+        /// <remarks>
+        /// Written out rather than called on the list: <c>Contains</c> is an extension method from
+        /// <c>System.Linq</c>, and the gameplay assembly does not reference the Linq namespace for a
+        /// single membership test. What the caller passes is a plain read-only list, so the loop is
+        /// the whole of what is needed, and it allocates nothing.
+        /// </remarks>
+        private static bool Holds(IReadOnlyList<string> flags, string flag)
+        {
+            for (int i = 0; i < flags.Count; i++)
+            {
+                if (flags[i] == flag) return true;
+            }
+
+            return false;
         }
 
         /// <summary>The world flag that marks a chapter complete.</summary>
