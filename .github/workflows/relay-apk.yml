@@ -15,6 +15,9 @@ on:
     paths:
       - '.github/workflows/relay-apk.yml'
       - 'tools/ci/**'
+  # So the newest successful APK can be re-handed over without inventing a commit to push: the
+  # relay only ever reads a finished build, so running it again is always safe.
+  workflow_dispatch:
 
 # actions:read is what the artifact listing needs; naming any permission leaves the rest at none,
 # so this job has to ask for it explicitly.

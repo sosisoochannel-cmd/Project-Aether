@@ -150,6 +150,32 @@ namespace Aether.Gameplay.Interface
             MenuAudio.Request("ui.confirm", 0.5f);
         }
 
+        /// <summary>
+        /// Announces something that is not an achievement: a codex entry, a region's first arrival.
+        /// </summary>
+        /// <remarks>
+        /// The same strip and the same timing, with the caller's own two lines. It exists because the
+        /// characters the player meets are recorded during play and nothing said so; a record that
+        /// changes without a word is a record nobody learns about, which is the difference between a
+        /// codex and a database.
+        /// </remarks>
+        /// <param name="titleKey">Localisation key for the small line above.</param>
+        /// <param name="body">The line itself, already in the player's language.</param>
+        public void Announce(string titleKey, string body)
+        {
+            if (_toast == null || string.IsNullOrEmpty(titleKey)) return;
+            if (_toastTitle == null || _toastBody == null) return;
+
+            _toastTitle.text = MenuUi.Track(MenuStrings.Get(titleKey),
+                                            MenuTheme.Metrics.SectionLabelTracking);
+            _toastBody.text = body ?? string.Empty;
+            _toastUntil = Time.unscaledTime + ToastSeconds;
+            _toast.gameObject.SetActive(true);
+            _toastGroup.alpha = 0f;
+
+            MenuAudio.Request("ui.confirm", 0.5f);
+        }
+
         /// <summary>Puts the selection back on the pause button, after an overlay closes.</summary>
         /// <remarks>
         /// The button stays selected while an overlay is up, and an overlay that deactivates what

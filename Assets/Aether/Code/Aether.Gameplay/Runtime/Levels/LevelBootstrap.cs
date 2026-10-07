@@ -4,6 +4,9 @@ using Aether.Gameplay.Controls;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Localization;
+using Aether.Gameplay.Menus;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
@@ -125,6 +128,12 @@ namespace Aether.Gameplay.Levels
 
             AttachTouchControls(camera, player);
 
+            // Who the player has now met. The region's own contents are the evidence: the creatures
+            // it placed are creatures the player has been in a region with, and the catalogue turns
+            // that into characters. Called here, once, because a region is built once — and without
+            // the call the characters screen would report a cast nobody can ever meet.
+            RecordEncounters();
+
             var directorHost = new GameObject("LevelDirector");
             directorHost.transform.SetParent(transform, false);
             Director = directorHost.AddComponent<LevelDirector>();
@@ -136,6 +145,36 @@ namespace Aether.Gameplay.Levels
             Shell = GameplayShell.Attach(_session, Level, Director, player, TouchControls);
             Shell.transform.SetParent(transform, false);
             Shell.Reveal();
+        }
+
+        /// <summary>Records every character this region's enemies prove the player has met.</summary>
+        private void RecordEncounters()
+        {
+            if (_session == null || Level == null || Level.Enemies == null || Level.Enemies.Count == 0)
+            {
+                // A region with nothing in it introduces nobody, and that is not a failure: the
+                // protagonist's own entry is the catalogue's business, not this loop's.
+                return;
+            }
+
+            var types = new List<string>(Level.Enemies.Count);
+            for (int i = 0; i < Level.Enemies.Count; i++)
+            {
+                LevelEntity entity = Level.Enemies[i].Source;
+                if (entity == null || string.IsNullOrEmpty(entity.TypeId)) continue;
+                if (!types.Contains(entity.TypeId)) types.Add(entity.TypeId);
+            }
+
+            List<CharacterDefinition> met = CharacterCatalog.RecordEncounters(_session.Save, types);
+            if (met.Count == 0) return;
+
+            // Said out loud, the way an achievement is: a record that changes and says nothing is a
+            // record the player never learns about.
+            if (Shell != null && Shell.Hud != null)
+            {
+                Shell.Hud.Announce("characters.met.title",
+                                   MenuStrings.Format("characters.met.banner", met.Count));
+            }
         }
 
         private LevelData LoadLevelData()

@@ -1,6 +1,7 @@
 using System;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Storage;
@@ -342,10 +343,12 @@ namespace Aether.Gameplay.Menus.Screens
 
             try
             {
+                // The date is written in the language the interface is in, not in the machine's:
+                // a player reading Spanish should not be shown English month names because the
+                // device happens to be set to English.
                 DateTime when = new DateTime(info.SavedUtcTicks, DateTimeKind.Utc).ToLocalTime();
                 return MenuStrings.Format("slots.lastPlayed",
-                                          when.ToString("d MMM HH:mm",
-                                                        System.Globalization.CultureInfo.CurrentCulture));
+                                          when.ToString("d MMM HH:mm", LanguageService.Culture));
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -356,14 +359,24 @@ namespace Aether.Gameplay.Menus.Screens
             }
         }
 
+        /// <summary>
+        /// A played time as hours, minutes and seconds, with no words in it.
+        /// </summary>
+        /// <remarks>
+        /// Digits and colons rather than "12m 34s": this line sits inside a sentence that is
+        /// translated, and a unit letter is a word — it would be English in every language, which is
+        /// exactly the sort of thing nobody notices until a player does. 12:34 reads the same in all
+        /// thirteen languages the interface names.
+        /// </remarks>
         private static string ClockOf(float seconds)
         {
             int total = Mathf.Max(0, Mathf.RoundToInt(seconds));
             int hours = total / 3600;
             int minutes = (total % 3600) / 60;
 
-            return hours > 0 ? hours + "h " + minutes.ToString("00") + "m"
-                             : minutes + "m " + (total % 60).ToString("00") + "s";
+            return hours > 0
+                ? hours + ":" + minutes.ToString("00") + ":" + (total % 60).ToString("00")
+                : minutes + ":" + (total % 60).ToString("00");
         }
     }
 }

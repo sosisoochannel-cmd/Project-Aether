@@ -61,6 +61,38 @@ namespace Aether.Gameplay.Localization
             get { return LanguageCatalog.Resolve(Code); }
         }
 
+        /// <summary>
+        /// The culture the current language is written in, for dates and numbers.
+        /// </summary>
+        /// <remarks>
+        /// The interface's words come from the table; the shape of a date and the separators in a
+        /// number come from the machine's culture unless somebody says otherwise, and a machine set
+        /// to English would print English month names inside a Spanish interface. This is that
+        /// somebody. An unknown code falls back to the invariant culture rather than throwing — a
+        /// save slot is not the place to discover that a code was mistyped.
+        /// </remarks>
+        public static System.Globalization.CultureInfo Culture
+        {
+            get { return CultureOf(Code); }
+        }
+
+        /// <summary>The culture for a language code, or the invariant culture for an unknown one.</summary>
+        public static System.Globalization.CultureInfo CultureOf(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return System.Globalization.CultureInfo.InvariantCulture;
+
+            try
+            {
+                return System.Globalization.CultureInfo.GetCultureInfo(code);
+            }
+            catch (System.ArgumentException)
+            {
+                // A code this build names but the platform does not know: the language's own words
+                // still work, and its dates are printed in the neutral shape.
+                return System.Globalization.CultureInfo.InvariantCulture;
+            }
+        }
+
         /// <summary>Which way the current language reads.</summary>
         public static TextDirection Direction
         {
