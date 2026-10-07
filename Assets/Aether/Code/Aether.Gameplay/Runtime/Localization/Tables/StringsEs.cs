@@ -20,7 +20,6 @@ namespace Aether.Gameplay.Localization.Tables
             "menu.characters", "PERSONAJES",
             "menu.collection", "COLECCIÓN",
             "menu.achievements", "LOGROS",
-            "menu.saveSlots", "RANURAS DE GUARDADO",
             "menu.settings", "AJUSTES",
             "menu.credits", "CRÉDITOS",
             "menu.quit", "SALIR",

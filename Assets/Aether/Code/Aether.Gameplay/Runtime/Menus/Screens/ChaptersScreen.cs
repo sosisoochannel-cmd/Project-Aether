@@ -115,12 +115,14 @@ namespace Aether.Gameplay.Menus.Screens
         {
             if (DialogOpen)
             {
+                // A question outranks the screen's own back, and closing it destroys nothing.
                 Dialog.Cancel();
                 return true;
             }
 
-            Leave();
-            return true;
+            // Otherwise the menu decides, and it knows whether this screen was opened from the main
+            // menu or from the save list. Calling Host.Back() from here would re-enter this method.
+            return false;
         }
 
         /// <inheritdoc />
@@ -165,9 +167,9 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void Leave()
         {
-            // Through the host, not straight to the main menu: chapters are reachable from the main
-            // menu and from the save screen, and back means back.
-            MenuAudio.Back();
+            // Through the host, and only through it: it knows whether this screen was opened from the
+            // main menu or from the save list, and it plays the back cue. A screen that played the
+            // cue and then asked the host to go back would play it twice in one frame.
             Host.Back();
         }
 

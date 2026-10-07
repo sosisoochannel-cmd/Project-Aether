@@ -61,6 +61,7 @@ namespace Aether.Gameplay.Menus.Screens
         private Text _body;
         private MenuButton _backRow;
         private SlotRows[] _rows;
+        private MenuButton _note;
 
         /// <summary>The primary rows, in slot order, for a test to read and press.</summary>
         public MenuButton[] PrimaryRows
@@ -95,8 +96,9 @@ namespace Aether.Gameplay.Menus.Screens
             _rows = new SlotRows[SaveSlots.Count];
             _slots = MenuEntryPanel.Create("Slots", Rect, Nav, "slots.title", 1);
             _notes = MenuEntryPanel.Create("Notes", Rect, Nav, null, 1);
-            note = _notes.AddEntry("SlotsUsed", MenuStrings.Get("slots.body"), MenuButton.Weight.Secondary);
-            note.SetInformational(true);
+            _note = _notes.AddEntry("SlotsUsed", MenuStrings.Get("slots.body"),
+                                    MenuButton.Weight.Secondary);
+            _note.SetInformational(true);
 
             for (int i = 0; i < SaveSlots.Count; i++)
             {
@@ -178,12 +180,14 @@ namespace Aether.Gameplay.Menus.Screens
         {
             if (DialogOpen)
             {
+                // A question outranks the screen's own back, and closing it destroys nothing.
                 Dialog.Cancel();
                 return true;
             }
 
-            Leave();
-            return true;
+            // Otherwise the menu decides where back goes. Calling Host.Back() from inside OnBack
+            // would re-enter this method: the host calls OnBack first, by design.
+            return false;
         }
 
         /// <inheritdoc />
@@ -251,14 +255,18 @@ namespace Aether.Gameplay.Menus.Screens
             {
                 // One line of context, built from the same numbers as the rows: how many slots are in
                 // use, and — when nothing is stored anywhere — which slot a new run would go in.
-                MenuButton note = _notes.Rows[0];
                 int used = SaveSlots.UsedCount();
-                note.SetLabel(MenuStrings.Format("menu.slots.used", used, SaveSlots.Count));
-                note.SetMeta(SaveSlots.HasAnyRun()
+                _note.SetLabel(MenuStrings.Format("menu.slots.used", used, SaveSlots.Count));
+                _note.SetMeta(SaveSlots.HasAnyRun()
                     ? null
                     : MenuStrings.Format("menu.slots.free", SaveSlots.FirstEmpty()));
-                note.SetInformational(true);
             }
+        }
+
+        private void Leave()
+        {
+            // The host's own Back: it decides where back goes and it plays the cue, once.
+            Host.Back();
         }
 
         /// <summary>Does what the slot's row says it does.</summary>
@@ -268,9 +276,10 @@ namespace Aether.Gameplay.Menus.Screens
 
             if (info.Corrupt)
             {
-                // The row is locked, so this is unreachable from the interface; it is here so that a
-                // test that presses it anyway gets the same answer the screen gives: nothing happens.
-                MenuAudio.Back();
+                // The row is locked and not interactable, so no tap reaches this. It is here so a
+                // programmatic caller that presses it anyway gets the screen's own answer — nothing —
+                // rather than opening a run that cannot be loaded. Silence is the honest feedback for
+                // an action the interface does not offer.
                 return;
             }
 
@@ -288,7 +297,8 @@ namespace Aether.Gameplay.Menus.Screens
         /// <summary>Asks before loading a stored run, and says which one.</summary>
         private void AskToPlay(int slot)
         {
-            MenuAudio.Confirm();
+            // No cue on opening: a question is answered, and the answer is what the player hears.
+            // This is the convention the quit dialog already set.
             EnsureDialog().Open(MenuStrings.Get("slots.continue.title"),
                                 MenuStrings.Format("slots.continue.body", slot),
                                 () =>
@@ -316,7 +326,6 @@ namespace Aether.Gameplay.Menus.Screens
             SaveSlotInfo info = SaveSlots.Describe(slot);
             if (!info.Exists) return;
 
-            MenuAudio.Confirm();
             EnsureDialog().Open(MenuStrings.Get("slots.delete.title"),
                                 MenuStrings.Format("slots.delete.body", slot),
                                 () =>

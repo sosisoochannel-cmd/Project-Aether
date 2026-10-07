@@ -7,7 +7,9 @@ using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Menus.Screens;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Settings;
+using Aether.Gameplay.Storage;
 using Aether.Gameplay.Sound;
 using NUnit.Framework;
 using UnityEngine;
@@ -160,7 +162,8 @@ namespace Aether.Tests.PlayMode
             var destinations = new[]
             {
                 MenuScreenId.Chapters, MenuScreenId.Characters, MenuScreenId.Collection,
-                MenuScreenId.Achievements, MenuScreenId.Settings, MenuScreenId.Credits,
+                MenuScreenId.Achievements, MenuScreenId.SaveSlots, MenuScreenId.Settings,
+                MenuScreenId.Credits,
             };
 
             for (int i = 0; i < destinations.Length; i++)
@@ -586,6 +589,123 @@ namespace Aether.Tests.PlayMode
             }
 
             yield return null;
+        }
+
+
+        [UnityTest]
+        public IEnumerator The_new_game_row_opens_the_slot_list()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            // By label, not by index: the check is about the row the player reads.
+            string wanted = MenuUi.Track(MenuStrings.Get("menu.newGame"),
+                                         MenuTheme.Metrics.PrimaryTracking);
+            MenuButton newGame = null;
+            IList<MenuButton> rows = menu.Play.Rows;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Label.text == wanted) newGame = rows[i];
+            }
+
+            Assert.IsNotNull(newGame, "the main menu has no NEW GAME row");
+
+            newGame.Activate();
+            yield return Settle(root);
+
+            // NEW GAME asks where the run should go rather than choosing for the player, and the
+            // screen it asks on is the one that names the run a replacement would destroy.
+            Assert.AreEqual(MenuScreenId.SaveSlots, root.System.CurrentId,
+                            "NEW GAME did not open the slot list");
+            Assert.IsTrue(root.System.Current is SaveSlotScreen,
+                          "the save-slots id did not resolve to the save-slot screen");
+        }
+
+        [UnityTest]
+        public IEnumerator The_slot_screen_shows_a_row_for_every_slot()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.SaveSlots);
+            yield return Settle(root);
+
+            var screen = (SaveSlotScreen)root.System.Current;
+            Assert.AreEqual(SaveSlots.Count, screen.PrimaryRows.Length,
+                            "the screen does not show one row per slot");
+            Assert.AreEqual(SaveSlots.Count, screen.DeleteRows.Length,
+                            "the screen does not offer a way to free every slot");
+
+            for (int i = 0; i < screen.PrimaryRows.Length; i++)
+            {
+                MenuButton row = screen.PrimaryRows[i];
+                SaveSlotInfo info = SaveSlots.Describe(i + 1);
+
+                // The label is a sentence from the string table, whether the slot is empty, stored or
+                // damaged — never the key it was looked up by, which is what a missing string shows.
+                Assert.IsFalse(string.IsNullOrEmpty(row.Label.text),
+                               $"slot {i + 1} has no label at all");
+                Assert.IsFalse(row.Label.text.StartsWith("slots."),
+                               $"slot {i + 1} shows the key '{row.Label.text}' instead of a label");
+
+                // A slot whose file cannot be read is the one case the row refuses to open, and the
+                // test asserts the row and the store agree rather than asserting either alone.
+                Assert.AreEqual(info.Corrupt, row.Locked,
+                                $"slot {i + 1} is {(info.Corrupt ? "locked" : "open")} while the "
+                                + "store says the opposite");
+                if (row.Locked) Assert.IsFalse(row.Usable, "a locked slot row is still usable");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Every_catalogue_screen_draws_the_catalogue_behind_it()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.Characters);
+            yield return Settle(root);
+
+            var characters = (CharactersScreen)root.System.Current;
+            Assert.AreEqual(CharacterCatalog.All.Length, characters.Rows.Length,
+                            "the characters screen does not have a row per character");
+            for (int i = 0; i < characters.Rows.Length; i++)
+            {
+                Assert.IsFalse(string.IsNullOrEmpty(characters.Rows[i].Label.text),
+                               $"character {i} has no name");
+            }
+
+            root.System.GoTo(MenuScreenId.Achievements);
+            yield return Settle(root);
+
+            var achievements = (AchievementsScreen)root.System.Current;
+            Assert.AreEqual(AchievementCatalog.Count, achievements.Rows.Length,
+                            "the achievements screen does not have a row per achievement");
+            for (int i = 0; i < achievements.Rows.Length; i++)
+            {
+                MenuButton row = achievements.Rows[i];
+                Assert.IsFalse(string.IsNullOrEmpty(row.Label.text),
+                               $"achievement {i} has no name");
+
+                // Locked or earned, never blank: a row that says nothing is a row a player cannot
+                // tell from a broken screen.
+                Assert.IsFalse(string.IsNullOrEmpty(row.Meta.text),
+                               $"achievement {i} says nothing about its state");
+            }
+
+            root.System.GoTo(MenuScreenId.Collection);
+            yield return Settle(root);
+
+            var collection = (CollectionScreen)root.System.Current;
+            Assert.AreEqual(CollectionCatalog.All.Length, collection.CategoryCount,
+                            "the collection screen does not list every category");
+            for (int c = 0; c < collection.CategoryCount; c++)
+            {
+                MenuButton[] rows = collection.RowsOf(c);
+                Assert.AreEqual(CollectionCatalog.All[c].Entries.Length, rows.Length,
+                                $"collection category {c} does not show every entry");
+            }
         }
 
         /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>

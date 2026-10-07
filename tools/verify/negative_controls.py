@@ -964,9 +964,9 @@ def controls() -> list[Control]:
             "mainmenu: a label key the table does not hold is caught",
             menu,
             lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
-                              'MenuScreenId.SaveSlots, "menu.saveSlots"',
-                              'MenuScreenId.SaveSlots, "menu.saveSlotz"'),
-            ["passes 'menu.saveSlotz' as a label key"]),
+                              'MenuScreenId.Chapters, "menu.chapters"',
+                              'MenuScreenId.Chapters, "menu.chapterz"'),
+            ["passes 'menu.chapterz' as a label key"]),
         Control(
             "mainmenu: a catalogue screen that reads nothing real is caught",
             menu,
@@ -991,6 +991,38 @@ def controls() -> list[Control]:
                               'MenuStrings.Format("about.version", Application.version)',
                               'MenuStrings.Format("about.version", Application.version, 1)'),
             ["placeholder(s)"]),
+        # A ninth row: the composition was designed for eight, and the arithmetic that proves it fits
+        # counts the rows the screen builds. Adding one has to fail here rather than on a phone.
+        Control(
+            "mainmenu: one row too many for the composition is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
+                              'AddDestination(_system, MenuScreenId.Credits, "menu.credits")',
+                              'AddDestination(_system, MenuScreenId.Credits, "menu.credits")\n'
+                              '            AddDestination(_system, MenuScreenId.Chapters, "menu.chapters")'),
+            ["would scroll at the default interface size"]),
+        # The two faults that reached CI in the save-slot screen: a call to a method that was never
+        # written, and an assignment to a name that was never declared. Both parse, both balance, and
+        # the compiler is the only other thing that sees them.
+        Control(
+            "mainmenu: a call to a method the file does not declare is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/SaveSlotScreen.cs",
+                              "Dialog.Cancel();", "DismissTheQuestion();"),
+            ["calls DismissTheQuestion(...)"]),
+        Control(
+            "mainmenu: an assignment to a name that is declared nowhere is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/SaveSlotScreen.cs",
+                              "_note = _notes.AddEntry(", "note = _notes.AddEntry("),
+            ["assigns to 'note'"]),
+        Control(
+            "mainmenu: a member handed to a row that was never written is caught",
+            menu,
+            lambda root: edit(root, f"{MENUS}/Screens/SaveSlotScreen.cs",
+                              "_header.Back.Activated = Leave;",
+                              "_header.Back.Activated = DepartToMenu;"),
+            ["passes 'DepartToMenu' as a value"]),
         Control(
             "mainmenu: a legitimate change to the composition is silent",
             menu,

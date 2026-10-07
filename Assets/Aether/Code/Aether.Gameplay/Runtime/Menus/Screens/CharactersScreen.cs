@@ -94,8 +94,11 @@ namespace Aether.Gameplay.Menus.Screens
         /// <inheritdoc />
         public override bool OnBack()
         {
-            Leave();
-            return true;
+            // Answered here, and answered with a no: the menu knows where this screen was opened
+            // from and it is the one that should decide, so back falls through to it. A screen that
+            // called the host's own Back from inside OnBack would be re-entering the method that
+            // asked it — which is a stack overflow, not navigation.
+            return false;
         }
 
         /// <inheritdoc />
@@ -131,7 +134,7 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void Leave()
         {
-            MenuAudio.Back();
+            // The host's own Back: it decides where back goes and it plays the cue, once.
             Host.Back();
         }
     }

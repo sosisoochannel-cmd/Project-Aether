@@ -97,7 +97,6 @@ namespace Aether.Gameplay.Menus.Screens
             AddDestination(_explore, MenuScreenId.Achievements, "menu.achievements");
 
             _system = MenuEntryPanel.Create("System", _content, Nav, "menu.systemSection", columns);
-            AddDestination(_system, MenuScreenId.SaveSlots, "menu.saveSlots");
             AddDestination(_system, MenuScreenId.Settings, "menu.settings");
             AddDestination(_system, MenuScreenId.Credits, "menu.credits");
 

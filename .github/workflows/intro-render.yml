@@ -211,12 +211,24 @@ jobs:
             exit 1
           fi
           if [ "$failed" != "0" ]; then
-            # Why it failed, in the runner's own words, so the next run does not have to guess.
+            # Which test failed, by name, and what it said. The results file is one long line of
+            # XML and the name is an attribute on a <test-case> element inside it, which the grep
+            # below cannot pick out: an earlier version of this step reported that one test had
+            # failed without ever saying which, and the logs and the artifact zip are on storage
+            # the environment reading this cannot reach. The tool is in the repository so that it
+            # can be run — and tested — outside the runner.
+            printf '%s' "$results" > /tmp/results.xml
+            failing=$(python3 tools/ci/failing_tests.py /tmp/results.xml 2>/dev/null \
+                      | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5000)
+            [ -n "$failing" ] \
+              && echo "::error title=Failing tests::${failing}" \
+              || echo "::error::the results name $failed failing test(s) that could not be read"
+
+            # The framework's own summary, so the counts travel with the names.
             why=$(printf '%s' "$results" | tr '\r' '\n' \
-                  | grep -o -E '<failure>.*</failure>|<failure[^>]*/>|message="[^"]{20,}"' \
-                  | head -4 | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 5600)
-            [ -n "$why" ] && echo "::notice title=Why it failed::${why}"
-            echo "::error::$failed test(s) failed; the message above is the test framework's own"
+                  | grep -o -E 'total="[0-9]+"[^>]*failed="[0-9]+"' \
+                  | head -1 | sed -e 's/%/%25/g' | tr '\n' '|' | head -c 600)
+            [ -n "$why" ] && echo "::notice title=Test totals::${why}"
             exit 1
           fi
           if [ "$total" = "0" ] || [ -z "$results" ]; then

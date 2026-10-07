@@ -685,6 +685,182 @@ def check_signatures(gate: Gate) -> None:
                                           f"'{declared}' — the call would not compile")
 
 
+# Shortcuts named without a receiver — `Mathf`, `Debug`, `MenuAudio`, `MenuStrings` and so on are
+# all written with one, so a bare name in call position is either something the file declares or
+# something its base class does. Everything the engine makes available to a MonoBehaviour without a
+# receiver is listed here; anything else is a name the compiler cannot resolve either.
+BARE_CALLS = {
+    # MonoBehaviour and Object.
+    "StartCoroutine", "StopCoroutine", "StopAllCoroutines", "Invoke", "InvokeRepeating",
+    "CancelInvoke", "IsInvoking", "GetComponent", "GetComponents", "GetComponentInChildren",
+    "GetComponentsInChildren", "GetComponentInParent", "GetComponentsInParent", "TryGetComponent",
+    "SetActive", "CompareTag", "SendMessage", "SendMessageUpwards", "BroadcastMessage",
+    "Destroy", "DestroyImmediate", "Instantiate", "DontDestroyOnLoad", "ToString", "Equals",
+    "GetHashCode", "GetType", "print",
+    # Selectable, which MenuButton derives from and calls into without a receiver.
+    "IsActive", "IsInteractable", "Select", "DoStateTransition", "FindSelectableOnDown",
+    "FindSelectableOnUp", "FindSelectableOnLeft", "FindSelectableOnRight",
+    "InstantClearState", "IsHighlighted", "IsPressed",
+    # UIBehaviour's event hooks, which a subclass overrides and calls through.
+    "OnPointerDown", "OnPointerUp", "OnPointerEnter", "OnPointerExit", "OnSelect",
+    "OnDeselect", "OnMove", "OnSubmit", "OnCancel", "OnScroll", "OnDrag", "OnBeginDrag",
+    "OnEndDrag", "OnDrop", "OnUpdateSelected", "OnInitializePotentialDrag",
+}
+BARE_CALLS = frozenset(BARE_CALLS)
+
+# Fields a component subclass may assign to without declaring them: Object's, and the ones
+# Selectable brings with it.
+INHERITED_FIELDS = {
+    "gameObject", "transform", "enabled", "name", "tag", "hideFlags", "nameof",
+    "interactable", "transition", "navigation", "colors", "spriteState", "animationTriggers",
+    "targetGraphic", "image", "currentSelectionState",
+}
+
+
+def member_regions(text: str) -> "list[tuple[int, int, int, int]]":
+    """Every member with a body: the span of its name, its signature end, and its body.
+
+    A local declared in one method does not exist in another, and that is the whole reason this
+    exists: the fault that reached CI read a local of `Refresh` from `Construct`, and a check that
+    treated every name in the file as declared everywhere would have called it fine.
+    """
+    regions = []
+    pattern = (r"\b(?:public|private|protected|internal|static|override|virtual|abstract|sealed|new)"
+               r"\s+[\w<>\[\],\.\?]+\s+(\w+)\s*\(")
+
+    for match in re.finditer(pattern, text):
+        brace = text.find("{", match.end())
+        if brace < 0:
+            continue
+        depth, index = 0, brace
+        while index < len(text):
+            if text[index] == "{":
+                depth += 1
+            elif text[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            index += 1
+        if index >= len(text):
+            continue
+        regions.append((match.start(1), match.end(), brace, index))
+    return regions
+
+
+def declared_names(text: str) -> set:
+    """Every name a piece of source declares: methods, fields, properties, locals, types."""
+    names = set()
+
+    # Method and constructor declarations, however they are written: a body, an expression body,
+    # an abstract declaration ending in a semicolon, with or without attributes in front.
+    names |= set(re.findall(r"\b[\w<>\[\],\.\?]+[ \t]+(\w+)\s*\([^()]*\)\s*(?:\{|=>|;)", text))
+    names |= set(re.findall(r"(?:^[ \t]*|[;{(,]\s*)(?:[A-Za-z_][\w<>\[\],\.\?]*\s+)+"
+                            r"(?:\[[^\]]*\]\s*)?(\w+)\s*\(", text, re.M))
+
+    # Fields, properties and locals: a type, then a name. Any name a declaration introduces,
+    # capitalised or not: `public System.Action<float> ScaleChanged;` is a field.
+    for match in re.finditer(r"(?:^[ \t]*|[;{(,]\s*)(?:[A-Za-z_][\w<>\[\],\.\?]*[ \t]+)+"
+                             r"([A-Za-z_]\w*)\s*(?:=|;|,|\)|\{|=>)", text, re.M):
+        # `_header.Back.Activated = Leave;` is an assignment, not a declaration of Leave: a
+        # declaration never has an '=' between its type and its name.
+        if "=" in text[match.start():match.start(1)]:
+            continue
+        names.add(match.group(1))
+
+    for match in re.finditer(r"\bvar\s+([A-Za-z_]\w*)\s*=", text):
+        names.add(match.group(1))
+    for match in re.finditer(r"\bforeach\s*\([^)]*?\s+([A-Za-z_]\w*)\s+in\b", text):
+        names.add(match.group(1))
+
+    # The types a file declares, so a static reference to one of its own types is not read as an
+    # undeclared value.
+    names |= set(re.findall(r"\b(?:class|struct|enum|interface)\s+(\w+)", text))
+    return names
+
+
+def check_identifiers(gate: Gate) -> None:
+    """No file calls, passes or assigns a bare name that is not in scope where it is used.
+
+    This is the fault that cost two build rounds: a screen called `Leave()`, handed `Leave` to a
+    row, and assigned `note` before either existed. All three parse, all three balance, and none
+    compiles — the name resolves to nothing, which is CS0103, and a gate that only reads structure
+    cannot see it. The check is deliberately narrow: a call with no receiver, a bare name after an
+    `=`, and an assignment to a bare name. Every other call in this codebase is written
+    `Something.Name(...)`, which needs no such check.
+    """
+    base = set()
+    base |= declared_names(read(f"{MENUS}/Screens/MenuScreen.cs"))
+    base |= declared_names(read(f"{MENUS}/Panels/MenuPanel.cs"))
+
+    files = []
+    for folder in (MENUS, f"{MENUS}/Panels", f"{MENUS}/Components", f"{MENUS}/Widgets", SCREENS,
+                   INTERFACE):
+        for name in sorted(os.listdir(os.path.join(REPO_ROOT, folder))):
+            if name.endswith(".cs"):
+                files.append(f"{folder}/{name}")
+
+    for rel in files:
+        text = without_comments(read(rel))
+        # String literals out of the way: "the name 'x'" in a sentence is not a call.
+        text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+
+        regions = member_regions(text)
+
+        # Everything declared at class level: the file with every member body blanked out.
+        class_text = list(text)
+        for _name, _signature, body, end in regions:
+            for index in range(body, end):
+                if class_text[index] != "\n":
+                    class_text[index] = " "
+        class_level = declared_names("".join(class_text))
+
+        # Where a name is in scope: the class level, or the member it is used inside.
+        def in_scope(name: str, position: int) -> bool:
+            if name in class_level or name in base or name in BARE_CALLS:
+                return True
+            for _n, _s, body, end in regions:
+                if body <= position < end:
+                    return name in declared_names(text[body:end])
+            return False
+
+        for match in re.finditer(r"(?<![\w.])([A-Z]\w*)\s*\(", text):
+            name = match.group(1)
+            # A constructor is a bare call with `new` in front of it.
+            if re.search(r"\bnew\s+$", text[:match.start(1)]):
+                continue
+            if in_scope(name, match.start(1)):
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            gate.check(False, f"{rel}:{line} calls {name}(...) with nothing in front of it, and "
+                              "neither this file, its base class nor the member it is written in "
+                              "declares it")
+
+        for match in re.finditer(r"(?<![+\-=!<>])=\s*([A-Z]\w*)\s*;", text):
+            name = match.group(1)
+            if in_scope(name, match.start(1)):
+                continue
+            line = text.count("\n", 0, match.start(1)) + 1
+            gate.check(False, f"{rel}:{line} passes '{name}' as a value, and nothing in scope "
+                              "there declares it — the compiler calls that an unknown name")
+
+        for match in re.finditer(r"(?:^[ \t]*|[;{}]\s*)([a-z_]\w*)\s*=\s*(?!=)", text, re.M):
+            name = match.group(1)
+            if name in INHERITED_FIELDS or in_scope(name, match.start(1)):
+                continue
+
+            # The comma test alone would also excuse the first line of a call that continues on the
+            # next one, which is exactly how the fault this check exists for was written. An
+            # initialiser entry is a line that ends in a comma and opens nothing.
+            tail = text[match.end():text.find("\n", match.end())]
+            if "}" in tail or (tail.rstrip().endswith(",") and "(" not in tail):
+                continue
+
+            line = text.count("\n", 0, match.start(1)) + 1
+            gate.check(False, f"{rel}:{line} assigns to '{name}', which is in scope nowhere in "
+                              "the member it is written in — the compiler calls that an unknown "
+                              "name")
+
+
 def check_composition(gate: Gate) -> None:
     """The main menu fits the screens it is designed for, and every row is pressable."""
     m = metrics()
@@ -699,7 +875,43 @@ def check_composition(gate: Gate) -> None:
                              "the subtitle's line height")
     columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
         r"SecondaryColumns = (\d+)", read(THEME)) else int(m.get("SecondaryColumns", 2))
-    primary_rows, secondary_rows, system_rows = 2, 4, 2
+
+    # The row counts are read out of the screen, not assumed. They were a constant until a ninth
+    # entry was added to a cluster and the composition quietly grew 118 units past the viewport
+    # while this check went on measuring the screen it remembered: an arithmetic check that counts
+    # the wrong rows is worse than no arithmetic, because it reports a fit that is not there.
+    clusters = {}
+    for cluster, panel in (("Play", "_play"), ("Explore", "_explore"), ("System", "_system")):
+        start = main.find(f'{panel} = MenuEntryPanel.Create')
+        if start < 0:
+            gate.check(False, f"the main menu no longer builds a {cluster} cluster")
+            continue
+
+        end = len(main)
+        for other in ("_play", "_explore", "_system"):
+            if other == panel:
+                continue
+            found = main.find(f'{other} = MenuEntryPanel.Create', start + 1)
+            if found > 0:
+                end = min(end, found)
+
+        # The cluster ends where the next method begins: the helper that adds a destination is a
+        # method body, and its own call to AddEntry is not a row of whichever cluster happens to
+        # be last in the file.
+        method = main.find("        private ", start + 1)
+        if method > 0:
+            end = min(end, method)
+
+        block = main[start:end]
+        clusters[cluster] = block.count("AddEntry(") + block.count("AddDestination(")
+
+    for cluster in ("Play", "Explore", "System"):
+        gate.check(clusters.get(cluster, 0) > 0,
+                   f"the {cluster} cluster has no rows, so what it holds cannot be measured")
+
+    primary_rows = clusters.get("Play", 0)
+    secondary_rows = clusters.get("Explore", 0)
+    system_rows = clusters.get("System", 0)
 
     for name, aspect in ASPECTS:
         canvas_h = REFERENCE_HEIGHT
@@ -872,6 +1084,7 @@ def main() -> int:
     check_settings(gate)
     check_localisation(gate)
     check_signatures(gate)
+    check_identifiers(gate)
     check_composition(gate)
     check_discipline(gate)
 

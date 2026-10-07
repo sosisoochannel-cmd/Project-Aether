@@ -71,7 +71,8 @@ namespace Aether.Gameplay.Menus.Screens
         {
             // Through the host, not straight to the main menu: the credits screen is reachable from
             // the settings screen too, and back means back.
-            MenuAudio.Back();
+            // The host decides where back goes, and it plays the cue: playing it here as well
+            // would sound the same click twice in one frame.
             Host.Back();
         }
     }

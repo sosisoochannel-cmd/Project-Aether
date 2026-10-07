@@ -103,7 +103,8 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void Leave()
         {
-            MenuAudio.Back();
+            // The host decides where back goes, and it plays the cue: playing it here as well
+            // would sound the same click twice in one frame.
             Host.Back();
         }
     }

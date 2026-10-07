@@ -51,7 +51,6 @@ namespace Aether.Gameplay.Menus
             { "menu.characters", "CHARACTERS" },
             { "menu.collection", "COLLECTION" },
             { "menu.achievements", "ACHIEVEMENTS" },
-            { "menu.saveSlots", "SAVE SLOTS" },
             { "menu.settings", "SETTINGS" },
             { "menu.credits", "CREDITS" },
             { "menu.quit", "QUIT" },
