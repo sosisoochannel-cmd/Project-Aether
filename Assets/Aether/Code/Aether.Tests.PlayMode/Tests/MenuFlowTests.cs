@@ -499,14 +499,31 @@ namespace Aether.Tests.PlayMode
                                     + "landscape composition can be measured on it");
             }
 
+            // What the box actually was, carried into the message of any failure below. A number that
+            // says a row "hangs off the bottom" without the box it hung off cannot be acted on: the
+            // runner's shape is not one of the shapes the brief names, and the first version of this
+            // assertion said only which row failed. The line is logged as well as embedded, so a run
+            // that fails here explains itself in the test log without a second push.
+            string where = $"canvas {right - left:0.#}x{top - bottom:0.#} units, "
+                         + $"content box {root.Ui.ContentRoot.rect.width:0.#}x{root.Ui.ContentRoot.rect.height:0.#}, "
+                         + $"screen rect {root.System.Current.Rect.rect.width:0.#}x{root.System.Current.Rect.rect.height:0.#}, "
+                         + $"screen {Screen.width}x{Screen.height}px, "
+                         + $"safe area {safe.x:0},{safe.y:0} {safe.width:0}x{safe.height:0}, "
+                         + $"interface scale {uiScale:0.###}, "
+                         + $"reference {scaler.referenceResolution.x:0.#}x{scaler.referenceResolution.y:0.#}, "
+                         + $"{rows.Length} rows";
+            Debug.LogWarning($"[menu-layout] {where}");
+
             var rowCorners = new Vector3[4];
             for (int i = 0; i < rows.Length; i++)
             {
                 rows[i].Rect.GetWorldCorners(rowCorners);
-                Assert.GreaterOrEqual(rowCorners[0].x, left - 1f, $"{rows[i].name} hangs off the left edge");
-                Assert.LessOrEqual(rowCorners[2].x, right + 1f, $"{rows[i].name} hangs off the right edge");
-                Assert.GreaterOrEqual(rowCorners[0].y, bottom - 1f, $"{rows[i].name} hangs off the bottom edge");
-                Assert.LessOrEqual(rowCorners[2].y, top + 1f, $"{rows[i].name} hangs off the top edge");
+                string row = $"row {i} '{rows[i].name}' at x {rowCorners[0].x:0.#}..{rowCorners[2].x:0.#}, "
+                           + $"y {rowCorners[0].y:0.#}..{rowCorners[2].y:0.#}";
+                Assert.GreaterOrEqual(rowCorners[0].x, left - 1f, $"{row} hangs off the left edge ({where})");
+                Assert.LessOrEqual(rowCorners[2].x, right + 1f, $"{row} hangs off the right edge ({where})");
+                Assert.GreaterOrEqual(rowCorners[0].y, bottom - 1f, $"{row} hangs off the bottom edge ({where})");
+                Assert.LessOrEqual(rowCorners[2].y, top + 1f, $"{row} hangs off the top edge ({where})");
             }
         }
 
