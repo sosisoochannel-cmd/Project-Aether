@@ -6,6 +6,9 @@ on:
       - 'Assets/Aether/Resources/Levels/**'
       - 'Assets/Aether/Code/Aether.Data/Runtime/Config/PlayerTuningData.cs'
       - 'Assets/Aether/Code/Aether.Data/Runtime/Levels/**'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Levels/**'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Progression/**'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/**'
       - 'tools/verify/**'
       - '.github/workflows/level-verification.yml'
 
