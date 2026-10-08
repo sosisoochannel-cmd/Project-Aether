@@ -30,7 +30,20 @@ namespace Aether.Gameplay.Menus
         /// <returns>False when the save or scene prerequisite fails; the menu remains usable.</returns>
         public static bool PlayRegion()
         {
+            return PlayRegion(GameLaunch.DefaultLevelPath);
+        }
+
+        /// <summary>
+        /// Saves and hands off to a specific source-of-truth region.
+        /// </summary>
+        public static bool PlayRegion(string levelPath)
+        {
             if (MenuTransition.Instance.Busy) return false;
+            if (string.IsNullOrWhiteSpace(levelPath))
+            {
+                Debug.LogError("[menu] A region was requested without a level path.");
+                return false;
+            }
             if (!Application.CanStreamedLevelBeLoaded(Scenes.Boot))
             {
                 Debug.LogError($"[menu] The boot scene '{Scenes.Boot}' is not in the build settings.");
@@ -54,7 +67,7 @@ namespace Aether.Gameplay.Menus
                 audio.FadeOut(MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
             }
 
-            GameLaunch.RequestPlay();
+            GameLaunch.RequestPlay(levelPath);
             MenuTransition.Instance.GoToScene(Scenes.Boot);
             return true;
         }
