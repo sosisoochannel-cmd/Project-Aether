@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aether.Data.Levels;
 using Aether.Gameplay.Support;
 using UnityEngine;
 
@@ -31,15 +32,15 @@ namespace Aether.Gameplay.Levels
             // procedural level depth on a phone without introducing a texture/atlas dependency.
             CreateBand("DistantMist", new Color(0.08f, 0.16f, 0.14f, 0.72f),
                 new Vector2(level.WorldSize.x * 0.5f, level.WorldSize.y * 0.62f),
-                new Vector2(level.WorldSize.x + 10f, level.WorldSize.y * 0.55f), -40);
+                new Vector2(level.WorldSize.x + 10f, level.WorldSize.y * 0.55f), -40, transform);
 
             CreateBand("DeepForest", new Color(0.045f, 0.105f, 0.075f, 0.92f),
                 new Vector2(level.WorldSize.x * 0.5f, level.WorldSize.y * 0.48f),
-                new Vector2(level.WorldSize.x + 8f, level.WorldSize.y * 0.45f), -35);
+                new Vector2(level.WorldSize.x + 8f, level.WorldSize.y * 0.45f), -35, transform);
 
             CreateBand("NearCanopy", new Color(0.10f, 0.19f, 0.11f, 0.34f),
                 new Vector2(level.WorldSize.x * 0.5f, level.WorldSize.y * 0.78f),
-                new Vector2(level.WorldSize.x + 8f, level.WorldSize.y * 0.34f), -25);
+                new Vector2(level.WorldSize.x + 8f, level.WorldSize.y * 0.34f), -25, transform);
 
             const int count = 14;
             for (int i = 0; i < count; i++)
@@ -65,9 +66,10 @@ namespace Aether.Gameplay.Levels
             }
         }
 
-        private static void CreateBand(string name, Color color, Vector2 position, Vector2 scale, int sorting)
+        private static void CreateBand(string name, Color color, Vector2 position, Vector2 scale, int sorting, Transform parent)
         {
             var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
             go.transform.localPosition = position;
 
             var renderer = go.AddComponent<SpriteRenderer>();
