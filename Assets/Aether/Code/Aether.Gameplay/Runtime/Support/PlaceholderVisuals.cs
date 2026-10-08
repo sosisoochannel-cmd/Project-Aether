@@ -31,6 +31,8 @@ namespace Aether.Gameplay.Support
         private static Sprite _circle;
         private static Sprite _ring;
         private static Sprite _diamond;
+        private static Sprite _triangle;
+        private static Sprite _hexagon;
 
         /// <summary>A one-unit white square. Scale it to the desired size.</summary>
         public static Sprite Square
@@ -75,6 +77,42 @@ namespace Aether.Gameplay.Support
                 if (_diamond == null) _diamond = Build("AetherPlaceholderDiamond", InsideUnitDiamond);
                 return _diamond;
             }
+        }
+
+        /// <summary>A compact triangle silhouette for the surface-crawler archetype.</summary>
+        public static Sprite Triangle
+        {
+            get
+            {
+                if (_triangle == null) _triangle = Build("AetherPlaceholderTriangle", InsideUnitTriangle);
+                return _triangle;
+            }
+        }
+
+        /// <summary>A six-sided silhouette for airborne/ambush archetypes.</summary>
+        public static Sprite Hexagon
+        {
+            get
+            {
+                if (_hexagon == null) _hexagon = Build("AetherPlaceholderHexagon", InsideUnitHexagon);
+                return _hexagon;
+            }
+        }
+
+        private static bool InsideUnitTriangle(float x, float y)
+        {
+            float yTop = 0.08f;
+            float yBottom = 0.92f;
+            if (y < yTop || y > yBottom) return false;
+            float halfWidth = Mathf.Lerp(0.48f, 0.06f, (y - yTop) / (yBottom - yTop));
+            return Mathf.Abs(x - 0.5f) <= halfWidth;
+        }
+
+        private static bool InsideUnitHexagon(float x, float y)
+        {
+            float dx = Mathf.Abs(x - 0.5f);
+            float dy = Mathf.Abs(y - 0.5f);
+            return dx <= 0.44f && dy <= 0.38f && (dx + (dy * 0.52f)) <= 0.62f;
         }
 
         private static bool InsideUnitCircle(float x, float y)
