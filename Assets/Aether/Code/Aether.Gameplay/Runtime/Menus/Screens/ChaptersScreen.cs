@@ -169,6 +169,14 @@ namespace Aether.Gameplay.Menus.Screens
                     continue;
                 }
 
+                bool unlocked = IsUnlocked(chapter, run);
+                if (!unlocked)
+                {
+                    row.SetLocked(true, MenuStrings.Get("chapters.locked"));
+                    row.SetMeta(MenuStrings.Get("chapters.locked"));
+                    continue;
+                }
+
                 bool completed = run != null && run.World.IsSet(ChapterCatalog.CompletionFlagOf(chapter.Id));
                 bool current = run != null && run.Meta != null && run.Meta.ChapterId == chapter.Id;
 
@@ -203,13 +211,19 @@ namespace Aether.Gameplay.Menus.Screens
             bool resume = stored != null && stored.Meta != null && stored.Meta.ChapterId == chapter.Id
                           && !stored.World.IsSet(ChapterCatalog.CompletionFlagOf(chapter.Id));
 
+            if (!IsUnlocked(chapter, stored))
+            {
+                _body.text = MenuUi.PrepareText(MenuStrings.Get("chapters.locked"));
+                return;
+            }
+
             if (resume)
             {
                 int describedSlot = SaveHost.DescribedSlot();
                 if (describedSlot > 0 && SaveHost.LoadSlot(describedSlot))
                 {
                     MenuAudio.Confirm();
-                    if (!Host.PlayRegion()) _body.text = MenuUi.PrepareText(MenuStrings.Get("menu.start.failed"));
+                    if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuUi.PrepareText(MenuStrings.Get("menu.start.failed"));
                     return;
                 }
 
@@ -253,6 +267,18 @@ namespace Aether.Gameplay.Menus.Screens
 
                 if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
             });
+        }
+
+        private static bool IsUnlocked(ChapterDefinition chapter, SaveData run)
+        {
+            if (chapter == null) return false;
+            if (chapter.Id == ChapterCatalog.GreenwayId) return true;
+            if (run == null) return false;
+            if (chapter.Id == ChapterCatalog.GlassrootId)
+                return run.World.IsSet("region.unlocked.region2.glassroot_caverns");
+            if (chapter.Id == ChapterCatalog.AshenRidgeId)
+                return run.World.IsSet("region.unlocked.region3.ashen_ridge");
+            return false;
         }
     }
 }
