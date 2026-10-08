@@ -52,7 +52,11 @@ namespace Aether.Gameplay.Enemies
             visual.transform.SetParent(host.transform, false);
             visual.transform.localScale = new Vector3(BodyWidth, BodyHeight, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
+            renderer.sprite = definition.Behaviour == EnemyBehaviour.SurfaceCrawler
+                ? PlaceholderVisuals.Triangle
+                : definition.Behaviour == EnemyBehaviour.AmbushDropper
+                    ? PlaceholderVisuals.Hexagon
+                    : PlaceholderVisuals.Square;
             renderer.color = colour;
             renderer.sortingOrder = SortingOrder;
 
