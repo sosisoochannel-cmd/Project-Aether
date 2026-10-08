@@ -14,11 +14,11 @@ namespace Aether.Gameplay.Levels
     /// </remarks>
     public static class LevelPalette
     {
-        public static readonly Color Ground = new Color(0.44f, 0.36f, 0.26f, 1f);
-        public static readonly Color DeepRock = new Color(0.27f, 0.24f, 0.22f, 1f);
-        public static readonly Color Platform = new Color(0.46f, 0.53f, 0.34f, 1f);
-        public static readonly Color CanopyBack = new Color(0.14f, 0.27f, 0.17f, 0.9f);
-        public static readonly Color CanopyFront = new Color(0.20f, 0.40f, 0.20f, 0.65f);
+        public static readonly Color Ground = new Color(0.30f, 0.27f, 0.20f, 1f);
+        public static readonly Color DeepRock = new Color(0.16f, 0.18f, 0.16f, 1f);
+        public static readonly Color Platform = new Color(0.33f, 0.46f, 0.28f, 1f);
+        public static readonly Color CanopyBack = new Color(0.08f, 0.19f, 0.13f, 0.94f);
+        public static readonly Color CanopyFront = new Color(0.13f, 0.30f, 0.17f, 0.70f);
 
         // -- entities ---------------------------------------------------------------------------
         //
