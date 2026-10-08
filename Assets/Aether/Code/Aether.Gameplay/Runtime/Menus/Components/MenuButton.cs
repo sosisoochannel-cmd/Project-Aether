@@ -51,6 +51,7 @@ namespace Aether.Gameplay.Menus.Components
         public MenuNav Nav;
 
         private Image _plate;
+        private Image _selectionGlow;
         private Text _label;
         private Text _help;
         private Text _meta;
@@ -302,6 +303,18 @@ namespace Aether.Gameplay.Menus.Components
 
             _plate = GetComponent<Image>();
 
+            _selectionGlow = MenuUi.CreateImage("SelectionGlow", transform, MenuArt.Glow,
+                                                new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
+                                                          MenuTheme.Palette.Accent.b, 0f));
+            _selectionGlow.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            _selectionGlow.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            _selectionGlow.rectTransform.pivot = new Vector2(0.08f, 0.5f);
+            _selectionGlow.rectTransform.anchoredPosition = new Vector2(42f, 0f);
+            _selectionGlow.rectTransform.sizeDelta = new Vector2(520f, 150f);
+            _selectionGlow.raycastTarget = false;
+            _selectionGlow.gameObject.SetActive(false);
+            _selectionGlow.transform.SetAsFirstSibling();
+
             // This component owns every pixel of its own transition — the plate, the label, the caret
             // and the rule each answer the state on their own schedule — so Selectable's built-in
             // tinting is switched off rather than fought with. Navigation is solved by
@@ -491,6 +504,16 @@ namespace Aether.Gameplay.Menus.Components
             }
 
             CrossFade(_plate, plate, fade);
+            if (_selectionGlow != null)
+            {
+                bool glowVisible = !_locked && !_informational &&
+                                   (state == SelectionState.Highlighted || state == SelectionState.Selected ||
+                                    state == SelectionState.Pressed);
+                Color glow = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
+                                       MenuTheme.Palette.Accent.b, glowVisible ? 0.10f : 0f);
+                CrossFade(_selectionGlow, glow, fade);
+                _selectionGlow.gameObject.SetActive(glowVisible || !instant);
+            }
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
             if (_accent != null)
