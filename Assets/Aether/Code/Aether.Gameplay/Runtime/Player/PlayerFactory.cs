@@ -84,6 +84,27 @@ namespace Aether.Gameplay.Player
 
             Transform eyeL = CreateEye(host.transform, -width * 0.16f, height * 0.39f, width * 0.08f);
             Transform eyeR = CreateEye(host.transform, width * 0.16f, height * 0.39f, width * 0.08f);
+
+            // Extra readability layers keep the hero legible on both dark and bright stages without
+            // introducing a texture dependency.
+            var aura = new GameObject("CoreAura");
+            aura.transform.SetParent(host.transform, false);
+            aura.transform.localPosition = new Vector3(0f, height * 0.04f, 0.015f);
+            aura.transform.localScale = Vector3.one * Mathf.Min(width * 0.48f, height * 0.30f);
+            var auraRenderer = aura.AddComponent<SpriteRenderer>();
+            auraRenderer.sprite = PlaceholderVisuals.Circle;
+            auraRenderer.color = new Color(0.72f, 0.84f, 1f, 0.10f);
+            auraRenderer.sortingOrder = SortingOrder - 1;
+
+            var shadow = new GameObject("GroundShadow");
+            shadow.transform.SetParent(host.transform, false);
+            shadow.transform.localPosition = new Vector3(0f, -height * 0.50f, 0.02f);
+            shadow.transform.localScale = new Vector3(width * 0.80f, height * 0.12f, 1f);
+            var shadowRenderer = shadow.AddComponent<SpriteRenderer>();
+            shadowRenderer.sprite = PlaceholderVisuals.Circle;
+            shadowRenderer.color = new Color(0.02f, 0.03f, 0.06f, 0.28f);
+            shadowRenderer.sortingOrder = SortingOrder - 2;
+
             var heroMotion = host.AddComponent<PlayerHeroVisual>();
             heroMotion.Configure(visual.transform, head.transform, core.transform, eyeL, eyeR);
 
