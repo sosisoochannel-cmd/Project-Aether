@@ -1,0 +1,99 @@
+# Project Aether - level data.
+#
+# THIS FILE IS THE SOURCE OF TRUTH for the level.
+# Scenes and Tilemaps are baked representations generated from this file and must never be
+# edited by hand; a hand-edited scene is overwritten by the next bake.
+#
+# Grid convention: row 0 is the TOP of the map. An entity at (x, y) stands on tile (x, y),
+# so its feet rest on that tile's top edge. Tiles are one world unit.
+#
+# Things marked with '=' are not just decoration: they are the surfaces the level expects
+# the player to try to stand on, and the traversal solver treats them accordingly.
+
+aether-level 1
+
+[meta]
+id           = region3.ashen_ridge
+display_name = Ashen Ridge
+region       = region3
+tile_size    = 1
+
+[legend]
+. = Empty
+# = Ground
+% = DeepRock
+= = Platform
+, = CanopyBack
+" = CanopyFront
+
+[tiles]
+........................................................................................................................
+........................................................................................................................
+.......""..,,,,,,,,,.........."",,,,"",,...........,,,,,,,,,.......""..,,,,,,,,,...........,,,,,"",,...........,,,,,,,,.
+..,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,.
+..,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,,,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,.
+..,,,,,,,,...........,,,,,,,,,..........,,,,,,,,,,...........,,,,,,,,,...........,,,,,,,,,...........,,,,,,,,,....,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,...............,,,,,,,.............................,.....
+##..,..................,................,.....................,...............,,,,,,,.............................,....#
+##..,..................,................,.....................,...............,,,,,,,.............................,....#
+##..,..................,................,.....................,.....................,.............................,....#
+##..,..................,................,.....................,................=====,.............................,....#
+##..,..................,................,.....................,.............========,.............................,....#
+##..,..................,................,.....................,.............===.....,.............................,....#
+##..,.......===........,................,.....................,........====.........,....#####......==............,....#
+##..,.......===........,................,.....................,........====.........,....#####......==............,....#
+##################..##############..############################################################..########..############
+##################..##############..############################################################..########..############
+##################..##############..############################################################..########..############
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+
+[entities]
+# --- player ---
+player_start = id=ashen_ridge.start, x=5, y=20
+
+# --- traversal anchors: no behaviour, they only give the solver fixed points to prove ---
+anchor       = id=anchor.ashen_ridge.terrace.west, x=4, y=20
+anchor       = id=anchor.ashen_ridge.terrace.east, x=11, y=20
+anchor       = id=anchor.ashen_ridge.walkway, x=22, y=20
+
+# --- checkpoints. 'respawn=x:y' is the exact tile the player is returned to; it is authored
+# explicitly so a future layout change can never silently move somebody's respawn ---
+checkpoint   = id=checkpoint.ashen_ridge.entry, x=60, y=20, respawn=60:20
+checkpoint   = id=checkpoint.ashen_ridge.overhang, x=86, y=20, respawn=86:20
+
+# --- enemies: three encounters, escalating, all Forest Stalkers on purpose ---
+enemy        = id=enemy.ashen_ridge.stalker.01, type=forest_stalker, x=44, y=20, patrol=2
+enemy        = id=enemy.ashen_ridge.crawler.01, type=thorn_crawler, x=68, y=20, patrol=5
+enemy        = id=enemy.ashen_ridge.stalker.02, type=forest_stalker, x=89, y=18, patrol=3
+enemy        = id=enemy.ashen_ridge.watcher.01, type=canopy_watcher, x=96, y=15, patrol=0
+enemy        = id=enemy.ashen_ridge.stalker.03, type=forest_stalker, x=103, y=20, patrol=1
+
+# --- first secret, and the first trace that someone came through before ---
+discovery    = id=secret.ashen_ridge.overhang, x=81, y=15, kind=master_clue, flag=secret.ashen_ridge.overhang
+
+# --- environmental storytelling: never text, always a thing in the world ---
+story        = id=story.ashen_ridge.cut_trail, x=30, y=20, kind=cut_trail
+story        = id=story.ashen_ridge.unnatural_growth, x=84, y=20, kind=unnatural_growth
+story        = id=story.ashen_ridge.old_marker, x=114, y=20, kind=old_marker
+
+# --- region exit ---
+exit         = id=exit.ashen_ridge.north, x=117, y=20
+
+[validation]
+# Every link below must be proved by the traversal solver using the real player tuning.
+# must=walk means the route may contain no jump at all.
+reach = ashen_ridge.start -> anchor.ashen_ridge.terrace.east, must=walk
+reach = ashen_ridge.start -> anchor.ashen_ridge.walkway
+reach = ashen_ridge.start -> enemy.ashen_ridge.stalker.01
+reach = ashen_ridge.start -> checkpoint.ashen_ridge.entry
+reach = ashen_ridge.start -> checkpoint.ashen_ridge.overhang
+reach = ashen_ridge.start -> secret.ashen_ridge.overhang
+reach = ashen_ridge.start -> exit.ashen_ridge.north
+reach = checkpoint.ashen_ridge.overhang -> exit.ashen_ridge.north
