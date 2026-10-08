@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Aether.Data.Config;
 using Aether.Data.Levels;
@@ -247,7 +248,7 @@ namespace Aether.Gameplay.Levels
             renderer.sortingOrder = SortingEntity;
             go.transform.localScale = new Vector3(1.4f, 1.4f, 1f);
 
-            if (entity.Id.IndexOf("woods", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            if (entity.Id.IndexOf("woods", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 CreateAccentHalo(go.transform, new Color(0.55f, 0.82f, 0.48f, 0.18f), 2.2f);
             }
