@@ -52,6 +52,9 @@ namespace Aether.Gameplay.Presentation
         private float _phase;
         private Vector2 _backgroundRestPosition;
         private Vector3 _backgroundRestScale = Vector3.one;
+        private RectTransform[] _fireflies;
+        private Vector2[] _fireflyOrigins;
+        private float[] _fireflyPhases;
 
         /// <summary>Whether the backdrop is allowed to move, as the player set it.</summary>
         public bool AtmosphereMotion { get; private set; } = true;
@@ -102,6 +105,7 @@ namespace Aether.Gameplay.Presentation
             // -- atmosphere: two blooms, far apart, moving at different speeds.
             backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
             backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
+            backdrop.BuildFireflies(root);
 
             // -- foreground: the shade along the bottom edge, and the vignette over everything.
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
@@ -211,6 +215,23 @@ namespace Aether.Gameplay.Presentation
                                          + new Vector2(far * amplitude * 0.6f, far * amplitude * 0.25f);
             _midground.anchoredPosition = _midgroundRest
                                           + new Vector2(horizon * amplitude * 0.18f, 0f);
+
+            if (_fireflies != null)
+            {
+                for (int i = 0; i < _fireflies.Length; i++)
+                {
+                    RectTransform mote = _fireflies[i];
+                    if (mote == null) continue;
+                    float phase = _phase * (0.22f + (i * 0.031f)) + _fireflyPhases[i];
+                    Vector2 origin = _fireflyOrigins[i];
+                    mote.anchoredPosition = origin + new Vector2(Mathf.Sin(phase) * 18f,
+                                                                 Mathf.Cos(phase * 0.73f) * 10f);
+                    float pulse = 0.5f + (0.5f * Mathf.Sin(phase * 1.7f));
+                    Image image = mote.GetComponent<Image>();
+                    if (image != null) image.color = new Color(0.78f, 0.88f, 0.62f,
+                                                               Mathf.Lerp(0.08f, 0.28f, pulse));
+                }
+            }
         }
 
         private Vector2 _bloomNearRest;
@@ -227,6 +248,40 @@ namespace Aether.Gameplay.Presentation
             if (_bloomNear != null) _bloomNear.anchoredPosition = _bloomNearRest;
             if (_bloomFar != null) _bloomFar.anchoredPosition = _bloomFarRest;
             if (_midground != null) _midground.anchoredPosition = _midgroundRest;
+            if (_fireflies != null)
+            {
+                for (int i = 0; i < _fireflies.Length; i++)
+                    if (_fireflies[i] != null) _fireflies[i].anchoredPosition = _fireflyOrigins[i];
+            }
+        }
+
+        private void BuildFireflies(RectTransform parent)
+        {
+            const int count = 7;
+            _fireflies = new RectTransform[count];
+            _fireflyOrigins = new Vector2[count];
+            _fireflyPhases = new float[count];
+            Vector2[] normalized =
+            {
+                new Vector2(0.18f, 0.68f), new Vector2(0.31f, 0.34f), new Vector2(0.47f, 0.77f),
+                new Vector2(0.62f, 0.43f), new Vector2(0.74f, 0.72f), new Vector2(0.86f, 0.53f),
+                new Vector2(0.92f, 0.27f)
+            };
+            for (int i = 0; i < count; i++)
+            {
+                Image mote = MenuUi.CreateImage("Firefly " + i, parent, MenuArt.Circle,
+                                                new Color(0.78f, 0.88f, 0.62f, 0.16f));
+                RectTransform rect = mote.rectTransform;
+                rect.anchorMin = normalized[i];
+                rect.anchorMax = normalized[i];
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                float size = 5f + ((i % 3) * 2f);
+                rect.sizeDelta = new Vector2(size, size);
+                rect.anchoredPosition = Vector2.zero;
+                _fireflies[i] = rect;
+                _fireflyOrigins[i] = Vector2.zero;
+                _fireflyPhases[i] = i * 1.83f;
+            }
         }
 
         /// <summary>
