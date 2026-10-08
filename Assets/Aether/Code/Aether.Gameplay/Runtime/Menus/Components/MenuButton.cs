@@ -474,6 +474,25 @@ namespace Aether.Gameplay.Menus.Components
                 _control.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
             }
 
+            // The visual accents follow the reading edge too. Keeping them on the old side is a
+            // subtle but very noticeable sign that the screen was merely translated, not mirrored.
+            if (_accent != null)
+            {
+                _accent.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0f);
+                _accent.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 1f);
+                _accent.rectTransform.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
+                _accent.rectTransform.anchoredPosition = new Vector2(rtl ? 8f : -8f, 0f);
+            }
+
+            if (_selectionGlow != null)
+            {
+                _selectionGlow.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _selectionGlow.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _selectionGlow.rectTransform.pivot = new Vector2(rtl ? 0.92f : 0.08f, 0.5f);
+                _selectionGlow.rectTransform.anchoredPosition = new Vector2(rtl ? -42f : 42f, 0f);
+                _selectionGlow.rectTransform.localScale = new Vector3(rtl ? -1f : 1f, 1f, 1f);
+            }
+
             // Keep the existing inset magnitude, but move it toward the reading edge.
             _label.rectTransform.anchoredPosition = new Vector2(sign * Mathf.Abs(_textBaseX), _labelY);
             if (_help != null) _help.rectTransform.anchoredPosition =
