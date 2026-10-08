@@ -56,6 +56,14 @@ namespace Aether.Gameplay.Menus.Panels
 
             panel._scroll = MenuUi.CreateScroll("Scroll", panel.Rect, out panel._content);
             MenuUi.Stretch(panel._scroll.GetComponent<RectTransform>());
+            if (nav != null)
+            {
+                nav.SelectionChanged += selected =>
+                {
+                    if (selected != null && selected.transform.IsChildOf(panel._content))
+                        MenuUi.ScrollIntoView(panel._scroll, selected);
+                };
+            }
 
             for (int i = 0; i < Categories.Length; i++)
             {

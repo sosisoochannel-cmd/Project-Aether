@@ -1,4 +1,5 @@
 using Aether.Gameplay.Controls;
+using Aether.Gameplay.Flow;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
@@ -18,8 +19,8 @@ namespace Aether.Gameplay.Interface
     /// <para>
     /// <b>Every row does something, and the list says what.</b> Resume returns to the region. Save now
     /// writes the run and says so on the row that asked. Restart region returns the player to the
-    /// region's own start with the encounters restored. Settings saves first and then leaves for the
-    /// menu, because settings live in the menu scene and a trip that costs progress would be a trap.
+    /// region's own start with the encounters restored. Settings saves first, opens the menu's real
+    /// Settings screen, and returns to the main menu on Back; settings stay owned by the menu system.
     /// Save and leave writes the run and goes back to the main menu, where Continue returns the
     /// player to their last checkpoint.
     /// </para>
@@ -52,6 +53,11 @@ namespace Aether.Gameplay.Interface
 
         private MenuCanvas _canvas;
         private SafeAreaFitter _safeArea;
+        private ScrollRect _scroll;
+        private RectTransform _safeRoot;
+        private RectTransform _content;
+        private RectTransform _column;
+        private Vector2 _safeBox;
         private MenuEntryPanel _rows;
         private MenuConfirmPanel _confirm;
         private MenuButton _resumeRow;
@@ -117,6 +123,7 @@ namespace Aether.Gameplay.Interface
 
             Refresh();
             _overlay.gameObject.SetActive(true);
+            PlaceColumn();
             _group.alpha = 1f;
             _group.blocksRaycasts = true;
             MenuReveal.Attach(_rows.Rect).Play(MenuTheme.Motion.Entrance(MenuPreferences.ReducedMotion),
@@ -149,7 +156,7 @@ namespace Aether.Gameplay.Interface
         {
             bool written = SaveHost.SaveNow();
             _savedNoteUntil = Time.unscaledTime + SavedNoteSeconds;
-            _saveRow.SetMeta(MenuStrings.Get(written ? "pause.saved" : "data.info.none"));
+            _saveRow.SetMeta(MenuStrings.Get(written ? "pause.saved" : "pause.saveFailed"));
             return written;
         }
 
@@ -168,27 +175,36 @@ namespace Aether.Gameplay.Interface
             _canvas.GameObject.transform.SetParent(transform, false);
             _canvas.SetScale(MenuPreferences.ClampedUiScale);
 
-            _safeArea = _canvas.SafeRoot.gameObject.AddComponent<SafeAreaFitter>();
-            _safeArea.Mode = MenuPreferences.SafeArea;
-
             _overlay = MenuUi.CreateNode("Overlay", _canvas.Root);
             MenuUi.Stretch(_overlay);
             _group = MenuUi.Group(_overlay);
 
-            // Opaque enough that the region does not read through the rows, and not a black screen:
-            // the strip behind it is switched off while this is up, so there is one thing on screen.
+            // The scrim covers the whole display; only readable controls are constrained to the
+            // safe area, so notches and gesture bars never cover a pause action.
             Image scrim = MenuUi.Fill("Scrim", _overlay, MenuTheme.Palette.Scrim, true);
             MenuUi.Stretch(scrim.rectTransform);
 
+            _safeRoot = MenuUi.CreateNode("Safe", _overlay);
+            MenuUi.Stretch(_safeRoot);
+            _safeArea = _safeRoot.gameObject.AddComponent<SafeAreaFitter>();
+            _safeArea.Mode = MenuPreferences.SafeArea;
+
+            _scroll = MenuUi.CreateScroll("Pause Scroll", _safeRoot, out _content);
+            MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
+
             _nav = new MenuNav();
+            _nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
 
-            RectTransform column = MenuUi.CreateNode("Column", _overlay);
-            column.anchorMin = new Vector2(0.5f, 0.5f);
-            column.anchorMax = new Vector2(0.5f, 0.5f);
-            column.pivot = new Vector2(0.5f, 0.5f);
-            column.sizeDelta = new Vector2(820f, 760f);
+            _column = MenuUi.CreateNode("Column", _content);
+            _column.anchorMin = new Vector2(0.5f, 1f);
+            _column.anchorMax = new Vector2(0.5f, 1f);
+            _column.pivot = new Vector2(0.5f, 1f);
 
-            _rows = MenuEntryPanel.Create("Rows", column, _nav, "pause.title", 1);
+            _rows = MenuEntryPanel.Create("Rows", _column, _nav, "pause.title", 1);
             _resumeRow = _rows.AddEntry("Resume", MenuStrings.Get("pause.resume"), MenuButton.Weight.Primary);
             _saveRow = _rows.AddEntry("Save", MenuStrings.Get("pause.save"), MenuButton.Weight.Secondary);
             _restartRow = _rows.AddEntry("Restart", MenuStrings.Get("pause.restart"), MenuButton.Weight.Secondary);
@@ -216,12 +232,18 @@ namespace Aether.Gameplay.Interface
                 // run is written down first: a trip that costs progress would be a trap, and this is
                 // the same promise the leave row makes, kept the same way.
                 MenuAudio.Confirm();
-                SaveHost.SaveNow();
+                if (!SaveHost.SaveNow())
+                {
+                    _settingsRow.SetMeta(MenuStrings.Get("pause.saveFailed"));
+                    return;
+                }
+
+                GameLaunch.RequestOpenSettings();
                 GameplayCurtain.Hold("loading.title", "loading.leaving");
                 GameplayCurtain.LeaveToMenu();
             };
 
-            _stats = MenuUi.CreateText("Stats", column, string.Empty, MenuTheme.Metrics.SettingHelpSize,
+            _stats = MenuUi.CreateText("Stats", _column, string.Empty, MenuTheme.Metrics.SettingHelpSize,
                                        MenuTheme.Palette.InkMuted, TextAnchor.MiddleCenter);
 
             _confirm = MenuConfirmPanel.Create("Confirm", _overlay, _nav);
@@ -244,21 +266,29 @@ namespace Aether.Gameplay.Interface
         /// </remarks>
         private void PlaceColumn()
         {
-            RectTransform column = (RectTransform)_rows.transform.parent;
-            float width = column.sizeDelta.x;
+            if (_rows == null || _safeRoot == null || _scroll == null) return;
 
-            _rows.Layout(width, 0f);
+            _safeBox = _safeRoot.rect.size;
+            float safeWidth = _safeBox.x;
+            float safeHeight = _safeBox.y;
+            if (safeWidth <= 0f) safeWidth = Screen.width;
+            if (safeHeight <= 0f) safeHeight = Screen.height;
+
+            float width = Mathf.Min(820f, Mathf.Max(280f, safeWidth - 48f));
+            _rows.Layout(width, safeHeight);
             _rows.Rect.anchorMin = new Vector2(0f, 1f);
             _rows.Rect.anchorMax = new Vector2(0f, 1f);
             _rows.Rect.pivot = new Vector2(0f, 1f);
             _rows.Rect.anchoredPosition = Vector2.zero;
 
             if (_stats != null)
-            {
                 MenuUi.Row(_stats.rectTransform, _rows.Height + 24f, 60f);
-            }
 
-            column.sizeDelta = new Vector2(width, _rows.Height + 96f);
+            float desiredHeight = _rows.Height + 96f;
+            float contentHeight = Mathf.Max(safeHeight, desiredHeight + 32f);
+            _column.sizeDelta = new Vector2(width, desiredHeight);
+            _column.anchoredPosition = new Vector2(0f, -Mathf.Max(16f, (contentHeight - desiredHeight) * 0.5f));
+            MenuUi.SetContentHeight(_content, contentHeight);
         }
 
         /// <summary>Asks a question before doing something that cannot be undone.</summary>
@@ -284,17 +314,39 @@ namespace Aether.Gameplay.Interface
         /// </remarks>
         private void RestartRegion()
         {
-            if (_session != null) _session.World.ActiveCheckpointId = null;
-            if (_director != null) _director.RestartRegion();
+            if (_session == null || _director == null)
+            {
+                Debug.LogError("[pause] The region could not be restarted because its session is unavailable.", this);
+                _restartRow.SetMeta(MenuStrings.Get("pause.restart.failed"));
+                return;
+            }
 
-            MenuAudio.Confirm();
+            // Persist the restart intent before moving the player. If the write fails, restore the
+            // in-memory checkpoint and leave the region untouched; a crash must not resurrect the
+            // checkpoint the confirmed restart meant to clear.
+            string checkpoint = _session.World.ActiveCheckpointId;
+            _session.World.ActiveCheckpointId = null;
+            if (!SaveHost.SaveNow())
+            {
+                _session.World.ActiveCheckpointId = checkpoint;
+                _restartRow.SetMeta(MenuStrings.Get("pause.saveFailed"));
+                return;
+            }
+
+            _director.RestartRegion();
+
             Close();
         }
 
         /// <summary>Writes the run down and leaves for the main menu.</summary>
         private void LeaveRegion()
         {
-            SaveHost.SaveNow();
+            if (!SaveHost.SaveNow())
+            {
+                _leaveRow.SetMeta(MenuStrings.Get("pause.saveFailed"));
+                return;
+            }
+
             GameplayCurtain.Hold("loading.title", "loading.leaving");
             GameplayCurtain.LeaveToMenu();
         }
@@ -310,12 +362,17 @@ namespace Aether.Gameplay.Interface
             }
 
             _saveRow.SetMeta(null);
+            _restartRow.SetMeta(null);
+            _settingsRow.SetMeta(MenuStrings.Get("pause.settings.meta"));
+            _leaveRow.SetMeta(null);
         }
 
         private void Update()
         {
-            // The only per-frame work in the overlay: retire the "SAVED" note once it has been up
-            // long enough. Nothing runs while there is no note to retire.
+            if (_safeRoot != null && _safeRoot.rect.size != _safeBox) PlaceColumn();
+
+            // The only other per-frame work in the overlay: retire the "SAVED" note once it has been
+            // up long enough. Nothing runs while there is no note to retire.
             if (_savedNoteUntil <= float.NegativeInfinity) return;
             if (Time.unscaledTime < _savedNoteUntil) return;
 

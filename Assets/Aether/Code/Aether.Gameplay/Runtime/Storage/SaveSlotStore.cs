@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aether.Core.Progression;
+using Aether.Gameplay.Progression;
 using UnityEngine;
 
 namespace Aether.Gameplay.Storage
@@ -29,6 +30,9 @@ namespace Aether.Gameplay.Storage
         /// </remarks>
         public bool Corrupt;
 
+        /// <summary>True when it parses but this build cannot open its format or chapter.</summary>
+        public bool Unavailable;
+
         /// <summary>When the run was last written, as UTC ticks. 0 when it never has been.</summary>
         public long SavedUtcTicks;
 
@@ -53,7 +57,7 @@ namespace Aether.Gameplay.Storage
         /// <summary>True when the run can be loaded: it exists and it read.</summary>
         public bool Playable
         {
-            get { return Exists && !Corrupt; }
+            get { return Exists && !Corrupt && !Unavailable; }
         }
 
         /// <summary>True when there is anything at all to show for this slot.</summary>
@@ -82,11 +86,17 @@ namespace Aether.Gameplay.Storage
     {
         private readonly JsonFileStore _file;
 
-        /// <summary>Creates the store for a slot number. Slots are 1-based.</summary>
-        public SaveSlotStore(int slot)
+        /// <summary>Creates the store for a slot number under the game's persistent-data folder.</summary>
+        public SaveSlotStore(int slot) : this(slot, "Aether")
+        {
+        }
+
+        /// <summary>Creates a slot store under a chosen persistent-data subfolder.</summary>
+        /// <remarks>The folder overload also lets storage tests use an isolated directory.</remarks>
+        public SaveSlotStore(int slot, string folder)
         {
             Slot = slot < 1 ? 1 : slot;
-            _file = new JsonFileStore("Aether", "slot-" + Slot + ".json");
+            _file = new JsonFileStore(folder ?? "Aether", "slot-" + Slot + ".json");
         }
 
         /// <summary>The slot number this store belongs to.</summary>
@@ -116,56 +126,47 @@ namespace Aether.Gameplay.Storage
             data = null;
             if (!_file.TryRead(out SaveData stored)) return false;
 
-            // Guard the shape rather than trusting the file: a save with a missing section would
-            // otherwise null-reference the first system that reads it. A document written before a
-            // section existed is repaired here rather than rejected — that is what the version
-            // number is for, and losing a run over an added field would be the wrong trade.
-            if (stored == null) return false;
+            // Guard the shape rather than trusting the file: older documents are repaired instead
+            // of being rejected over a section added after the run was written. A newer format is
+            // preserved but not loaded by an older build that may not understand its fields.
+            if (stored == null || stored.Version > SaveData.CurrentVersion) return false;
 
-            if (stored.Progression == null) stored.Progression = new ProgressionState();
-            if (stored.World == null) stored.World = new WorldState();
-            if (stored.Meta == null) stored.Meta = new SaveMeta();
-            if (stored.Collection == null) stored.Collection = new CollectionState();
-            if (stored.Characters == null) stored.Characters = new CharacterState();
-            if (stored.Achievements == null) stored.Achievements = new AchievementState();
-
+            stored.RepairMissingSections();
             stored.Meta.Slot = Slot;
+            if (string.IsNullOrEmpty(stored.Meta.ChapterId))
+                stored.Meta.ChapterId = ChapterCatalog.First.Id;
             data = stored;
             return true;
         }
 
         /// <summary>Writes progress, unless the player has turned automatic writes off.</summary>
         /// <remarks>This is the signature <c>ISaveStore</c> declares, and every gameplay call arrives here.</remarks>
-        public void Save(SaveData data)
+        public bool Save(SaveData data)
         {
-            if (!AutomaticWrites) return;
-            Save(data, false);
+            if (!AutomaticWrites) return true;
+            return Save(data, false);
         }
 
-        /// <summary>Writes progress regardless of the autosave preference.</summary>
-        /// <remarks>
-        /// The explicit path, used by "Save now", by the pause menu's save, and by the transitions
-        /// that must not lose the player's progress — starting a new game, leaving to the menu and
-        /// closing the app.
-        /// </remarks>
-        public void Save(SaveData data, bool explicitWrite)
+        /// <summary>Writes progress regardless of the autosave preference when explicitly requested.</summary>
+        public bool Save(SaveData data, bool explicitWrite)
         {
-            if (data == null) return;
-            if (!explicitWrite && !AutomaticWrites) return;
+            if (data == null) return false;
+            if (!explicitWrite && !AutomaticWrites) return true;
 
-            // Stamped on the way out, so the slot list is drawn from what is actually on disk
-            // rather than from what the session happened to be holding.
-            if (data.Meta == null) data.Meta = new SaveMeta();
-            data.Meta.Slot = Slot;
-            data.Meta.SavedUtcTicks = System.DateTime.UtcNow.Ticks;
-            data.Version = SaveData.CurrentVersion;
+            // Stamp an independent document, so the live session is not mutated by storage. Slot
+            // summaries are read from the on-disk copy and therefore report the real write time.
+            var snapshot = new SaveData();
+            snapshot.CopyFrom(data);
+            snapshot.Meta.Slot = Slot;
+            snapshot.Meta.SavedUtcTicks = System.DateTime.UtcNow.Ticks;
+            snapshot.Version = SaveData.CurrentVersion;
 
-            _file.Write(data);
+            return _file.Write(snapshot);
         }
 
-        public void Clear()
+        public bool Clear()
         {
-            _file.Delete();
+            return _file.Delete();
         }
 
         /// <summary>Reads the header of this slot without loading a session.</summary>
@@ -176,9 +177,14 @@ namespace Aether.Gameplay.Storage
 
             if (!TryLoad(out SaveData data))
             {
-                // It is on disk and it did not read: the one case the interface must not show as
-                // "empty", because there is something there and the player may want it back.
-                info.Corrupt = true;
+                // A newer format is not corrupt: this build simply cannot safely interpret it.
+                // Keep it distinct so the menu can explain why it is locked and require confirmation
+                // before replacing it.
+                if (_file.TryRead(out SaveData unsupported) && unsupported != null
+                    && unsupported.Version > SaveData.CurrentVersion)
+                    info.Unavailable = true;
+                else
+                    info.Corrupt = true;
                 return info;
             }
 
@@ -186,6 +192,8 @@ namespace Aether.Gameplay.Storage
             info.SavedUtcTicks = meta != null ? meta.SavedUtcTicks : 0L;
             info.PlaySeconds = meta != null ? meta.PlaySeconds : 0f;
             info.ChapterId = meta != null ? meta.ChapterId : string.Empty;
+            ChapterDefinition chapter = ChapterCatalog.Find(info.ChapterId);
+            info.Unavailable = chapter == null || !chapter.Playable;
             info.ObjectiveId = meta != null ? meta.ObjectiveId : string.Empty;
             info.Discoveries = data.Collection != null ? data.Collection.Count : 0;
             info.Achievements = data.Achievements != null ? data.Achievements.UnlockedCount : 0;
@@ -224,8 +232,10 @@ namespace Aether.Gameplay.Storage
         /// <summary>The file name the single-save build used, before slots existed.</summary>
         public const string LegacyFileName = "save.json";
 
+        private const string DefaultFolder = "Aether";
         private static readonly SaveSlotStore[] Stores = new SaveSlotStore[Count];
         private static bool _migrated;
+        private static string _folder = DefaultFolder;
 
         /// <summary>The store for a slot. Slots are 1-based; anything else is pulled into range.</summary>
         public static SaveSlotStore For(int slot)
@@ -233,7 +243,7 @@ namespace Aether.Gameplay.Storage
             int index = Clamp(slot) - 1;
             if (Stores[index] == null)
             {
-                Stores[index] = new SaveSlotStore(index + 1);
+                Stores[index] = new SaveSlotStore(index + 1, _folder);
                 Stores[index].AutomaticWrites = AutomaticWrites;
             }
 
@@ -253,21 +263,13 @@ namespace Aether.Gameplay.Storage
         /// <summary>One slot's header.</summary>
         public static SaveSlotInfo Describe(int slot)
         {
+            if (slot < 1 || slot > Count) return new SaveSlotInfo { Slot = slot };
+
             AdoptLegacySave();
             return For(slot).Describe();
         }
 
-        /// <summary>
-        /// The most recently played slot that can actually be loaded, or 0 when there is none.
-        /// </summary>
-        /// <remarks>
-        /// This is what CONTINUE means: the most recent valid run, not "the last slot that happened
-        /// to be selected". A corrupt newest slot does not hide an older good one — the player is
-        /// offered the run that can be played, and the broken one stays visible in the list.
-        /// </remarks>
-        /// <summary>
-        /// The slot whose run was played longest ago, which is the one a new run may replace.
-        /// </summary>
+        /// <summary>The slot whose run was played longest ago, which is the one a new run may replace.</summary>
         /// <remarks>
         /// Empty slots are never returned: an empty slot is free, and a caller that has run out of
         /// free slots is asking a different question. Every filled slot ties at "never played" for a
@@ -332,10 +334,11 @@ namespace Aether.Gameplay.Storage
             return MostRecent() != 0;
         }
 
-        /// <summary>Deletes one slot's document.</summary>
-        public static void Delete(int slot)
+        /// <summary>Deletes one slot's document. Invalid slot numbers are refused, not clamped.</summary>
+        public static bool Delete(int slot)
         {
-            For(slot).Clear();
+            if (slot < 1 || slot > Count) return false;
+            return For(slot).Clear();
         }
 
         /// <summary>How many slots hold something, corrupt documents included.</summary>
@@ -364,11 +367,19 @@ namespace Aether.Gameplay.Storage
             }
         }
 
-        /// <summary>Forgets every cached slot. Used by tests, which must not touch real files.</summary>
+        /// <summary>Forgets every cached slot and restores the real storage folder.</summary>
         public static void ResetForTests()
+        {
+            ResetForTests(DefaultFolder);
+        }
+
+        /// <summary>Uses an isolated persistent-data subfolder so menu tests cannot touch player saves.</summary>
+        public static void ResetForTests(string folder)
         {
             for (int i = 0; i < Count; i++) Stores[i] = null;
             _migrated = false;
+            _folder = string.IsNullOrEmpty(folder) ? DefaultFolder : folder;
+            AutomaticWrites = true;
         }
 
         /// <summary>
@@ -391,7 +402,7 @@ namespace Aether.Gameplay.Storage
             if (_migrated) return;
             _migrated = true;
 
-            var legacy = new JsonFileStore("Aether", LegacyFileName);
+            var legacy = new JsonFileStore(_folder, LegacyFileName);
             if (!legacy.Exists) return;
 
             var first = For(1);
@@ -407,10 +418,15 @@ namespace Aether.Gameplay.Storage
             if (data.Achievements == null) data.Achievements = new AchievementState();
             data.Meta = new SaveMeta { Slot = 1, ChapterId = string.Empty };
 
-            first.Save(data, true);
-            if (!first.HasStoredProgress) return;      // the write failed; leave the old file alone
+            if (!first.Save(data, true)) return;      // leave the old file alone when the write fails
+            if (!first.HasStoredProgress) return;
 
-            legacy.Delete();
+            if (!legacy.Delete())
+            {
+                Debug.LogWarning("The legacy save was copied into slot 1 but its old file could not be removed.");
+                return;
+            }
+
             Debug.Log("Adopted the single-file save from an earlier build into slot 1.");
         }
 

@@ -40,6 +40,7 @@ namespace Aether.Gameplay.Settings
             _current.Changed += OnChanged;
             _current.Load();
             ApplyEngineValues(_current.Values);
+            SettingsLifecycle.Ensure();
             return _current;
         }
 
@@ -47,9 +48,9 @@ namespace Aether.Gameplay.Settings
         /// Writes any pending change. Called at the moments a write is cheap and meaningful: the end
         /// of a drag, the close of a screen, and before the app loses focus.
         /// </summary>
-        public static void Flush()
+        public static bool Flush()
         {
-            if (_current != null) _current.Flush();
+            return _current == null || _current.Flush();
         }
 
         /// <summary>
@@ -144,6 +145,16 @@ namespace Aether.Gameplay.Settings
         {
             if (_current != null) _current.Changed -= OnChanged;
             _current = null;
+        }
+
+        /// <summary>Installs an isolated store for a test without touching the player's settings file.</summary>
+        public static void ResetForTests(ISettingsStore store)
+        {
+            ResetForTests();
+            _current = new SettingsService { Store = store };
+            _current.Changed += OnChanged;
+            _current.Load();
+            ApplyEngineValues(_current.Values);
         }
     }
 }

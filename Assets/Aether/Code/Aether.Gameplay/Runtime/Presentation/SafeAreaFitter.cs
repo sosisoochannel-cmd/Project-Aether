@@ -38,6 +38,9 @@ namespace Aether.Gameplay.Presentation
         private SafeAreaMode _mode = SafeAreaMode.Respect;
         private Rect _applied = new Rect(-1f, -1f, -1f, -1f);
 
+        /// <summary>Raised after the safe-area rect is reapplied because its mode or dimensions changed.</summary>
+        public event System.Action DimensionsChanged;
+
         /// <summary>Which rule is in force. Setting it reapplies immediately.</summary>
         public SafeAreaMode Mode
         {
@@ -48,6 +51,7 @@ namespace Aether.Gameplay.Presentation
                 _mode = value;
                 _applied = new Rect(-1f, -1f, -1f, -1f);
                 Apply();
+                NotifyDimensionsChanged();
             }
         }
 
@@ -60,6 +64,7 @@ namespace Aether.Gameplay.Presentation
         private void OnEnable()
         {
             Apply();
+            NotifyDimensionsChanged();
         }
 
         /// <summary>
@@ -70,6 +75,13 @@ namespace Aether.Gameplay.Presentation
         {
             if (!isActiveAndEnabled || _rect == null) return;
             Apply();
+            NotifyDimensionsChanged();
+        }
+
+        private void NotifyDimensionsChanged()
+        {
+            System.Action changed = DimensionsChanged;
+            if (changed != null) changed();
         }
 
         /// <summary>Anchors this rect to the device's safe area, or to the whole canvas when off.</summary>

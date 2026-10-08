@@ -134,14 +134,38 @@ namespace Aether.Gameplay.Menus.Panels
         private Text _note;
         private SettingCategory _category = SettingCategory.Gameplay;
         private float _columnWidth;
+        private bool _scrollHooked;
 
         /// <summary>Raised when a row needs the screen to do something: confirm, navigate, quit.</summary>
         public Action<string> Requested;
+
+        /// <summary>Shows a failed delete on the row that owns the action.</summary>
+        public void ShowDeleteFailure()
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                if (_rows[i].Extra != ExtraKind.DeleteRun) continue;
+                _rows[i].Button.SetMeta(MenuStrings.Get("slots.delete.failed"));
+                return;
+            }
+        }
+
+        /// <summary>Shows why a confirmed quit did not close the game.</summary>
+        public void ShowQuitFailure()
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                if (_rows[i].Extra != ExtraKind.Quit) continue;
+                _rows[i].Button.SetMeta(MenuStrings.Get("menu.quit.saveFailed"));
+                return;
+            }
+        }
 
         /// <summary>Creates the panel and builds every row.</summary>
         public static MenuCategoryPanel Create(string name, Transform parent, MenuNav nav)
         {
             MenuCategoryPanel panel = Create<MenuCategoryPanel>(name, parent, nav);
+            panel.EnsureScroll();
             panel.BuildRows();
             return panel;
         }
@@ -165,16 +189,7 @@ namespace Aether.Gameplay.Menus.Panels
         {
             Remember(width, height);
 
-            if (_scroll == null)
-            {
-                _scroll = MenuUi.CreateScroll("Scroll", Rect, out _content);
-                MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
-
-                _note = MenuUi.CreateParagraph("Note", _content, string.Empty,
-                                               MenuTheme.Metrics.ParagraphSize,
-                                               MenuTheme.Palette.InkMuted,
-                                               MenuTheme.Metrics.ParagraphLineHeight);
-            }
+            EnsureScroll();
 
             _columnWidth = width;
             SetPanelSize(width, height);
@@ -219,6 +234,29 @@ namespace Aether.Gameplay.Menus.Panels
 
         // -- construction --------------------------------------------------------------------
 
+        private void EnsureScroll()
+        {
+            if (_scroll != null) return;
+
+            _scroll = MenuUi.CreateScroll("Scroll", Rect, out _content);
+            MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
+
+            if (!_scrollHooked && Nav != null)
+            {
+                Nav.SelectionChanged += selected =>
+                {
+                    if (selected != null && selected.transform.IsChildOf(_content))
+                        MenuUi.ScrollIntoView(_scroll, selected);
+                };
+                _scrollHooked = true;
+            }
+
+            _note = MenuUi.CreateParagraph("Note", _content, string.Empty,
+                                           MenuTheme.Metrics.ParagraphSize,
+                                           MenuTheme.Palette.InkMuted,
+                                           MenuTheme.Metrics.ParagraphLineHeight);
+        }
+
         private void BuildRows()
         {
             SettingDefinition[] all = SettingsCatalog.All;
@@ -243,7 +281,7 @@ namespace Aether.Gameplay.Menus.Panels
                 if (IsAction(extra.Kind))
                 {
                     ExtraKind captured = extra.Kind;
-                    row.Button.Activated = () => RunExtra(captured);
+                    row.Button.Activated = () => RunExtra(row, captured);
                 }
 
                 _rows.Add(row);
@@ -324,6 +362,8 @@ namespace Aether.Gameplay.Menus.Panels
                         row.Selector.SetValue(MenuStrings.Get(row.Definition.OptionKeys[index]));
                         row.Selector.SetBounds(index > 0, index < row.Definition.OptionKeys.Length - 1);
                     }
+
+                    row.Button.SetMeta(null);
                 }
                 else
                 {
@@ -345,6 +385,19 @@ namespace Aether.Gameplay.Menus.Panels
                     row.Button.SetMeta(summary.HasRun
                         ? MenuStrings.Get(summary.HasCheckpoint ? "data.info.checkpoint" : "data.info.start")
                         : null);
+                    break;
+
+                case ExtraKind.SaveNow:
+                    bool canSave = SaveHost.DescribedSlot() > 0;
+                    row.Button.SetLocked(!canSave, MenuStrings.Get("data.info.none"));
+                    break;
+
+                case ExtraKind.DeleteRun:
+                    int described = SaveHost.DescribedSlot();
+                    row.Button.SetLocked(described < 1, MenuStrings.Get("data.info.none"));
+                    row.Button.SetMeta(described > 0
+                        ? MenuStrings.Format("slots.slot", described)
+                        : MenuStrings.Get("data.info.none"));
                     break;
 
                 case ExtraKind.StorageName:
@@ -400,7 +453,7 @@ namespace Aether.Gameplay.Menus.Panels
             if (committed)
             {
                 MenuAudio.Adjust();
-                settings.Flush();
+                FlushSettings(settings, row);
             }
         }
 
@@ -413,7 +466,7 @@ namespace Aether.Gameplay.Menus.Panels
             float wanted = current >= 0.5f ? 0f : 1f;
 
             settings.Set(row.Definition.Id, wanted);
-            settings.Flush();
+            FlushSettings(settings, row);
 
             MenuAudio.Adjust();
             if (row.Switch != null) row.Switch.Set(wanted >= 0.5f);
@@ -433,7 +486,7 @@ namespace Aether.Gameplay.Menus.Panels
             if (wanted < 0 || wanted >= row.Definition.OptionValues.Length) return false;
 
             settings.Set(row.Definition.Id, row.Definition.OptionValues[wanted]);
-            settings.Flush();
+            bool persisted = FlushSettings(settings, row);
 
             MenuAudio.Adjust();
 
@@ -448,17 +501,33 @@ namespace Aether.Gameplay.Menus.Panels
             }
 
             Refresh();
+            if (!persisted) row.Button.SetMeta(MenuStrings.Get("settings.save.failed"));
             return true;
         }
 
-        private void RunExtra(ExtraKind kind)
+        private bool FlushSettings(SettingsService settings, Row row)
+        {
+            if (settings.Flush())
+            {
+                if (row != null && row.Button != null) row.Button.SetMeta(null);
+                return true;
+            }
+
+            Debug.LogError($"[settings] The change to '{row?.Definition?.Id ?? "menu"}' could not be saved.");
+            if (row != null && row.Button != null)
+                row.Button.SetMeta(MenuStrings.Get("settings.save.failed"));
+            return false;
+        }
+
+        private void RunExtra(Row row, ExtraKind kind)
         {
             switch (kind)
             {
                 case ExtraKind.SaveNow:
-                    SaveHost.SaveNow();
+                    bool saved = SaveHost.SaveNow();
                     MenuAudio.Confirm();
                     Refresh();
+                    row.Button.SetMeta(MenuStrings.Get(saved ? "data.save.success" : "data.save.failed"));
                     break;
 
                 case ExtraKind.DeleteRun:

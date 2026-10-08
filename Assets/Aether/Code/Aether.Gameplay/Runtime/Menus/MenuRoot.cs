@@ -1,3 +1,5 @@
+using Aether.Gameplay.Flow;
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Settings;
@@ -30,7 +32,7 @@ namespace Aether.Gameplay.Menus
     /// </para>
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class MenuRoot : MonoBehaviour
+    public sealed class MenuRoot : SceneFlowOwner
     {
         /// <summary>Where the menu's canvas sits, above anything the scene draws itself.</summary>
         private const int MenuSortingOrder = 100;
@@ -70,6 +72,11 @@ namespace Aether.Gameplay.Menus
             AetherSettings.Ensure();
             MenuArt.EnsureBuilt();
 
+            // The region's persistent cover was held before leaving gameplay. The menu owns the
+            // destination, so lower that cover as soon as its scene is live; otherwise its higher
+            // sorting order would hide this canvas after the transition veil fades away.
+            GameplayCurtain.Drop();
+
             _canvas = MenuCanvas.Create("Menu Canvas", MenuSortingOrder);
             _canvas.GameObject.transform.SetParent(transform, false);
             _canvas.SetScale(MenuPreferences.ClampedUiScale);
@@ -102,7 +109,10 @@ namespace Aether.Gameplay.Menus
             Canvas.ForceUpdateCanvases();
             LayoutNow();
 
-            _system.Show(MenuScreenId.MainMenu, true);
+            MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
+                ? MenuScreenId.Settings
+                : MenuScreenId.MainMenu;
+            _system.Show(initialScreen, true);
             _box = _canvas.ContentRoot.rect.size;
         }
 

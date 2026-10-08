@@ -1,3 +1,4 @@
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Settings;
@@ -32,24 +33,35 @@ namespace Aether.Gameplay.Flow
     {
         private void Start()
         {
-            // Settings first: they decide the frame cap, the quality tier and the screen timeout,
-            // and both destinations want them applied before they draw anything.
-            AetherSettings.Ensure();
-
-            if (GameLaunch.TakePlayRequest())
+            try
             {
-                // The player asked to play. This scene has always been able to boot a region; it
-                // still is, and the menu simply chooses when it does.
-                SaveHost.Ensure();
-                if (FindAnyObjectByType<LevelBootstrap>() == null)
+                // Settings first: they decide the frame cap, the quality tier and the screen timeout,
+                // and both destinations want them applied before they draw anything.
+                AetherSettings.Ensure();
+
+                if (GameLaunch.TakePlayRequest())
                 {
-                    gameObject.AddComponent<LevelBootstrap>();
+                    // The player asked to play. This scene has always been able to boot a region; it
+                    // still is, and the menu simply chooses when it does.
+                    SaveHost.Ensure();
+                    if (FindAnyObjectByType<LevelBootstrap>() == null)
+                    {
+                        gameObject.AddComponent<LevelBootstrap>();
+                    }
+
+                    return;
                 }
 
-                return;
-            }
+                if (!Application.CanStreamedLevelBeLoaded(Scenes.MainMenu))
+                    throw new System.InvalidOperationException("The MainMenu scene is not enabled in the build settings.");
 
-            SceneManager.LoadScene(Scenes.MainMenu);
+                SceneManager.LoadScene(Scenes.MainMenu);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogException(ex, this);
+                GameplayCurtain.Fail("The app could not finish starting. Return to the menu and try again.");
+            }
         }
     }
 }

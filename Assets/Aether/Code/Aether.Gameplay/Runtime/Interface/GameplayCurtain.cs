@@ -90,15 +90,21 @@ namespace Aether.Gameplay.Interface
             _instance.StartCoroutine(_instance.RevealRoutine());
         }
 
-        /// <summary>Shows the honest failure screen, with the way back to the menu on it.</summary>
+        /// <summary>Shows the region-start failure screen, with the way back to the menu on it.</summary>
         public static void Fail(string detail)
         {
+            Fail("error.title", "error.body", detail);
+        }
+
+        /// <summary>Shows a localized recovery screen for a scene or region load failure.</summary>
+        public static void Fail(string titleKey, string bodyKey, string detail)
+        {
             GameplayCurtain curtain = Instance;
-            curtain.SetText("error.title", "error.body");
+            curtain.SetText(titleKey, bodyKey);
             curtain.SetError(true);
             curtain.Show();
 
-            if (!string.IsNullOrEmpty(detail)) Debug.LogError("[region] " + detail, curtain);
+            if (!string.IsNullOrEmpty(detail)) Debug.LogError("[load] " + detail, curtain);
         }
 
         /// <summary>Lifts the curtain immediately. Used by a test, and by a scene that owns its own cover.</summary>

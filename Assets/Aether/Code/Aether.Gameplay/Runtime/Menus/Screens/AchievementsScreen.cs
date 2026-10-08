@@ -29,6 +29,8 @@ namespace Aether.Gameplay.Menus.Screens
     public sealed class AchievementsScreen : MenuScreen
     {
         private MenuHeader _header;
+        private ScrollRect _scroll;
+        private RectTransform _content;
         private MenuEntryPanel _list;
         private MenuEntryPanel _summary;
         private MenuButton[] _rows;
@@ -46,8 +48,15 @@ namespace Aether.Gameplay.Menus.Screens
             _header = MenuHeader.Create(Rect, MenuStrings.Get("achievements.title"), Nav, true);
             _header.Back.Activated = Leave;
 
-            _list = MenuEntryPanel.Create("Achievements", Rect, Nav, "achievements.title", 1);
-            _summary = MenuEntryPanel.Create("Summary", Rect, Nav, null, 1);
+            _scroll = MenuUi.CreateScroll("Achievements Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
+
+            _list = MenuEntryPanel.Create("Achievements", _content, Nav, "achievements.title", 1);
+            _summary = MenuEntryPanel.Create("Summary", _content, Nav, null, 1);
             _countRow = _summary.AddEntry("Earned", string.Empty, MenuButton.Weight.Secondary);
             _countRow.SetInformational(true);
 
@@ -67,15 +76,20 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float top = MenuTheme.Metrics.ScreenHeaderPitch + MenuTheme.Metrics.ScreenHeaderGap;
-            float box = Mathf.Max(120f, height - top);
+            float viewportHeight = Mathf.Max(120f, height - top);
+            RectTransform scrollRect = _scroll.GetComponent<RectTransform>();
+            MenuUi.Corner(scrollRect, new Vector2(0f, 1f), new Vector2(0f, -top),
+                          new Vector2(width, viewportHeight), new Vector2(0f, 1f));
+
             float column = Mathf.Min(width, width * MenuTheme.Metrics.LeftColumnFraction * 1.7f);
+            _list.Rect.anchoredPosition = Vector2.zero;
+            _list.Layout(column, viewportHeight);
 
-            _list.Rect.anchoredPosition = new Vector2(0f, -top);
-            _list.Layout(column, box);
-
-            _summary.Rect.anchoredPosition =
-                new Vector2(0f, -(top + _list.Height + MenuTheme.Metrics.ClusterGap));
-            _summary.Layout(column, box);
+            float summaryTop = _list.Height + MenuTheme.Metrics.ClusterGap;
+            _summary.Rect.anchoredPosition = new Vector2(0f, -summaryTop);
+            _summary.Layout(column, viewportHeight);
+            MenuUi.SetContentHeight(_content, summaryTop + _summary.Height
+                                              + MenuTheme.Metrics.ParagraphBlockPadding);
         }
 
         /// <inheritdoc />

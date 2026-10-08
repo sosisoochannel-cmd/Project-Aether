@@ -38,6 +38,7 @@ namespace Aether.Gameplay.Menus.Panels
             panel._title = MenuUi.CreateTrackedText("Title", panel.Rect, MenuStrings.Get(titleKey),
                                                     MenuTheme.Metrics.TitleSize, MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.TitleTracking);
+            panel._title.fontStyle = FontStyle.Bold;
             panel._title.rectTransform.anchorMin = new Vector2(0f, 1f);
             panel._title.rectTransform.anchorMax = new Vector2(0f, 1f);
             panel._title.rectTransform.pivot = new Vector2(0f, 1f);

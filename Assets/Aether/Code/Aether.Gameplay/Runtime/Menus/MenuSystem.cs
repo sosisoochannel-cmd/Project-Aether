@@ -220,12 +220,17 @@ namespace Aether.Gameplay.Menus
         /// </summary>
         public void GoTo(MenuScreenId id)
         {
+            Navigate(id, true);
+        }
+
+        private void Navigate(MenuScreenId id, bool rememberCurrent)
+        {
             if (_current != null && _current.Id == id) return;
 
             MenuTransition transition = MenuTransition.Instance;
             if (transition.Busy) return;
 
-            Remember();
+            if (rememberCurrent) Remember();
             transition.Cover(() => Show(id, false));
         }
 
@@ -250,6 +255,7 @@ namespace Aether.Gameplay.Menus
         {
             MenuScreen screen = _current;
             if (screen == null) return false;
+            if (MenuTransition.Instance.Busy) return true;
 
             if (screen.OnBack()) return true;
 
@@ -260,13 +266,13 @@ namespace Aether.Gameplay.Menus
             {
                 MenuScreenId previous = Pop();
                 MenuAudio.Back();
-                GoTo(previous);
+                Navigate(previous, false);
                 return true;
             }
 
             if (screen.Id == MenuScreenId.MainMenu) return false;
 
-            GoTo(MenuScreenId.MainMenu);
+            Navigate(MenuScreenId.MainMenu, false);
             return true;
         }
 
@@ -310,9 +316,9 @@ namespace Aether.Gameplay.Menus
         }
 
         /// <summary>Hands over to the region. One line, because the order of operations lives in one place.</summary>
-        public void PlayRegion()
+        public bool PlayRegion()
         {
-            MenuFlow.PlayRegion();
+            return MenuFlow.PlayRegion();
         }
 
         private void OnMoveRequested(MenuNav.Move move)

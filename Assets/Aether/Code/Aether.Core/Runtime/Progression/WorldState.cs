@@ -31,18 +31,27 @@ namespace Aether.Core.Progression
         /// <summary>Id of the checkpoint the player will respawn at. Empty means "region start".</summary>
         public string ActiveCheckpointId
         {
-            get => _activeCheckpointId;
-            set => _activeCheckpointId = value ?? string.Empty;
+            get { return _activeCheckpointId ?? string.Empty; }
+            set { _activeCheckpointId = value ?? string.Empty; }
+        }
+
+        private List<string> FlagData
+        {
+            get
+            {
+                if (_flags == null) _flags = new List<string>();
+                return _flags;
+            }
         }
 
         /// <summary>Number of one-shot facts currently satisfied. Useful for completion statistics.</summary>
-        public int FlagCount => _flags.Count;
+        public int FlagCount => FlagData.Count;
 
         /// <summary>Returns true when <paramref name="flagId"/> has been established.</summary>
         public bool IsSet(string flagId)
         {
             if (string.IsNullOrEmpty(flagId)) return false;
-            return _flags.Contains(flagId);
+            return FlagData.Contains(flagId);
         }
 
         /// <summary>
@@ -52,17 +61,24 @@ namespace Aether.Core.Progression
         public bool Set(string flagId)
         {
             if (string.IsNullOrEmpty(flagId)) return false;
-            if (_flags.Contains(flagId)) return false;
+            if (FlagData.Contains(flagId)) return false;
 
-            _flags.Add(flagId);
+            FlagData.Add(flagId);
             return true;
         }
 
         /// <summary>Clears every fact. Used when starting a new game.</summary>
         public void Reset()
         {
-            _flags.Clear();
+            FlagData.Clear();
             _activeCheckpointId = string.Empty;
+        }
+
+        /// <summary>Repairs persisted fields that were absent or null in a document.</summary>
+        public void RepairMissingData()
+        {
+            if (_flags == null) _flags = new List<string>();
+            if (_activeCheckpointId == null) _activeCheckpointId = string.Empty;
         }
 
         /// <summary>Copies this state into <paramref name="destination"/> for save serialisation.</summary>
@@ -70,14 +86,15 @@ namespace Aether.Core.Progression
         {
             if (destination == null) throw new System.ArgumentNullException(nameof(destination));
 
-            destination._flags = new List<string>(_flags);
-            destination._activeCheckpointId = _activeCheckpointId;
+            if (ReferenceEquals(this, destination)) return;
+            destination._flags = new List<string>(FlagData);
+            destination._activeCheckpointId = ActiveCheckpointId;
         }
 
         /// <summary>
         /// Every established fact. Exposed for save serialisation and diagnostics; gameplay should
         /// query <see cref="IsSet"/> instead of scanning this.
         /// </summary>
-        public IReadOnlyList<string> Flags => _flags;
+        public IReadOnlyList<string> Flags => FlagData;
     }
 }

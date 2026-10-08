@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Aether.Core.Progression;
 
 namespace Aether.Gameplay.Progression
@@ -9,7 +8,7 @@ namespace Aether.Gameplay.Progression
         /// <summary>Known from the first frame: the character the player is.</summary>
         Always = 0,
 
-        /// <summary>Met by entering a region where this creature lives.</summary>
+        /// <summary>Met when this creature first genuinely notices the player.</summary>
         Encounter = 1,
 
         /// <summary>Met by finding something that proves they were here.</summary>
@@ -159,32 +158,6 @@ namespace Aether.Gameplay.Progression
             return null;
         }
 
-        /// <summary>
-        /// Records every character a region's contents prove the player has met.
-        /// </summary>
-        /// <remarks>
-        /// Called once when a region has been built, with the enemy type ids it placed. "Met" means
-        /// the player has been in a region where the creature lives, which is a fact the level itself
-        /// establishes — no proximity test, no chance of a player missing a character that was
-        /// standing in front of them.
-        /// </remarks>
-        public static List<CharacterDefinition> RecordEncounters(SaveData save, IReadOnlyList<string> enemyTypeIds)
-        {
-            var met = new List<CharacterDefinition>();
-            if (save == null || enemyTypeIds == null) return met;
-            if (save.Characters == null) save.Characters = new CharacterState();
-
-            for (int i = 0; i < enemyTypeIds.Count; i++)
-            {
-                CharacterDefinition character = ForEnemyType(enemyTypeIds[i]);
-                if (character == null) continue;
-                if (!save.Characters.Record(character.Id)) continue;
-
-                met.Add(character);
-            }
-
-            return met;
-        }
     }
 
     /// <summary>Where a collection entry comes from, and therefore what makes it count as found.</summary>

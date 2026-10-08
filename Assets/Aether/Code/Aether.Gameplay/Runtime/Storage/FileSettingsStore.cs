@@ -45,7 +45,9 @@ namespace Aether.Gameplay.Storage
 
             // A newer format is not read: its fields mean things this build does not know, and a
             // partial understanding of them is worse than defaults.
-            if (stored.Version != GameSettings.CurrentVersion) return false;
+            if (stored.Version > GameSettings.CurrentVersion) return false;
+
+            stored.RepairMissingSections();
 
             // An older format has no fields this build lacks, so JsonUtility's defaults for the new
             // ones are already the right answer; the version is simply brought forward.
@@ -55,16 +57,19 @@ namespace Aether.Gameplay.Storage
             return true;
         }
 
-        public void Save(GameSettings settings)
+        public bool Save(GameSettings settings)
         {
-            if (settings == null) return;
-            settings.Version = GameSettings.CurrentVersion;
-            _file.Write(settings);
+            if (settings == null) return false;
+
+            var snapshot = new GameSettings();
+            snapshot.CopyFrom(settings);
+            snapshot.Version = GameSettings.CurrentVersion;
+            return _file.Write(snapshot);
         }
 
-        public void Clear()
+        public bool Clear()
         {
-            _file.Delete();
+            return _file.Delete();
         }
 
         public override string ToString()

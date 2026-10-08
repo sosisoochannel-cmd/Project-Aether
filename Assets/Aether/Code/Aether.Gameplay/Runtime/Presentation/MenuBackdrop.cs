@@ -6,18 +6,16 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Presentation
 {
     /// <summary>
-    /// What the menu stands on: four layers of clearly separated depth, and nothing expensive.
+    /// The menu's forest artwork and restrained atmosphere, laid out as a small set of clear layers.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the ground: one flat
-    /// colour, and the only thing that must be replaced for the menu to stand somewhere else.
-    /// <i>Midground</i> is the horizon — three faint ridges and the wash under them, which is the
-    /// only part of the frame that suggests a place rather than a screen. <i>Atmosphere</i> is a pair
-    /// of cold blooms that drift. <i>Foreground</i> is the vignette and the darkening along the
-    /// bottom edge that the entry rows sit on. Keeping them apart is what makes replacing the
-    /// artwork later a matter of one image per layer: the composition does not change, and the
-    /// approved mark and the typography are unaffected.
+    /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the approved forest
+    /// image, sized to cover the canvas without stretching. <i>Midground</i> is the horizon — three
+    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted leaf-green washes
+    /// that drift slowly. <i>Foreground</i> is the vignette and the darkening along the bottom edge
+    /// that the entry rows sit on. Keeping them apart lets the artwork support the interface without
+    /// changing the approved mark, typography or composition.
     /// </para>
     /// <para>
     /// <b>Rich, but never moving much.</b> Three sines at 26, 31 and 43 seconds, each moving its own
@@ -28,9 +26,9 @@ namespace Aether.Gameplay.Presentation
     /// <para>
     /// <b>It costs nothing when it is off.</b> Reduced motion, or the low graphics tier, switches the
     /// motion off and this component switches its own <c>Update</c> off with it, so a phone that
-    /// asked for less is not paying for a sine it does not draw. The layers themselves are four
-    /// sprites generated in memory, no materials, no shaders, and no transparency over the whole
-    /// screen beyond the corner fades that a menu needs anyway.
+    /// asked for less is not paying for a sine it does not draw. The artwork stays as one imported
+    /// texture; the remaining atmosphere uses small procedural sprites, with no added materials or
+    /// shaders and only restrained translucent overlays for readability.
     /// </para>
     /// </remarks>
     public sealed class MenuBackdrop : MonoBehaviour
@@ -40,6 +38,8 @@ namespace Aether.Gameplay.Presentation
         private const float DriftLayerThreePeriod = 43f;
 
         private RectTransform _root;
+        private RectTransform _background;
+        private Sprite _backgroundSprite;
         private RectTransform _midground;
         private RectTransform _wash;
         private RectTransform _bloomNear;
@@ -55,26 +55,34 @@ namespace Aether.Gameplay.Presentation
         /// <summary>Whether it is moving right now. False at the low tier, and under reduced motion.</summary>
         public bool MotionEnabled { get; private set; } = true;
 
-        /// <summary>Builds the four layers under a canvas-filling rect.</summary>
+        /// <summary>Builds the artwork and atmosphere under a canvas-filling rect.</summary>
         public static MenuBackdrop Create(Transform parent)
         {
             MenuArt.EnsureBuilt();
 
             var host = new GameObject("Backdrop", typeof(RectTransform));
             host.transform.SetParent(parent, false);
+            // Keep this canvas-level visual layer beneath the Safe Area and its readable controls.
+            host.transform.SetAsFirstSibling();
             var root = (RectTransform)host.transform;
             MenuUi.Stretch(root);
 
             var backdrop = host.AddComponent<MenuBackdrop>();
             backdrop._root = root;
 
-            // -- background: one flat colour, the thing a real piece of artwork replaces.
+            // -- background: the supplied forest artwork, with a solid fallback if it is unavailable.
             Image ground = MenuUi.Fill("Background", root, MenuTheme.Palette.Ground);
+            backdrop._background = ground.rectTransform;
+            backdrop._backgroundSprite = MenuArt.Forest;
+            if (backdrop._backgroundSprite != null)
+            {
+                ground.sprite = backdrop._backgroundSprite;
+                ground.color = Color.white;
+            }
             ground.transform.SetAsFirstSibling();
 
-            // -- midground: the horizon. A wash, and three ridges of decreasing width and strength.
-            //    They are geometry rather than a photograph: two units tall, drawn from the same
-            //    generated band sprite, so the layer costs four quads and no texture of its own.
+            // -- midground: the horizon. A wash, and three soft bands of decreasing width and strength.
+            //    The shared band sprite keeps the impression atmospheric, not like a set of hard lines.
             RectTransform midground = MenuUi.CreateNode("Midground", root);
             MenuUi.Stretch(midground);
             backdrop._midground = midground;
@@ -83,9 +91,9 @@ namespace Aether.Gameplay.Presentation
                                                MenuTheme.Palette.Horizon);
             backdrop._wash = horizon.rectTransform;
 
-            Ridge(midground, "Ridge Far", 0.318f, 1.00f, 3f, 0.16f);
-            Ridge(midground, "Ridge Mid", 0.286f, 0.82f, 2f, 0.12f);
-            Ridge(midground, "Ridge Near", 0.252f, 0.62f, 2f, 0.09f);
+            Ridge(midground, "Ridge Far", 0.318f, 1.00f, 18f, 0.055f);
+            Ridge(midground, "Ridge Mid", 0.286f, 0.82f, 12f, 0.040f);
+            Ridge(midground, "Ridge Near", 0.252f, 0.62f, 8f, 0.030f);
 
             // -- atmosphere: two blooms, far apart, moving at different speeds.
             backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
@@ -114,9 +122,9 @@ namespace Aether.Gameplay.Presentation
         {
             _width = Mathf.Max(1f, canvasWidth);
             _height = Mathf.Max(1f, canvasHeight);
+            CoverBackground();
 
-            // The horizon wash sits over the lower third, where the entry rows are, so the
-            // background is slightly lighter exactly where the interface is.
+            // The horizon wash settles the artwork through the entry band without adding a panel.
             BandWash(0.30f, _height * 0.42f);
             _midgroundRest = Vector2.zero;
             Band(_foregroundShade, 0f, _height * 0.44f);
@@ -125,6 +133,35 @@ namespace Aether.Gameplay.Presentation
             // dim one reads as air.
             BloomSize(_bloomFar, _width * 0.62f, _height * 0.95f);
             BloomSize(_bloomNear, _width * 0.78f, _height * 0.92f);
+        }
+
+        /// <summary>Cover-fits the artwork and crops only the centered overhang, never stretching it.</summary>
+        private void CoverBackground()
+        {
+            if (_background == null || _backgroundSprite == null) return;
+
+            Rect spriteRect = _backgroundSprite.rect;
+            if (spriteRect.width <= 0f || spriteRect.height <= 0f) return;
+
+            float aspect = spriteRect.width / spriteRect.height;
+            float width;
+            float height;
+            if (_width / _height > aspect)
+            {
+                width = _width;
+                height = width / aspect;
+            }
+            else
+            {
+                height = _height;
+                width = height * aspect;
+            }
+
+            _background.anchorMin = new Vector2(0.5f, 0.5f);
+            _background.anchorMax = new Vector2(0.5f, 0.5f);
+            _background.pivot = new Vector2(0.5f, 0.5f);
+            _background.sizeDelta = new Vector2(width, height);
+            _background.anchoredPosition = Vector2.zero;
         }
 
         /// <summary>Reads the settings that decide whether anything moves here.</summary>

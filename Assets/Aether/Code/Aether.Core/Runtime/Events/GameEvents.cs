@@ -84,11 +84,23 @@ namespace Aether.Core.Events
         }
     }
 
+    /// <summary>Raised the first time an enemy genuinely notices the player in this run.</summary>
+    public readonly struct CharacterMetEvent
+    {
+        /// <summary>Stable id of the character entry recorded in the codex.</summary>
+        public readonly string CharacterId;
+
+        public CharacterMetEvent(string characterId)
+        {
+            CharacterId = characterId;
+        }
+    }
+
     /// <summary>Raised when a region has been built and the player is standing in it.</summary>
     /// <remarks>
     /// Deliberately after the level exists rather than before the load: a listener that wants to
-    /// look at the region — the collection counting its secrets, a character list noting what lives
-    /// there — has to be able to, and "we are about to load" would not allow that.
+    /// look at the region — the collection counting its secrets — has to be able to, and "we are
+    /// about to load" would not allow that.
     /// </remarks>
     public readonly struct RegionEnteredEvent
     {

@@ -208,6 +208,29 @@ namespace Aether.Gameplay.Menus
             content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(0f, height));
         }
 
+        /// <summary>Scrolls a selected row into the viewport, for keyboard and gamepad users.</summary>
+        public static void ScrollIntoView(ScrollRect scroll, Selectable selectable)
+        {
+            if (scroll == null || scroll.viewport == null || scroll.content == null || selectable == null)
+                return;
+
+            RectTransform item = selectable.transform as RectTransform;
+            if (item == null || scroll.content.rect.height <= scroll.viewport.rect.height + 0.1f) return;
+
+            Canvas.ForceUpdateCanvases();
+            Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(scroll.viewport, item);
+            Rect viewport = scroll.viewport.rect;
+            float delta = 0f;
+
+            if (bounds.min.y < viewport.yMin) delta = viewport.yMin - bounds.min.y;
+            else if (bounds.max.y > viewport.yMax) delta = viewport.yMax - bounds.max.y;
+
+            if (Mathf.Abs(delta) < 0.1f) return;
+
+            scroll.StopMovement();
+            scroll.content.anchoredPosition += new Vector2(0f, delta);
+        }
+
         /// <summary>A canvas group, for fading a whole subtree at once.</summary>
         public static CanvasGroup Group(RectTransform rect)
         {

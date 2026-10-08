@@ -181,7 +181,8 @@ namespace Aether.Core.Settings
 
             try
             {
-                Store.Save(Values);
+                if (!Store.Save(Values)) return false;
+
                 _dirty = false;
                 _dirtyIds.Clear();
                 return true;
@@ -193,17 +194,18 @@ namespace Aether.Core.Settings
         }
 
         /// <summary>Deletes the stored copy and returns to defaults.</summary>
-        public void ClearStored()
+        public bool ClearStored()
         {
             if (Store != null)
             {
                 try
                 {
-                    Store.Clear();
+                    if (!Store.Clear()) return false;
                 }
                 catch (Exception)
                 {
                     // Same rule as Flush: storage problems are reported by the store, not thrown here.
+                    return false;
                 }
             }
 
@@ -212,6 +214,7 @@ namespace Aether.Core.Settings
             _dirty = false;
             _dirtyIds.Clear();
             Raise(null);
+            return true;
         }
 
         private void Raise(string id)

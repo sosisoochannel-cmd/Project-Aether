@@ -1,3 +1,4 @@
+using Aether.Gameplay;
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Presentation;
 using Aether.Gameplay.Progression;
@@ -26,12 +27,24 @@ namespace Aether.Gameplay.Menus
     public static class MenuFlow
     {
         /// <summary>Saves, fades the menu's music, and hands over to the region.</summary>
-        public static void PlayRegion()
+        /// <returns>False when the save or scene prerequisite fails; the menu remains usable.</returns>
+        public static bool PlayRegion()
         {
+            if (MenuTransition.Instance.Busy) return false;
+            if (!Application.CanStreamedLevelBeLoaded(Scenes.Boot))
+            {
+                Debug.LogError($"[menu] The boot scene '{Scenes.Boot}' is not in the build settings.");
+                return false;
+            }
+
             // Progress first: the menu is the last moment before a load in which a write is free
             // (the player has already stopped pressing things) and the first moment after which the
-            // object doing the writing is gone.
-            SaveHost.SaveNow();
+            // object doing the writing is gone. Never leave the menu after a failed write.
+            if (!SaveHost.SaveNow())
+            {
+                Debug.LogError("[menu] The run could not be saved; the region was not opened.");
+                return false;
+            }
 
             MenuAudio audio = MenuAudio.Instance;
             if (audio != null)
@@ -43,6 +56,7 @@ namespace Aether.Gameplay.Menus
 
             GameLaunch.RequestPlay();
             MenuTransition.Instance.GoToScene(Scenes.Boot);
+            return true;
         }
 
         /// <summary>
@@ -53,11 +67,24 @@ namespace Aether.Gameplay.Menus
         /// rather than a guarantee — Android is free to keep the process — and the write before it is
         /// what makes that harmless.
         /// </remarks>
-        public static void Quit()
+        public static bool Quit()
         {
-            SaveHost.SaveNow();
-            AetherSettings.Flush();
+            GameSession session = GameSession.Instance;
+            bool hasSaveTarget = (session != null && session.Store != null) || SaveHost.HasStoredProgress;
+            if (hasSaveTarget && !SaveHost.SaveNow())
+            {
+                Debug.LogError("[menu] The run could not be saved; the game stayed open.");
+                return false;
+            }
+
+            if (!AetherSettings.Flush())
+            {
+                Debug.LogError("[settings] One or more settings changes could not be saved; the game stayed open.");
+                return false;
+            }
+
             Application.Quit();
+            return true;
         }
     }
 }

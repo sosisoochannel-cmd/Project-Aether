@@ -45,11 +45,12 @@ namespace Aether.Gameplay.Storage
         public bool TryLoad(out SaveData data)
         {
             data = null;
-            if (!_file.TryRead(out SaveData stored)) return false;
+            if (!_file.TryRead(out SaveData stored) || stored == null
+                || stored.Version > SaveData.CurrentVersion) return false;
 
-            // Guard the shape rather than trusting the file: a save with a missing section would
-            // otherwise null-reference the first system that reads it.
-            if (stored.Progression == null || stored.World == null) return false;
+            // Older documents may not have every section the current runtime knows about. Repair
+            // their shape rather than losing a readable run over a newly added field.
+            stored.RepairMissingSections();
 
             data = stored;
             return true;
@@ -57,28 +58,27 @@ namespace Aether.Gameplay.Storage
 
         /// <summary>Writes progress, unless the player has turned automatic writes off.</summary>
         /// <remarks>This is the signature <c>ISaveStore</c> declares, and every gameplay call arrives here.</remarks>
-        public void Save(SaveData data)
+        public bool Save(SaveData data)
         {
-            if (!AutomaticWrites) return;
-            Save(data, false);
+            if (!AutomaticWrites) return true;
+            return Save(data, false);
         }
 
-        /// <summary>Writes progress regardless of the autosave preference.</summary>
-        /// <remarks>
-        /// The explicit path, used by "Save now" and by the two transitions that must not lose the
-        /// player's progress — starting a new game and closing the menu.
-        /// </remarks>
-        public void Save(SaveData data, bool explicitWrite)
+        /// <summary>Writes progress regardless of the autosave preference when explicitly requested.</summary>
+        public bool Save(SaveData data, bool explicitWrite)
         {
-            if (data == null) return;
-            if (!explicitWrite && !AutomaticWrites) return;
+            if (data == null) return false;
+            if (!explicitWrite && !AutomaticWrites) return true;
 
-            _file.Write(data);
+            var snapshot = new SaveData();
+            snapshot.CopyFrom(data);
+            snapshot.Version = SaveData.CurrentVersion;
+            return _file.Write(snapshot);
         }
 
-        public void Clear()
+        public bool Clear()
         {
-            _file.Delete();
+            return _file.Delete();
         }
 
         public override string ToString()

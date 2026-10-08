@@ -30,6 +30,8 @@ namespace Aether.Gameplay.Menus.Screens
     public sealed class ChaptersScreen : MenuScreen
     {
         private MenuHeader _header;
+        private ScrollRect _scroll;
+        private RectTransform _content;
         private MenuEntryPanel _regions;
         private MenuButton[] _rows;
         private Text _body;
@@ -49,7 +51,14 @@ namespace Aether.Gameplay.Menus.Screens
             _header = MenuHeader.Create(Rect, MenuStrings.Get("chapters.title"), Nav, true);
             _header.Back.Activated = Leave;
 
-            _regions = MenuEntryPanel.Create("Regions", Rect, Nav, "chapters.region", 1);
+            _scroll = MenuUi.CreateScroll("Chapter Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
+
+            _regions = MenuEntryPanel.Create("Regions", _content, Nav, "chapters.region", 1);
 
             _rows = new MenuButton[ChapterCatalog.All.Length];
             for (int i = 0; i < ChapterCatalog.All.Length; i++)
@@ -76,14 +85,14 @@ namespace Aether.Gameplay.Menus.Screens
                 _rows[i] = row;
             }
 
-            _body = MenuUi.CreateText("Body", Rect, MenuStrings.Get("chapters.body"),
+            _body = MenuUi.CreateText("Body", _content, MenuStrings.Get("chapters.body"),
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkMuted,
                                       TextAnchor.UpperLeft);
             _body.rectTransform.anchorMin = new Vector2(0f, 1f);
             _body.rectTransform.anchorMax = new Vector2(0f, 1f);
             _body.rectTransform.pivot = new Vector2(0f, 1f);
 
-            _lockedNote = MenuUi.CreateTrackedText("Note", Rect, MenuStrings.Get("chapters.notInBuild.help"),
+            _lockedNote = MenuUi.CreateTrackedText("Note", _content, MenuStrings.Get("chapters.notInBuild.help"),
                                                    MenuTheme.Metrics.SectionLabelSize,
                                                    MenuTheme.Palette.InkFaint,
                                                    MenuTheme.Metrics.SectionLabelTracking);
@@ -96,18 +105,23 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float top = MenuTheme.Metrics.ScreenHeaderPitch + MenuTheme.Metrics.ScreenHeaderGap;
-            float box = Mathf.Max(120f, height - top);
+            float viewportHeight = Mathf.Max(120f, height - top);
+            RectTransform scrollRect = _scroll.GetComponent<RectTransform>();
+            MenuUi.Corner(scrollRect, new Vector2(0f, 1f), new Vector2(0f, -top),
+                          new Vector2(width, viewportHeight), new Vector2(0f, 1f));
+
             float column = Mathf.Min(width, width * MenuTheme.Metrics.LeftColumnFraction * 1.6f);
+            _regions.Rect.anchoredPosition = Vector2.zero;
+            _regions.Layout(column, viewportHeight);
 
-            _regions.Rect.anchoredPosition = new Vector2(0f, -top);
-            _regions.Layout(column, box);
-
-            float bodyTop = top + _regions.Height + MenuTheme.Metrics.ClusterGap;
+            float bodyTop = _regions.Height + MenuTheme.Metrics.ClusterGap;
             _body.rectTransform.sizeDelta = new Vector2(column, 90f);
             _body.rectTransform.anchoredPosition = new Vector2(0f, -bodyTop);
 
             _lockedNote.rectTransform.sizeDelta = new Vector2(column, MenuTheme.Metrics.SectionLabelHeight);
             _lockedNote.rectTransform.anchoredPosition = new Vector2(0f, -(bodyTop + 96f));
+            MenuUi.SetContentHeight(_content, bodyTop + 96f + MenuTheme.Metrics.SectionLabelHeight
+                                              + MenuTheme.Metrics.ParagraphBlockPadding);
         }
 
         /// <inheritdoc />
@@ -141,6 +155,7 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Refresh()
         {
             SaveData run = SaveHost.Peek();
+            _body.text = MenuStrings.Get("chapters.body");
             _regions.Refresh();
 
             for (int i = 0; i < _rows.Length; i++)
@@ -188,28 +203,55 @@ namespace Aether.Gameplay.Menus.Screens
             bool resume = stored != null && stored.Meta != null && stored.Meta.ChapterId == chapter.Id
                           && !stored.World.IsSet(ChapterCatalog.CompletionFlagOf(chapter.Id));
 
-            if (resume && SaveHost.ContinueMostRecent())
+            if (resume)
             {
-                MenuAudio.Confirm();
-                Host.PlayRegion();
+                int describedSlot = SaveHost.DescribedSlot();
+                if (describedSlot > 0 && SaveHost.LoadSlot(describedSlot))
+                {
+                    MenuAudio.Confirm();
+                    if (!Host.PlayRegion()) _body.text = MenuStrings.Get("menu.start.failed");
+                    return;
+                }
+
+                _body.text = MenuStrings.Get("menu.continue.unavailable");
                 return;
             }
 
             int free = SaveSlots.FirstEmpty();
             if (free > 0)
             {
+                if (SaveHost.BeginNewGameIn(free, chapter.Id) == null)
+                {
+                    _body.text = MenuStrings.Get("slots.new.failed");
+                    return;
+                }
+
                 MenuAudio.Confirm();
-                SaveHost.BeginNewGameIn(free, chapter.Id);
-                Host.PlayRegion();
+                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
                 return;
             }
 
-            // Every slot is in use, so starting this chapter means replacing a run. That is the main
-            // menu's question, and it is asked here in the same words rather than with a new one.
-            EnsureDialog().Open(MenuStrings.Get("menu.newGame"), MenuStrings.Get("menu.newGame.confirm"), () =>
+            // All slots are occupied. Name the exact run that would be replaced, including the
+            // damaged-save case, and do not start the chapter unless the fresh snapshot was written.
+            int replacement = SaveSlots.LeastRecent();
+            if (replacement < 1) return;
+
+            SaveSlotInfo replacing = SaveSlots.Describe(replacement);
+            string body = replacing.Corrupt
+                ? MenuStrings.Format("slots.damaged.replace.body", replacement)
+                : replacing.Unavailable
+                    ? MenuStrings.Format("slots.unavailable.replace.body", replacement)
+                    : MenuStrings.Format("slots.new.body", replacement);
+
+            EnsureDialog().Open(MenuStrings.Get("slots.new.title"), body, () =>
             {
-                SaveHost.BeginNewGameIn(SaveSlots.LeastRecent(), chapter.Id);
-                Host.PlayRegion();
+                if (SaveHost.BeginNewGameIn(replacement, chapter.Id, true) == null)
+                {
+                    _body.text = MenuStrings.Get("slots.new.failed");
+                    return;
+                }
+
+                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
             });
         }
     }

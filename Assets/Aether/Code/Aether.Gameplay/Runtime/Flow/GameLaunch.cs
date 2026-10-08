@@ -5,33 +5,39 @@ namespace Aether.Gameplay.Flow
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The menu cannot start the region itself: the region is built by a scene, and a scene load
-    /// destroys the object that asked for it. So the request is written down here, the boot scene
-    /// reads it once and clears it, and what happens next is decided by one piece of code rather
-    /// than by whichever scene happens to be loaded first.
+    /// Scene loads destroy the object that asked for them, so a small explicit intent crosses the
+    /// boundary instead: Boot consumes a play request, while the menu consumes a request to open
+    /// Settings. Each is read-and-clear, so a fulfilled request cannot unexpectedly run again on a
+    /// later visit.
     /// </para>
     /// <para>
-    /// It is read-and-clear on purpose. A request that survives being served is a request that will
-    /// be served again — the next time the player opens the menu and presses nothing at all — and a
-    /// game that starts a region by itself is a bug that is nearly impossible to reproduce.
-    /// </para>
-    /// <para>
-    /// This is deliberately not a navigation stack. There are two destinations and one question
-    /// ("did the player ask to play?"); a stack would be a system with its own bugs and nothing to
-    /// do.
+    /// This is deliberately not a navigation stack. It carries only these two hand-off intents;
+    /// ordinary screen history stays with <see cref="Aether.Gameplay.Menus.MenuSystem"/>.
     /// </para>
     /// </remarks>
     public static class GameLaunch
     {
         private static bool _playRequested;
+        private static bool _openSettingsRequested;
 
         /// <summary>True while a request is waiting to be served.</summary>
         public static bool IsPlayRequested => _playRequested;
+
+        /// <summary>True while the menu has been asked to open its Settings screen.</summary>
+        public static bool IsOpenSettingsRequested => _openSettingsRequested;
 
         /// <summary>Asks for the region to be started the next time boot runs.</summary>
         public static void RequestPlay()
         {
             _playRequested = true;
+            _openSettingsRequested = false;
+        }
+
+        /// <summary>Opens the menu on Settings after a scene hand-off, such as from the pause menu.</summary>
+        public static void RequestOpenSettings()
+        {
+            _playRequested = false;
+            _openSettingsRequested = true;
         }
 
         /// <summary>
@@ -45,10 +51,25 @@ namespace Aether.Gameplay.Flow
             return requested;
         }
 
+        /// <summary>Reads and clears the pending menu-settings destination.</summary>
+        public static bool TakeOpenSettingsRequest()
+        {
+            bool requested = _openSettingsRequested;
+            _openSettingsRequested = false;
+            return requested;
+        }
+
+        /// <summary>Clears only a pending play request after a failed scene load.</summary>
+        public static void ClearPlayRequest()
+        {
+            _playRequested = false;
+        }
+
         /// <summary>Drops any pending request. Used by tests and by a deliberate return to the menu.</summary>
         public static void Clear()
         {
             _playRequested = false;
+            _openSettingsRequested = false;
         }
     }
 }

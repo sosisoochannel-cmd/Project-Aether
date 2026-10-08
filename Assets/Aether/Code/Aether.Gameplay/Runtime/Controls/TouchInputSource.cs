@@ -24,7 +24,6 @@ namespace Aether.Gameplay.Controls
         private bool _jumpLatch;
         private bool _attackLatch;
         private bool _dodgeLatch;
-        private bool _interactLatch;
         private bool _enabled = true;
 
         /// <inheritdoc />
@@ -41,9 +40,6 @@ namespace Aether.Gameplay.Controls
 
         /// <inheritdoc />
         public bool DodgePressed => _enabled && _dodgeLatch;
-
-        /// <inheritdoc />
-        public bool InteractPressed => _enabled && _interactLatch;
 
         /// <inheritdoc />
         public bool Enabled
@@ -85,12 +81,6 @@ namespace Aether.Gameplay.Controls
             if (_enabled) _dodgeLatch = true;
         }
 
-        /// <summary>Finger down on interact.</summary>
-        public void PressInteract()
-        {
-            if (_enabled) _interactLatch = true;
-        }
-
         /// <summary>Drops every held and latched value. Called when the overlay is hidden.</summary>
         public void Reset()
         {
@@ -99,7 +89,6 @@ namespace Aether.Gameplay.Controls
             _jumpLatch = false;
             _attackLatch = false;
             _dodgeLatch = false;
-            _interactLatch = false;
         }
 
         /// <inheritdoc />
@@ -111,7 +100,5 @@ namespace Aether.Gameplay.Controls
         /// <inheritdoc />
         public void ConsumeDodge() => _dodgeLatch = false;
 
-        /// <inheritdoc />
-        public void ConsumeInteract() => _interactLatch = false;
     }
 }

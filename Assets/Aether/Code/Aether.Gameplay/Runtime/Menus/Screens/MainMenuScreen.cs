@@ -71,6 +71,11 @@ namespace Aether.Gameplay.Menus.Screens
         protected override void Construct()
         {
             _scroll = MenuUi.CreateScroll("Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
 
             // The scroll stops above the footer: the version line is a fact about the build, not part
             // of the list, and it should not scroll away when the list is long.
@@ -165,12 +170,26 @@ namespace Aether.Gameplay.Menus.Screens
         /// <inheritdoc />
         public override void Refresh()
         {
-            bool stored = SaveHost.HasStoredProgress;
+            SaveSlotInfo[] slots = SaveHost.DescribeSlots();
+            bool stored = false;
+            bool anythingStored = false;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                stored |= slots[i].Playable;
+                anythingStored |= slots[i].HasAnything;
+            }
 
             if (_title != null) _title.Refresh();
+            if (_version != null)
+                _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
+                                             MenuTheme.Metrics.VersionTracking);
 
-            // CONTINUE is a real row only when there is something to continue. Locked, it says why.
-            _continue.SetLocked(!stored, MenuStrings.Get("menu.continue.none"));
+            // CONTINUE is a real row only when there is something this build can load. A corrupt or
+            // newer-build file is not called an empty slot: it stays visible in the slot manager.
+            _continue.SetMeta(MenuStrings.Get("menu.continue.meta"));
+            _continue.SetLocked(!stored, MenuStrings.Get(anythingStored
+                ? "menu.continue.unavailable"
+                : "menu.continue.none"));
             _continue.SetAccented(stored);
 
             // The clusters redraw themselves in place: a change of contrast has to reach the rows
@@ -223,8 +242,16 @@ namespace Aether.Gameplay.Menus.Screens
 
         private void Continue()
         {
+            if (!SaveHost.ContinueMostRecent())
+            {
+                Refresh();
+                _continue.SetMeta(MenuStrings.Get("menu.continue.unavailable"));
+                return;
+            }
+
             MenuAudio.Confirm();
-            Host.PlayRegion();
+            if (!Host.PlayRegion())
+                _continue.SetMeta(MenuStrings.Get("menu.start.failed"));
         }
 
         private void NewGame()
@@ -242,8 +269,15 @@ namespace Aether.Gameplay.Menus.Screens
         {
             if (_confirm == null || _confirm.IsOpen) return;
 
-            _confirm.Open(MenuStrings.Get("menu.quit"), MenuStrings.Get("menu.quit.confirm"),
-                          MenuFlow.Quit);
+            _confirm.Open(MenuStrings.Get("menu.quit"), MenuStrings.Get("menu.quit.confirm"), Quit);
+        }
+
+        private void Quit()
+        {
+            if (MenuFlow.Quit()) return;
+
+            _version.text = MenuUi.Track(MenuStrings.Get("menu.quit.saveFailed"),
+                                         MenuTheme.Metrics.VersionTracking);
         }
 
         private void Request(MenuScreenId destination)

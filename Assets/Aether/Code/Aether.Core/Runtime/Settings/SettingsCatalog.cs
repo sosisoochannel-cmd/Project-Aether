@@ -211,7 +211,7 @@ namespace Aether.Core.Settings
                 "MenuBackdrop detail + QualitySettings.SetQualityLevel"),
 
             new SettingDefinition("graphics.frameRate", SettingCategory.Graphics, SettingKind.Choice,
-                "setting.frameRate", "setting.frameRate.help", 0f, 60f, 0f,
+                "setting.frameRate", "setting.frameRate.help", 30f, 120f, 0f,
                 new[] { "setting.fps.30", "setting.fps.60", "setting.fps.max" },
                 new[] { 30f, 60f, 120f },
                 "Application.targetFrameRate + QualitySettings.vSyncCount"),
@@ -272,11 +272,23 @@ namespace Aether.Core.Settings
             // -- Language. The options are the languages this build can actually draw; the ones it
             //    cannot are named on the screen by a note row rather than offered and then failed.
             new SettingDefinition("language.primary", SettingCategory.Language, SettingKind.Choice,
-                "setting.language", "setting.language.help", 0f, 0f, 1f,
-                LanguageOptionKeys(), LanguageOptionValues(),
+                "setting.language", "setting.language.help", LanguageOptionMinimum(),
+                LanguageOptionMaximum(), 1f, LanguageOptionKeys(), LanguageOptionValues(),
                 "LanguageService.Set -> GameSettings.Language -> Aether/settings.json"),
 
         };
+
+        private static float LanguageOptionMinimum()
+        {
+            float[] values = LanguageOptionValues();
+            return values.Length == 0 ? 0f : values[0];
+        }
+
+        private static float LanguageOptionMaximum()
+        {
+            float[] values = LanguageOptionValues();
+            return values.Length == 0 ? 0f : values[values.Length - 1];
+        }
 
         /// <summary>
         /// Localisation keys for the language row's options, in catalogue order.

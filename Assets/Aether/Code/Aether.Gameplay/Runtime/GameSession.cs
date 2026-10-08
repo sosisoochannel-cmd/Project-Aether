@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Aether.Core.Events;
 using Aether.Core.Progression;
 using UnityEngine;
@@ -16,9 +17,9 @@ namespace Aether.Gameplay
     /// definition of "the player just unlocked something" lives in one method.
     /// </para>
     /// <para>
-    /// <b>Persistence is not implemented.</b> <see cref="Store"/> is the hook a later save layer plugs
-    /// into. Nothing in this region writes to disk, which is deliberate: shipping a save format before
-    /// the region's progression is final would guarantee a migration.
+    /// The session owns the complete snapshot; its selected <see cref="ISaveStore"/> loads and writes
+    /// that snapshot. Automatic requests obey the autosave preference, while an explicit write is a
+    /// separate operation owned by the pause and data screens.
     /// </para>
     /// <para>
     /// There is exactly one session per running game. It is created by the boot flow and is not
@@ -146,7 +147,25 @@ namespace Aether.Gameplay
             bool recorded = Collection.Record(string.IsNullOrEmpty(collectionId) ? flagId : collectionId);
             bool set = SetWorldFlag(flagId);
 
+            // SetWorldFlag already saves when the flag is new. If repairing an older snapshot whose
+            // flag exists but whose collection entry does not, the collection still needs its own
+            // write or the menu would keep losing the recovered finding.
+            if (recorded && !set) RequestSave();
+
             return recorded || set;
+        }
+
+        /// <summary>Records a newly met character, announces it and asks the save layer to persist it.</summary>
+        /// <returns>True only the first time this character is met in the stored run.</returns>
+        public bool RecordCharacterMet(string characterId)
+        {
+            if (string.IsNullOrEmpty(characterId)) return false;
+            if (Save.Characters == null) Save.Characters = new CharacterState();
+            if (!Save.Characters.Record(characterId)) return false;
+
+            Events.Publish(new CharacterMetEvent(characterId));
+            RequestSave();
+            return true;
         }
 
         /// <summary>Counts a death in this run and announces it.</summary>
@@ -206,19 +225,25 @@ namespace Aether.Gameplay
         /// Asks the storage backend to persist. Silently does nothing when no backend is installed,
         /// so gameplay code can call this unconditionally.
         /// </summary>
-        public void RequestSave()
+        public bool RequestSave()
         {
-            if (Store == null) return;
+            if (Store == null) return false;
 
             try
             {
-                Store.Save(Save);
+                if (Store.Save(Save)) return true;
+
+                var failure = new IOException("The automatic save could not be written.");
+                Debug.LogException(failure, this);
+                SaveFailed?.Invoke(failure);
+                return false;
             }
             catch (Exception ex)
             {
                 // A failed save must never take the game down mid-play. Surface it and carry on.
                 Debug.LogException(ex, this);
                 SaveFailed?.Invoke(ex);
+                return false;
             }
         }
 
@@ -229,29 +254,40 @@ namespace Aether.Gameplay
         public bool TryLoadFromStore()
         {
             if (Store == null) return false;
-            if (!Store.TryLoad(out SaveData loaded) || loaded == null) return false;
 
-            loaded.Progression.CopyTo(Save.Progression);
-            loaded.World.CopyTo(Save.World);
-            return true;
+            try
+            {
+                if (!Store.TryLoad(out SaveData loaded) || loaded == null) return false;
+                loaded.RepairMissingSections();
+                Save.CopyFrom(loaded);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex, this);
+                return false;
+            }
         }
 
         /// <summary>Discards all progress and starts a fresh session.</summary>
-        public void StartNewGame(bool clearStore)
+        /// <returns>False when clearing the current stored document failed.</returns>
+        public bool StartNewGame(bool clearStore)
         {
-            Save.ResetForNewGame();
-
             if (clearStore && Store != null)
             {
                 try
                 {
-                    Store.Clear();
+                    if (!Store.Clear()) return false;
                 }
                 catch (Exception ex)
                 {
                     Debug.LogException(ex, this);
+                    return false;
                 }
             }
+
+            Save.ResetForNewGame();
+            return true;
         }
     }
 }

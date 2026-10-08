@@ -111,8 +111,8 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Raised after a state transition, with (previous, current).</summary>
         public event Action<EnemyStateId, EnemyStateId> StateChanged;
 
-        /// <summary>Raised when this enemy first notices the player.</summary>
-        public event Action PlayerSpotted;
+        /// <summary>Raised when this enemy first notices the player, with this controller as the source.</summary>
+        public event Action<EnemyController> PlayerSpotted;
 
         /// <summary>The archetype definition driving this enemy.</summary>
         public EnemyDefinition Definition => _definition;
@@ -480,7 +480,7 @@ namespace Aether.Gameplay.Enemies
                 {
                     c._hasAlerted = true;
                     c.FireCue(c._definition.AlertCueId);
-                    c.PlayerSpotted?.Invoke();
+                    c.PlayerSpotted?.Invoke(c);
                 }
             }
 

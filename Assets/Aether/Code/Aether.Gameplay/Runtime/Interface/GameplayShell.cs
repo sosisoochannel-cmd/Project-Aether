@@ -59,6 +59,7 @@ namespace Aether.Gameplay.Interface
 
         private float _clock;
         private float _autosave;
+        private float _saveFailureAnnounceAfter = float.NegativeInfinity;
         private bool _completed;
         private bool _revealed;
         private bool _leaving;
@@ -107,6 +108,7 @@ namespace Aether.Gameplay.Interface
                            PlayerController player, TouchControlsView touchControls)
         {
             _session = session;
+            _session.SaveFailed += OnSaveFailed;
             _level = level;
             _director = director;
             _player = player;
@@ -134,6 +136,7 @@ namespace Aether.Gameplay.Interface
             AchievementService.Attach(_session, _level);
 
             _session.Events.Subscribe<WorldFlagSetEvent>(OnWorldFlag);
+            _session.Events.Subscribe<CharacterMetEvent>(OnCharacterMet);
 
             if (_completed) ShowCompletion();
         }
@@ -152,9 +155,21 @@ namespace Aether.Gameplay.Interface
             GameplayCurtain.Reveal();
         }
 
+        private void OnApplicationPause(bool paused)
+        {
+            // A suspension is another automatic save point, but still obeys the player's choice:
+            // SaveSlotStore ignores this request when autosave is disabled.
+            if (paused && _session != null) _session.RequestSave();
+        }
+
         private void OnDestroy()
         {
-            if (_session != null) _session.Events.Unsubscribe<WorldFlagSetEvent>(OnWorldFlag);
+            if (_session != null)
+            {
+                _session.Events.Unsubscribe<WorldFlagSetEvent>(OnWorldFlag);
+                _session.Events.Unsubscribe<CharacterMetEvent>(OnCharacterMet);
+                _session.SaveFailed -= OnSaveFailed;
+            }
 
             AchievementService.Detach();
 
@@ -184,8 +199,7 @@ namespace Aether.Gameplay.Interface
             if (_autosave >= AutosaveSeconds)
             {
                 _autosave = 0f;
-                _session.AddPlayTime(0f);
-                SaveHost.SaveNow();
+                _session.RequestSave();
             }
         }
 
@@ -225,6 +239,24 @@ namespace Aether.Gameplay.Interface
             ShowCompletion();
         }
 
+        private void OnCharacterMet(CharacterMetEvent raised)
+        {
+            if (_hud == null) return;
+
+            CharacterDefinition character = CharacterCatalog.Find(raised.CharacterId);
+            if (character == null) return;
+
+            _hud.Announce("characters.met.title", MenuStrings.Get(character.TitleKey));
+        }
+
+        private void OnSaveFailed(System.Exception _)
+        {
+            if (_hud == null || Time.unscaledTime < _saveFailureAnnounceAfter) return;
+
+            _saveFailureAnnounceAfter = Time.unscaledTime + 8f;
+            _hud.Announce("save.failed.title", MenuStrings.Get("save.failed.body"));
+        }
+
         /// <summary>
         /// The end of the region: the run is written, and the player is told what they did.
         /// </summary>
@@ -244,11 +276,12 @@ namespace Aether.Gameplay.Interface
             // the number that gets written.
             _session.AddPlayTime(_clock);
             _clock = 0f;
-            SaveHost.SaveNow();
+            bool saved = SaveHost.SaveNow();
 
             if (_pause != null && _pause.IsOpen) _pause.Close();
 
             _complete.Open();
+            if (!saved) _complete.ShowSaveFailure();
         }
 
         private void OnKeepExploring()
@@ -261,8 +294,13 @@ namespace Aether.Gameplay.Interface
 
         private void OnLeaveAfterCompletion()
         {
+            if (!SaveHost.SaveNow())
+            {
+                _complete.ShowSaveFailure();
+                return;
+            }
+
             _leaving = true;
-            SaveHost.SaveNow();
             GameplayCurtain.Hold("loading.title", "loading.leaving");
             GameplayCurtain.LeaveToMenu();
         }

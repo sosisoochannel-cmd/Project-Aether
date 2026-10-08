@@ -428,8 +428,8 @@ namespace Aether.Gameplay.Menus.Components
 
             if (_locked)
             {
-                label = MenuTheme.Palette.Locked;
-                caret = MenuTheme.Palette.Locked;
+                label = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
+                caret = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
             }
             else
             {
@@ -497,7 +497,11 @@ namespace Aether.Gameplay.Menus.Components
             // Geometry is instant: the caret appears and the text slides the frame the row is
             // selected, which is what makes the menu feel like it heard the finger.
             if (_caret != null) _caret.gameObject.SetActive(!_locked && !_informational);
-            if (_icon != null) _icon.gameObject.SetActive(_locked);
+            if (_icon != null)
+            {
+                _icon.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
+                _icon.gameObject.SetActive(_locked);
+            }
 
             float x = _textBaseX + nudge;
             _label.rectTransform.anchoredPosition = new Vector2(x, _labelY);

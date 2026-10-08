@@ -27,6 +27,8 @@ namespace Aether.Gameplay.Menus.Screens
     public sealed class CollectionScreen : MenuScreen
     {
         private MenuHeader _header;
+        private ScrollRect _scroll;
+        private RectTransform _content;
         private Text _body;
         private MenuEntryPanel[] _categories;
         private MenuButton[][] _rows;
@@ -52,7 +54,14 @@ namespace Aether.Gameplay.Menus.Screens
             _header = MenuHeader.Create(Rect, MenuStrings.Get("collection.title"), Nav, true);
             _header.Back.Activated = Leave;
 
-            _body = MenuUi.CreateText("Body", Rect, MenuStrings.Get("collection.body"),
+            _scroll = MenuUi.CreateScroll("Collection Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
+
+            _body = MenuUi.CreateText("Body", _content, MenuStrings.Get("collection.body"),
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkMuted,
                                       TextAnchor.UpperLeft);
             _body.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -68,7 +77,7 @@ namespace Aether.Gameplay.Menus.Screens
             for (int c = 0; c < categories.Length; c++)
             {
                 CollectionCategory category = categories[c];
-                _categories[c] = MenuEntryPanel.Create(category.Id, Rect, Nav, category.TitleKey, 1);
+                _categories[c] = MenuEntryPanel.Create(category.Id, _content, Nav, category.TitleKey, 1);
 
                 _rows[c] = new MenuButton[category.Entries.Length];
                 for (int e = 0; e < category.Entries.Length; e++)
@@ -85,7 +94,7 @@ namespace Aether.Gameplay.Menus.Screens
                                                      MenuButton.Weight.Secondary);
                 _counts[c].SetInformational(true);
 
-                _notes[c] = MenuUi.CreateText(category.Id + "Note", Rect, MenuStrings.Get(category.NoteKey),
+                _notes[c] = MenuUi.CreateText(category.Id + "Note", _content, MenuStrings.Get(category.NoteKey),
                                               MenuTheme.Metrics.SettingHelpSize,
                                               MenuTheme.Palette.InkFaint, TextAnchor.UpperLeft);
                 _notes[c].rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -98,22 +107,28 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float top = MenuTheme.Metrics.ScreenHeaderPitch + MenuTheme.Metrics.ScreenHeaderGap;
+            float viewportHeight = Mathf.Max(120f, height - top);
+            RectTransform scrollRect = _scroll.GetComponent<RectTransform>();
+            MenuUi.Corner(scrollRect, new Vector2(0f, 1f), new Vector2(0f, -top),
+                          new Vector2(width, viewportHeight), new Vector2(0f, 1f));
+
             float column = Mathf.Min(width, width * MenuTheme.Metrics.LeftColumnFraction * 1.7f);
-
             _body.rectTransform.sizeDelta = new Vector2(column, 70f);
-            _body.rectTransform.anchoredPosition = new Vector2(0f, -top);
+            _body.rectTransform.anchoredPosition = Vector2.zero;
 
-            float cursor = top + 84f;
+            float cursor = 84f;
             for (int c = 0; c < _categories.Length; c++)
             {
                 _categories[c].Rect.anchoredPosition = new Vector2(0f, -cursor);
-                _categories[c].Layout(column, Mathf.Max(80f, height - cursor));
+                _categories[c].Layout(column, Mathf.Max(80f, viewportHeight - cursor));
                 cursor += _categories[c].Height + 8f;
 
                 _notes[c].rectTransform.sizeDelta = new Vector2(column, 40f);
                 _notes[c].rectTransform.anchoredPosition = new Vector2(0f, -(cursor + 16f));
                 cursor += 24f + MenuTheme.Metrics.ClusterGap;
             }
+
+            MenuUi.SetContentHeight(_content, cursor + MenuTheme.Metrics.ParagraphBlockPadding);
         }
 
         /// <inheritdoc />

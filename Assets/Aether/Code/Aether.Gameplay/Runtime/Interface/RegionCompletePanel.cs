@@ -32,6 +32,11 @@ namespace Aether.Gameplay.Interface
 
         private MenuCanvas _canvas;
         private SafeAreaFitter _safeArea;
+        private ScrollRect _scroll;
+        private RectTransform _safeRoot;
+        private RectTransform _content;
+        private RectTransform _column;
+        private Vector2 _safeBox;
         private CanvasGroup _group;
         private RectTransform _overlay;
         private MenuEntryPanel _rows;
@@ -62,6 +67,12 @@ namespace Aether.Gameplay.Interface
             get { return _rows; }
         }
 
+        /// <summary>Reports a save failure without hiding the completed run's summary or choices.</summary>
+        public void ShowSaveFailure()
+        {
+            if (_body != null) _body.text = MenuStrings.Get("complete.saveFailed");
+        }
+
         /// <summary>Whether the panel is on screen.</summary>
         public bool IsOpen
         {
@@ -85,6 +96,7 @@ namespace Aether.Gameplay.Interface
 
             Refresh();
             _overlay.gameObject.SetActive(true);
+            Layout();
             _group.alpha = 1f;
             _group.blocksRaycasts = true;
             MenuReveal.Attach(_rows.Rect).Play(MenuTheme.Motion.Entrance(MenuPreferences.ReducedMotion),
@@ -116,9 +128,6 @@ namespace Aether.Gameplay.Interface
             _canvas.GameObject.transform.SetParent(transform, false);
             _canvas.SetScale(MenuPreferences.ClampedUiScale);
 
-            _safeArea = _canvas.SafeRoot.gameObject.AddComponent<SafeAreaFitter>();
-            _safeArea.Mode = MenuPreferences.SafeArea;
-
             _overlay = MenuUi.CreateNode("Overlay", _canvas.Root);
             MenuUi.Stretch(_overlay);
             _group = MenuUi.Group(_overlay);
@@ -126,15 +135,28 @@ namespace Aether.Gameplay.Interface
             Image scrim = MenuUi.Fill("Scrim", _overlay, MenuTheme.Palette.Scrim, true);
             MenuUi.Stretch(scrim.rectTransform);
 
+            _safeRoot = MenuUi.CreateNode("Safe", _overlay);
+            MenuUi.Stretch(_safeRoot);
+            _safeArea = _safeRoot.gameObject.AddComponent<SafeAreaFitter>();
+            _safeArea.Mode = MenuPreferences.SafeArea;
+            _safeArea.DimensionsChanged += OnSafeAreaDimensionsChanged;
+
+            _scroll = MenuUi.CreateScroll("Complete Scroll", _safeRoot, out _content);
+            MenuUi.Stretch(_scroll.GetComponent<RectTransform>());
+
             _nav = new MenuNav();
+            _nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
 
-            RectTransform column = MenuUi.CreateNode("Column", _overlay);
-            column.anchorMin = new Vector2(0.5f, 0.5f);
-            column.anchorMax = new Vector2(0.5f, 0.5f);
-            column.pivot = new Vector2(0.5f, 0.5f);
-            column.sizeDelta = new Vector2(900f, 780f);
+            _column = MenuUi.CreateNode("Column", _content);
+            _column.anchorMin = new Vector2(0.5f, 1f);
+            _column.anchorMax = new Vector2(0.5f, 1f);
+            _column.pivot = new Vector2(0.5f, 1f);
 
-            _rows = MenuEntryPanel.Create("Rows", column, _nav, "complete.title", 1);
+            _rows = MenuEntryPanel.Create("Rows", _column, _nav, "complete.title", 1);
             MenuButton keep = _rows.AddEntry("Keep", MenuStrings.Get("complete.continue"),
                                              MenuButton.Weight.Primary);
             MenuButton leave = _rows.AddEntry("Leave", MenuStrings.Get("complete.menu"),
@@ -158,10 +180,10 @@ namespace Aether.Gameplay.Interface
                               });
             };
 
-            _body = MenuUi.CreateText("Body", column, MenuStrings.Get("complete.body"),
+            _body = MenuUi.CreateText("Body", _column, MenuStrings.Get("complete.body"),
                                       MenuTheme.Metrics.ParagraphSize, MenuTheme.Palette.InkMuted,
                                       TextAnchor.UpperCenter);
-            _stats = MenuUi.CreateText("Stats", column, string.Empty, MenuTheme.Metrics.SettingHelpSize,
+            _stats = MenuUi.CreateText("Stats", _column, string.Empty, MenuTheme.Metrics.SettingHelpSize,
                                        MenuTheme.Palette.Accent, TextAnchor.UpperCenter);
 
             _confirm = MenuConfirmPanel.Create("Confirm", _overlay, _nav);
@@ -174,10 +196,16 @@ namespace Aether.Gameplay.Interface
 
         private void Layout()
         {
-            RectTransform column = (RectTransform)_rows.transform.parent;
-            float width = column.sizeDelta.x;
+            if (_rows == null || _safeRoot == null || _scroll == null) return;
 
-            _rows.Layout(width, 0f);
+            _safeBox = _safeRoot.rect.size;
+            float safeWidth = _safeBox.x;
+            float safeHeight = _safeBox.y;
+            if (safeWidth <= 0f) safeWidth = Screen.width;
+            if (safeHeight <= 0f) safeHeight = Screen.height;
+
+            float width = Mathf.Min(900f, Mathf.Max(280f, safeWidth - 48f));
+            _rows.Layout(width, safeHeight);
             _rows.Rect.anchorMin = new Vector2(0f, 1f);
             _rows.Rect.anchorMax = new Vector2(0f, 1f);
             _rows.Rect.pivot = new Vector2(0f, 1f);
@@ -186,8 +214,21 @@ namespace Aether.Gameplay.Interface
             MenuUi.Row(_body.rectTransform, _rows.Height + 28f, 90f);
             MenuUi.Row(_stats.rectTransform, _rows.Height + 126f, 60f);
 
-            column.sizeDelta = new Vector2(width, _rows.Height + 200f);
-            column.anchoredPosition = Vector2.zero;
+            float desiredHeight = _rows.Height + 200f;
+            float contentHeight = Mathf.Max(safeHeight, desiredHeight + 32f);
+            _column.sizeDelta = new Vector2(width, desiredHeight);
+            _column.anchoredPosition = new Vector2(0f, -Mathf.Max(16f, (contentHeight - desiredHeight) * 0.5f));
+            MenuUi.SetContentHeight(_content, contentHeight);
+        }
+
+        private void OnSafeAreaDimensionsChanged()
+        {
+            if (_overlay != null && _overlay.gameObject.activeSelf) Layout();
+        }
+
+        private void OnDestroy()
+        {
+            if (_safeArea != null) _safeArea.DimensionsChanged -= OnSafeAreaDimensionsChanged;
         }
 
         private void OnConfirmClosed()
@@ -198,6 +239,7 @@ namespace Aether.Gameplay.Interface
         /// <summary>Reads the run's own numbers, which is the only place they can come from.</summary>
         private void Refresh()
         {
+            if (_body != null) _body.text = MenuStrings.Get("complete.body");
             if (_session == null || _session.Save.Meta == null) return;
 
             _stats.text = MenuStrings.Format("complete.stats",

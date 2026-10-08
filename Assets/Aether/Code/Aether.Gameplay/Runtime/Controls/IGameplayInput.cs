@@ -14,10 +14,9 @@ namespace Aether.Gameplay.Controls
     /// </para>
     /// <para>
     /// <b>The button members are press flags, not held states.</b> A press stays latched until
-    /// <see cref="ConsumeJump"/>, <see cref="ConsumeAttack"/>, <see cref="ConsumeDodge"/> or
-    /// <see cref="ConsumeInteract"/> clears it, so a press seen in a frame with two physics steps
-    /// cannot be acted on twice, and a press seen in <c>Update</c> cannot be missed by a physics step
-    /// that runs later.
+    /// <see cref="ConsumeJump"/>, <see cref="ConsumeAttack"/> or <see cref="ConsumeDodge"/> clears it,
+    /// so a press seen in a frame with two physics steps cannot be acted on twice, and a press seen
+    /// in <c>Update</c> cannot be missed by a physics step that runs later.
     /// </para>
     /// </remarks>
     public interface IGameplayInput
@@ -37,9 +36,6 @@ namespace Aether.Gameplay.Controls
         /// <summary>Latched dodge press.</summary>
         bool DodgePressed { get; }
 
-        /// <summary>Latched interact press.</summary>
-        bool InteractPressed { get; }
-
         /// <summary>When false the source reports nothing at all.</summary>
         bool Enabled { get; set; }
 
@@ -52,7 +48,6 @@ namespace Aether.Gameplay.Controls
         /// <summary>Clears the dodge press.</summary>
         void ConsumeDodge();
 
-        /// <summary>Clears the interact press.</summary>
-        void ConsumeInteract();
+
     }
 }

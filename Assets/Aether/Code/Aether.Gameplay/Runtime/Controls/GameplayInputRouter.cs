@@ -106,9 +106,6 @@ namespace Aether.Gameplay.Controls
         public bool DodgePressed => Any(source => source.DodgePressed);
 
         /// <inheritdoc />
-        public bool InteractPressed => Any(source => source.InteractPressed);
-
-        /// <inheritdoc />
         public void ConsumeJump() => All(source => source.ConsumeJump());
 
         /// <inheritdoc />
@@ -116,9 +113,6 @@ namespace Aether.Gameplay.Controls
 
         /// <inheritdoc />
         public void ConsumeDodge() => All(source => source.ConsumeDodge());
-
-        /// <inheritdoc />
-        public void ConsumeInteract() => All(source => source.ConsumeInteract());
 
         private delegate bool SourcePredicate(IGameplayInput source);
 

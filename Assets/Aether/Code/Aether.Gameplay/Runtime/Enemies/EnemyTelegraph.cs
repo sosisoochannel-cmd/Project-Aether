@@ -107,7 +107,7 @@ namespace Aether.Gameplay.Enemies
             enabled = true;
         }
 
-        private void OnSpotted()
+        private void OnSpotted(EnemyController _)
         {
             _alertPulseRemaining = AlertPulseSeconds;
             enabled = true;

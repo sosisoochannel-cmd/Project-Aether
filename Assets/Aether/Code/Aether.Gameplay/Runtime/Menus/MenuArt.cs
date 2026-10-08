@@ -3,25 +3,27 @@ using UnityEngine;
 namespace Aether.Gameplay.Menus
 {
     /// <summary>
-    /// The shapes the menu is drawn from, generated once and kept.
+    /// Procedural interface shapes and the approved imported artwork used by the runtime-built menu.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Why nothing is imported.</b> A menu needs hairlines, a soft wash behind the title, a
-    /// vignette, a caret, a slider knob and a small padlock. As image files that is seven textures to
-    /// lose, import wrongly or ship at the wrong size; as arithmetic it is a few hundred bytes of
-    /// code that produces the same pixels on every device, needs no atlas, and cannot be re-exported
-    /// by accident. The project's rule about not inventing assets is about <i>art</i> — the artwork
-    /// is the studio's approved file. A 1-pixel white sprite is not art, it is a rectangle.
+    /// <b>Why the interface shapes are generated.</b> A menu needs hairlines, a soft wash behind
+    /// the title, a vignette, a caret, a slider knob and a small padlock. Those small details are
+    /// arithmetic rather than extra image files, so they need no atlas and cannot be re-exported by
+    /// accident. The approved forest background is a real Unity resource and is returned here
+    /// unchanged; a 1-pixel white sprite is not art, it is a rectangle.
     /// </para>
     /// <para>
-    /// Everything is built lazily, once, and kept with <c>HideAndDontSave</c> so it is not written
-    /// into a scene or leaked between play sessions. Small textures, bilinear filtering, no mipmaps:
-    /// the menu draws at most a dozen of them and none of them is sampled for detail.
+    /// Procedural shapes are built lazily, once, and kept with <c>HideAndDontSave</c> so they are
+    /// not written into a scene or leaked between play sessions. Their small textures use bilinear
+    /// filtering and no mipmaps; the imported forest keeps its asset lifetime and platform settings.
     /// </para>
     /// </remarks>
     public static class MenuArt
     {
+        private const string ForestResourcePath = "Menu/MainMenuForest";
+
+        private static Sprite _forest;
         private static Sprite _solid;
         private static Sprite _circle;
         private static Sprite _glow;
@@ -31,6 +33,16 @@ namespace Aether.Gameplay.Menus
         private static Sprite _padlock;
         private static Font _font;
         private static bool _built;
+
+        /// <summary>The approved forest background loaded from Resources, without modifying the asset.</summary>
+        public static Sprite Forest
+        {
+            get
+            {
+                if (_forest == null) _forest = Resources.Load<Sprite>(ForestResourcePath);
+                return _forest;
+            }
+        }
 
         /// <summary>A one-unit white square. The basis of every hairline, rule and fill.</summary>
         public static Sprite Solid
@@ -154,6 +166,7 @@ namespace Aether.Gameplay.Menus
             Destroy(_triangle);
             Destroy(_padlock);
             _solid = _circle = _glow = _band = _vignette = _triangle = _padlock = null;
+            _forest = null;
             _font = null;
             _built = false;
         }

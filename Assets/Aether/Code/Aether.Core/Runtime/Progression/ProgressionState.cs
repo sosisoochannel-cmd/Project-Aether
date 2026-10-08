@@ -49,7 +49,7 @@ namespace Aether.Core.Progression
             if (ability == AbilityId.None) return true;
 
             int raw = (int)ability;
-            int[] owned = _abilities;
+            int[] owned = AbilityData;
             for (int i = 0; i < owned.Length; i++)
             {
                 if (owned[i] == raw) return true;
@@ -67,11 +67,27 @@ namespace Aether.Core.Progression
             if (ability == AbilityId.None) return false;
             if (HasAbility(ability)) return false;
 
-            int[] grown = new int[_abilities.Length + 1];
-            System.Array.Copy(_abilities, grown, _abilities.Length);
-            grown[_abilities.Length] = (int)ability;
+            int[] owned = AbilityData;
+            int[] grown = new int[owned.Length + 1];
+            System.Array.Copy(owned, grown, owned.Length);
+            grown[owned.Length] = (int)ability;
             _abilities = grown;
             return true;
+        }
+
+        private int[] AbilityData
+        {
+            get
+            {
+                if (_abilities == null) _abilities = new int[0];
+                return _abilities;
+            }
+        }
+
+        /// <summary>Repairs the owned-ability list after deserializing an incomplete document.</summary>
+        public void RepairMissingData()
+        {
+            if (_abilities == null) _abilities = new int[0];
         }
 
         /// <summary>Clears all progression. Used when starting a new game.</summary>
@@ -88,7 +104,8 @@ namespace Aether.Core.Progression
         {
             if (destination == null) throw new System.ArgumentNullException(nameof(destination));
 
-            destination._abilities = (int[])_abilities.Clone();
+            if (ReferenceEquals(this, destination)) return;
+            destination._abilities = (int[])AbilityData.Clone();
         }
     }
 }

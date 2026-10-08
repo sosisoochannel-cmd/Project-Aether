@@ -20,11 +20,11 @@ namespace Aether.Core.Settings
         /// <summary>Loads settings. Returns false when there are none, or they cannot be read.</summary>
         bool TryLoad(out GameSettings settings);
 
-        /// <summary>Writes settings. Implementations must not mutate the supplied object.</summary>
-        void Save(GameSettings settings);
+        /// <summary>Writes settings without mutating them. False means the write failed.</summary>
+        bool Save(GameSettings settings);
 
-        /// <summary>Deletes stored settings, so the next load is defaults.</summary>
-        void Clear();
+        /// <summary>Deletes stored settings, so the next load is defaults. False means failure.</summary>
+        bool Clear();
 
         /// <summary>True when a stored copy exists right now.</summary>
         bool Exists { get; }

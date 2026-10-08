@@ -102,9 +102,22 @@ namespace Aether.Core.Settings
         /// <summary>Language code the interface is shown in, for example <c>en</c>.</summary>
         public string Language = "en";
 
+        /// <summary>Repairs settings groups that were null in a stored document.</summary>
+        public void RepairMissingSections()
+        {
+            if (Audio == null) Audio = new AudioSettings();
+            if (Gameplay == null) Gameplay = new GameplaySettings();
+            if (Controls == null) Controls = new ControlSettings();
+            if (Camera == null) Camera = new CameraSettings();
+            if (Graphics == null) Graphics = new GraphicsSettings();
+            if (Display == null) Display = new DisplaySettings();
+            if (Accessibility == null) Accessibility = new AccessibilitySettings();
+        }
+
         /// <summary>Every field back to the value a fresh install has.</summary>
         public void Reset()
         {
+            RepairMissingSections();
             Audio.Reset();
             Gameplay.Reset();
             Controls.Reset();
@@ -121,6 +134,8 @@ namespace Aether.Core.Settings
         {
             if (other == null) throw new ArgumentNullException(nameof(other));
 
+            RepairMissingSections();
+            other.RepairMissingSections();
             Audio.CopyFrom(other.Audio);
             Gameplay.CopyFrom(other.Gameplay);
             Controls.CopyFrom(other.Controls);
@@ -142,6 +157,7 @@ namespace Aether.Core.Settings
         /// </remarks>
         public void Clamp()
         {
+            RepairMissingSections();
             Audio.Clamp();
             Gameplay.Clamp();
             Controls.Clamp();
@@ -329,7 +345,7 @@ namespace Aether.Core.Settings
     {
         public GraphicsTier Tier = GraphicsTier.Medium;
 
-        /// <summary>Target frame rate. 0 means "do not cap". 30 and 60 are the useful values.</summary>
+        /// <summary>Requested frame-rate cap. Zero leaves the platform uncapped; the settings screen offers 30, 60 and 120.</summary>
         public int FrameRateLimit = 60;
 
         /// <summary>

@@ -27,6 +27,8 @@ namespace Aether.Gameplay.Menus.Screens
     public sealed class CharactersScreen : MenuScreen
     {
         private MenuHeader _header;
+        private ScrollRect _scroll;
+        private RectTransform _content;
         private MenuEntryPanel _cast;
         private MenuEntryPanel _summary;
         private MenuButton[] _rows;
@@ -44,8 +46,15 @@ namespace Aether.Gameplay.Menus.Screens
             _header = MenuHeader.Create(Rect, MenuStrings.Get("characters.title"), Nav, true);
             _header.Back.Activated = Leave;
 
-            _cast = MenuEntryPanel.Create("Cast", Rect, Nav, "characters.title", 1);
-            _summary = MenuEntryPanel.Create("Summary", Rect, Nav, null, 1);
+            _scroll = MenuUi.CreateScroll("Characters Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
+
+            _cast = MenuEntryPanel.Create("Cast", _content, Nav, "characters.title", 1);
+            _summary = MenuEntryPanel.Create("Summary", _content, Nav, null, 1);
             _countRow = _summary.AddEntry("Met", string.Empty, MenuButton.Weight.Secondary);
             _countRow.SetInformational(true);
 
@@ -65,15 +74,20 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float top = MenuTheme.Metrics.ScreenHeaderPitch + MenuTheme.Metrics.ScreenHeaderGap;
-            float box = Mathf.Max(120f, height - top);
+            float viewportHeight = Mathf.Max(120f, height - top);
+            RectTransform scrollRect = _scroll.GetComponent<RectTransform>();
+            MenuUi.Corner(scrollRect, new Vector2(0f, 1f), new Vector2(0f, -top),
+                          new Vector2(width, viewportHeight), new Vector2(0f, 1f));
+
             float column = Mathf.Min(width, width * MenuTheme.Metrics.LeftColumnFraction * 1.7f);
+            _cast.Rect.anchoredPosition = Vector2.zero;
+            _cast.Layout(column, viewportHeight);
 
-            _cast.Rect.anchoredPosition = new Vector2(0f, -top);
-            _cast.Layout(column, box);
-
-            _summary.Rect.anchoredPosition =
-                new Vector2(0f, -(top + _cast.Height + MenuTheme.Metrics.ClusterGap));
-            _summary.Layout(column, box);
+            float summaryTop = _cast.Height + MenuTheme.Metrics.ClusterGap;
+            _summary.Rect.anchoredPosition = new Vector2(0f, -summaryTop);
+            _summary.Layout(column, viewportHeight);
+            MenuUi.SetContentHeight(_content, summaryTop + _summary.Height
+                                              + MenuTheme.Metrics.ParagraphBlockPadding);
         }
 
         /// <inheritdoc />

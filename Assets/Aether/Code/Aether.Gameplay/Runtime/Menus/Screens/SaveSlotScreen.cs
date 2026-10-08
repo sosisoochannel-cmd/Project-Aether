@@ -23,14 +23,14 @@ namespace Aether.Gameplay.Menus.Screens
     /// </para>
     /// <para>
     /// <b>Nothing is overwritten without a question.</b> Starting in an empty slot happens at once —
-    /// there is nothing to lose — and starting in a slot that holds a run asks first, naming the slot.
-    /// Deleting always asks. Both dialogs start on Cancel, so a second tap in the same place cannot
-    /// answer its own question.
+    /// there is nothing to lose — while replacing a playable, damaged or unsupported document asks
+    /// first and names the slot. Deleting always asks. Both dialogs start on Cancel, so a second tap
+    /// in the same place cannot answer its own question.
     /// </para>
     /// <para>
-    /// <b>Two rows per slot, and the reason is thumbs.</b> A play row and a delete row are the same
-    /// size, so a finger cannot do the destructive thing by aiming one row too low. The delete row is
-    /// secondary weight, unaccented, and says what it deletes.
+    /// <b>Three rows per occupied slot.</b> Continue, start a new run here, and delete are distinct
+    /// actions with separate touch targets. The destructive rows are secondary weight and unaccented;
+    /// an unreadable or unsupported save is never offered as playable.
     /// </para>
     /// </remarks>
     public sealed class SaveSlotScreen : MenuScreen
@@ -46,6 +46,9 @@ namespace Aether.Gameplay.Menus.Screens
 
             /// <summary>The file cannot be read: the row is informational and says so.</summary>
             Damaged,
+
+            /// <summary>The file is readable but belongs to a format or chapter this build cannot open.</summary>
+            Unavailable,
         }
 
         private sealed class SlotRows
@@ -53,14 +56,16 @@ namespace Aether.Gameplay.Menus.Screens
             public int Slot;
             public SlotAction Action;
             public MenuButton Primary;
+            public MenuButton NewGame;
             public MenuButton Delete;
         }
 
         private MenuHeader _header;
+        private ScrollRect _scroll;
+        private RectTransform _content;
         private MenuEntryPanel _slots;
         private MenuEntryPanel _notes;
         private Text _body;
-        private MenuButton _backRow;
         private SlotRows[] _rows;
         private MenuButton _note;
 
@@ -71,6 +76,17 @@ namespace Aether.Gameplay.Menus.Screens
             {
                 var rows = new MenuButton[_rows.Length];
                 for (int i = 0; i < _rows.Length; i++) rows[i] = _rows[i].Primary;
+                return rows;
+            }
+        }
+
+        /// <summary>The explicit new-run rows, in slot order.</summary>
+        public MenuButton[] NewRunRows
+        {
+            get
+            {
+                var rows = new MenuButton[_rows.Length];
+                for (int i = 0; i < _rows.Length; i++) rows[i] = _rows[i].NewGame;
                 return rows;
             }
         }
@@ -94,9 +110,15 @@ namespace Aether.Gameplay.Menus.Screens
             _header = MenuHeader.Create(Rect, MenuStrings.Get("slots.title"), Nav, true);
             _header.Back.Activated = Leave;
 
+            _scroll = MenuUi.CreateScroll("Slot Scroll", Rect, out _content);
+            Nav.SelectionChanged += selected =>
+            {
+                if (selected != null && selected.transform.IsChildOf(_content))
+                    MenuUi.ScrollIntoView(_scroll, selected);
+            };
             _rows = new SlotRows[SaveSlots.Count];
-            _slots = MenuEntryPanel.Create("Slots", Rect, Nav, "slots.title", 1);
-            _notes = MenuEntryPanel.Create("Notes", Rect, Nav, null, 1);
+            _slots = MenuEntryPanel.Create("Slots", _content, Nav, null, 1);
+            _notes = MenuEntryPanel.Create("Notes", _content, Nav, null, 1);
             _note = _notes.AddEntry("SlotsUsed", MenuStrings.Get("slots.body"),
                                     MenuButton.Weight.Secondary);
             _note.SetInformational(true);
@@ -113,6 +135,13 @@ namespace Aether.Gameplay.Menus.Screens
 
                 int captured = slot;
                 entry.Primary.Activated = () => UseSlot(captured);
+
+                entry.NewGame = _slots.AddEntry(
+                    "New Run " + slot,
+                    MenuStrings.Get("slots.newRun"),
+                    MenuButton.Weight.Secondary);
+                entry.NewGame.SetMeta(MenuStrings.Format("slots.slot", slot));
+                entry.NewGame.Activated = () => AskToReplace(captured);
 
                 entry.Delete = _slots.AddEntry(
                     "Delete " + slot,
@@ -137,21 +166,24 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float top = MenuTheme.Metrics.ScreenHeaderPitch + MenuTheme.Metrics.ScreenHeaderGap;
-            float box = Mathf.Max(120f, height - top);
             float column = Mathf.Min(width, width * MenuTheme.Metrics.LeftColumnFraction * 1.7f);
 
             _body.rectTransform.sizeDelta = new Vector2(column, 70f);
             _body.rectTransform.anchoredPosition = new Vector2(0f, -top);
 
             float listTop = top + 84f;
-            _slots.Rect.anchoredPosition = new Vector2(0f, -listTop);
-            _slots.Layout(column, box);
+            float viewportHeight = Mathf.Max(120f, height - listTop);
+            RectTransform scrollRect = _scroll.GetComponent<RectTransform>();
+            MenuUi.Corner(scrollRect, new Vector2(0f, 1f), new Vector2(0f, -listTop),
+                          new Vector2(width, viewportHeight), new Vector2(0f, 1f));
 
-            // The notes cluster is a second, one-row list rather than a caption so that it scrolls and
-            // navigates with everything else — and so a translation that makes it long has somewhere
-            // to go.
-            _notes.Rect.anchoredPosition = new Vector2(0f, -(listTop + _slots.Height + MenuTheme.Metrics.ClusterGap));
-            _notes.Layout(column, box);
+            _slots.Layout(column, viewportHeight);
+            _slots.Rect.anchoredPosition = Vector2.zero;
+
+            _notes.Layout(column, viewportHeight);
+            _notes.Rect.anchoredPosition = new Vector2(0f, -(_slots.Height + MenuTheme.Metrics.ClusterGap));
+            MenuUi.SetContentHeight(_content, _slots.Height + MenuTheme.Metrics.ClusterGap
+                                              + _notes.Height + MenuTheme.Metrics.ParagraphBlockPadding);
         }
 
         /// <inheritdoc />
@@ -207,13 +239,31 @@ namespace Aether.Gameplay.Menus.Screens
 
                 if (info.Corrupt)
                 {
-                    // A file that cannot be read is neither empty nor playable. It is damaged, it says
-                    // so, and the only row that does anything is the one that frees the slot.
+                    // A damaged document is not loadable, but the player can either free it or
+                    // explicitly replace it with a new run. Neither action happens without a question.
                     entry.Action = SlotAction.Damaged;
                     entry.Primary.SetLabel(MenuStrings.Get("slots.damaged"));
                     entry.Primary.SetMeta(null);
                     entry.Primary.SetLocked(true, MenuStrings.Get("slots.damaged.help"));
+                    entry.NewGame.SetLocked(false, MenuStrings.Get("slots.damaged.replace.help"));
+                    entry.NewGame.SetMeta(MenuStrings.Format("slots.slot", entry.Slot));
+                    entry.Delete.SetLocked(false);
                     entry.Delete.SetMeta(MenuStrings.Get("slots.damaged.help"));
+                    continue;
+                }
+
+                if (info.Unavailable)
+                {
+                    // A valid document from a newer format or a chapter not shipped in this build
+                    // is preserved, but is not offered as a playable run.
+                    entry.Action = SlotAction.Unavailable;
+                    entry.Primary.SetLabel(MenuStrings.Get("slots.unavailable"));
+                    entry.Primary.SetMeta(MenuStrings.Format("slots.slot", entry.Slot));
+                    entry.Primary.SetLocked(true, MenuStrings.Get("slots.unavailable.help"));
+                    entry.NewGame.SetLocked(false, MenuStrings.Get("slots.unavailable.replace.help"));
+                    entry.NewGame.SetMeta(MenuStrings.Format("slots.slot", entry.Slot));
+                    entry.Delete.SetLocked(false);
+                    entry.Delete.SetMeta(MenuStrings.Get("slots.unavailable.help"));
                     continue;
                 }
 
@@ -224,12 +274,16 @@ namespace Aether.Gameplay.Menus.Screens
                     entry.Primary.SetMeta(MenuStrings.Get("slots.newHere"));
                     entry.Primary.SetLocked(false);
                     entry.Primary.SetAccented(true);
+                    entry.NewGame.SetLocked(true, MenuStrings.Get("slots.empty.help"));
+                    entry.NewGame.SetMeta(MenuStrings.Get("slots.empty.help"));
                     entry.Delete.SetLocked(true, MenuStrings.Get("slots.empty.help"));
                     entry.Delete.SetMeta(MenuStrings.Get("slots.empty.help"));
                     continue;
                 }
 
                 entry.Action = SlotAction.Play;
+                entry.NewGame.SetLocked(false, MenuStrings.Get("slots.new.replace.help"));
+                entry.NewGame.SetMeta(MenuStrings.Format("slots.slot", entry.Slot));
                 entry.Primary.SetLocked(false);
                 entry.Primary.SetAccented(entry.Slot == described);
 
@@ -275,24 +329,56 @@ namespace Aether.Gameplay.Menus.Screens
         {
             SaveSlotInfo info = SaveSlots.Describe(slot);
 
-            if (info.Corrupt)
+            if (info.Corrupt || info.Unavailable)
             {
                 // The row is locked and not interactable, so no tap reaches this. It is here so a
                 // programmatic caller that presses it anyway gets the screen's own answer — nothing —
-                // rather than opening a run that cannot be loaded. Silence is the honest feedback for
-                // an action the interface does not offer.
+                // rather than opening a run this build cannot load.
                 return;
             }
 
             if (!info.Exists)
             {
                 MenuAudio.Confirm();
-                SaveHost.BeginNewGameIn(slot, ChapterCatalog.First.Id);
-                Host.PlayRegion();
+                BeginNewRun(slot, false);
                 return;
             }
 
             AskToPlay(slot);
+        }
+
+        /// <summary>Asks before replacing a stored run with a fresh one.</summary>
+        private void AskToReplace(int slot)
+        {
+            SaveSlotInfo info = SaveSlots.Describe(slot);
+            if (!info.Exists) return;
+
+            string body = info.Corrupt
+                ? MenuStrings.Format("slots.damaged.replace.body", slot)
+                : info.Unavailable
+                    ? MenuStrings.Format("slots.unavailable.replace.body", slot)
+                    : MenuStrings.Format("slots.new.body", slot);
+
+            EnsureDialog().Open(MenuStrings.Get("slots.new.title"), body,
+                                () => BeginNewRun(slot, true));
+        }
+
+        private void BeginNewRun(int slot, bool replaceExisting)
+        {
+            if (SaveHost.BeginNewGameIn(slot, ChapterCatalog.First.Id, replaceExisting) == null)
+            {
+                SlotRows row = _rows[slot - 1];
+                (replaceExisting ? row.NewGame : row.Primary)
+                    .SetMeta(MenuStrings.Get("slots.new.failed"));
+                return;
+            }
+
+            if (!Host.PlayRegion())
+            {
+                SlotRows row = _rows[slot - 1];
+                (replaceExisting ? row.NewGame : row.Primary)
+                    .SetMeta(MenuStrings.Get("slots.transition.failed"));
+            }
         }
 
         /// <summary>Asks before loading a stored run, and says which one.</summary>
@@ -314,10 +400,12 @@ namespace Aether.Gameplay.Menus.Screens
                                             $"[menu] slot {slot} could not be loaded. The screen has " +
                                             "been refreshed rather than opening a run that is not there.");
                                         Refresh();
+                                        _rows[slot - 1].Primary.SetMeta(MenuStrings.Get("slots.load.failed"));
                                         return;
                                     }
 
-                                    Host.PlayRegion();
+                                    if (!Host.PlayRegion())
+                                        _rows[slot - 1].Primary.SetMeta(MenuStrings.Get("slots.transition.failed"));
                                 });
         }
 
@@ -331,7 +419,13 @@ namespace Aether.Gameplay.Menus.Screens
                                 MenuStrings.Format("slots.delete.body", slot),
                                 () =>
                                 {
-                                    SaveHost.DeleteSlot(slot);
+                                    if (!SaveHost.DeleteSlot(slot))
+                                    {
+                                        Debug.LogError($"[menu] slot {slot} could not be deleted.");
+                                        _rows[slot - 1].Delete.SetMeta(MenuStrings.Get("slots.delete.failed"));
+                                        return;
+                                    }
+
                                     Refresh();
                                 });
         }

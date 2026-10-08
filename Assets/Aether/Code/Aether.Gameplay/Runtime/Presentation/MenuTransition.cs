@@ -1,4 +1,7 @@
 using System.Collections;
+using Aether.Gameplay;
+using Aether.Gameplay.Flow;
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Sound;
 using UnityEngine;
@@ -35,6 +38,7 @@ namespace Aether.Gameplay.Presentation
     {
         private const int VeilSortingOrder = 500;
         private const string UiBusCue = "ui.transition";
+        private const float SceneLoadTimeoutSeconds = 45f;
 
         private static MenuTransition _instance;
 
@@ -138,10 +142,42 @@ namespace Aether.Gameplay.Presentation
 
             yield return Fade(1f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
 
-            AsyncOperation load = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-            if (load != null)
+            AsyncOperation load = null;
+            string failure = null;
+            try
             {
-                while (!load.isDone) yield return null;
+                load = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+            }
+            catch (System.Exception ex)
+            {
+                failure = ex.Message;
+            }
+
+            if (load == null)
+            {
+                RecoverFailedLoad(sceneName, failure ?? "Unity did not create a scene-load operation.");
+                yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                _busy = false;
+                yield break;
+            }
+
+            float elapsed = 0f;
+            while (!load.isDone && elapsed < SceneLoadTimeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (!load.isDone)
+            {
+                // Unity does not expose cancellation for an AsyncOperation. Stop holding the input
+                // lock and put up a clear recovery curtain; if the operation completes late, the
+                // destination scene's normal boot/menu path replaces that curtain.
+                RecoverFailedLoad(sceneName,
+                    $"Scene '{sceneName}' did not finish loading within {SceneLoadTimeoutSeconds:0} seconds.");
+                yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
+                _busy = false;
+                yield break;
             }
 
             // One frame of the new scene before the cover lifts, so the region's own first frames
@@ -150,6 +186,13 @@ namespace Aether.Gameplay.Presentation
             yield return Fade(0f, MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
 
             _busy = false;
+        }
+
+        private void RecoverFailedLoad(string sceneName, string reason)
+        {
+            if (sceneName == Scenes.Boot) GameLaunch.ClearPlayRequest();
+            GameplayCurtain.Fail("error.load.title", "error.load.body",
+                $"Scene load failed for '{sceneName}'. {reason}");
         }
 
         private IEnumerator CoverRoutine(System.Action whileCovered, bool fadeBack)

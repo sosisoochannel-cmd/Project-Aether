@@ -66,7 +66,7 @@ namespace Aether.Gameplay.Progression
         /// <summary>Whether a specific slot holds a loadable run.</summary>
         public static bool HasRunIn(int slot)
         {
-            return SaveSlots.Describe(slot).Playable;
+            return slot >= 1 && slot <= SaveSlots.Count && SaveSlots.Describe(slot).Playable;
         }
 
         /// <summary>Every slot's header, for the save screen.</summary>
@@ -93,6 +93,8 @@ namespace Aether.Gameplay.Progression
         /// </remarks>
         public static SaveData Peek(int slot)
         {
+            if (slot < 1 || slot > SaveSlots.Count || !SaveSlots.Describe(slot).Playable) return null;
+
             SaveSlotStore store = SaveSlots.For(slot);
             if (store == null || !store.HasStoredProgress) return null;
 
@@ -112,7 +114,14 @@ namespace Aether.Gameplay.Progression
         public static SaveData Peek()
         {
             GameSession session = GameSession.Instance;
-            if (session != null && _activeSlot > 0 && session.Save != null) return session.Save;
+            if (_activeSlot > 0 && _activeSlot <= SaveSlots.Count)
+            {
+                // In gameplay the live snapshot is authoritative. Back in the menu the session may
+                // have been destroyed with its scene, so read that selected slot rather than showing
+                // a different run merely because it was written more recently.
+                if (session != null && session.Save != null) return session.Save;
+                return Peek(_activeSlot);
+            }
 
             int slot = SaveSlots.MostRecent();
             return slot > 0 ? Peek(slot) : null;
@@ -121,8 +130,9 @@ namespace Aether.Gameplay.Progression
         /// <summary>The slot <see cref="Peek()"/> reads, or 0 when there is nothing stored.</summary>
         public static int DescribedSlot()
         {
-            GameSession session = GameSession.Instance;
-            if (session != null && _activeSlot > 0) return _activeSlot;
+            // LoadSlot selects its destination before Boot creates a session. Preserve that choice
+            // across the hand-off instead of silently switching Save Now to the newest other slot.
+            if (_activeSlot > 0 && _activeSlot <= SaveSlots.Count) return _activeSlot;
 
             return SaveSlots.MostRecent();
         }
@@ -169,6 +179,8 @@ namespace Aether.Gameplay.Progression
         /// </remarks>
         public static bool LoadSlot(int slot)
         {
+            if (slot < 1 || slot > SaveSlots.Count) return false;
+
             SaveSlotInfo info = SaveSlots.Describe(slot);
             if (!info.Playable) return false;
 
@@ -178,8 +190,13 @@ namespace Aether.Gameplay.Progression
             GameSession existing = GameSession.Instance;
             if (existing != null)
             {
+                ISaveStore previous = existing.Store;
                 existing.Store = wanted;
-                if (!existing.TryLoadFromStore()) return false;
+                if (!existing.TryLoadFromStore())
+                {
+                    existing.Store = previous;
+                    return false;
+                }
             }
 
             _store = wanted;
@@ -209,13 +226,25 @@ namespace Aether.Gameplay.Progression
         /// region has ever run.
         /// </para>
         /// </remarks>
-        public static GameSession BeginNewGameIn(int slot, string chapterId)
+        public static GameSession BeginNewGameIn(int slot, string chapterId, bool replaceExisting = false)
         {
+            if (slot < 1 || slot > SaveSlots.Count) return null;
+
+            // This low-level guard is deliberate: even a new caller cannot replace a stored run
+            // without naming that decision. Empty slots are safe to initialize immediately.
+            SaveSlotInfo existingInfo = SaveSlots.Describe(slot);
+            if (existingInfo.Exists && !replaceExisting) return null;
+
             SaveSlotStore target = SaveSlots.For(slot);
             target.AutomaticWrites = AetherSettings.Ensure().Values.Gameplay.Autosave;
 
-            _store = target;
-            _activeSlot = target.Slot;
+            var fresh = new SaveData();
+            fresh.Meta.Slot = target.Slot;
+            fresh.Meta.ChapterId = string.IsNullOrEmpty(chapterId) ? string.Empty : chapterId;
+
+            // The old run is replaced atomically by the store. If the write fails, neither the
+            // active session nor the selected slot changes, and the old document remains readable.
+            if (!target.Save(fresh, true)) return null;
 
             GameSession session = GameSession.Instance;
             if (session == null)
@@ -225,31 +254,34 @@ namespace Aether.Gameplay.Progression
             }
 
             session.Store = target;
-
-            // clearStore: true — the run on disk is the old one, and leaving it would let a reset
-            // be undone by closing the app before the next autosave.
-            session.StartNewGame(true);
-            if (session.Save.Meta == null) session.Save.Meta = new SaveMeta();
-            session.Save.Meta.Slot = target.Slot;
-            session.Save.Meta.ChapterId = string.IsNullOrEmpty(chapterId) ? string.Empty : chapterId;
-
-            target.Save(session.Save, true);
+            session.Save.CopyFrom(fresh);
+            _store = target;
+            _activeSlot = target.Slot;
             return session;
         }
 
         /// <summary>Deletes one slot's run. Destructive; the interface confirms first.</summary>
-        public static void DeleteSlot(int slot)
+        public static bool DeleteSlot(int slot)
         {
-            SaveSlots.Delete(slot);
+            if (slot < 1 || slot > SaveSlots.Count) return false;
+            if (!SaveSlots.Delete(slot)) return false;
 
-            // A session standing on the slot that was just deleted must not write it back: it is
-            // reset to a blank snapshot so the next autosave creates a new, empty run rather than
-            // resurrecting the one the player asked to be rid of.
+            // A session standing on the slot that was just deleted must not write it back. Detach
+            // it and clear the active selection only after the filesystem confirms the deletion.
             if (_activeSlot == slot)
             {
                 GameSession session = GameSession.Instance;
-                if (session != null) session.StartNewGame(true);
+                if (session != null)
+                {
+                    session.Save.ResetForNewGame();
+                    session.Store = null;
+                }
+
+                _store = null;
+                _activeSlot = 0;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -262,10 +294,33 @@ namespace Aether.Gameplay.Progression
         public static bool SaveNow()
         {
             GameSession session = GameSession.Instance;
-            if (session == null) return false;
+            if (session != null && session.Store != null)
+            {
+                try
+                {
+                    bool written = session.Store.Save(session.Save, true);
+                    if (!written) Debug.LogError("[save] The explicit save could not be written.", session);
+                    return written;
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogException(ex, session);
+                    return false;
+                }
+            }
 
-            Store.Save(session.Save, true);
-            return true;
+            // The Data screen can ask for a save while the game is in the menu and no live session
+            // exists. In that case, explicitly re-write the same selected stored snapshot; never
+            // manufacture a blank session or route an unset slot through the slot-one clamp.
+            int slot = DescribedSlot();
+            if (slot < 1 || slot > SaveSlots.Count) return false;
+
+            SaveSlotStore store = SaveSlots.For(slot);
+            if (!store.TryLoad(out SaveData stored) || stored == null) return false;
+
+            bool saved = store.Save(stored, true);
+            if (!saved) Debug.LogError($"[save] The explicit save for slot {slot} could not be written.");
+            return saved;
         }
 
         /// <summary>Re-reads the autosave preference. Called when that setting changes.</summary>
@@ -274,13 +329,19 @@ namespace Aether.Gameplay.Progression
             SaveSlots.ApplyAutosave(AetherSettings.Ensure().Values.Gameplay.Autosave);
         }
 
-        /// <summary>Forgets the store and session. Used by tests, which must not touch real files.</summary>
+        /// <summary>Forgets the store and session, restoring the normal storage folder.</summary>
         public static void ResetForTests(GameSession session)
+        {
+            ResetForTests(session, null);
+        }
+
+        /// <summary>Forgets the store and session, optionally selecting an isolated storage folder.</summary>
+        public static void ResetForTests(GameSession session, string folder)
         {
             if (session != null) Object.DestroyImmediate(session.gameObject);
             _store = null;
             _activeSlot = 0;
-            SaveSlots.ResetForTests();
+            SaveSlots.ResetForTests(folder);
         }
 
         /// <summary>A one-line description of the stored run, for the Data/Save screen.</summary>

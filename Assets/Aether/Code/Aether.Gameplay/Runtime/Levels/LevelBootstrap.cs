@@ -1,12 +1,10 @@
 using Aether.Data.Levels;
 using Aether.Gameplay.Cameras;
 using Aether.Gameplay.Controls;
+using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
-using Aether.Gameplay.Localization;
-using Aether.Gameplay.Menus;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
@@ -91,89 +89,99 @@ namespace Aether.Gameplay.Levels
             // One way to get a session, which is also the thing that installs the store progress
             // is written to. This used to build one here and never load anything into it, so a
             // restart began from scratch however much the player had done.
-            _session = SaveHost.Ensure();
-
-            LevelContent content = LevelContent.Load();
-            LevelData data = LoadLevelData();
-            if (data == null || content.PlayerTuning == null)
+            try
             {
-                // Nothing to play, and saying so is the whole job now. The curtain becomes the
-                // failure screen with a real way back to the menu on it.
-                GameplayCurtain.Fail(
-                    "The region could not start: the level data or the content catalogue did not " +
-                    "load. There is no playable level in this build configuration.");
-                return;
-            }
+                _session = SaveHost.Ensure();
 
-            Level = LevelRuntimeBuilder.Build(data, content, transform, _buildGeometry);
-            if (Level.PlayerStartFeet == Vector2.zero && data.PlayerStart == null)
+                LevelContent content = LevelContent.Load();
+                LevelData data = LoadLevelData();
+                if (data == null || content.PlayerTuning == null)
+                {
+                    // Nothing to play, and saying so is the whole job now. The curtain becomes the
+                    // failure screen with a real way back to the menu on it.
+                    GameplayCurtain.Fail(
+                        "The region could not start: the level data or the content catalogue did not " +
+                        "load. There is no playable level in this build configuration.");
+                    return;
+                }
+
+                Level = LevelRuntimeBuilder.Build(data, content, transform, _buildGeometry);
+                if (Level.PlayerStartFeet == Vector2.zero && data.PlayerStart == null)
+                {
+                    Debug.LogError($"Level '{data.Id}' has no player start; nothing can be spawned.", this);
+                    GameplayCurtain.Fail(
+                        $"Level '{data.Id}' has no player start, so there is nowhere to put the player. " +
+                        "This is a level data problem, not something the player did.");
+                    return;
+                }
+
+                Camera camera = ResolveCamera();
+                CameraFollow2D follow = camera.gameObject.GetComponent<CameraFollow2D>();
+                if (follow == null) follow = camera.gameObject.AddComponent<CameraFollow2D>();
+
+                Vector2 respawnFeet = ResolveRespawnFeet(Level);
+                float halfHeight = content.PlayerTuning.BodyHeight * 0.5f;
+                PlayerController player = PlayerFactory.Create(respawnFeet + new Vector2(0f, halfHeight),
+                    content.PlayerTuning, content.PlayerFirstAttack, transform);
+
+                follow.Configure(player.transform, new Vector2(0f, 0f), data.WorldSize);
+
+                AttachTouchControls(camera, player);
+
+                // A codex entry is earned when an enemy actually sees the player, not merely because
+                // its prefab was built. Subscriptions are removed with this bootstrap below.
+                AttachCharacterDiscovery();
+
+                var directorHost = new GameObject("LevelDirector");
+                directorHost.transform.SetParent(transform, false);
+                Director = directorHost.AddComponent<LevelDirector>();
+                Director.Initialize(_session, Level, player, follow);
+
+                // The region's own interface, and the thing that makes this a session rather than a
+                // level: objective, counters, pause, the clock that the run's playtime comes from, and
+                // the summary at the end of it.
+                Shell = GameplayShell.Attach(_session, Level, Director, player, TouchControls);
+                Shell.transform.SetParent(transform, false);
+                Shell.Reveal();
+            }
+            catch (System.Exception ex)
             {
-                Debug.LogError($"Level '{data.Id}' has no player start; nothing can be spawned.", this);
+                // Runtime content/build errors must become the same actionable curtain as parser
+                // failures. Leaving the cover up without a message would be an empty-screen dead end.
+                Debug.LogException(ex, this);
                 GameplayCurtain.Fail(
-                    $"Level '{data.Id}' has no player start, so there is nowhere to put the player. " +
-                    "This is a level data problem, not something the player did.");
-                return;
+                    "The region could not be assembled by this build. Return to the menu and try again.");
             }
-
-            Camera camera = ResolveCamera();
-            CameraFollow2D follow = camera.gameObject.GetComponent<CameraFollow2D>();
-            if (follow == null) follow = camera.gameObject.AddComponent<CameraFollow2D>();
-
-            Vector2 respawnFeet = ResolveRespawnFeet(Level);
-            float halfHeight = content.PlayerTuning.BodyHeight * 0.5f;
-            PlayerController player = PlayerFactory.Create(respawnFeet + new Vector2(0f, halfHeight),
-                content.PlayerTuning, content.PlayerFirstAttack, transform);
-
-            follow.Configure(player.transform, new Vector2(0f, 0f), data.WorldSize);
-
-            AttachTouchControls(camera, player);
-
-            // Who the player has now met. The region's own contents are the evidence: the creatures
-            // it placed are creatures the player has been in a region with, and the catalogue turns
-            // that into characters. Called here, once, because a region is built once — and without
-            // the call the characters screen would report a cast nobody can ever meet.
-            RecordEncounters();
-
-            var directorHost = new GameObject("LevelDirector");
-            directorHost.transform.SetParent(transform, false);
-            Director = directorHost.AddComponent<LevelDirector>();
-            Director.Initialize(_session, Level, player, follow);
-
-            // The region's own interface, and the thing that makes this a session rather than a
-            // level: objective, counters, pause, the clock that the run's playtime comes from, and
-            // the summary at the end of it.
-            Shell = GameplayShell.Attach(_session, Level, Director, player, TouchControls);
-            Shell.transform.SetParent(transform, false);
-            Shell.Reveal();
         }
 
-        /// <summary>Records every character this region's enemies prove the player has met.</summary>
-        private void RecordEncounters()
+        /// <summary>Listens for the first real notice event from each enemy in the built region.</summary>
+        private void AttachCharacterDiscovery()
         {
-            if (_session == null || Level == null || Level.Enemies == null || Level.Enemies.Count == 0)
-            {
-                // A region with nothing in it introduces nobody, and that is not a failure: the
-                // protagonist's own entry is the catalogue's business, not this loop's.
-                return;
-            }
+            if (Level == null || Level.Enemies == null) return;
 
-            var types = new List<string>(Level.Enemies.Count);
             for (int i = 0; i < Level.Enemies.Count; i++)
             {
-                LevelEntity entity = Level.Enemies[i].Source;
-                if (entity == null || string.IsNullOrEmpty(entity.TypeId)) continue;
-                if (!types.Contains(entity.TypeId)) types.Add(entity.TypeId);
+                EnemyController enemy = Level.Enemies[i].Controller;
+                if (enemy != null) enemy.PlayerSpotted += OnPlayerSpotted;
             }
+        }
 
-            List<CharacterDefinition> met = CharacterCatalog.RecordEncounters(_session.Save, types);
-            if (met.Count == 0) return;
+        private void OnPlayerSpotted(EnemyController enemy)
+        {
+            if (_session == null || enemy == null || enemy.Definition == null) return;
 
-            // Said out loud, the way an achievement is: a record that changes and says nothing is a
-            // record the player never learns about.
-            if (Shell != null && Shell.Hud != null)
+            CharacterDefinition character = CharacterCatalog.ForEnemyType(enemy.Definition.TypeId);
+            if (character != null) _session.RecordCharacterMet(character.Id);
+        }
+
+        private void OnDestroy()
+        {
+            if (Level == null || Level.Enemies == null) return;
+
+            for (int i = 0; i < Level.Enemies.Count; i++)
             {
-                Shell.Hud.Announce("characters.met.title",
-                                   MenuStrings.Format("characters.met.banner", met.Count));
+                EnemyController enemy = Level.Enemies[i].Controller;
+                if (enemy != null) enemy.PlayerSpotted -= OnPlayerSpotted;
             }
         }
 

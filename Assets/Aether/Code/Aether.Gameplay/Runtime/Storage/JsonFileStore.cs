@@ -9,15 +9,15 @@ namespace Aether.Gameplay.Storage
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Settings and the save file are different things with the same problem — a small object that
-    /// has to survive a phone killing the app mid-write — so they share this and nothing else. The
-    /// write goes to a sibling temporary file, which is flushed and then moved over the real one:
-    /// on every platform this project targets, a rename within a directory either happened or did
-    /// not, so the reader never sees a truncated document.
+    /// Settings and saves share the same small storage primitive: a sibling temporary file is
+    /// completed before it replaces the real document. Where an atomic replace is unavailable, the
+    /// old file is moved to a recovery sibling before the new one is moved into place. A reader checks
+    /// that recovery file if the primary file is missing or unreadable, so an interrupted fallback
+    /// does not turn a saved run into an empty slot.
     /// </para>
     /// <para>
-    /// Every method returns a bool instead of throwing. Losing a settings write is an inconvenience;
-    /// a settings write that takes the game down on launch is a bug the player cannot work around.
+    /// Methods report failure instead of throwing. In particular, a failed replacement never deletes
+    /// the only readable copy of the previous document.
     /// </para>
     /// </remarks>
     public sealed class JsonFileStore
@@ -39,14 +39,16 @@ namespace Aether.Gameplay.Storage
         /// <summary>Absolute path of the folder the document lives in.</summary>
         public string Root => System.IO.Path.Combine(Application.persistentDataPath, _folder);
 
-        /// <summary>True when a document exists right now.</summary>
+        private string BackupPath => Path + ".bak";
+
+        /// <summary>True when a primary document or a recoverable backup exists.</summary>
         public bool Exists
         {
             get
             {
                 try
                 {
-                    return File.Exists(Path);
+                    return File.Exists(Path) || File.Exists(BackupPath);
                 }
                 catch (Exception)
                 {
@@ -58,12 +60,21 @@ namespace Aether.Gameplay.Storage
         /// <summary>Reads and parses the document. False when there is none, or it is unusable.</summary>
         public bool TryRead<T>(out T value) where T : class
         {
+            if (TryReadPath(Path, out value)) return true;
+            if (TryReadPath(BackupPath, out value)) return true;
+
+            value = null;
+            return false;
+        }
+
+        private static bool TryReadPath<T>(string path, out T value) where T : class
+        {
             value = null;
 
             try
             {
-                if (!File.Exists(Path)) return false;
-                string text = File.ReadAllText(Path);
+                if (!File.Exists(path)) return false;
+                string text = File.ReadAllText(path);
                 if (string.IsNullOrEmpty(text)) return false;
 
                 value = JsonUtility.FromJson<T>(text);
@@ -71,9 +82,9 @@ namespace Aether.Gameplay.Storage
             }
             catch (Exception)
             {
-                // A corrupt or unreadable file is indistinguishable, from here, from no file at all:
-                // both mean "start fresh". Nothing is deleted, so a support conversation can still
-                // look at what the player had.
+                // A damaged primary is not silently treated as an empty slot: TryRead checks the
+                // recovery sibling next, and callers can still report a truly unreadable document.
+                value = null;
                 return false;
             }
         }
@@ -83,35 +94,58 @@ namespace Aether.Gameplay.Storage
         {
             if (value == null) return false;
 
-            string temporary = _fileName + ".tmp";
-            string temporaryPath = System.IO.Path.Combine(Root, temporary);
+            string temporaryPath = Path + ".tmp";
+            string backupPath = BackupPath;
 
             try
             {
                 Directory.CreateDirectory(Root);
                 File.WriteAllText(temporaryPath, JsonUtility.ToJson(value, true));
 
-                if (File.Exists(Path))
+                if (!File.Exists(Path))
                 {
-                    // Replace is atomic on the platforms that have it and unavailable on some
-                    // Android filesystems; the fallback is a delete and a move, which is a much
-                    // smaller window than writing the real file in place.
+                    // A backup may be the only readable copy after an interrupted prior replace.
+                    // Keep it until the new primary is in place.
+                    File.Move(temporaryPath, Path);
+                    TryDelete(backupPath);
+                    return true;
+                }
+
+                if (TryReadPath<T>(Path, out _))
+                {
+                    // The primary is good, so an older recovery file can be discarded before the
+                    // next atomic replace. If that deletion fails, the outer catch leaves the good
+                    // primary untouched and reports failure.
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+
                     try
                     {
-                        File.Replace(temporaryPath, Path, null);
+                        File.Replace(temporaryPath, Path, backupPath);
+                        TryDelete(backupPath);
+                        return true;
                     }
                     catch (Exception)
                     {
-                        File.Delete(Path);
-                        File.Move(temporaryPath, Path);
+                        // File.Replace is not supported by every Android filesystem. The move
+                        // fallback below preserves the old primary until the new file is ready.
+                        return MoveThroughBackup(temporaryPath, backupPath);
                     }
                 }
-                else
+
+                // The main document is damaged. Preserve a readable backup throughout the repair;
+                // if moving the new file fails, TryRead can still recover from that backup.
+                if (TryReadPath<T>(backupPath, out _))
                 {
+                    File.Delete(Path);
                     File.Move(temporaryPath, Path);
+                    TryDelete(backupPath);
+                    return true;
                 }
 
-                return true;
+                // Neither copy parses. Retain the damaged primary until the temporary is complete,
+                // then use the same recoverable move protocol as for an unsupported atomic replace.
+                if (File.Exists(backupPath)) File.Delete(backupPath);
+                return MoveThroughBackup(temporaryPath, backupPath);
             }
             catch (Exception)
             {
@@ -119,14 +153,69 @@ namespace Aether.Gameplay.Storage
             }
         }
 
-        /// <summary>Deletes the document, and any temporary left behind. False when that failed.</summary>
+        private bool MoveThroughBackup(string temporaryPath, string backupPath)
+        {
+            bool movedPrimary = false;
+
+            try
+            {
+                if (File.Exists(Path))
+                {
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Move(Path, backupPath);
+                    movedPrimary = true;
+                }
+
+                File.Move(temporaryPath, Path);
+                TryDelete(backupPath);
+                return true;
+            }
+            catch (Exception)
+            {
+                // Restore the previous document when possible. If the process is interrupted here,
+                // the backup remains discoverable by TryRead instead of being thrown away.
+                if (movedPrimary && !File.Exists(Path) && File.Exists(backupPath))
+                {
+                    try
+                    {
+                        File.Move(backupPath, Path);
+                    }
+                    catch (Exception)
+                    {
+                        // Leave the recovery sibling in place for the next read.
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>Deletes the document, recovery copy and any temporary left behind.</summary>
         public bool Delete()
+        {
+            bool succeeded = true;
+            string[] paths = { Path, BackupPath, Path + ".tmp" };
+
+            for (int i = 0; i < paths.Length; i++)
+            {
+                try
+                {
+                    if (File.Exists(paths[i])) File.Delete(paths[i]);
+                }
+                catch (Exception)
+                {
+                    succeeded = false;
+                }
+            }
+
+            return succeeded;
+        }
+
+        private static bool TryDelete(string path)
         {
             try
             {
-                if (File.Exists(Path)) File.Delete(Path);
-                string leftover = System.IO.Path.Combine(Root, _fileName + ".tmp");
-                if (File.Exists(leftover)) File.Delete(leftover);
+                if (File.Exists(path)) File.Delete(path);
                 return true;
             }
             catch (Exception)

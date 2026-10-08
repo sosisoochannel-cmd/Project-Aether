@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aether.Core.Localization;
+using Aether.Core.Settings;
 using Aether.Gameplay.Localization.Tables;
 using Aether.Gameplay.Settings;
 
@@ -123,12 +124,18 @@ namespace Aether.Gameplay.Localization
             EnsureLoaded();
             if (_code == wanted.Code) return false;
 
+            // Through the settings service, which marks the language dirty and owns the file and
+            // flush. Writing GameSettings.Language directly would change the screen but leave the
+            // settings service clean, so the choice would disappear on the next launch.
+            SettingsService settings = AetherSettings.Ensure();
+            settings.Set("language.primary", LanguageCatalog.IndexOf(wanted.Code));
             _code = wanted.Code;
 
-            // Through the settings service, which owns the file and the flush. The language is one
-            // more value it holds; it is not a second persistence mechanism.
-            AetherSettings.Ensure().Values.Language = wanted.Code;
-            AetherSettings.Flush();
+            if (!AetherSettings.Flush())
+            {
+                UnityEngine.Debug.LogWarning(
+                    "[settings] The language changed for this session but could not be saved.");
+            }
 
             System.Action handler = Changed;
             if (handler != null) handler();

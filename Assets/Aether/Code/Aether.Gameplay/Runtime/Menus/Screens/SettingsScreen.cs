@@ -213,8 +213,12 @@ namespace Aether.Gameplay.Menus.Screens
             switch (request)
             {
                 case "settings.reset":
-                    _confirm.Open(MenuStrings.Get("data.reset.title"), MenuStrings.Get("data.reset.body"),
-                                  DeleteRun);
+                    int slot = SaveHost.DescribedSlot();
+                    if (slot < 1) break;
+
+                    _confirm.Open(MenuStrings.Get("slots.delete.title"),
+                                  MenuStrings.Format("slots.delete.body", slot),
+                                  () => DeleteRun(slot));
                     break;
 
                 case "settings.credits":
@@ -224,20 +228,24 @@ namespace Aether.Gameplay.Menus.Screens
 
                 case "settings.quit":
                     MenuAudio.Confirm();
-                    MenuFlow.Quit();
+                    if (!MenuFlow.Quit()) _rows.ShowQuitFailure();
                     break;
             }
         }
 
-        private void DeleteRun()
+        private void DeleteRun(int slot)
         {
-            // One call, from the layer that owns the files: it deletes the slot that is being played
-            // and resets the session standing on it, so a run cannot be deleted and then written back
-            // by an autosave a second later. Deleting a slot the session is not standing on would
-            // leave the session alone, which is the same rule seen from the other side.
-            SaveHost.DeleteSlot(SaveHost.ActiveSlot);
+            // The slot is captured when the question opens, not looked up after it closes: the thing
+            // the player confirmed must be the thing that is deleted, and an unset slot is never
+            // clamped into slot one by a destructive helper.
+            if (!SaveHost.DeleteSlot(slot))
+            {
+                Debug.LogError($"[settings] The stored run in slot {slot} could not be deleted.");
+                _rows.Refresh();
+                _rows.ShowDeleteFailure();
+                return;
+            }
 
-            MenuAudio.Confirm();
             _rows.Refresh();
         }
 

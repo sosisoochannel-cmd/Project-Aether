@@ -34,12 +34,10 @@ namespace Aether.Gameplay.Player
         private InputAction _jump;
         private InputAction _attack;
         private InputAction _dodge;
-        private InputAction _interact;
 
         private bool _jumpLatch;
         private bool _attackLatch;
         private bool _dodgeLatch;
-        private bool _interactLatch;
 
         /// <summary>Movement axis, already normalised to at most unit length.</summary>
         public Vector2 Move { get; private set; }
@@ -56,9 +54,6 @@ namespace Aether.Gameplay.Player
         /// <summary>True on the first frame a dodge press was seen and not yet consumed.</summary>
         public bool DodgePressed => _dodgeLatch;
 
-        /// <summary>True on the first frame an interact press was seen and not yet consumed.</summary>
-        public bool InteractPressed => _interactLatch;
-
         /// <summary>When false, all output is zeroed. Used by cutscenes, pause and death.</summary>
         public bool Enabled { get; set; } = true;
 
@@ -73,7 +68,6 @@ namespace Aether.Gameplay.Player
             _jump.Enable();
             _attack.Enable();
             _dodge.Enable();
-            _interact.Enable();
         }
 
         private void OnDisable()
@@ -82,7 +76,6 @@ namespace Aether.Gameplay.Player
             _jump.Disable();
             _attack.Disable();
             _dodge.Disable();
-            _interact.Disable();
 
             ClearLatches();
             Move = Vector2.zero;
@@ -95,7 +88,6 @@ namespace Aether.Gameplay.Player
             _jump?.Dispose();
             _attack?.Dispose();
             _dodge?.Dispose();
-            _interact?.Dispose();
         }
 
         private void Update()
@@ -116,7 +108,6 @@ namespace Aether.Gameplay.Player
             if (_jump.WasPressedThisFrame()) _jumpLatch = true;
             if (_attack.WasPressedThisFrame()) _attackLatch = true;
             if (_dodge.WasPressedThisFrame()) _dodgeLatch = true;
-            if (_interact.WasPressedThisFrame()) _interactLatch = true;
         }
 
         /// <summary>Clears the jump press flag. Call once the jump has been acted on.</summary>
@@ -128,15 +119,11 @@ namespace Aether.Gameplay.Player
         /// <summary>Clears the dodge press flag.</summary>
         public void ConsumeDodge() => _dodgeLatch = false;
 
-        /// <summary>Clears the interact press flag.</summary>
-        public void ConsumeInteract() => _interactLatch = false;
-
         private void ClearLatches()
         {
             _jumpLatch = false;
             _attackLatch = false;
             _dodgeLatch = false;
-            _interactLatch = false;
         }
 
         private void BuildActions()
@@ -174,10 +161,6 @@ namespace Aether.Gameplay.Player
             _dodge.AddBinding("<Keyboard>/l");
             _dodge.AddBinding("<Keyboard>/leftShift");
             _dodge.AddBinding("<Gamepad>/buttonEast");
-
-            _interact = new InputAction("Interact", InputActionType.Button);
-            _interact.AddBinding("<Keyboard>/e");
-            _interact.AddBinding("<Gamepad>/buttonNorth");
         }
     }
 }

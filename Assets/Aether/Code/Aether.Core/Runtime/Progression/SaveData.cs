@@ -27,9 +27,8 @@ namespace Aether.Core.Progression
         /// </summary>
         /// <remarks>
         /// A save file outlives the build that wrote it — that is the whole point of one — so every
-        /// document says what it is. Nothing yet reads this, and that is honest: there is one version,
-        /// and a version number that is written but never needed is cheaper than discovering later
-        /// that no way to tell the shapes apart was ever recorded.
+        /// document says what it is. Older versions are repaired on load; a newer version is kept on
+        /// disk but not opened by a build that cannot guarantee its shape.
         /// </remarks>
         public const int CurrentVersion = 2;
 
@@ -47,6 +46,59 @@ namespace Aether.Core.Progression
         public CharacterState Characters = new CharacterState();
         public AchievementState Achievements = new AchievementState();
 
+        /// <summary>Repairs sections that were absent in an older or partially written document.</summary>
+        /// <remarks>
+        /// A newly added section is a migration, not a reason to discard a run. Nested collections
+        /// are repaired too, because a JSON <c>null</c> inside an otherwise readable document must
+        /// not turn the first lookup into a null-reference exception.
+        /// </remarks>
+        public void RepairMissingSections()
+        {
+            if (Progression == null) Progression = new ProgressionState();
+            if (World == null) World = new WorldState();
+            if (Meta == null) Meta = new SaveMeta();
+            if (Collection == null) Collection = new CollectionState();
+            if (Characters == null) Characters = new CharacterState();
+            if (Achievements == null) Achievements = new AchievementState();
+
+            Progression.RepairMissingData();
+            World.RepairMissingData();
+            Collection.RepairMissingData();
+            Characters.RepairMissingData();
+            Achievements.RepairMissingData();
+
+            if (Meta.ChapterId == null) Meta.ChapterId = string.Empty;
+            if (Meta.ObjectiveId == null) Meta.ObjectiveId = string.Empty;
+        }
+
+        /// <summary>Copies the complete snapshot in, without sharing mutable state.</summary>
+        public void CopyFrom(SaveData other)
+        {
+            if (other == null) throw new System.ArgumentNullException(nameof(other));
+            if (ReferenceEquals(this, other)) return;
+
+            RepairMissingSections();
+            other.RepairMissingSections();
+
+            other.Progression.CopyTo(Progression);
+            other.World.CopyTo(World);
+            Collection.CopyFrom(other.Collection);
+            Characters.CopyFrom(other.Characters);
+            Achievements.CopyFrom(other.Achievements);
+
+            Meta = new SaveMeta
+            {
+                Slot = other.Meta.Slot,
+                ChapterId = other.Meta.ChapterId,
+                ObjectiveId = other.Meta.ObjectiveId,
+                SavedUtcTicks = other.Meta.SavedUtcTicks,
+                PlaySeconds = other.Meta.PlaySeconds,
+                Deaths = other.Meta.Deaths,
+                Discoveries = other.Meta.Discoveries,
+            };
+            Version = other.Version;
+        }
+
         /// <summary>Resets this snapshot to a brand-new game.</summary>
         /// <remarks>
         /// The meta is reset too, and then re-stamped: a new game in a slot keeps the slot's number,
@@ -54,6 +106,7 @@ namespace Aether.Core.Progression
         /// </remarks>
         public void ResetForNewGame()
         {
+            RepairMissingSections();
             Progression.Reset();
             World.Reset();
             Collection.Reset();
@@ -130,47 +183,62 @@ namespace Aether.Core.Progression
         [UnityEngine.SerializeField]
         private List<string> _found = new List<string>();
 
+        private List<string> FoundData
+        {
+            get
+            {
+                if (_found == null) _found = new List<string>();
+                return _found;
+            }
+        }
+
         /// <summary>Ids of everything found, in the order it was found.</summary>
         public IReadOnlyList<string> Found
         {
-            get { return _found; }
+            get { return FoundData; }
         }
 
         /// <summary>How many things have been found.</summary>
         public int Count
         {
-            get { return _found.Count; }
+            get { return FoundData.Count; }
         }
 
         /// <summary>Whether an id has been recorded.</summary>
         public bool Has(string id)
         {
             if (string.IsNullOrEmpty(id)) return false;
-            return _found.Contains(id);
+            return FoundData.Contains(id);
         }
 
         /// <summary>Records an id once. Returns false when it was already there.</summary>
         public bool Record(string id)
         {
-            if (string.IsNullOrEmpty(id) || _found.Contains(id)) return false;
+            if (string.IsNullOrEmpty(id) || FoundData.Contains(id)) return false;
 
-            _found.Add(id);
+            FoundData.Add(id);
             return true;
         }
 
         /// <summary>Back to nothing found.</summary>
         public void Reset()
         {
-            _found.Clear();
+            FoundData.Clear();
+        }
+
+        /// <summary>Repairs the collection list after deserializing an incomplete document.</summary>
+        public void RepairMissingData()
+        {
+            if (_found == null) _found = new List<string>();
         }
 
         /// <summary>Copies another snapshot in, field by field.</summary>
         public void CopyFrom(CollectionState other)
         {
-            if (other == null) return;
+            if (ReferenceEquals(this, other)) return;
 
-            _found.Clear();
-            if (other._found != null) _found.AddRange(other._found);
+            FoundData.Clear();
+            if (other != null && other._found != null) FoundData.AddRange(other._found);
         }
     }
 
@@ -185,43 +253,59 @@ namespace Aether.Core.Progression
         /// <summary>Id of the selected character, or empty for the default.</summary>
         public string SelectedId = string.Empty;
 
+        private List<string> MetData
+        {
+            get
+            {
+                if (_met == null) _met = new List<string>();
+                return _met;
+            }
+        }
+
         /// <summary>Ids of the characters met, in the order they were met.</summary>
         public IReadOnlyList<string> MetIds
         {
-            get { return _met; }
+            get { return MetData; }
         }
 
         /// <summary>Whether a character has been met.</summary>
         public bool HasMet(string id)
         {
             if (string.IsNullOrEmpty(id)) return false;
-            return _met.Contains(id);
+            return MetData.Contains(id);
         }
 
         /// <summary>Records a meeting once. Returns false when it was already recorded.</summary>
         public bool Record(string id)
         {
-            if (string.IsNullOrEmpty(id) || _met.Contains(id)) return false;
+            if (string.IsNullOrEmpty(id) || MetData.Contains(id)) return false;
 
-            _met.Add(id);
+            MetData.Add(id);
             return true;
         }
 
         /// <summary>Back to having met nobody.</summary>
         public void Reset()
         {
-            _met.Clear();
+            MetData.Clear();
             SelectedId = string.Empty;
+        }
+
+        /// <summary>Repairs character data after deserializing an incomplete document.</summary>
+        public void RepairMissingData()
+        {
+            if (_met == null) _met = new List<string>();
+            if (SelectedId == null) SelectedId = string.Empty;
         }
 
         /// <summary>Copies another snapshot in, field by field.</summary>
         public void CopyFrom(CharacterState other)
         {
-            if (other == null) return;
+            if (ReferenceEquals(this, other)) return;
 
-            _met.Clear();
-            if (other._met != null) _met.AddRange(other._met);
-            SelectedId = other.SelectedId;
+            MetData.Clear();
+            if (other != null && other._met != null) MetData.AddRange(other._met);
+            SelectedId = other != null ? other.SelectedId ?? string.Empty : string.Empty;
         }
     }
 
@@ -252,10 +336,19 @@ namespace Aether.Core.Progression
         [UnityEngine.SerializeField]
         private List<AchievementRecord> _records = new List<AchievementRecord>();
 
+        private List<AchievementRecord> RecordData
+        {
+            get
+            {
+                if (_records == null) _records = new List<AchievementRecord>();
+                return _records;
+            }
+        }
+
         /// <summary>One record per achievement that has been touched, locked or not.</summary>
         public IReadOnlyList<AchievementRecord> Records
         {
-            get { return _records; }
+            get { return RecordData; }
         }
 
         /// <summary>The record for an id, or null when nothing has been recorded for it.</summary>
@@ -263,9 +356,10 @@ namespace Aether.Core.Progression
         {
             if (string.IsNullOrEmpty(id)) return null;
 
-            for (int i = 0; i < _records.Count; i++)
+            List<AchievementRecord> records = RecordData;
+            for (int i = 0; i < records.Count; i++)
             {
-                if (_records[i] != null && _records[i].Id == id) return _records[i];
+                if (records[i] != null && records[i].Id == id) return records[i];
             }
 
             return null;
@@ -284,9 +378,10 @@ namespace Aether.Core.Progression
             get
             {
                 int count = 0;
-                for (int i = 0; i < _records.Count; i++)
+                List<AchievementRecord> records = RecordData;
+                for (int i = 0; i < records.Count; i++)
                 {
-                    if (_records[i] != null && _records[i].Unlocked) count++;
+                    if (records[i] != null && records[i].Unlocked) count++;
                 }
 
                 return count;
@@ -302,30 +397,36 @@ namespace Aether.Core.Progression
             if (record != null) return record;
 
             record = new AchievementRecord { Id = id };
-            _records.Add(record);
+            RecordData.Add(record);
             return record;
         }
 
         /// <summary>Back to nothing achieved.</summary>
         public void Reset()
         {
-            _records.Clear();
+            RecordData.Clear();
+        }
+
+        /// <summary>Repairs achievement data after deserializing an incomplete document.</summary>
+        public void RepairMissingData()
+        {
+            if (_records == null) _records = new List<AchievementRecord>();
         }
 
         /// <summary>Copies another snapshot in, field by field and record by record.</summary>
         public void CopyFrom(AchievementState other)
         {
-            if (other == null) return;
+            if (ReferenceEquals(this, other)) return;
 
-            _records.Clear();
-            if (other._records == null) return;
+            RecordData.Clear();
+            if (other == null || other._records == null) return;
 
             for (int i = 0; i < other._records.Count; i++)
             {
                 AchievementRecord source = other._records[i];
                 if (source == null) continue;
 
-                _records.Add(new AchievementRecord
+                RecordData.Add(new AchievementRecord
                 {
                     Id = source.Id,
                     UnlockedUtcTicks = source.UnlockedUtcTicks,
@@ -348,10 +449,16 @@ namespace Aether.Core.Progression
         /// <summary>Loads a snapshot. Returns false when no save exists or it could not be read.</summary>
         bool TryLoad(out SaveData data);
 
-        /// <summary>Writes a snapshot. Implementations must not mutate the supplied object.</summary>
-        void Save(SaveData data);
+        /// <summary>
+        /// Requests an automatic write. True means the request succeeded or was intentionally
+        /// suppressed by the player's autosave preference; false means storage failed.
+        /// </summary>
+        bool Save(SaveData data);
 
-        /// <summary>Deletes any stored snapshot.</summary>
-        void Clear();
+        /// <summary>Writes even when autosave is off. Returns false when the write failed.</summary>
+        bool Save(SaveData data, bool explicitWrite);
+
+        /// <summary>Deletes any stored snapshot. Returns false when storage refused the deletion.</summary>
+        bool Clear();
     }
 }

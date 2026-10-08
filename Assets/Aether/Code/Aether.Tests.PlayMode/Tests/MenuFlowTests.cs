@@ -1,6 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using Aether.Core.Settings;
+using Aether.Gameplay.Flow;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
@@ -37,21 +40,26 @@ namespace Aether.Tests.PlayMode
     /// the shipped buttons. Where a test needs a value it asks the same systems the game asks.
     /// </para>
     /// <para>
-    /// It also leaves the settings and the save file alone: the menu is shown with whatever is on
-    /// disk, and the one test that needs "no stored run" asserts against
-    /// <see cref="SaveHost.HasStoredProgress"/> rather than deleting a file it did not create.
+    /// It also isolates both persistence layers: settings use an in-memory store and save slots use
+    /// a unique temporary folder that is removed after each test. The menu cannot migrate, overwrite
+    /// or clean up a player's real settings or save files.
     /// </para>
     /// </remarks>
     public sealed class MenuFlowTests
     {
         private readonly List<GameObject> _built = new List<GameObject>();
+        private string _saveFolder;
 
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            // A deterministic starting point for the settings service, without touching the player's
-            // file: the tests that read a value want the default, not whatever the machine saved.
-            AetherSettings.ResetForTests();
+            GameLaunch.Clear();
+            _saveFolder = "Aether-MenuFlow-Test-" + Guid.NewGuid().ToString("N");
+            SaveHost.ResetForTests(Aether.Gameplay.GameSession.Instance, _saveFolder);
+
+            // The menu tests use isolated settings and save storage. A menu should never migrate,
+            // overwrite or even need to inspect a player's real save while a test is running.
+            AetherSettings.ResetForTests(new MemorySettingsStore());
             yield return null;
         }
 
@@ -64,6 +72,7 @@ namespace Aether.Tests.PlayMode
             }
 
             _built.Clear();
+            GameLaunch.Clear();
 
             // The transition is built to outlive a scene load, because in the game it must — and that
             // is exactly why a test may not leave one behind: a full-screen canvas in front of the
@@ -76,6 +85,14 @@ namespace Aether.Tests.PlayMode
             }
 
             yield return null;
+
+            // Tear down anything a menu action created and remove only this test's unique save folder.
+            SaveHost.ResetForTests(Aether.Gameplay.GameSession.Instance, _saveFolder);
+            for (int slot = 1; slot <= SaveSlots.Count; slot++) SaveSlots.For(slot).Clear();
+            string saveRoot = Path.GetDirectoryName(SaveSlots.For(1).Location);
+            if (Directory.Exists(saveRoot)) Directory.Delete(saveRoot, true);
+            SaveHost.ResetForTests(null);
+            AetherSettings.ResetForTests();
         }
 
         /// <summary>Builds the menu the way the scene does, and waits for it to come up.</summary>
@@ -134,6 +151,23 @@ namespace Aether.Tests.PlayMode
             }
 
             Assert.IsTrue(found, "the menu's canvas is not in the scene");
+        }
+
+        [UnityTest]
+        public IEnumerator A_pause_settings_request_opens_settings_and_back_returns_to_main_menu()
+        {
+            GameLaunch.RequestOpenSettings();
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            Assert.AreEqual(MenuScreenId.Settings, root.System.CurrentId,
+                            "the menu ignored the settings destination handed over from pause");
+            Assert.AreEqual(1, VisibleScreens(root));
+
+            Assert.IsTrue(root.System.Back(), "the settings screen did not handle Back");
+            yield return Settle(root);
+            Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
+                            "Back from settings did not return to the main menu behind it");
         }
 
         [UnityTest]
@@ -313,8 +347,8 @@ namespace Aether.Tests.PlayMode
 
             Assert.IsNotNull(continueRow, "the main menu has no CONTINUE row");
 
-            // The row says what the save layer says. The test asserts the two agree rather than
-            // asserting a value, because the runner may or may not have a stored run.
+            // This fixture owns a fresh isolated save folder, so Continue should be locked exactly
+            // when its save layer reports that there is no stored run.
             Assert.AreEqual(!SaveHost.HasStoredProgress, continueRow.Locked,
                             "CONTINUE is not locked in step with whether a run is stored");
             if (continueRow.Locked)
@@ -354,6 +388,55 @@ namespace Aether.Tests.PlayMode
                               $"no note for the {categories[i]} category");
             }
         }
+
+        [UnityTest]
+        public IEnumerator Settings_rows_are_inside_their_scroll_clip_and_navigation_reveals_them()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            root.System.GoTo(MenuScreenId.Settings);
+            yield return Settle(root);
+
+            SettingsScreen screen = (SettingsScreen)root.System.Current;
+            ScrollRect categoryScroll = screen.Categories.GetComponentInChildren<ScrollRect>(true);
+            Assert.IsNotNull(categoryScroll, "the category list has no scroll view");
+            MenuButton[] categories = screen.Categories.GetComponentsInChildren<MenuButton>(true);
+            Assert.GreaterOrEqual(categories.Length, SettingCategoryCount,
+                                  "the settings categories were not built");
+            for (int i = 0; i < categories.Length; i++)
+            {
+                Assert.IsTrue(categories[i].transform.IsChildOf(categoryScroll.content),
+                              "a settings category escaped the clipped scroll content");
+            }
+
+            screen.Layout(800f, 300f);
+            screen.OpenCategory(SettingCategory.Audio);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            ScrollRect rowScroll = screen.Rows.GetComponentInChildren<ScrollRect>(true);
+            Assert.IsNotNull(rowScroll, "the settings rows have no scroll view");
+            MenuButton[] rows = screen.Rows.GetComponentsInChildren<MenuButton>(true);
+            Assert.Greater(rows.Length, 0, "the settings catalogue produced no rows");
+            for (int i = 0; i < rows.Length; i++)
+            {
+                Assert.IsTrue(rows[i].transform.IsChildOf(rowScroll.content),
+                              "a settings row escaped the clipped scroll content");
+            }
+
+            Assert.Greater(rowScroll.content.rect.height, rowScroll.viewport.rect.height,
+                           "the short test viewport should require scrolling");
+            for (int i = 1; i < screen.ActiveNav.Count - 1; i++)
+                screen.ActiveNav.Step(MenuNav.Move.Down);
+
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            Assert.IsNotNull(screen.ActiveNav.Current, "navigation lost its selected settings row");
+            Assert.Greater(rowScroll.content.anchoredPosition.y, 0f,
+                           "keyboard/gamepad selection did not scroll the final settings row into view");
+        }
+
+        private const int SettingCategoryCount = 10;
 
         [UnityTest]
         public IEnumerator Every_setting_row_has_a_label_and_a_destination()
@@ -400,20 +483,19 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator The_menu_survives_a_screen_of_rapid_input()
+        public IEnumerator The_menu_survives_a_screen_of_rapid_navigation()
         {
             yield return BuildMenu();
             MenuRoot root = CurrentMenu();
 
-            // Hammering every direction and Submit for a second, with screen changes in the middle.
-            // Nothing may throw, and only one screen may be up at the end.
+            // Hammer every direction for a second, with screen changes in the middle. This stresses
+            // navigation and transitions without submitting a real save, quit or scene-load action.
             float until = Time.unscaledTime + 1f;
             int step = 0;
             while (Time.unscaledTime < until)
             {
                 MenuNav.Move move = (MenuNav.Move)(step % 4);
                 root.System.Move(move);
-                root.System.Submit();
 
                 if (step % 11 == 0)
                 {
@@ -430,7 +512,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator The_canvas_scales_by_height_and_the_layout_fits_inside_it()
+        public IEnumerator The_canvas_scales_by_height_and_scroll_navigation_keeps_rows_reachable()
         {
             // A landscape window, the way the game will be played. A batch-mode editor may have no
             // window to resize, and the real box is measured below either way rather than assumed.
@@ -478,8 +560,8 @@ namespace Aether.Tests.PlayMode
                                 "the layout is inset vertically although the screen has no unsafe area");
             }
 
-            // Every row the player can press is inside the canvas at this resolution. This is the
-            // check that catches a composition that fits 20:9 on paper and hangs off a 16:9 screen.
+            // The viewport is what must fit the canvas. Content may be taller on a 4:3 or high-scale
+            // screen, but it must remain clipped and every action must stay reachable through it.
             var canvasCorners = new Vector3[4];
             root.Ui.Root.GetWorldCorners(canvasCorners);
             float left = canvasCorners[0].x, bottom = canvasCorners[0].y;
@@ -514,17 +596,40 @@ namespace Aether.Tests.PlayMode
                          + $"{rows.Length} rows";
             Debug.LogWarning($"[menu-layout] {where}");
 
-            var rowCorners = new Vector3[4];
+            ScrollRect scroll = root.System.Current.GetComponentInChildren<ScrollRect>(true);
+            Assert.IsNotNull(scroll, "the main menu has no scroll view for short or narrow screens");
+
+            var viewportCorners = new Vector3[4];
+            scroll.viewport.GetWorldCorners(viewportCorners);
+            Assert.GreaterOrEqual(viewportCorners[0].x, left - 1f,
+                                  $"the menu viewport hangs off the left edge ({where})");
+            Assert.LessOrEqual(viewportCorners[2].x, right + 1f,
+                               $"the menu viewport hangs off the right edge ({where})");
+            Assert.GreaterOrEqual(viewportCorners[0].y, bottom - 1f,
+                                  $"the menu viewport hangs off the bottom edge ({where})");
+            Assert.LessOrEqual(viewportCorners[2].y, top + 1f,
+                               $"the menu viewport hangs off the top edge ({where})");
+
             for (int i = 0; i < rows.Length; i++)
             {
-                rows[i].Rect.GetWorldCorners(rowCorners);
-                string row = $"row {i} '{rows[i].name}' at x {rowCorners[0].x:0.#}..{rowCorners[2].x:0.#}, "
-                           + $"y {rowCorners[0].y:0.#}..{rowCorners[2].y:0.#}";
-                Assert.GreaterOrEqual(rowCorners[0].x, left - 1f, $"{row} hangs off the left edge ({where})");
-                Assert.LessOrEqual(rowCorners[2].x, right + 1f, $"{row} hangs off the right edge ({where})");
-                Assert.GreaterOrEqual(rowCorners[0].y, bottom - 1f, $"{row} hangs off the bottom edge ({where})");
-                Assert.LessOrEqual(rowCorners[2].y, top + 1f, $"{row} hangs off the top edge ({where})");
+                Assert.IsTrue(rows[i].transform.IsChildOf(scroll.content),
+                              $"row {i} '{rows[i].name}' is not inside the clipped scroll content ({where})");
             }
+
+            MenuButton last = rows[rows.Length - 1];
+            MenuNav nav = root.System.Current.ActiveNav;
+            nav.Select(last);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.AreSame(last, nav.Current, "the last main-menu action was not selectable");
+            Bounds selected = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                scroll.viewport, last.Rect);
+            Rect viewport = scroll.viewport.rect;
+            Assert.GreaterOrEqual(selected.min.y, viewport.yMin - 1f,
+                                  $"scroll selection left the last row below its viewport ({where})");
+            Assert.LessOrEqual(selected.max.y, viewport.yMax + 1f,
+                               $"scroll selection left the last row above its viewport ({where})");
         }
 
         [UnityTest]
@@ -651,6 +756,8 @@ namespace Aether.Tests.PlayMode
             var screen = (SaveSlotScreen)root.System.Current;
             Assert.AreEqual(SaveSlots.Count, screen.PrimaryRows.Length,
                             "the screen does not show one row per slot");
+            Assert.AreEqual(SaveSlots.Count, screen.NewRunRows.Length,
+                            "the screen does not offer an explicit new-run action in every slot");
             Assert.AreEqual(SaveSlots.Count, screen.DeleteRows.Length,
                             "the screen does not offer a way to free every slot");
 
@@ -668,8 +775,9 @@ namespace Aether.Tests.PlayMode
 
                 // A slot whose file cannot be read is the one case the row refuses to open, and the
                 // test asserts the row and the store agree rather than asserting either alone.
-                Assert.AreEqual(info.Corrupt, row.Locked,
-                                $"slot {i + 1} is {(info.Corrupt ? "locked" : "open")} while the "
+                bool shouldBeLocked = info.Exists && !info.Playable;
+                Assert.AreEqual(shouldBeLocked, row.Locked,
+                                $"slot {i + 1} is {(shouldBeLocked ? "locked" : "open")} while the "
                                 + "store says the opposite");
                 if (row.Locked) Assert.IsFalse(row.Usable, "a locked slot row is still usable");
             }
@@ -723,6 +831,34 @@ namespace Aether.Tests.PlayMode
                 Assert.AreEqual(CollectionCatalog.All[c].Entries.Length, rows.Length,
                                 $"collection category {c} does not show every entry");
             }
+        }
+
+        private sealed class MemorySettingsStore : ISettingsStore
+        {
+            public GameSettings Stored;
+
+            public bool TryLoad(out GameSettings settings)
+            {
+                settings = Stored;
+                return settings != null;
+            }
+
+            public bool Save(GameSettings settings)
+            {
+                if (settings == null) return false;
+                Stored = new GameSettings();
+                Stored.CopyFrom(settings);
+                return true;
+            }
+
+            public bool Clear()
+            {
+                Stored = null;
+                return true;
+            }
+
+            public bool Exists => Stored != null;
+            public string Location => "isolated menu test store";
         }
 
         /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>

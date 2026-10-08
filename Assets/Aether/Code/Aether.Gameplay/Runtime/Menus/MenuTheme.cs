@@ -24,46 +24,45 @@ namespace Aether.Gameplay.Menus
     {
         /// <summary>The colour of the interface, and the one accent it is allowed.</summary>
         /// <remarks>
-        /// Black and white with a single cold accent, used only where the interface wants the eye:
-        /// the caret beside the highlighted row, the hairline under it, and the fill of a control
-        /// that is switched on. Everything else is a grey, and there are only four of those. A menu
-        /// that uses one accent carefully reads as designed; a menu that uses five reads as a
-        /// template.
+        /// Soot-dark greenway tones, warm ivory type, and one restrained sage accent. The accent
+        /// appears only where the interface needs to direct the eye: a selected row, a section mark,
+        /// or an enabled control. Everything else stays quiet, so the menu feels like part of the
+        /// world rather than a separate blue-tinted template.
         /// </remarks>
         public static class Palette
         {
-            /// <summary>Behind everything. Not pure black, so pure black can still mean "gone".</summary>
-            public static readonly Color Ground = new Color(0.043f, 0.047f, 0.055f, 1f);
+            /// <summary>Deep green-black, leaving true black to mean "gone".</summary>
+            public static readonly Color Ground = new Color(0.032f, 0.039f, 0.031f, 1f);
 
-            /// <summary>The far layer of the backdrop: slightly lighter than the ground.</summary>
-            public static readonly Color Horizon = new Color(0.075f, 0.082f, 0.098f, 1f);
+            /// <summary>The far layer of the backdrop: a quiet step above the ground.</summary>
+            public static readonly Color Horizon = new Color(0.065f, 0.079f, 0.060f, 1f);
 
-            /// <summary>The atmosphere bloom: a cold, very faint wash behind the title.</summary>
-            public static readonly Color Atmosphere = new Color(0.22f, 0.42f, 0.62f, 0.16f);
+            /// <summary>A low-saturation leaf wash, wide enough to read as air rather than a flare.</summary>
+            public static readonly Color Atmosphere = new Color(0.22f, 0.32f, 0.19f, 0.14f);
 
-            /// <summary>Primary text: the title, the main rows.</summary>
-            public static readonly Color Ink = new Color(0.94f, 0.96f, 0.98f, 1f);
+            /// <summary>Primary text: warm ivory for the title and the important choices.</summary>
+            public static readonly Color Ink = new Color(0.93f, 0.92f, 0.85f, 1f);
 
-            /// <summary>Secondary text: subtitles, values, help lines.</summary>
-            public static readonly Color InkMuted = new Color(0.62f, 0.66f, 0.72f, 1f);
+            /// <summary>Secondary text: softer ivory for subtitles, values and help lines.</summary>
+            public static readonly Color InkMuted = new Color(0.66f, 0.68f, 0.61f, 1f);
 
-            /// <summary>Tertiary text: footnotes, disabled rows, the version line.</summary>
-            public static readonly Color InkFaint = new Color(0.38f, 0.41f, 0.46f, 1f);
+            /// <summary>Tertiary text: footnotes and version details, still readable on the ground.</summary>
+            public static readonly Color InkFaint = new Color(0.47f, 0.49f, 0.44f, 1f);
 
             /// <summary>Hairlines, separators and the tracks of sliders.</summary>
-            public static readonly Color Line = new Color(0.24f, 0.27f, 0.32f, 0.75f);
+            public static readonly Color Line = new Color(0.22f, 0.25f, 0.20f, 0.68f);
 
-            /// <summary>The one accent. Carets, focus, underline, a switched-on control.</summary>
-            public static readonly Color Accent = new Color(0.55f, 0.85f, 1f, 1f);
+            /// <summary>The one accent: muted sage for focus and enabled controls.</summary>
+            public static readonly Color Accent = new Color(0.68f, 0.78f, 0.57f, 1f);
 
-            /// <summary>The accent at the opacity a large shape uses.</summary>
-            public static readonly Color AccentWash = new Color(0.55f, 0.85f, 1f, 0.18f);
+            /// <summary>The accent at a lower opacity for selected-row surfaces.</summary>
+            public static readonly Color AccentWash = new Color(0.68f, 0.78f, 0.57f, 0.12f);
 
-            /// <summary>What a locked row's text is drawn in, and its caret.</summary>
-            public static readonly Color Locked = new Color(0.30f, 0.33f, 0.38f, 1f);
+            /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
+            public static readonly Color Locked = new Color(0.46f, 0.49f, 0.43f, 1f);
 
-            /// <summary>The scrim a screen is shown over, and the fade a transition runs through.</summary>
-            public static readonly Color Scrim = new Color(0.016f, 0.018f, 0.022f, 0.94f);
+            /// <summary>The near-black scrim used by modal and scene transitions.</summary>
+            public static readonly Color Scrim = new Color(0.013f, 0.015f, 0.012f, 0.94f);
 
             /// <summary>Raise every text colour for the high-contrast accessibility setting.</summary>
             public static Color WithContrast(Color colour, bool highContrast)
@@ -126,14 +125,14 @@ namespace Aether.Gameplay.Menus
             public const float NarrowestAspect = 4f / 3f;
 
             // -- the brand block
-            /// <summary>Height of the approved studio mark, in units. Its aspect is preserved.</summary>
-            public const float LogoHeight = 88f;
+            /// <summary>Height of the cropped studio lockup, in units. Its aspect is preserved.</summary>
+            public const float LogoHeight = 112f;
 
-            /// <summary>Widest the mark may be drawn before it is capped and centred in its slot.</summary>
+            /// <summary>Widest the mark may be drawn before it is capped to fit its slot.</summary>
             public const float LogoMaxWidth = 420f;
 
             /// <summary>Distance from the brand block to the title.</summary>
-            public const float LogoGap = 24f;
+            public const float LogoGap = 18f;
 
             public const float TitleSize = 56f;
             public const float TitleTracking = 18f;
@@ -146,7 +145,7 @@ namespace Aether.Gameplay.Menus
             public const float TitleRuleHeight = 2f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
-            public const float TitleGapBody = 32f;
+            public const float TitleGapBody = 24f;
 
             // -- section labels
             public const float SectionLabelSize = 22f;
@@ -281,7 +280,7 @@ namespace Aether.Gameplay.Menus
             public const float EntranceStagger = 0.07f;
 
             /// <summary>How far a row rises as it fades in, in reference units.</summary>
-            public const float EntranceRise = 26f;
+            public const float EntranceRise = 16f;
 
             /// <summary>Press acknowledgment: how long the row takes to reach its pressed scale.</summary>
             public const float PressSeconds = 0.06f;
@@ -293,7 +292,7 @@ namespace Aether.Gameplay.Menus
             public const float HighlightSeconds = 0.14f;
 
             /// <summary>Idle drift of the backdrop, in reference units.</summary>
-            public const float ParallaxAmplitude = 26f;
+            public const float ParallaxAmplitude = 12f;
 
             /// <summary>Seconds for one full cycle of the backdrop's drift.</summary>
             public const float ParallaxPeriod = 26f;
