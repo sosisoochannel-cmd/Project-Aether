@@ -177,6 +177,7 @@ namespace Aether.Gameplay.Menus.Screens
                     continue;
                 }
 
+                row.SetLocked(false);
                 bool completed = run != null && run.World.IsSet(ChapterCatalog.CompletionFlagOf(chapter.Id));
                 bool current = run != null && run.Meta != null && run.Meta.ChapterId == chapter.Id;
 
@@ -241,7 +242,7 @@ namespace Aether.Gameplay.Menus.Screens
                 }
 
                 MenuAudio.Confirm();
-                if (!Host.PlayRegion()) _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.transition.failed"));
+                if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.transition.failed"));
                 return;
             }
 
@@ -265,7 +266,7 @@ namespace Aether.Gameplay.Menus.Screens
                     return;
                 }
 
-                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
             });
         }
 
