@@ -209,7 +209,7 @@ namespace Aether.Gameplay.Menus.Screens
                 if (describedSlot > 0 && SaveHost.LoadSlot(describedSlot))
                 {
                     MenuAudio.Confirm();
-                    if (!Host.PlayRegion()) _body.text = MenuStrings.Get("menu.start.failed");
+                    if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("menu.start.failed");
                     return;
                 }
 
