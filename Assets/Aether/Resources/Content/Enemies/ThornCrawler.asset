@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76beed3229c66577bbe2dbf035ed8db5, type: 3}
+  m_Name: ThornCrawler
+  m_EditorClassIdentifier: 
+  _typeId: thorn_crawler
+  _displayName: Thorn Crawler
+  _behaviour: 1
+  _maxHealth: 4
+  _detectionRange: 5.8
+  _detectionHeight: 1.4
+  _disengageRange: 9
+  _moveSpeed: 2.6
+  _attackLungeSpeed: 4.0
+  _attackCommitTime: 0.14
+  _recoveryPause: 0.8
+  _attackRange: 1.55
+  _attackWindupDelay: 0.28
+  _patrolDistance: 3.5
+  _patrolPause: 0.8
+  _staggerDuration: 0.22
+  _knockbackDuration: 0.18
+  _invulnerabilityAfterHit: 0.12
+  _ledgeProbeDistance: 0.6
+  _wallProbeDistance: 0.5
+  _groundProbeOffset: 0.5
+  _dropDelay: 0.45
+  _attack: {fileID: 11400000, guid: 6436f28df097e1b3f44a64189150dca3, type: 2}
+  _alertCueId: enemy.alert
+  _attackCueId: enemy.attack
+  _deathCueId: enemy.death
