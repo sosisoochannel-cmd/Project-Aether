@@ -30,7 +30,16 @@ namespace Aether.Gameplay.Menus
         /// <returns>False when the save or scene prerequisite fails; the menu remains usable.</returns>
         public static bool PlayRegion()
         {
-            return PlayRegion(GameLaunch.DefaultLevelPath);
+            string levelPath = GameLaunch.DefaultLevelPath;
+            GameSession session = GameSession.Instance;
+            if (session != null && session.Save != null && session.Save.Meta != null)
+            {
+                ChapterDefinition chapter = ChapterCatalog.Find(session.Save.Meta.ChapterId);
+                if (chapter != null && chapter.Playable)
+                    levelPath = chapter.LevelPath;
+            }
+
+            return PlayRegion(levelPath);
         }
 
         /// <summary>
