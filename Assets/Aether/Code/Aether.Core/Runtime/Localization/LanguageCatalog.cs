@@ -132,7 +132,7 @@ namespace Aether.Core.Localization
         /// as such and are not offered however complete a sheet might be.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es" };
+        public static readonly string[] Offered = { "en", "es", "fr" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)
