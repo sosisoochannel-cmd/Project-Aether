@@ -78,6 +78,13 @@ namespace Aether.Gameplay.Menus
             text.color = colour;
             text.alignment = alignment;
             text.raycastTarget = false;
+            // Legacy Text has no automatic width negotiation. Best-fit is the last-resort safety
+            // net for translated labels: normal English keeps its designed size, while a longer
+            // German/Russian/Persian string can step down instead of clipping through the next
+            // control. Paragraphs explicitly disable this below and use wrapping.
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(12, Mathf.RoundToInt(size * 0.64f));
+            text.resizeTextMaxSize = Mathf.Max(12, Mathf.RoundToInt(size));
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
             text.supportRichText = false;
@@ -287,6 +294,7 @@ namespace Aether.Gameplay.Menus
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
             text.lineSpacing = Mathf.Max(1f, lineHeight / Mathf.Max(1f, size));
+            text.resizeTextForBestFit = false;
             return text;
         }
 
