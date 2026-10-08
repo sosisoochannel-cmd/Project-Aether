@@ -217,7 +217,7 @@ namespace Aether.Gameplay.Levels
             {
                 // A level that does not parse is a build-time mistake that reached runtime. Say so
                 // loudly with the exact line, and do not attempt to play a partial level.
-                Debug.LogError($"The Greenway level data could not be read. {ex.Message}", this);
+                Debug.LogError($"The requested level data could not be read. {ex.Message}", this);
                 return null;
             }
         }
