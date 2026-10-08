@@ -247,6 +247,11 @@ namespace Aether.Gameplay.Levels
             renderer.sortingOrder = SortingEntity;
             go.transform.localScale = new Vector3(1.4f, 1.4f, 1f);
 
+            if (entity.Id.IndexOf("woods", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                CreateAccentHalo(go.transform, new Color(0.55f, 0.82f, 0.48f, 0.18f), 2.2f);
+            }
+
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
             collider.size = new Vector2(1.2f, 1.8f);
@@ -303,6 +308,17 @@ namespace Aether.Gameplay.Levels
             var trigger = go.AddComponent<LevelExitTrigger>();
             trigger.Configure(entity);
             return trigger;
+        }
+
+        private static void CreateAccentHalo(Transform parent, Color color, float scale)
+        {
+            var halo = new GameObject("AccentHalo");
+            halo.transform.SetParent(parent, false);
+            var renderer = halo.AddComponent<SpriteRenderer>();
+            renderer.sprite = PlaceholderVisuals.Ring;
+            renderer.color = color;
+            renderer.sortingOrder = SortingEntity - 1;
+            halo.transform.localScale = Vector3.one * scale;
         }
 
         private static void CreateStoryMarker(Transform parent, LevelEntity entity, Vector2 feet)
