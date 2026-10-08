@@ -1,5 +1,6 @@
 using System;
 using Aether.Gameplay.Menus.Components;
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -80,29 +81,34 @@ namespace Aether.Gameplay.Menus.Panels
                                                     MenuTheme.Metrics.ScreenTitleSize,
                                                     MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.ScreenTitleTracking);
-            MenuUi.Corner(panel._title.rectTransform, new Vector2(0f, 1f),
+            MenuUi.Corner(panel._title.rectTransform, new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f),
                           new Vector2(MenuTheme.Metrics.DialogPadding, -MenuTheme.Metrics.DialogPadding),
                           new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 64f),
-                          new Vector2(0f, 1f));
+                          new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f));
+            panel._title.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
 
             panel._body = MenuUi.CreateParagraph("Body", panel._plate.rectTransform, string.Empty,
                                                  MenuTheme.Metrics.ParagraphSize,
                                                  MenuTheme.Palette.InkMuted,
                                                  MenuTheme.Metrics.ParagraphLineHeight);
-            MenuUi.Corner(panel._body.rectTransform, new Vector2(0f, 1f),
+            MenuUi.Corner(panel._body.rectTransform, new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f),
                           new Vector2(MenuTheme.Metrics.DialogPadding, -150f),
                           new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 88f),
-                          new Vector2(0f, 1f));
+                          new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f));
+            panel._body.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
 
             panel._cancel = Row("Cancel", panel._plate.rectTransform, MenuStrings.Get("common.cancel"));
-            MenuUi.Corner(panel._cancel.Rect, new Vector2(0f, 0f),
-                          new Vector2(MenuTheme.Metrics.DialogPadding, MenuTheme.Metrics.DialogPadding),
+            bool rtl = LanguageService.IsRightToLeft;
+            MenuUi.Corner(panel._cancel.Rect, new Vector2(rtl ? 1f : 0f, 0f),
+                          new Vector2(rtl ? -MenuTheme.Metrics.DialogPadding : MenuTheme.Metrics.DialogPadding,
+                                      MenuTheme.Metrics.DialogPadding),
                           new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(0f, 0f));
             panel._cancel.Activated = () => panel.Close(false);
 
             panel._confirm = Row("Confirm", panel._plate.rectTransform, MenuStrings.Get("common.confirm"));
-            MenuUi.Corner(panel._confirm.Rect, new Vector2(1f, 0f),
-                          new Vector2(-MenuTheme.Metrics.DialogPadding, MenuTheme.Metrics.DialogPadding),
+            MenuUi.Corner(panel._confirm.Rect, new Vector2(rtl ? 0f : 1f, 0f),
+                          new Vector2(rtl ? MenuTheme.Metrics.DialogPadding : -MenuTheme.Metrics.DialogPadding,
+                                      MenuTheme.Metrics.DialogPadding),
                           new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(1f, 0f));
             panel._confirm.Activated = () => panel.Close(true);
 
@@ -212,7 +218,10 @@ namespace Aether.Gameplay.Menus.Panels
             if (!IsOpen) return false;
             if (move != MenuNav.Move.Left && move != MenuNav.Move.Right) return false;
 
-            Nav.Select(move == MenuNav.Move.Right ? (Selectable)_confirm : _cancel);
+            bool rtl = LanguageService.IsRightToLeft;
+            Nav.Select(move == (rtl ? MenuNav.Move.Left : MenuNav.Move.Right)
+                ? (Selectable)_confirm
+                : _cancel);
             return true;
         }
 
