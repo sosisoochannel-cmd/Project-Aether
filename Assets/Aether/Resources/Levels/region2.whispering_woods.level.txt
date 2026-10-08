@@ -9,7 +9,7 @@
 # - the silent zone is represented as a semantic story space, ready for a future audio backend;
 # - the shortcut returns the player to the first checkpoint without creating a progression lock.
 
-aether-level 2
+aether-level 1
 
 [meta]
 id           = region2.whispering_woods
