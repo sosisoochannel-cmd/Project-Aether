@@ -24,6 +24,7 @@ namespace Aether.Gameplay.Player
         private void Update()
         {
             if (_base == null) return;
+            if (_motor == null) _motor = GetComponent<PlayerMotor>();
             float speed=_motor != null ? Mathf.Abs(_motor.VelocityX) : 0f;
             bool grounded=_motor != null && _motor.IsGrounded;
             float bob=grounded ? Mathf.Sin(Time.time*(speed>0.2f?13f:4f))*(speed>0.2f?0.018f:0.008f) : 0f;
