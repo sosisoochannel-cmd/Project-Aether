@@ -1,5 +1,6 @@
 using Aether.Core.Settings;
 using Aether.Gameplay.Menus.Components;
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -148,7 +149,9 @@ namespace Aether.Gameplay.Menus.Panels
                 rect.anchorMax = new Vector2(0f, 1f);
                 rect.pivot = new Vector2(0f, 1f);
                 rect.sizeDelta = new Vector2(cell, pitch);
-                rect.anchoredPosition = new Vector2(column * cell, -(band * pitch));
+                bool rtl = LanguageService.IsRightToLeft;
+                float visualColumn = rtl ? (_columns - 1 - column) : column;
+                rect.anchoredPosition = new Vector2(visualColumn * cell, -(band * pitch));
 
                 _rows[i].ApplyLayout(MenuTheme.Metrics.CaretOutdent, MenuTheme.Metrics.CaretOutdent);
                 _rows[i].SetRuleWidth(cell - MenuTheme.Metrics.CaretOutdent);
