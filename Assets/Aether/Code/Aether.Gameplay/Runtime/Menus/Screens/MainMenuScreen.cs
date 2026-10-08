@@ -107,7 +107,7 @@ namespace Aether.Gameplay.Menus.Screens
 
             _version = MenuUi.CreateText("Version", Rect, string.Empty, MenuTheme.Metrics.VersionSize,
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
-            _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
+            _version.text = MenuUi.Track(MenuUi.PrepareText(MenuStrings.Format("about.version", Application.version)),
                                          MenuTheme.Metrics.VersionTracking);
             _version.rectTransform.anchorMin = new Vector2(1f, 0f);
             _version.rectTransform.anchorMax = new Vector2(1f, 0f);
@@ -276,7 +276,7 @@ namespace Aether.Gameplay.Menus.Screens
         {
             if (MenuFlow.Quit()) return;
 
-            _version.text = MenuUi.Track(MenuStrings.Get("menu.quit.saveFailed"),
+            _version.text = MenuUi.Track(MenuUi.PrepareText(MenuStrings.Get("menu.quit.saveFailed")),
                                          MenuTheme.Metrics.VersionTracking);
         }
 
