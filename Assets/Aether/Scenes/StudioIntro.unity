@@ -256,7 +256,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _markResourcePath: Brand/VarellonLogo
-  _nextScene: Boot
+  _nextScene: MainMenu
   _markColour: {r: 0.949, g: 0.937, b: 0.918, a: 1}
   _revealCueId: studio.intro.reveal
   _exitCueId: studio.intro.exit
