@@ -14,7 +14,7 @@ aether-level 1
 [meta]
 id           = region2.whispering_woods
 display_name = Whispering Woods
-region       = region1
+region       = region2
 tile_size    = 1
 
 [legend]
