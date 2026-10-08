@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -136,6 +137,14 @@ namespace Aether.Gameplay.Menus
             }
 
             Selectable next = null;
+            // In RTL locales, physical right means the previous reading-direction column and
+            // physical left means the next one. Up/down remains unchanged.
+            if (LanguageService.IsRightToLeft)
+            {
+                if (direction == Move.Right) direction = Move.Left;
+                else if (direction == Move.Left) direction = Move.Right;
+            }
+
             switch (direction)
             {
                 case Move.Down:
