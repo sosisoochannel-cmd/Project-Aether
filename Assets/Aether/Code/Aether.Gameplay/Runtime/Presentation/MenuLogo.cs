@@ -74,7 +74,7 @@ namespace Aether.Gameplay.Presentation
             logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.24f));
             logo._halo = MenuUi.CreateImage("Halo", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
             logo._coreGlow = MenuUi.CreateImage("Core Glow", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
-            logo._scan = MenuUi.CreateImage("Light Sweep", logo._rect, MenuArt.Square, new Color(1f, 1f, 1f, 0f));
+            logo._scan = MenuUi.CreateImage("Light Sweep", logo._rect, MenuArt.Solid, new Color(1f, 1f, 1f, 0f));
             logo._mark = MenuUi.CreateImage("Mark", logo._rect, null, MenuTheme.Palette.Ink);
 
             Sprite source = Resources.Load<Sprite>(MarkResourcePath);
