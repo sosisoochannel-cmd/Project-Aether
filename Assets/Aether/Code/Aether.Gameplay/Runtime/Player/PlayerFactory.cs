@@ -105,6 +105,7 @@ namespace Aether.Gameplay.Player
             // Configure before activation: the controller caches its tuning in Awake and reports a
             // missing asset there, so the value has to be in place first.
             controller.Configure(tuning);
+            controller.Landed += heroMotion.PulseLand;
             host.SetActive(true);
             return controller;
         }
