@@ -251,7 +251,7 @@ namespace Aether.Gameplay.Menus.Screens
                     return;
                 }
 
-                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
             });
         }
     }
