@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Aether.Gameplay.Localization;
 
 namespace Aether.Gameplay.Menus
 {
@@ -69,7 +70,9 @@ namespace Aether.Gameplay.Menus
             host.transform.SetParent(parent, false);
             var text = host.AddComponent<Text>();
             text.font = MenuArt.Font;
-            text.text = content;
+            bool rtl = LanguageService.IsRightToLeft;
+            text.text = PrepareText(content);
+            if (rtl) alignment = TextAnchor.MiddleRight;
             text.fontSize = Mathf.RoundToInt(size);
             text.fontStyle = style;
             text.color = colour;
@@ -101,7 +104,7 @@ namespace Aether.Gameplay.Menus
         /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
         public static string Track(string content, float spacing)
         {
-            if (string.IsNullOrEmpty(content) || spacing <= 0) return content;
+            if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft) return content;
 
             int gap = Mathf.RoundToInt(spacing);
             if (gap <= 0) return content;
@@ -117,6 +120,12 @@ namespace Aether.Gameplay.Menus
             }
 
             return builder.ToString();
+        }
+
+        /// <summary>Prepares a string for the current script, including Persian/Arabic shaping.</summary>
+        public static string PrepareText(string content)
+        {
+            return LanguageService.IsRightToLeft ? RtlText.Visualize(content) : content;
         }
 
         /// <summary>Stretches a node to its parent, with insets in reference units.</summary>
