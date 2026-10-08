@@ -36,6 +36,8 @@ namespace Aether.Gameplay.Presentation
         private const float DriftLayerOnePeriod = 26f;
         private const float DriftLayerTwoPeriod = 31f;
         private const float DriftLayerThreePeriod = 43f;
+        private const float BackgroundDriftPeriod = 37f;
+        private const float BackgroundZoomAmplitude = 0.0065f;
 
         private RectTransform _root;
         private RectTransform _background;
@@ -48,6 +50,8 @@ namespace Aether.Gameplay.Presentation
         private float _width = 1920f;
         private float _height = 1080f;
         private float _phase;
+        private Vector2 _backgroundRestPosition;
+        private Vector3 _backgroundRestScale = Vector3.one;
 
         /// <summary>Whether the backdrop is allowed to move, as the player set it.</summary>
         public bool AtmosphereMotion { get; private set; } = true;
@@ -162,6 +166,8 @@ namespace Aether.Gameplay.Presentation
             _background.pivot = new Vector2(0.5f, 0.5f);
             _background.sizeDelta = new Vector2(width, height);
             _background.anchoredPosition = Vector2.zero;
+            _backgroundRestPosition = Vector2.zero;
+            _backgroundRestScale = Vector3.one;
         }
 
         /// <summary>Reads the settings that decide whether anything moves here.</summary>
@@ -190,6 +196,14 @@ namespace Aether.Gameplay.Presentation
             float near = Mathf.Sin((_phase / DriftLayerOnePeriod) * Mathf.PI * 2f);
             float far = Mathf.Sin((_phase / DriftLayerTwoPeriod) * Mathf.PI * 2f);
             float horizon = Mathf.Sin((_phase / DriftLayerThreePeriod) * Mathf.PI * 2f);
+            float background = Mathf.Sin((_phase / BackgroundDriftPeriod) * Mathf.PI * 2f);
+
+            // A nearly invisible camera-like breathing pass keeps the supplied forest from reading
+            // as a flat wallpaper. The scale is tiny enough that the cover crop always remains safe.
+            _background.anchoredPosition = _backgroundRestPosition +
+                                           new Vector2(background * 1.5f, background * 0.8f);
+            float zoom = 1f + (background * BackgroundZoomAmplitude);
+            _background.localScale = _backgroundRestScale * zoom;
 
             _bloomNear.anchoredPosition = _bloomNearRest
                                           + new Vector2(near * amplitude, near * amplitude * 0.35f);
@@ -205,6 +219,11 @@ namespace Aether.Gameplay.Presentation
 
         private void Rest()
         {
+            if (_background != null)
+            {
+                _background.anchoredPosition = _backgroundRestPosition;
+                _background.localScale = _backgroundRestScale;
+            }
             if (_bloomNear != null) _bloomNear.anchoredPosition = _bloomNearRest;
             if (_bloomFar != null) _bloomFar.anchoredPosition = _bloomFarRest;
             if (_midground != null) _midground.anchoredPosition = _midgroundRest;
