@@ -2,6 +2,7 @@ using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Storage;
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -109,9 +110,11 @@ namespace Aether.Gameplay.Menus.Screens
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
             _version.text = MenuUi.Track(MenuUi.PrepareText(MenuStrings.Format("about.version", Application.version)),
                                          MenuTheme.Metrics.VersionTracking);
-            _version.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _version.rectTransform.anchorMax = new Vector2(1f, 0f);
-            _version.rectTransform.pivot = new Vector2(1f, 0f);
+            bool rtl = LanguageService.IsRightToLeft;
+            _version.rectTransform.anchorMin = new Vector2(rtl ? 0f : 1f, 0f);
+            _version.rectTransform.anchorMax = new Vector2(rtl ? 0f : 1f, 0f);
+            _version.rectTransform.pivot = new Vector2(rtl ? 0f : 1f, 0f);
+            _version.alignment = rtl ? TextAnchor.LowerLeft : TextAnchor.LowerRight;
             _version.rectTransform.anchoredPosition = new Vector2(0f, MenuTheme.Metrics.ScreenMarginBottom * 0.25f);
             _version.rectTransform.sizeDelta = new Vector2(600f, FooterHeight);
 
@@ -141,11 +144,15 @@ namespace Aether.Gameplay.Menus.Screens
             titleHeight = _title.Height;
 
             float top = titleHeight + MenuTheme.Metrics.TitleGapBody;
-            float leftWidth = width * MenuTheme.Metrics.LeftColumnFraction;
-            float rightWidth = width * MenuTheme.Metrics.RightBlockFraction;
+            bool compact = width < 1200f;
+            bool rtl = LanguageService.IsRightToLeft;
+            float leftWidth = compact ? width : width * MenuTheme.Metrics.LeftColumnFraction;
+            float rightWidth = compact ? width : width * MenuTheme.Metrics.RightBlockFraction;
 
-            // The grid keeps two columns while a cell can hold the longest label; below that it becomes
-            // one column, which is taller and therefore scrolls rather than clips.
+            // The grid keeps two columns while a cell can hold a comfortable translated label.
+            // On narrower landscape windows the whole secondary block becomes one column; below the
+            // compact breakpoint the primary and secondary clusters stack instead of competing for
+            // horizontal space. This is especially important for long RTL and German/Russian strings.
             int columns = rightWidth / MenuTheme.Metrics.SecondaryColumns >= MinimumSecondaryCell
                 ? MenuTheme.Metrics.SecondaryColumns
                 : 1;
@@ -153,16 +160,24 @@ namespace Aether.Gameplay.Menus.Screens
             _system.SetColumns(columns);
 
             _play.Layout(leftWidth, box);
-            _play.Rect.anchoredPosition = new Vector2(0f, -top);
-
             _explore.Layout(rightWidth, box);
-            _explore.Rect.anchoredPosition = new Vector2(width - rightWidth, -top);
 
-            float systemTop = top + _explore.Height + MenuTheme.Metrics.ClusterGap;
+            float primaryX = compact ? 0f : (rtl ? width - leftWidth : 0f);
+            float secondaryX = compact ? 0f : (rtl ? 0f : width - rightWidth);
+            _play.Rect.anchoredPosition = new Vector2(primaryX, -top);
+
+            float secondaryTop = compact
+                ? top + _play.Height + MenuTheme.Metrics.ClusterGap
+                : top;
+            _explore.Rect.anchoredPosition = new Vector2(secondaryX, -secondaryTop);
+
+            float systemTop = secondaryTop + _explore.Height + MenuTheme.Metrics.ClusterGap;
             _system.Layout(rightWidth, box);
-            _system.Rect.anchoredPosition = new Vector2(width - rightWidth, -systemTop);
+            _system.Rect.anchoredPosition = new Vector2(secondaryX, -systemTop);
 
-            float bottom = Mathf.Max(top + _play.Height, systemTop + _system.Height);
+            float bottom = compact
+                ? systemTop + _system.Height
+                : Mathf.Max(top + _play.Height, systemTop + _system.Height);
             MenuUi.SetContentHeight(_content, bottom + MenuTheme.Metrics.ParagraphBlockPadding);
             _content.anchoredPosition = Vector2.zero;
         }
