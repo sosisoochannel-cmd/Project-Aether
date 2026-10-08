@@ -79,6 +79,9 @@ namespace Aether.Gameplay.Menus.Panels
 
             /// <summary>Languages whose script the bundled font cannot draw at all.</summary>
             LanguageFont = 11,
+
+            /// <summary>A single language in the visual language hub.</summary>
+            LanguageOption = 12,
         }
 
         /// <summary>One row that is not a catalogue setting.</summary>
@@ -100,6 +103,7 @@ namespace Aether.Gameplay.Menus.Panels
             public MenuSwitch Switch;
             public MenuSlider Slider;
             public MenuSelector Selector;
+            public string LanguageCode;
         }
 
         // -- the rows that are not settings ------------------------------------------------
@@ -262,6 +266,10 @@ namespace Aether.Gameplay.Menus.Panels
             SettingDefinition[] all = SettingsCatalog.All;
             for (int i = 0; i < all.Length; i++)
             {
+                // Language gets a dedicated visual hub below. Keeping the raw Choice row hidden avoids
+                // a tiny cycling control when the player is choosing among a real list of languages.
+                if (all[i].Id == LanguageSettingId) continue;
+
                 Row row = NewRow(all[i].Category, all[i].LabelKey, all[i].HelpKey ?? string.Empty);
                 row.Definition = all[i];
                 BuildWidget(row);
@@ -285,6 +293,29 @@ namespace Aether.Gameplay.Menus.Panels
                 }
 
                 _rows.Add(row);
+            }
+
+            // The language category is a proper hub: every known language gets a row, its native name
+            // is shown exactly as players recognize it, and the right side tells them whether it is
+            // ready, translated but blocked by the bundled font, or still awaiting its translation.
+            for (int i = 0; i < LanguageCatalog.Count; i++)
+            {
+                LanguageDefinition language = LanguageCatalog.All[i];
+                if (language.Code == LanguageCatalog.DefaultCode) { /* English is still a real row. */ }
+
+                Row languageRow = NewRow(SettingCategory.Language, language.LabelKey, string.Empty);
+                languageRow.IsExtra = true;
+                languageRow.Extra = ExtraKind.LanguageOption;
+                languageRow.LanguageCode = language.Code;
+                languageRow.Button.SetRuleWidth(420f);
+
+                string captured = language.Code;
+                if (LanguageService.CanSelect(captured))
+                {
+                    languageRow.Button.Activated = () => LanguageService.Set(captured);
+                }
+
+                _rows.Add(languageRow);
             }
         }
 
@@ -438,6 +469,52 @@ namespace Aether.Gameplay.Menus.Panels
                 case ExtraKind.LanguageFont:
                     row.Button.SetMeta(LanguageService.DescribeNotOffered(true));
                     break;
+
+                case ExtraKind.LanguageOption:
+                    RefreshLanguageOption(row);
+                    break;
+            }
+        }
+
+        private void RefreshLanguageOption(Row row)
+        {
+            if (string.IsNullOrEmpty(row.LanguageCode)) return;
+
+            LanguageDefinition language = LanguageCatalog.Resolve(row.LanguageCode);
+            bool selectable = LanguageService.CanSelect(language.Code);
+            bool translated = LanguageService.IsTranslated(language.Code);
+            bool selected = string.Equals(LanguageService.Code, language.Code,
+                                          StringComparison.OrdinalIgnoreCase);
+
+            int present;
+            int total;
+            LanguageService.Coverage(language.Code, out present, out total);
+
+            row.Button.SetAccented(selected);
+            row.Button.SetLocked(!selectable && !selected,
+                                 language.BundledFontCovers
+                                     ? MenuStrings.Get("language.notWritten")
+                                     : MenuStrings.Get("language.needsFont"));
+
+            if (selected)
+            {
+                row.Button.SetMeta(MenuStrings.Format("language.selected", present, total));
+            }
+            else if (selectable)
+            {
+                row.Button.SetMeta(MenuStrings.Format("language.coverage", language.Code.ToUpperInvariant(), present, total));
+            }
+            else if (!language.BundledFontCovers)
+            {
+                row.Button.SetMeta(MenuStrings.Get("language.needsFont"));
+            }
+            else if (translated)
+            {
+                row.Button.SetMeta(MenuStrings.Get("language.unavailable"));
+            }
+            else
+            {
+                row.Button.SetMeta(MenuStrings.Get("language.notWritten"));
             }
         }
 
