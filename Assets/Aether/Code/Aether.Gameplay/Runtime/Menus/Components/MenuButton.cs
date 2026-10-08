@@ -180,8 +180,8 @@ namespace Aether.Gameplay.Menus.Components
             if (_label == null) return;
 
             string wanted = MenuUi.PrepareText(LanguageService.IsRightToLeft ? text : MenuUi.Track(text, Tracking));
-            if (_label.text == wanted) return;
-            _label.text = wanted;
+            if (_label.text != wanted) _label.text = wanted;
+            ApplyDirection();
         }
 
         /// <summary>Sets the small line beside the label, or clears it with null or empty.</summary>
@@ -267,6 +267,8 @@ namespace Aether.Gameplay.Menus.Components
             if (_help.gameObject.activeSelf != wanted) _help.gameObject.SetActive(wanted);
             if (wanted && _help.text != text) _help.text = MenuUi.PrepareText(text);
 
+            ApplyDirection();
+
             // With a second line the label moves up to make room for it; without one it is centred.
             _labelY = wanted ? 15f : 0f;
             _label.rectTransform.anchoredPosition = new Vector2(_label.rectTransform.anchoredPosition.x, _labelY);
@@ -294,6 +296,7 @@ namespace Aether.Gameplay.Menus.Components
             _label.rectTransform.anchoredPosition = new Vector2(_textBaseX, _labelY);
             if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(textInset, -18f);
             if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(-textInset, 0f);
+            ApplyDirection();
         }
 
         // -- construction ----------------------------------------------------------------------
@@ -400,6 +403,7 @@ namespace Aether.Gameplay.Menus.Components
             _help.gameObject.SetActive(false);
 
             ApplyState(currentSelectionState, true);
+            ApplyDirection();
         }
 
         private void RefreshMeta()
@@ -411,6 +415,75 @@ namespace Aether.Gameplay.Menus.Components
 
             if (_meta.gameObject.activeSelf != show) _meta.gameObject.SetActive(show);
             if (show && _meta.text != wanted) _meta.text = MenuUi.PrepareText(wanted);
+            ApplyDirection();
+        }
+
+        /// <summary>
+        /// Mirrors the row's internal reading direction without changing the screen's global
+        /// composition. This keeps the main menu's visual hierarchy stable while making RTL rows
+        /// feel native: text/control/caret swap sides together, and the whole hit target remains
+        /// exactly where the screen placed it.
+        /// </summary>
+        private void ApplyDirection()
+        {
+            if (_label == null) return;
+
+            bool rtl = LanguageService.IsRightToLeft;
+            float sign = rtl ? -1f : 1f;
+
+            _label.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            _label.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0f);
+            _label.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 1f);
+            _label.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
+
+            if (_help != null)
+            {
+                _help.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+                _help.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _help.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _help.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
+            }
+
+            if (_meta != null)
+            {
+                _meta.alignment = rtl ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+                _meta.rectTransform.anchorMin = new Vector2(rtl ? 0f : 1f, 0f);
+                _meta.rectTransform.anchorMax = new Vector2(rtl ? 0f : 1f, 1f);
+                _meta.rectTransform.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
+            }
+
+            if (_caret != null)
+            {
+                _caret.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _caret.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _caret.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _caret.rectTransform.localScale = new Vector3((rtl ? -1f : 1f), 1f, 1f);
+            }
+
+            if (_icon != null)
+            {
+                _icon.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _icon.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 0.5f);
+                _icon.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
+            }
+
+            if (_control != null)
+            {
+                _control.anchorMin = new Vector2(rtl ? 0f : 1f, 0.5f);
+                _control.anchorMax = new Vector2(rtl ? 0f : 1f, 0.5f);
+                _control.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
+            }
+
+            // Keep the existing inset magnitude, but move it toward the reading edge.
+            _label.rectTransform.anchoredPosition = new Vector2(sign * Mathf.Abs(_textBaseX), _labelY);
+            if (_help != null) _help.rectTransform.anchoredPosition =
+                new Vector2(sign * Mathf.Abs(_textBaseX), -18f);
+            if (_meta != null) _meta.rectTransform.anchoredPosition =
+                new Vector2(-sign * Mathf.Abs(_textBaseX), 0f);
+            if (_caret != null) _caret.rectTransform.anchoredPosition =
+                new Vector2(-sign * MenuTheme.Metrics.CaretOutdent, 0f);
+            if (_icon != null) _icon.rectTransform.anchoredPosition =
+                new Vector2(-sign * MenuTheme.Metrics.CaretOutdent, 0f);
         }
 
         // -- state -----------------------------------------------------------------------------
