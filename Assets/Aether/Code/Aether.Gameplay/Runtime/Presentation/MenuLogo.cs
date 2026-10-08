@@ -286,7 +286,10 @@ namespace Aether.Gameplay.Presentation
                 yield return null;
             }
 
-            float sweepDuration = 0.72f;
+            // Give the sweep enough time to be perceived on a 60 Hz phone without turning the logo
+            // reveal into a spectacle. The longer pass also makes the light read as a deliberate
+            // brand accent rather than a one-frame flash.
+            float sweepDuration = 1.08f;
             elapsed = 0f;
             while (elapsed < sweepDuration)
             {
@@ -297,8 +300,11 @@ namespace Aether.Gameplay.Presentation
                 {
                     float x = Mathf.Lerp(-0.62f, 0.62f, eased) * _rect.rect.width;
                     _scan.rectTransform.anchoredPosition = new Vector2(x, 0f);
+                    // Smooth rise/fall keeps the sweep soft at both ends. The lower peak avoids
+                    // washing the approved mark while still making the pass visible on dim displays.
                     float edge = Mathf.Sin(t * Mathf.PI);
-                    _scan.color = new Color(accent.r, accent.g, accent.b, edge * 0.13f);
+                    float visibility = edge * edge;
+                    _scan.color = new Color(accent.r, accent.g, accent.b, visibility * 0.12f);
                 }
                 yield return null;
             }
