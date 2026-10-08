@@ -234,7 +234,7 @@ namespace Aether.Gameplay.Interface
         private void OnWorldFlag(WorldFlagSetEvent raised)
         {
             if (_completed) return;
-            if (raised.FlagId != ChapterCatalog.GreenwayCompletionFlag) return;
+            if (raised.FlagId != ChapterCatalog.CompletionFlagOf(_chapter.Id)) return;
 
             ShowCompletion();
         }
