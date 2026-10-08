@@ -186,8 +186,26 @@ namespace Aether.Gameplay.Menus
             }
 
             string[] names = rtl
-                ? new[] { "Noto Sans Arabic", "Noto Naskh Arabic", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }
-                : new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" };
+                ? new[]
+                {
+                    "Noto Sans Arabic",
+                    "Noto Sans Arabic UI",
+                    "Noto Naskh Arabic",
+                    "Vazirmatn",
+                    "Tahoma",
+                    "Noto Sans",
+                    "Droid Sans",
+                    "DejaVu Sans",
+                    "Arial"
+                }
+                : new[]
+                {
+                    "Roboto",
+                    "Noto Sans",
+                    "Droid Sans",
+                    "DejaVu Sans",
+                    "Arial"
+                };
 
             return Font.CreateDynamicFontFromOSFont(names, 48);
         }
