@@ -426,6 +426,7 @@ namespace Aether.Gameplay.Menus.Components
             Color caret = faint;
             float nudge = 0f;
             bool ruleVisible = false;
+            bool accentVisible = _accented && !_locked && !_informational;
 
             if (_locked)
             {
@@ -441,6 +442,7 @@ namespace Aether.Gameplay.Menus.Components
                         label = ink;
                         caret = MenuTheme.Palette.Accent;
                         ruleVisible = true;
+                        accentVisible = true;
                         nudge = MenuTheme.Metrics.HighlightNudge * 0.5f;
                         break;
 
@@ -450,6 +452,7 @@ namespace Aether.Gameplay.Menus.Components
                         label = ink;
                         caret = MenuTheme.Palette.Accent;
                         ruleVisible = true;
+                        accentVisible = true;
                         nudge = MenuTheme.Metrics.HighlightNudge;
                         break;
 
@@ -489,7 +492,13 @@ namespace Aether.Gameplay.Menus.Components
 
             CrossFade(_plate, plate, fade);
             CrossFade(_caret, caret, fade);
-            Fade(_rule, ruleVisible, fade);
+            CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
+            if (_accent != null)
+            {
+                _accent.color = MenuTheme.Palette.Accent;
+                _accent.rectTransform.sizeDelta = new Vector2(accentVisible ? 6f : 4f, -14f);
+                _accent.gameObject.SetActive(accentVisible);
+            }
 
             if (_meta != null) _meta.color = faint;
             if (_help != null) _help.color = faint;
