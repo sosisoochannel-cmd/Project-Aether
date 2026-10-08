@@ -511,8 +511,8 @@ namespace Aether.Gameplay.Menus.Components
                                     state == SelectionState.Pressed);
                 Color glow = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
                                        MenuTheme.Palette.Accent.b, glowVisible ? 0.10f : 0f);
-                CrossFade(_selectionGlow, glow, fade);
                 _selectionGlow.gameObject.SetActive(glowVisible || !instant);
+                CrossFade(_selectionGlow, glow, fade);
             }
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
