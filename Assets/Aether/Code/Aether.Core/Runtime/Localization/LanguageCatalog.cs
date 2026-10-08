@@ -106,7 +106,7 @@ namespace Aether.Core.Localization
             new LanguageDefinition("ru", "Русский", "Russian", TextDirection.LeftToRight, true),
             new LanguageDefinition("tr", "Türkçe", "Turkish", TextDirection.LeftToRight, true),
             new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, false),
-            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, false),
+            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
             new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, false),
             new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, false),
             new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, false),
@@ -132,7 +132,7 @@ namespace Aether.Core.Localization
         /// as such and are not offered however complete a sheet might be.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es" };
+        public static readonly string[] Offered = { "en", "es", "fa" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)
