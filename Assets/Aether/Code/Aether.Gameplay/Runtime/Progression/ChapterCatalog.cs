@@ -99,6 +99,8 @@ namespace Aether.Gameplay.Progression
     {
         /// <summary>Stable id of the one playable chapter.</summary>
         public const string GreenwayId = "greenway";
+        public const string GlassrootId = "glassroot_caverns";
+        public const string AshenRidgeId = "ashen_ridge";
 
         /// <summary>The world fact the level's exit records when the region is finished.</summary>
         public const string GreenwayCompletionFlag = "region.completed.greenway.north";
@@ -116,20 +118,20 @@ namespace Aether.Gameplay.Progression
                 "objective.greenway.exit"),
 
             new ChapterDefinition(
-                "hollow",
-                "chapter.hollow.title",
-                "chapter.hollow.subtitle",
-                "chapter.hollow.body",
-                null,
-                ChapterAvailability.NotInBuild),
+                GlassrootId,
+                "chapter.glassroot.title",
+                "chapter.glassroot.subtitle",
+                "chapter.glassroot.body",
+                "Levels/region2.glassroot-caverns.level",
+                ChapterAvailability.Playable),
 
             new ChapterDefinition(
-                "saltmarsh",
-                "chapter.saltmarsh.title",
-                "chapter.saltmarsh.subtitle",
-                "chapter.saltmarsh.body",
-                null,
-                ChapterAvailability.NotInBuild),
+                AshenRidgeId,
+                "chapter.ashen.title",
+                "chapter.ashen.subtitle",
+                "chapter.ashen.body",
+                "Levels/region3.ashen-ridge.level",
+                ChapterAvailability.Playable),
 
             new ChapterDefinition(
                 "theSpine",
