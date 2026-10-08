@@ -1,4 +1,5 @@
 using UnityEngine;
+using Aether.Gameplay.Presentation;
 using UnityEngine.UI;
 
 namespace Aether.Gameplay.Menus
@@ -100,6 +101,10 @@ namespace Aether.Gameplay.Menus
 
             RectTransform safe = MenuUi.CreateNode("Safe Area", root);
             MenuUi.Stretch(safe);
+            // Respect physical cutouts/gesture areas instead of merely naming this object "Safe Area".
+            // The fitter listens to canvas resize events, so rotation and window resizing remain correct
+            // without an Update loop.
+            safe.gameObject.AddComponent<SafeAreaFitter>();
 
             RectTransform content = MenuUi.CreateNode("Content", safe);
             MenuUi.Stretch(content,
