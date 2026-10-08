@@ -105,6 +105,8 @@ namespace Aether.Gameplay.Levels
                 BuildCanopy(level, root.transform);
             }
 
+            WhisperingWoodsAtmosphere.Create(level, root.transform);
+
             var built = new BuiltLevel(root, level);
 
             LevelEntity start = level.PlayerStart;
