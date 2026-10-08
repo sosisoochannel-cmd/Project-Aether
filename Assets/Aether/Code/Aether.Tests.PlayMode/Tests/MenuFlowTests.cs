@@ -538,3 +538,363 @@ namespace Aether.Tests.PlayMode
             float uiScale = MenuPreferences.ClampedUiScale;
             Assert.AreEqual(CanvasScaler.ScaleMode.ScaleWithScreenSize, scaler.uiScaleMode,
                             "the canvas does not scale with the screen");
+            Assert.AreEqual(1f, scaler.matchWidthOrHeight, 0.001f,
+                            "the canvas does not match by height");
+            Assert.AreEqual(1920f / uiScale, scaler.referenceResolution.x, 0.5f,
+                            "the reference width does not follow the interface scale");
+            Assert.AreEqual(1080f / uiScale, scaler.referenceResolution.y, 0.5f,
+                            "the reference height does not follow the interface scale");
+
+            // The safe area behaves: it is never larger than the screen, and when the device reports
+            // none — which is what a runner does, and what a screen without cutouts does — the layout
+            // fills the canvas exactly.
+            Rect safe = Screen.safeArea;
+            Assert.Greater(safe.width, 0f, "the runner reports an empty safe area");
+            if (safe.width >= Screen.width - 0.5f && safe.height >= Screen.height - 0.5f)
+            {
+                Vector2 canvasBox = root.Ui.Root.rect.size;
+                Vector2 safeBox = root.Ui.SafeRoot.rect.size;
+                Assert.AreEqual(canvasBox.x, safeBox.x, 1.5f,
+                                "the layout is inset although the screen has no unsafe area");
+                Assert.AreEqual(canvasBox.y, safeBox.y, 1.5f,
+                                "the layout is inset vertically although the screen has no unsafe area");
+            }
+
+            // The viewport is what must fit the canvas. Content may be taller on a 4:3 or high-scale
+            // screen, but it must remain clipped and every action must stay reachable through it.
+            var canvasCorners = new Vector3[4];
+            root.Ui.Root.GetWorldCorners(canvasCorners);
+            float left = canvasCorners[0].x, bottom = canvasCorners[0].y;
+            float right = canvasCorners[2].x, top = canvasCorners[2].y;
+            Assert.Greater(right - left, 0f, "the canvas has no area");
+
+            MenuButton[] rows = root.System.Current.GetComponentsInChildren<MenuButton>(false);
+            Assert.Greater(rows.Length, 0, "the main menu has no rows");
+
+            if (right - left < top - bottom)
+            {
+                // The brief's screen shapes are all wider than they are tall. A portrait runner — an
+                // editor window, not a phone — would be measuring a shape this menu does not claim to
+                // support, and inventing a failure there would be dishonest rather than strict.
+                Assert.Inconclusive($"the canvas is portrait on this machine "
+                                    + $"({right - left:0} x {top - bottom:0} units); nothing about a "
+                                    + "landscape composition can be measured on it");
+            }
+
+            // What the box actually was, carried into the message of any failure below. A number that
+            // says a row "hangs off the bottom" without the box it hung off cannot be acted on: the
+            // runner's shape is not one of the shapes the brief names, and the first version of this
+            // assertion said only which row failed. The line is logged as well as embedded, so a run
+            // that fails here explains itself in the test log without a second push.
+            string where = $"canvas {right - left:0.#}x{top - bottom:0.#} units, "
+                         + $"content box {root.Ui.ContentRoot.rect.width:0.#}x{root.Ui.ContentRoot.rect.height:0.#}, "
+                         + $"screen rect {root.System.Current.Rect.rect.width:0.#}x{root.System.Current.Rect.rect.height:0.#}, "
+                         + $"screen {Screen.width}x{Screen.height}px, "
+                         + $"safe area {safe.x:0},{safe.y:0} {safe.width:0}x{safe.height:0}, "
+                         + $"interface scale {uiScale:0.###}, "
+                         + $"reference {scaler.referenceResolution.x:0.#}x{scaler.referenceResolution.y:0.#}, "
+                         + $"{rows.Length} rows";
+            Debug.LogWarning($"[menu-layout] {where}");
+
+            ScrollRect scroll = root.System.Current.GetComponentInChildren<ScrollRect>(true);
+            Assert.IsNotNull(scroll, "the main menu has no scroll view for short or narrow screens");
+
+            var viewportCorners = new Vector3[4];
+            scroll.viewport.GetWorldCorners(viewportCorners);
+            Assert.GreaterOrEqual(viewportCorners[0].x, left - 1f,
+                                  $"the menu viewport hangs off the left edge ({where})");
+            Assert.LessOrEqual(viewportCorners[2].x, right + 1f,
+                               $"the menu viewport hangs off the right edge ({where})");
+            Assert.GreaterOrEqual(viewportCorners[0].y, bottom - 1f,
+                                  $"the menu viewport hangs off the bottom edge ({where})");
+            Assert.LessOrEqual(viewportCorners[2].y, top + 1f,
+                               $"the menu viewport hangs off the top edge ({where})");
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                Assert.IsTrue(rows[i].transform.IsChildOf(scroll.content),
+                              $"row {i} '{rows[i].name}' is not inside the clipped scroll content ({where})");
+            }
+
+            MenuButton last = rows[rows.Length - 1];
+            MenuNav nav = root.System.Current.ActiveNav;
+            nav.Select(last);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.AreSame(last, nav.Current, "the last main-menu action was not selectable");
+            Bounds selected = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                scroll.viewport, last.Rect);
+            Rect viewport = scroll.viewport.rect;
+            Assert.GreaterOrEqual(selected.min.y, viewport.yMin - 1f,
+                                  $"scroll selection left the last row below its viewport ({where})");
+            Assert.LessOrEqual(selected.max.y, viewport.yMax + 1f,
+                               $"scroll selection left the last row above its viewport ({where})");
+        }
+
+        [UnityTest]
+        public IEnumerator The_selection_never_lands_on_a_row_that_cannot_be_used()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            yield return Settle(root);
+
+            // A walk down the main menu. Every row the navigation stops on must be a row that can
+            // actually be pressed: the locked destinations are skipped, not stepped over on the way
+            // to somewhere else, and a read-only fact is never a stop. This is the property that
+            // makes a locked row an honest thing to show rather than a trap.
+            int visited = 0;
+            for (int i = 0; i < 14; i++)
+            {
+                MenuNav nav = root.System.Current.ActiveNav;
+                Assert.IsNotNull(nav, "the screen has no navigation");
+                Assert.IsNotNull(nav.Current, "the navigation has nothing selected");
+
+                MenuButton row = nav.Current as MenuButton;
+                Assert.IsNotNull(row, "the selection is not on a row");
+                Assert.IsTrue(row.Usable, $"the selection landed on '{row.name}', which cannot be used");
+
+                visited++;
+                root.System.Move(MenuNav.Move.Down);
+                yield return null;
+            }
+
+            Assert.Greater(visited, 10, "the walk stopped early");
+        }
+
+        [UnityTest]
+        public IEnumerator Every_audio_bus_is_one_gain_path_and_master_scales_all_of_them()
+        {
+            // The brief asks for MASTER / MUSIC / SFX / UI / VOICE / AMBIENCE with smooth fades and
+            // a future mixer behind them. What that means in code is one formula, and this is it:
+            // a bus's gain is its own level times master, master's own gain is its level, and
+            // silencing master silences everything. Every cue in the menu reads through here.
+            Assert.AreEqual(6, AudioBuses.All.Length, "the audio layer does not list six buses");
+            Assert.AreEqual(AudioBusId.Master, AudioBuses.All[0],
+                            "master is not the first bus, so the settings order is not the enum's");
+
+            // `var`, deliberately: AudioSettings exists in both namespaces this file imports -
+            // Aether.Core.Settings and UnityEngine - so naming the type is ambiguous, and the
+            // editor said so. The value is the settings group either way.
+            var audio = AetherSettings.Ensure().Values.Audio;
+            float master = audio.Master;
+            float music = audio.Music;
+            try
+            {
+                audio.Master = 0.5f;
+                audio.Music = 0.4f;
+
+                Assert.AreEqual(0.5f, AudioBuses.Gain(AudioBusId.Master), 0.0001f,
+                                "master's gain is not its own level");
+                Assert.AreEqual(0.2f, AudioBuses.Gain(AudioBusId.Music), 0.0001f,
+                                "a bus's gain is not its level times master");
+                Assert.IsFalse(AudioBuses.IsSilent(AudioBusId.Music),
+                               "a bus at a fifth of full scale reports itself silent");
+
+                audio.Master = 0f;
+                for (int i = 0; i < AudioBuses.All.Length; i++)
+                {
+                    Assert.IsTrue(AudioBuses.IsSilent(AudioBuses.All[i]),
+                                  $"master at zero left {AudioBuses.All[i]} audible");
+                }
+
+                // The readout a settings row shows is the same number, as a percentage.
+                audio.Master = 1f;
+                audio.Music = 0.5f;
+                Assert.AreEqual("50%", AudioBuses.Describe(AudioBusId.Music),
+                                "the bus readout does not follow the gain");
+            }
+            finally
+            {
+                audio.Master = master;
+                audio.Music = music;
+            }
+
+            yield return null;
+        }
+
+
+        [UnityTest]
+        public IEnumerator The_new_game_row_opens_the_slot_list()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            // By label, not by index: the check is about the row the player reads.
+            string wanted = MenuUi.Track(MenuStrings.Get("menu.newGame"),
+                                         MenuTheme.Metrics.PrimaryTracking);
+            MenuButton newGame = null;
+            IList<MenuButton> rows = menu.Play.Rows;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Label.text == wanted) newGame = rows[i];
+            }
+
+            Assert.IsNotNull(newGame, "the main menu has no NEW GAME row");
+
+            newGame.Activate();
+            yield return Settle(root);
+
+            // NEW GAME asks where the run should go rather than choosing for the player, and the
+            // screen it asks on is the one that names the run a replacement would destroy.
+            Assert.AreEqual(MenuScreenId.SaveSlots, root.System.CurrentId,
+                            "NEW GAME did not open the slot list");
+            Assert.IsTrue(root.System.Current is SaveSlotScreen,
+                          "the save-slots id did not resolve to the save-slot screen");
+        }
+
+        [UnityTest]
+        public IEnumerator The_slot_screen_shows_a_row_for_every_slot()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.SaveSlots);
+            yield return Settle(root);
+
+            var screen = (SaveSlotScreen)root.System.Current;
+            Assert.AreEqual(SaveSlots.Count, screen.PrimaryRows.Length,
+                            "the screen does not show one row per slot");
+            Assert.AreEqual(SaveSlots.Count, screen.NewRunRows.Length,
+                            "the screen does not offer an explicit new-run action in every slot");
+            Assert.AreEqual(SaveSlots.Count, screen.DeleteRows.Length,
+                            "the screen does not offer a way to free every slot");
+
+            for (int i = 0; i < screen.PrimaryRows.Length; i++)
+            {
+                MenuButton row = screen.PrimaryRows[i];
+                SaveSlotInfo info = SaveSlots.Describe(i + 1);
+
+                // The label is a sentence from the string table, whether the slot is empty, stored or
+                // damaged — never the key it was looked up by, which is what a missing string shows.
+                Assert.IsFalse(string.IsNullOrEmpty(row.Label.text),
+                               $"slot {i + 1} has no label at all");
+                Assert.IsFalse(row.Label.text.StartsWith("slots."),
+                               $"slot {i + 1} shows the key '{row.Label.text}' instead of a label");
+
+                // A slot whose file cannot be read is the one case the row refuses to open, and the
+                // test asserts the row and the store agree rather than asserting either alone.
+                bool shouldBeLocked = info.Exists && !info.Playable;
+                Assert.AreEqual(shouldBeLocked, row.Locked,
+                                $"slot {i + 1} is {(shouldBeLocked ? "locked" : "open")} while the "
+                                + "store says the opposite");
+                if (row.Locked) Assert.IsFalse(row.Usable, "a locked slot row is still usable");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Every_catalogue_screen_draws_the_catalogue_behind_it()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.Characters);
+            yield return Settle(root);
+
+            var characters = (CharactersScreen)root.System.Current;
+            Assert.AreEqual(CharacterCatalog.All.Length, characters.Rows.Length,
+                            "the characters screen does not have a row per character");
+            for (int i = 0; i < characters.Rows.Length; i++)
+            {
+                Assert.IsFalse(string.IsNullOrEmpty(characters.Rows[i].Label.text),
+                               $"character {i} has no name");
+            }
+
+            root.System.GoTo(MenuScreenId.Achievements);
+            yield return Settle(root);
+
+            var achievements = (AchievementsScreen)root.System.Current;
+            Assert.AreEqual(AchievementCatalog.Count, achievements.Rows.Length,
+                            "the achievements screen does not have a row per achievement");
+            for (int i = 0; i < achievements.Rows.Length; i++)
+            {
+                MenuButton row = achievements.Rows[i];
+                Assert.IsFalse(string.IsNullOrEmpty(row.Label.text),
+                               $"achievement {i} has no name");
+
+                // Locked or earned, never blank: a row that says nothing is a row a player cannot
+                // tell from a broken screen.
+                Assert.IsFalse(string.IsNullOrEmpty(row.Meta.text),
+                               $"achievement {i} says nothing about its state");
+            }
+
+            root.System.GoTo(MenuScreenId.Collection);
+            yield return Settle(root);
+
+            var collection = (CollectionScreen)root.System.Current;
+            Assert.AreEqual(CollectionCatalog.All.Length, collection.CategoryCount,
+                            "the collection screen does not list every category");
+            for (int c = 0; c < collection.CategoryCount; c++)
+            {
+                MenuButton[] rows = collection.RowsOf(c);
+                Assert.AreEqual(CollectionCatalog.All[c].Entries.Length, rows.Length,
+                                $"collection category {c} does not show every entry");
+            }
+        }
+
+        private sealed class MemorySettingsStore : ISettingsStore
+        {
+            public GameSettings Stored;
+
+            public bool TryLoad(out GameSettings settings)
+            {
+                settings = Stored;
+                return settings != null;
+            }
+
+            public bool Save(GameSettings settings)
+            {
+                if (settings == null) return false;
+                Stored = new GameSettings();
+                Stored.CopyFrom(settings);
+                return true;
+            }
+
+            public bool Clear()
+            {
+                Stored = null;
+                return true;
+            }
+
+            public bool Exists => Stored != null;
+            public string Location => "isolated menu test store";
+        }
+
+        /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>
+        private static IEnumerator WaitForEntrance(MenuRoot root, float seconds)
+        {
+            float limit = Time.unscaledTime + seconds;
+            while (Time.unscaledTime < limit)
+            {
+                MenuScreen screen = root.System.Current;
+                if (screen == null) yield break;
+
+                CanvasGroup[] groups = screen.GetComponentsInChildren<CanvasGroup>(false);
+                bool settled = true;
+                for (int i = 0; i < groups.Length; i++)
+                {
+                    if (groups[i].alpha < 0.999f)
+                    {
+                        settled = false;
+                        break;
+                    }
+                }
+
+                if (settled) break;
+                yield return null;
+            }
+
+            yield return null;
+        }
+
+        private static int VisibleScreens(MenuRoot root)
+        {
+            var screens = root.GetComponentsInChildren<MenuScreen>(false);
+            int visible = 0;
+            for (int i = 0; i < screens.Length; i++)
+            {
+                if (screens[i].Visible) visible++;
+            }
+
+            return visible;
