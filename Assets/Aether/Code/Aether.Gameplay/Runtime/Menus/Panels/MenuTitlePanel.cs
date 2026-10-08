@@ -56,9 +56,10 @@ namespace Aether.Gameplay.Menus.Panels
             panel._subtitle.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
 
             panel._rule = MenuUi.CreateImage("Rule", panel.Rect, MenuArt.Solid, MenuTheme.Palette.Line);
-            panel._rule.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._rule.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._rule.rectTransform.pivot = new Vector2(0f, 1f);
+            bool rtl = LanguageService.IsRightToLeft;
+            panel._rule.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 1f);
+            panel._rule.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 1f);
+            panel._rule.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 1f);
 
             return panel;
         }
