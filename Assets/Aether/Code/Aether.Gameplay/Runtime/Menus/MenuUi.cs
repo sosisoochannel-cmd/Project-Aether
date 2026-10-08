@@ -101,6 +101,14 @@ namespace Aether.Gameplay.Menus
             return CreateText(name, parent, Track(content, tracking), size, colour, alignment);
         }
 
+        /// <summary>Tracked label overload that also preserves an explicit font style.</summary>
+        public static Text CreateTrackedText(string name, Transform parent, string content, float size,
+                                            Color colour, float tracking, TextAnchor alignment,
+                                            FontStyle style)
+        {
+            return CreateText(name, parent, Track(content, tracking), size, colour, alignment, style);
+        }
+
         /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
         public static string Track(string content, float spacing)
         {
