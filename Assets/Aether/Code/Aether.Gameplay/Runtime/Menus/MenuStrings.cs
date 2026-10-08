@@ -307,6 +307,10 @@ namespace Aether.Gameplay.Menus
 
             // -- in the region: the objective strip, the pause menu, the load, the end
             { "objective.greenway.exit", "REACH THE NORTH EXIT" },
+            { "objective.glassroot.exit", "REACH THE CAVERN EXIT" },
+            { "objective.glassroot.exit.body", "Push through the buried cavern and reach the far exit." },
+            { "objective.ashen.exit", "CLIMB TO THE ASHEN EXIT" },
+            { "objective.ashen.exit.body", "Cross the broken ridge and reach the high exit." },
             { "objective.greenway.exit.body", "Follow the cut trail north. Checkpoints keep your place." },
             { "hud.findings", "{0} OF {1} FOUND" },
             { "hud.deaths", "{0} FALLS" },
