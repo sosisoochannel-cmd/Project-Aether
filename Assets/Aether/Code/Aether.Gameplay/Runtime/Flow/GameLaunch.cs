@@ -18,6 +18,7 @@ namespace Aether.Gameplay.Flow
     public static class GameLaunch
     {
         private static bool _playRequested;
+        private static string _requestedLevelPath;
         private static bool _openSettingsRequested;
 
         /// <summary>True while a request is waiting to be served.</summary>
@@ -27,8 +28,9 @@ namespace Aether.Gameplay.Flow
         public static bool IsOpenSettingsRequested => _openSettingsRequested;
 
         /// <summary>Asks for the region to be started the next time boot runs.</summary>
-        public static void RequestPlay()
+        public static void RequestPlay(string levelPath = null)
         {
+            _requestedLevelPath = levelPath;
             _playRequested = true;
             _openSettingsRequested = false;
         }
@@ -51,6 +53,13 @@ namespace Aether.Gameplay.Flow
             return requested;
         }
 
+        public static string TakeRequestedLevelPath()
+        {
+            string path = _requestedLevelPath;
+            _requestedLevelPath = null;
+            return path;
+        }
+
         /// <summary>Reads and clears the pending menu-settings destination.</summary>
         public static bool TakeOpenSettingsRequest()
         {
@@ -69,6 +78,7 @@ namespace Aether.Gameplay.Flow
         public static void Clear()
         {
             _playRequested = false;
+            _requestedLevelPath = null;
             _openSettingsRequested = false;
         }
     }
