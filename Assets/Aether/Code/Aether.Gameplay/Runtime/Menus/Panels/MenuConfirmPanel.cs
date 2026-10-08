@@ -82,7 +82,8 @@ namespace Aether.Gameplay.Menus.Panels
                                                     MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.ScreenTitleTracking);
             MenuUi.Corner(panel._title.rectTransform, new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f),
-                          new Vector2(MenuTheme.Metrics.DialogPadding, -MenuTheme.Metrics.DialogPadding),
+                          new Vector2(LanguageService.IsRightToLeft ? -MenuTheme.Metrics.DialogPadding : MenuTheme.Metrics.DialogPadding,
+                                      -MenuTheme.Metrics.DialogPadding),
                           new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 64f),
                           new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f));
             panel._title.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
@@ -92,7 +93,8 @@ namespace Aether.Gameplay.Menus.Panels
                                                  MenuTheme.Palette.InkMuted,
                                                  MenuTheme.Metrics.ParagraphLineHeight);
             MenuUi.Corner(panel._body.rectTransform, new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f),
-                          new Vector2(MenuTheme.Metrics.DialogPadding, -150f),
+                          new Vector2(LanguageService.IsRightToLeft ? -MenuTheme.Metrics.DialogPadding : MenuTheme.Metrics.DialogPadding,
+                                      -150f),
                           new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 88f),
                           new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f));
             panel._body.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
@@ -102,14 +104,14 @@ namespace Aether.Gameplay.Menus.Panels
             MenuUi.Corner(panel._cancel.Rect, new Vector2(rtl ? 1f : 0f, 0f),
                           new Vector2(rtl ? -MenuTheme.Metrics.DialogPadding : MenuTheme.Metrics.DialogPadding,
                                       MenuTheme.Metrics.DialogPadding),
-                          new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(0f, 0f));
+                          new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(rtl ? 1f : 0f, 0f));
             panel._cancel.Activated = () => panel.Close(false);
 
             panel._confirm = Row("Confirm", panel._plate.rectTransform, MenuStrings.Get("common.confirm"));
             MenuUi.Corner(panel._confirm.Rect, new Vector2(rtl ? 0f : 1f, 0f),
                           new Vector2(rtl ? MenuTheme.Metrics.DialogPadding : -MenuTheme.Metrics.DialogPadding,
                                       MenuTheme.Metrics.DialogPadding),
-                          new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(1f, 0f));
+                          new Vector2(360f, MenuTheme.Metrics.SettingRowHeight), new Vector2(rtl ? 0f : 1f, 0f));
             panel._confirm.Activated = () => panel.Close(true);
 
             panel._cancel.SetRuleWidth(300f);
