@@ -112,6 +112,7 @@ namespace Aether.Gameplay.Controls
         {
             ReadTouches();
             RefreshLayout(false);
+            ApplyPressedVisuals();
         }
 
         private void OnDisable() => ReleaseEverything();
@@ -180,6 +181,25 @@ namespace Aether.Gameplay.Controls
             Place(_jump, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius));
             Place(_attack, Layout.Centre(Layout.AttackCentre), Layout.Radius(Layout.AttackRadius));
             Place(_dodge, Layout.Centre(Layout.DodgeCentre), Layout.Radius(Layout.DodgeRadius));
+        }
+
+        private void ApplyPressedVisuals()
+        {
+            ApplyPressed(_left, _leftTouch >= 0);
+            ApplyPressed(_right, _rightTouch >= 0);
+            ApplyPressed(_jump, _jumpTouch >= 0);
+            ApplyPressed(_attack, _attackTouch >= 0);
+            ApplyPressed(_dodge, _dodgeTouch >= 0);
+        }
+
+        private static void ApplyPressed(SpriteRenderer renderer, bool pressed)
+        {
+            if (renderer == null) return;
+            float pulse = pressed ? 1.075f : 1f;
+            renderer.transform.localScale = Vector3.one * pulse * renderer.transform.localScale.x / Mathf.Max(0.0001f, renderer.transform.localScale.x);
+            Color c = renderer.color;
+            c.a = (pressed ? 0.98f : 0.86f) * Layout.OpacityScale;
+            renderer.color = c;
         }
 
         private void Place(SpriteRenderer renderer, Vector2 fraction, float radius)
