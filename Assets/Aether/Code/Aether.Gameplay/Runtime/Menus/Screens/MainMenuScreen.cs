@@ -196,8 +196,9 @@ namespace Aether.Gameplay.Menus.Screens
 
             if (_title != null) _title.Refresh();
             if (_version != null)
-                _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
-                                             MenuTheme.Metrics.VersionTracking);
+                _version.text = MenuUi.Track(MenuUi.PrepareText(
+                    MenuStrings.Format("about.version", Application.version)),
+                    MenuTheme.Metrics.VersionTracking);
 
             // CONTINUE is a real row only when there is something this build can load. A corrupt or
             // newer-build file is not called an empty slot: it stays visible in the slot manager.
