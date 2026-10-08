@@ -1,5 +1,6 @@
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Levels;
+using Aether.Gameplay.Support;
 using UnityEngine;
 
 namespace Aether.Gameplay
@@ -35,6 +36,7 @@ namespace Aether.Gameplay
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void BootIfUnclaimed()
         {
+            AetherRuntimeHealth.Run();
             if (!AutoBootEnabled) return;
             if (Object.FindAnyObjectByType<LevelBootstrap>() != null) return;
             if (Object.FindAnyObjectByType<SceneFlowOwner>() != null) return;
