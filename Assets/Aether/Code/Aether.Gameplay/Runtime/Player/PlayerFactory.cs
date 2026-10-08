@@ -57,9 +57,33 @@ namespace Aether.Gameplay.Player
             visual.transform.SetParent(host.transform, false);
             visual.transform.localScale = new Vector3(width, height, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
+            renderer.sprite = PlaceholderVisuals.Triangle;
             renderer.color = BodyColour;
             renderer.sortingOrder = SortingOrder;
+
+            // Layered silhouette: the playable character is no longer a featureless rectangle. The
+            // body, head, core and eyes remain generated sprites so the game stays asset-light, but
+            // their proportions create a readable hero silhouette at phone scale.
+            var head = new GameObject("Head");
+            head.transform.SetParent(host.transform, false);
+            head.transform.localPosition = new Vector3(0f, height * 0.34f, 0f);
+            head.transform.localScale = Vector3.one * Mathf.Min(width * 0.72f, height * 0.30f);
+            var headRenderer = head.AddComponent<SpriteRenderer>();
+            headRenderer.sprite = PlaceholderVisuals.Circle;
+            headRenderer.color = new Color(0.96f, 0.97f, 1f, 1f);
+            headRenderer.sortingOrder = SortingOrder + 2;
+
+            var core = new GameObject("AetherCore");
+            core.transform.SetParent(host.transform, false);
+            core.transform.localPosition = new Vector3(0f, height * 0.04f, -0.01f);
+            core.transform.localScale = Vector3.one * Mathf.Min(width * 0.30f, height * 0.18f);
+            var coreRenderer = core.AddComponent<SpriteRenderer>();
+            coreRenderer.sprite = PlaceholderVisuals.Diamond;
+            coreRenderer.color = new Color(0.76f, 0.86f, 1f, 1f);
+            coreRenderer.sortingOrder = SortingOrder + 1;
+
+            CreateEye(host.transform, -width * 0.16f, height * 0.39f, width * 0.08f);
+            CreateEye(host.transform, width * 0.16f, height * 0.39f, width * 0.08f);
 
             // Order matters only in that the controller's Awake looks its siblings up, and every
             // one of them already exists by the time it is added.
@@ -81,6 +105,18 @@ namespace Aether.Gameplay.Player
             controller.Configure(tuning);
             host.SetActive(true);
             return controller;
+        }
+
+        private static void CreateEye(Transform parent, float x, float y, float size)
+        {
+            var eye = new GameObject("Eye");
+            eye.transform.SetParent(parent, false);
+            eye.transform.localPosition = new Vector3(x, y, -0.02f);
+            eye.transform.localScale = new Vector3(size, size * 0.55f, 1f);
+            var r = eye.AddComponent<SpriteRenderer>();
+            r.sprite = PlaceholderVisuals.Square;
+            r.color = new Color(0.08f, 0.10f, 0.14f, 1f);
+            r.sortingOrder = SortingOrder + 3;
         }
     }
 }
