@@ -498,7 +498,7 @@ namespace Aether.Gameplay.Menus.Panels
 
             if (selected)
             {
-                row.Button.SetMeta(MenuStrings.Format("language.selected", present, total));
+                row.Button.SetMeta(MenuStrings.Format("language.coverage", language.Code.ToUpperInvariant(), present, total));
             }
             else if (selectable)
             {
