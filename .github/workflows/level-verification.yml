@@ -1,0 +1,32 @@
+name: Level Verification
+
+on:
+  pull_request:
+    paths:
+      - 'Assets/Aether/Resources/Levels/**'
+      - 'Assets/Aether/Code/Aether.Data/Runtime/Config/PlayerTuningData.cs'
+      - 'Assets/Aether/Code/Aether.Data/Runtime/Levels/**'
+      - 'tools/verify/**'
+      - '.github/workflows/level-verification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  level-gate:
+    name: Validate source-of-truth levels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Verify Greenway
+        run: python3 tools/verify/levelcheck.py Assets/Aether/Resources/Levels/region1.greenway.level.txt
+
+      - name: Verify Whispering Woods
+        run: python3 tools/verify/levelcheck.py Assets/Aether/Resources/Levels/region2.whispering_woods.level.txt
