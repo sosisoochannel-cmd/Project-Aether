@@ -30,6 +30,11 @@ namespace Aether.Gameplay.Menus
     /// off. Building it in code means a new scene cannot get it wrong, and a scene that already has
     /// one is left alone.
     /// </para>
+    /// <para>
+    /// <b>Build gate:</b> this root intentionally keeps all Unity-engine references explicit and
+    /// confined to this assembly, so Android player compilation can be validated independently from
+    /// the editor-only test assemblies.
+    /// </para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class MenuRoot : SceneFlowOwner
@@ -67,14 +72,8 @@ namespace Aether.Gameplay.Menus
 
         private void Awake()
         {
-            // Settings first: the interface scale, the safe area rule and the quality tier all decide
-            // what is built below, and asking for them here means no other system has to.
             AetherSettings.Ensure();
             MenuArt.EnsureBuilt();
-
-            // The region's persistent cover was held before leaving gameplay. The menu owns the
-            // destination, so lower that cover as soon as its scene is live; otherwise its higher
-            // sorting order would hide this canvas after the transition veil fades away.
             GameplayCurtain.Drop();
 
             _canvas = MenuCanvas.Create("Menu Canvas", MenuSortingOrder);
@@ -85,27 +84,17 @@ namespace Aether.Gameplay.Menus
             _safeArea.Mode = MenuPreferences.SafeArea;
 
             _backdrop = MenuBackdrop.Create(_canvas.Root);
-
-            // One event system for the whole game: the menu and the region both build interface, and
-            // both need the Input System's module. See Presentation.UiEventSystem.
             UiEventSystem.Ensure();
 
             _input = MenuInput.Create(transform);
             _system = MenuSystem.Create(_canvas, _input);
-
             _audio = MenuAudio.Create(transform);
-
-            // The music is asked for once, here, and says so plainly when there is no approved track
-            // to play: the menu then runs silently on the music bus, which is the integration point
-            // the brief asks for rather than a placeholder standing in for a real score.
             _audio.PlayMenuMusic();
 
             MenuPreferences.Subscribe(OnSettingChanged);
             LanguageService.Changed += OnLanguageChanged;
             _listening = true;
 
-            // The rects are only meaningful once the canvas has laid out, and the menu should be
-            // laid out before its first frame is drawn rather than jumping on the second.
             Canvas.ForceUpdateCanvases();
             LayoutNow();
 
@@ -128,19 +117,11 @@ namespace Aether.Gameplay.Menus
 
         private void LateUpdate()
         {
-            // Two reads, no allocation, no search: the content box changes when the device rotates,
-            // when the window is resized, when the interface size setting moves, and when the system
-            // bars appear or hide — and the input lock has to be right in the frame a fade starts in.
             if (_canvas.ContentRoot.rect.size != _box) LayoutNow();
-
             if (_input != null) _input.Locked = MenuTransition.Instance.Busy;
-
-            // A language change asked for while a transition was running waits here, and is built the
-            // frame the fade finishes. One boolean read per frame, and no work in the usual case.
             if (_system != null) _system.ApplyPendingRebuild();
         }
 
-        /// <summary>Re-measures the box and lays the menu out in it. Safe to call at any time.</summary>
         public void LayoutNow()
         {
             if (_canvas == null) return;
@@ -157,43 +138,21 @@ namespace Aether.Gameplay.Menus
             }
         }
 
-        /// <summary>
-        /// Re-reads everything a setting can change.
-        /// </summary>
-        /// <remarks>
-        /// One handler for the whole menu rather than one per screen: the canvas scale, the safe area,
-        /// the backdrop's motion and the screen that is up all have a value that the player can move,
-        /// and they all have to move together.
-        /// </remarks>
         private void OnSettingChanged(string id)
         {
             if (_canvas != null) _canvas.SetScale(MenuPreferences.ClampedUiScale);
-
             if (_safeArea != null) _safeArea.Mode = MenuPreferences.SafeArea;
             if (_backdrop != null) _backdrop.ApplySettings();
             if (_audio != null) _audio.ApplySettings();
             if (_system != null) _system.Refresh();
 
-            // The scale change only exists in the canvas after it has laid out again, and this is a
-            // settled moment — a settings row is committed, not dragged frame by frame — so the
-            // forced update is paid once here instead of the menu laying out twice.
             Canvas.ForceUpdateCanvases();
             LayoutNow();
         }
 
-        /// <summary>
-        /// Builds the screens again in the language that was just chosen.
-        /// </summary>
-        /// <remarks>
-        /// The setting is stored, applied and flushed by the localization service; what is left for
-        /// the menu is to stop showing the old language. It does that by building its screens again
-        /// rather than by updating labels row by row — there is no per-label update pass in this menu
-        /// and there is not meant to be one, because every string is written when its screen is built.
-        /// </remarks>
         private void OnLanguageChanged()
         {
             if (_system != null) _system.RequestRebuild();
         }
-
     }
 }
