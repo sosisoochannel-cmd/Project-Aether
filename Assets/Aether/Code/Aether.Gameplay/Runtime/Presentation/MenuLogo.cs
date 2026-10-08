@@ -1,3 +1,4 @@
+using System.Collections;
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Menus;
 using UnityEngine;
@@ -35,6 +36,8 @@ namespace Aether.Gameplay.Presentation
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
         private float _height = MenuTheme.Metrics.LogoHeight;
+        private Vector2 _restPosition;
+        private Coroutine _presentation;
 
         /// <summary>Whether a mark is actually being drawn.</summary>
         public bool HasMark
@@ -102,6 +105,7 @@ namespace Aether.Gameplay.Presentation
             float height = width / aspect;
 
             _rect.sizeDelta = new Vector2(MenuTheme.Metrics.LogoMaxWidth, height);
+            _restPosition = _rect.anchoredPosition;
 
             Place(_mark, width, height, Vector2.zero);
             Place(_shadow, width, height, new Vector2(2f, -2f));
@@ -210,6 +214,88 @@ namespace Aether.Gameplay.Presentation
                        / (StudioIntroSequence.Artwork.BackgroundLuminance
                           - StudioIntroSequence.Artwork.InkLuminance);
             return (byte)(Mathf.Clamp01(ink) * 255f);
+        }
+
+        private void OnEnable()
+        {
+            if (_mark == null) return;
+
+            if (_presentation != null) StopCoroutine(_presentation);
+            _presentation = StartCoroutine(PresentRoutine());
+        }
+
+        private void OnDisable()
+        {
+            if (_presentation != null)
+            {
+                StopCoroutine(_presentation);
+                _presentation = null;
+            }
+        }
+
+        private IEnumerator PresentRoutine()
+        {
+            // The panel already owns the main fade. This is a smaller, independent motion pass:
+            // the mark rises into place, settles, then breathes by only a couple of pixels. It gives
+            // the brand a premium "arrive" moment without competing with the menu entries.
+            _rect.anchoredPosition = _restPosition + new Vector2(0f, 10f);
+            _rect.localScale = Vector3.one * 0.965f;
+
+            Color markTarget = _mark.color;
+            Color shadowTarget = _shadow != null ? _shadow.color : new Color(0f, 0f, 0f, 0f);
+            _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b, 0f);
+            if (_shadow != null)
+                _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f);
+
+            if (MenuPreferences.ReducedMotion)
+            {
+                _rect.anchoredPosition = _restPosition;
+                _rect.localScale = Vector3.one;
+                _mark.color = markTarget;
+                if (_shadow != null) _shadow.color = shadowTarget;
+                _presentation = null;
+                yield break;
+            }
+
+            float elapsed = 0f;
+            const float duration = 0.42f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float ease = 1f - Mathf.Pow(1f - t, 3f);
+                _rect.anchoredPosition = Vector2.LerpUnclamped(
+                    _restPosition + new Vector2(0f, 10f), _restPosition, ease);
+                _rect.localScale = Vector3.one * Mathf.Lerp(0.965f, 1f, ease);
+                _mark.color = Color.Lerp(
+                    new Color(markTarget.r, markTarget.g, markTarget.b, 0f), markTarget, ease);
+                if (_shadow != null)
+                    _shadow.color = Color.Lerp(
+                        new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f),
+                        shadowTarget, ease);
+                yield return null;
+            }
+
+            _rect.anchoredPosition = _restPosition;
+            _rect.localScale = Vector3.one;
+            _mark.color = markTarget;
+            if (_shadow != null) _shadow.color = shadowTarget;
+
+            // Very restrained idle breathing. It is deliberately slower than the backdrop so the
+            // logo feels alive rather than animated like a button.
+            elapsed = 0f;
+            while (isActiveAndEnabled && !MenuPreferences.ReducedMotion)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float breathe = Mathf.Sin(elapsed * Mathf.PI * 2f / 11f);
+                _rect.anchoredPosition = _restPosition + new Vector2(0f, breathe * 1.25f);
+                _rect.localScale = Vector3.one * (1f + breathe * 0.0015f);
+                yield return null;
+            }
+
+            _rect.anchoredPosition = _restPosition;
+            _rect.localScale = Vector3.one;
+            _presentation = null;
         }
 
         private void ReportUnavailable(string reason)
