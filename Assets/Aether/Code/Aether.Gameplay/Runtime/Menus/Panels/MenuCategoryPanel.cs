@@ -303,7 +303,22 @@ namespace Aether.Gameplay.Menus.Panels
                 LanguageDefinition language = LanguageCatalog.All[i];
                 if (language.Code == LanguageCatalog.DefaultCode) { /* English is still a real row. */ }
 
-                Row languageRow = NewRow(SettingCategory.Language, language.LabelKey, string.Empty);
+                Row languageRow;
+                if (language.BundledFontCovers)
+                {
+                    languageRow = NewRow(SettingCategory.Language, language.LabelKey, string.Empty);
+                }
+                else
+                {
+                    // Never render an unavailable script with a font that cannot draw it. Unity font
+                    // fallback is asset-dependent, so the hub uses the safe Latin name until the
+                    // proper script font/shaping stack is installed.
+                    languageRow = new Row { Category = SettingCategory.Language };
+                    languageRow.Button = MenuButton.Create("Language " + language.Code, _content,
+                                                            language.LatinName.ToUpperInvariant(),
+                                                            MenuButton.Weight.Secondary);
+                    languageRow.Button.Nav = Nav;
+                }
                 languageRow.IsExtra = true;
                 languageRow.Extra = ExtraKind.LanguageOption;
                 languageRow.LanguageCode = language.Code;
