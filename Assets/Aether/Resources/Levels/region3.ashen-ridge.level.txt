@@ -69,7 +69,7 @@ checkpoint   = id=checkpoint.ashen_ridge.entry, x=60, y=20, respawn=60:20
 checkpoint   = id=checkpoint.ashen_ridge.overhang, x=86, y=20, respawn=86:20
 
 # --- enemies: three encounters, escalating, all Forest Stalkers on purpose ---
-enemy        = id=enemy.ashen_ridge.stalker.01, type=forest_stalker, x=44, y=20, patrol=2
+enemy        = id=enemy.ashen_ridge.stalker.01, type=forest_stalker, x=44, y=19, patrol=2
 enemy        = id=enemy.ashen_ridge.crawler.01, type=thorn_crawler, x=68, y=20, patrol=5
 enemy        = id=enemy.ashen_ridge.stalker.02, type=forest_stalker, x=89, y=18, patrol=3
 enemy        = id=enemy.ashen_ridge.watcher.01, type=canopy_watcher, x=96, y=15, patrol=0
