@@ -31,6 +31,14 @@ namespace Aether.Gameplay.Levels
             Reached = false;
         }
 
+        private static string GetNextRegionId(string exitId)
+        {
+            if (string.IsNullOrEmpty(exitId)) return null;
+            if (exitId.StartsWith("exit.greenway.")) return "region2.glassroot_caverns";
+            if (exitId.StartsWith("exit.glassroot_caverns.")) return "region3.ashen_ridge";
+            return null;
+        }
+
         private void OnTriggerEnter2D(Collider2D other)
         {
             if (_entity == null || Reached) return;
@@ -41,8 +49,19 @@ namespace Aether.Gameplay.Levels
 
             Reached = true;
             session.SetWorldFlag(CompletionFlag);
+
+            // Region completion also unlocks the authored next region. The actual scene loader can
+            // consume this stable flag later; progression is therefore saved even when a build uses
+            // a menu/transition screen between regions.
+            string nextRegion = GetNextRegionId(_entity.Id);
+            if (!string.IsNullOrEmpty(nextRegion))
+            {
+                session.SetWorldFlag("region.unlocked." + nextRegion);
+            }
+
             Debug.Log(
-                $"The Greenway is complete. '{CompletionFlag}' recorded; region 2 is not part of this milestone.",
+                $"Region complete: '{CompletionFlag}' recorded." +
+                (string.IsNullOrEmpty(nextRegion) ? string.Empty : $" Next region '{nextRegion}' unlocked."),
                 this);
         }
     }
