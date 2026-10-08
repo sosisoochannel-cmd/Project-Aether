@@ -72,7 +72,7 @@ checkpoint   = id=checkpoint.glassroot_caverns.overhang, x=86, y=20, respawn=86:
 enemy        = id=enemy.glassroot_caverns.crawler.01, type=thorn_crawler, x=47, y=20, patrol=5
 enemy        = id=enemy.glassroot_caverns.watcher.01, type=canopy_watcher, x=72, y=15, patrol=0
 enemy        = id=enemy.glassroot_caverns.stalker.02, type=forest_stalker, x=91, y=18, patrol=2
-enemy        = id=enemy.glassroot_caverns.watcher.01, type=canopy_watcher, x=84, y=15, patrol=0
+enemy        = id=enemy.glassroot_caverns.watcher.02, type=canopy_watcher, x=84, y=15, patrol=0
 enemy        = id=enemy.glassroot_caverns.stalker.03, type=forest_stalker, x=103, y=20, patrol=1
 
 # --- first secret, and the first trace that someone came through before ---
@@ -91,7 +91,7 @@ exit         = id=exit.glassroot_caverns.north, x=117, y=20
 # must=walk means the route may contain no jump at all.
 reach = glassroot_caverns.start -> anchor.glassroot_caverns.terrace.east, must=walk
 reach = glassroot_caverns.start -> anchor.glassroot_caverns.walkway
-reach = glassroot_caverns.start -> enemy.glassroot_caverns.stalker.01
+reach = glassroot_caverns.start -> enemy.glassroot_caverns.crawler.01
 reach = glassroot_caverns.start -> checkpoint.glassroot_caverns.entry
 reach = glassroot_caverns.start -> checkpoint.glassroot_caverns.overhang
 reach = glassroot_caverns.start -> secret.glassroot_caverns.overhang
