@@ -36,7 +36,7 @@ namespace Aether.Gameplay.Levels
     {
         [Tooltip("Resource path of the level to boot, without extension.")]
         [SerializeField]
-        private string _levelPath = "Levels/region1.greenway.level";
+        private string _levelPath = "Levels/region4.whispering-woods.level";
 
         [Tooltip("Build the level as soon as this component starts. Turn off to drive the boot by hand.")]
         [SerializeField]
@@ -204,7 +204,7 @@ namespace Aether.Gameplay.Levels
             {
                 // A level that does not parse is a build-time mistake that reached runtime. Say so
                 // loudly with the exact line, and do not attempt to play a partial level.
-                Debug.LogError($"The Greenway level data could not be read. {ex.Message}", this);
+                Debug.LogError($"The Whispering Woods level data could not be read. {ex.Message}", this);
                 return null;
             }
         }
