@@ -9,10 +9,12 @@ namespace Aether.Gameplay.Player
         private Vector3[] _base;
         private Vector3[] _scale;
         private float _landPulse;
+        private PlayerMotor _motor;
 
         public void Configure(Transform body, Transform head, Transform core, Transform eyeL, Transform eyeR)
         {
             _body=body; _head=head; _core=core; _eyeL=eyeL; _eyeR=eyeR;
+            _motor = GetComponent<PlayerMotor>();
             _base=new[]{body.localPosition,head.localPosition,core.localPosition,eyeL.localPosition,eyeR.localPosition};
             _scale=new[]{body.localScale,head.localScale,core.localScale,eyeL.localScale,eyeR.localScale};
         }
@@ -22,11 +24,10 @@ namespace Aether.Gameplay.Player
         private void Update()
         {
             if (_base == null) return;
-            var motor=GetComponent<PlayerMotor>();
-            float speed=motor != null ? Mathf.Abs(motor.VelocityX) : 0f;
-            bool grounded=motor != null && motor.IsGrounded;
+            float speed=_motor != null ? Mathf.Abs(_motor.VelocityX) : 0f;
+            bool grounded=_motor != null && _motor.IsGrounded;
             float bob=grounded ? Mathf.Sin(Time.time*(speed>0.2f?13f:4f))*(speed>0.2f?0.018f:0.008f) : 0f;
-            float lean=grounded ? Mathf.Clamp(motor.VelocityX*0.018f,-0.08f,0.08f) : 0f;
+            float lean=grounded ? Mathf.Clamp(_motor.VelocityX*0.018f,-0.08f,0.08f) : 0f;
             _landPulse=Mathf.MoveTowards(_landPulse,0f,Time.deltaTime*5.5f);
             float squash=1f-Mathf.Sin(_landPulse*Mathf.PI)*0.055f;
 
