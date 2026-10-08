@@ -1,4 +1,5 @@
 using UnityEngine;
+using Aether.Gameplay.Localization;
 
 namespace Aether.Gameplay.Menus
 {
@@ -32,6 +33,7 @@ namespace Aether.Gameplay.Menus
         private static Sprite _triangle;
         private static Sprite _padlock;
         private static Font _font;
+        private static Font _rtlFont;
         private static bool _built;
 
         /// <summary>The approved forest background loaded from Resources, without modifying the asset.</summary>
@@ -132,7 +134,7 @@ namespace Aether.Gameplay.Menus
             get
             {
                 EnsureBuilt();
-                return _font;
+                return LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
             }
         }
 
@@ -152,7 +154,8 @@ namespace Aether.Gameplay.Menus
             _triangle = MakeSprite(TriangleTexture(32), "triangle", new Rect(0f, 0f, 32f, 32f));
             _padlock = MakeSprite(PadlockTexture(48), "padlock", new Rect(0f, 0f, 48f, 48f));
 
-            _font = ResolveFont();
+            _font = ResolveFont(false);
+            _rtlFont = ResolveFont(true);
         }
 
         /// <summary>Releases everything. Used by tests so a run does not depend on the previous one.</summary>
@@ -168,20 +171,25 @@ namespace Aether.Gameplay.Menus
             _solid = _circle = _glow = _band = _vignette = _triangle = _padlock = null;
             _forest = null;
             _font = null;
+            _rtlFont = null;
             _built = false;
         }
 
         // -- construction ----------------------------------------------------------------------
 
-        private static Font ResolveFont()
+        private static Font ResolveFont(bool rtl)
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font != null) return font;
+            if (!rtl)
+            {
+                Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (builtin != null) return builtin;
+            }
 
-            // Older editors ship the same file under its old name. One call, no second error logged.
-            font = Font.CreateDynamicFontFromOSFont(
-                new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }, 48);
-            return font;
+            string[] names = rtl
+                ? new[] { "Noto Sans Arabic", "Noto Naskh Arabic", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }
+                : new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" };
+
+            return Font.CreateDynamicFontFromOSFont(names, 48);
         }
 
         private static Texture2D Texture(string name, int width, int height)
