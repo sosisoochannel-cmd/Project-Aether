@@ -113,10 +113,10 @@ namespace Aether.Gameplay.Menus.Panels
         /// <summary>Replaces the title and the line under it, for a screen that reuses the block.</summary>
         public void SetText(string title, string subtitle)
         {
-            if (_title != null) _title.text = MenuUi.Track(title, MenuTheme.Metrics.TitleTracking);
+            if (_title != null) _title.text = MenuUi.Track(MenuUi.PrepareText(title), MenuTheme.Metrics.TitleTracking);
             if (_subtitle != null)
             {
-                _subtitle.text = MenuUi.Track(subtitle, MenuTheme.Metrics.SubtitleTracking);
+                _subtitle.text = MenuUi.Track(MenuUi.PrepareText(subtitle), MenuTheme.Metrics.SubtitleTracking);
             }
         }
     }
