@@ -357,7 +357,8 @@ namespace Aether.Gameplay.Menus.Components
                 : MenuTheme.Metrics.SecondarySize;
 
             _label = MenuUi.CreateTrackedText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
-                                             Tracking, TextAnchor.MiddleLeft);
+                                             Tracking, TextAnchor.MiddleLeft,
+                                             _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
             _label.rectTransform.anchorMin = new Vector2(0f, 0f);
             _label.rectTransform.anchorMax = new Vector2(0f, 1f);
             _label.rectTransform.pivot = new Vector2(0f, 0.5f);
