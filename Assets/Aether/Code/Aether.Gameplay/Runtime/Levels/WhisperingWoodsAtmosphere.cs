@@ -16,6 +16,7 @@ namespace Aether.Gameplay.Levels
         private readonly List<float> _speed = new List<float>();
         private readonly List<float> _baseY = new List<float>();
         private float _time;
+        private float _windTime;
 
         public static void Create(LevelData level, Transform parent)
         {
@@ -41,6 +42,10 @@ namespace Aether.Gameplay.Levels
             CreateBand("NearCanopy", new Color(0.10f, 0.19f, 0.11f, 0.34f),
                 new Vector2(level.WorldSize.x * 0.5f, level.WorldSize.y * 0.78f),
                 new Vector2(level.WorldSize.x + 8f, level.WorldSize.y * 0.34f), -25, transform);
+
+            CreateBand("HushVeil", new Color(0.18f, 0.30f, 0.20f, 0.11f),
+                new Vector2(level.WorldSize.x * 0.48f, level.WorldSize.y * 0.52f),
+                new Vector2(level.WorldSize.x * 0.72f, level.WorldSize.y * 0.24f), -15, transform);
 
             const int count = 14;
             for (int i = 0; i < count; i++)
@@ -82,6 +87,7 @@ namespace Aether.Gameplay.Levels
         private void Update()
         {
             _time += Time.deltaTime;
+            _windTime += Time.deltaTime * 0.18f;
 
             for (int i = 0; i < _fireflies.Count; i++)
             {
@@ -92,9 +98,10 @@ namespace Aether.Gameplay.Levels
                 float drift = Mathf.Sin(phase * 0.73f) * 0.22f;
                 float lift = Mathf.Sin(phase) * 0.18f;
                 float pulse = 0.75f + (Mathf.Sin(phase * 1.37f) * 0.25f);
+                float wind = Mathf.Sin(_windTime + (i * 0.31f)) * 0.025f;
 
                 Vector3 p = firefly.localPosition;
-                p.x += drift * Time.deltaTime;
+                p.x += (drift + wind) * Time.deltaTime;
                 p.y = _baseY[i] + lift;
                 firefly.localPosition = p;
 
