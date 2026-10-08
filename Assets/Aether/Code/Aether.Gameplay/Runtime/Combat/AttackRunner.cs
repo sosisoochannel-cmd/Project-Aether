@@ -45,7 +45,7 @@ namespace Aether.Gameplay.Combat
     public sealed class AttackRunner
     {
         private readonly List<Collider2D> _overlapBuffer = new List<Collider2D>(8);
-        private readonly HashSet<Collider2D> _targetsHit = new HashSet<Collider2D>();
+        private readonly HashSet<IDamageable> _targetsHit = new HashSet<IDamageable>();
 
         private ContactFilter2D _filter;
         private bool _filterBuilt;
@@ -262,7 +262,13 @@ namespace Aether.Gameplay.Combat
                 if (hit == null) continue;
 
                 if (selfBody != null && hit.attachedRigidbody == selfBody) continue;
-                if (!_targetsHit.Add(hit)) continue;
+
+                // A character can legitimately have several colliders (body, head, shield,
+                // accessory). Resolve the damageable at the root and deduplicate by target rather
+                // than by collider, otherwise one swing can deal damage several times to one enemy.
+                IDamageable target = hit.GetComponentInParent<IDamageable>();
+                if (target == null) continue;
+                if (!_targetsHit.Add(target)) continue;
 
                 if (DamageResolver.TryDamage(hit, damage)) HitLanded?.Invoke(hit);
             }
