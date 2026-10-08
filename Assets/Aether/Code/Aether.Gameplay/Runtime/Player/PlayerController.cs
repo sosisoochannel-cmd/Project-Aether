@@ -68,6 +68,7 @@ namespace Aether.Gameplay.Player
         private StateMachine<PlayerController, PlayerStateId> _machine;
 
         private float _lastGroundedAt = float.NegativeInfinity;
+        private bool _wasGroundedLastPhysicsStep;
         private float _jumpBufferedAt = float.NegativeInfinity;
         private float _nextDodgeAt = float.NegativeInfinity;
         private float _dodgeEndsAt;
@@ -195,21 +196,30 @@ namespace Aether.Gameplay.Player
 
             _motor.RefreshGrounded();
 
-            bool wasGrounded = _lastGroundedAt > float.NegativeInfinity &&
-                               Time.time - _lastGroundedAt <= _tuning.CoyoteTime;
+            bool groundedNow = _motor.IsGrounded;
+            bool coyoteAvailable = _lastGroundedAt > float.NegativeInfinity &&
+                                   Time.time - _lastGroundedAt <= _tuning.CoyoteTime;
 
-            if (_motor.IsGrounded)
+            if (groundedNow)
             {
                 _lastGroundedAt = Time.time;
                 _airJumpsUsed = 0;
 
-                if (!wasGrounded && _machine.Current == PlayerStateId.Airborne) Landed?.Invoke();
+                if (!_wasGroundedLastPhysicsStep && _machine.Current == PlayerStateId.Airborne)
+                    Landed?.Invoke();
             }
-            else if (wasGrounded)
+            else if (_wasGroundedLastPhysicsStep)
             {
+                // Fire exactly once when the player actually leaves a grounded surface. The old
+                // timestamp-based check could invoke this every physics frame during coyote time.
                 LeftGround?.Invoke();
             }
 
+            _wasGroundedLastPhysicsStep = groundedNow;
+
+            // Keep the local name explicit: coyote availability is a gameplay grace period, not
+            // equivalent to physical contact.
+            _ = coyoteAvailable;
             _machine.FixedTick(this, dt);
         }
 
@@ -284,6 +294,7 @@ namespace Aether.Gameplay.Player
         {
             _motor.TeleportTo(position);
             _lastGroundedAt = float.NegativeInfinity;
+            _wasGroundedLastPhysicsStep = false;
             _jumpBufferedAt = float.NegativeInfinity;
             _nextDodgeAt = float.NegativeInfinity;
             _airJumpsUsed = 0;
