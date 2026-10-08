@@ -82,8 +82,10 @@ namespace Aether.Gameplay.Player
             coreRenderer.color = new Color(0.76f, 0.86f, 1f, 1f);
             coreRenderer.sortingOrder = SortingOrder + 1;
 
-            CreateEye(host.transform, -width * 0.16f, height * 0.39f, width * 0.08f);
-            CreateEye(host.transform, width * 0.16f, height * 0.39f, width * 0.08f);
+            Transform eyeL = CreateEye(host.transform, -width * 0.16f, height * 0.39f, width * 0.08f);
+            Transform eyeR = CreateEye(host.transform, width * 0.16f, height * 0.39f, width * 0.08f);
+            var heroMotion = host.AddComponent<PlayerHeroVisual>();
+            heroMotion.Configure(visual.transform, head.transform, core.transform, eyeL, eyeR);
 
             // Order matters only in that the controller's Awake looks its siblings up, and every
             // one of them already exists by the time it is added.
@@ -107,7 +109,7 @@ namespace Aether.Gameplay.Player
             return controller;
         }
 
-        private static void CreateEye(Transform parent, float x, float y, float size)
+        private static Transform CreateEye(Transform parent, float x, float y, float size)
         {
             var eye = new GameObject("Eye");
             eye.transform.SetParent(parent, false);
@@ -117,6 +119,7 @@ namespace Aether.Gameplay.Player
             r.sprite = PlaceholderVisuals.Square;
             r.color = new Color(0.08f, 0.10f, 0.14f, 1f);
             r.sortingOrder = SortingOrder + 3;
+            return eye.transform;
         }
     }
 }
