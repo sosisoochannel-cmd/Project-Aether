@@ -44,7 +44,7 @@ namespace Aether.Gameplay.Controls
 
         public static TouchControlsView Create(Camera targetCamera, TouchInputSource source, Transform parent)
         {
-            if (targetCamera == null || source == null || Touchscreen.current == null) return null;
+            if (targetCamera == null || source == null) return null;
             var host = new GameObject("TouchControls");
             host.transform.SetParent(parent, false);
             var view = host.AddComponent<TouchControlsView>();
@@ -89,7 +89,7 @@ namespace Aether.Gameplay.Controls
 
         private void OnDestroy()
         {
-            AetherSettings.Current.Changed -= OnSettingsChanged;
+            if (AetherSettings.Current != null) AetherSettings.Current.Changed -= OnSettingsChanged;
             _source?.Reset();
         }
 
