@@ -123,7 +123,8 @@ namespace Aether.Gameplay.Progression
                 "chapter.glassroot.subtitle",
                 "chapter.glassroot.body",
                 "Levels/region2.glassroot-caverns.level",
-                ChapterAvailability.Playable),
+                ChapterAvailability.Playable,
+                "objective.glassroot.exit"),
 
             new ChapterDefinition(
                 AshenRidgeId,
@@ -131,7 +132,8 @@ namespace Aether.Gameplay.Progression
                 "chapter.ashen.subtitle",
                 "chapter.ashen.body",
                 "Levels/region3.ashen-ridge.level",
-                ChapterAvailability.Playable),
+                ChapterAvailability.Playable,
+                "objective.ashen.exit"),
 
             new ChapterDefinition(
                 "theSpine",
