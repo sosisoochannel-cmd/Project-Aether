@@ -197,9 +197,6 @@ namespace Aether.Gameplay.Player
             _motor.RefreshGrounded();
 
             bool groundedNow = _motor.IsGrounded;
-            bool coyoteAvailable = _lastGroundedAt > float.NegativeInfinity &&
-                                   Time.time - _lastGroundedAt <= _tuning.CoyoteTime;
-
             if (groundedNow)
             {
                 _lastGroundedAt = Time.time;
@@ -217,9 +214,6 @@ namespace Aether.Gameplay.Player
 
             _wasGroundedLastPhysicsStep = groundedNow;
 
-            // Keep the local name explicit: coyote availability is a gameplay grace period, not
-            // equivalent to physical contact.
-            _ = coyoteAvailable;
             _machine.FixedTick(this, dt);
         }
 
