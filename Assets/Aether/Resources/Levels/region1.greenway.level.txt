@@ -70,7 +70,9 @@ checkpoint   = id=checkpoint.greenway.overhang, x=86, y=20, respawn=86:20
 
 # --- enemies: three encounters, escalating, all Forest Stalkers on purpose ---
 enemy        = id=enemy.greenway.stalker.01, type=forest_stalker, x=47, y=20, patrol=4
+enemy        = id=enemy.greenway.crawler.01, type=thorn_crawler, x=72, y=20, patrol=3
 enemy        = id=enemy.greenway.stalker.02, type=forest_stalker, x=91, y=18, patrol=1
+enemy        = id=enemy.greenway.watcher.01, type=canopy_watcher, x=84, y=15, patrol=0
 enemy        = id=enemy.greenway.stalker.03, type=forest_stalker, x=103, y=20, patrol=1
 
 # --- first secret, and the first trace that someone came through before ---
