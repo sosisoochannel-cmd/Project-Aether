@@ -1,49 +1,47 @@
 namespace Aether.Gameplay.Flow
 {
     /// <summary>
-    /// What the player asked for, carried across the scene load that honours it.
+    /// Carries the exact gameplay hand-off across the Boot scene load.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Scene loads destroy the object that asked for them, so a small explicit intent crosses the
-    /// boundary instead: Boot consumes a play request, while the menu consumes a request to open
-    /// Settings. Each is read-and-clear, so a fulfilled request cannot unexpectedly run again on a
-    /// later visit.
-    /// </para>
-    /// <para>
-    /// This is deliberately not a navigation stack. It carries only these two hand-off intents;
-    /// ordinary screen history stays with <see cref="Aether.Gameplay.Menus.MenuSystem"/>.
-    /// </para>
-    /// </remarks>
     public static class GameLaunch
     {
+        public const string DefaultLevelPath = "Levels/region1.greenway.level";
+
         private static bool _playRequested;
         private static bool _openSettingsRequested;
+        private static string _requestedLevelPath;
 
-        /// <summary>True while a request is waiting to be served.</summary>
         public static bool IsPlayRequested => _playRequested;
-
-        /// <summary>True while the menu has been asked to open its Settings screen.</summary>
         public static bool IsOpenSettingsRequested => _openSettingsRequested;
+        public static string RequestedLevelPath =>
+            string.IsNullOrEmpty(_requestedLevelPath) ? DefaultLevelPath : _requestedLevelPath;
 
-        /// <summary>Asks for the region to be started the next time boot runs.</summary>
+        /// <summary>Starts the default first region.</summary>
         public static void RequestPlay()
         {
-            _playRequested = true;
-            _openSettingsRequested = false;
+            RequestPlay(DefaultLevelPath);
         }
 
-        /// <summary>Opens the menu on Settings after a scene hand-off, such as from the pause menu.</summary>
+        /// <summary>
+        /// Starts a specific source-of-truth region on the next Boot.
+        /// The path is a Resources path without the .txt extension.
+        /// </summary>
+        public static void RequestPlay(string levelPath)
+        {
+            if (string.IsNullOrWhiteSpace(levelPath)) levelPath = DefaultLevelPath;
+
+            _playRequested = true;
+            _openSettingsRequested = false;
+            _requestedLevelPath = levelPath.Trim();
+        }
+
         public static void RequestOpenSettings()
         {
             _playRequested = false;
             _openSettingsRequested = true;
+            _requestedLevelPath = null;
         }
 
-        /// <summary>
-        /// Reads the request and clears it. Return value tells the caller which of the two things
-        /// boot should do.
-        /// </summary>
         public static bool TakePlayRequest()
         {
             bool requested = _playRequested;
@@ -51,7 +49,13 @@ namespace Aether.Gameplay.Flow
             return requested;
         }
 
-        /// <summary>Reads and clears the pending menu-settings destination.</summary>
+        public static string TakeRequestedLevelPath()
+        {
+            string path = RequestedLevelPath;
+            _requestedLevelPath = null;
+            return path;
+        }
+
         public static bool TakeOpenSettingsRequest()
         {
             bool requested = _openSettingsRequested;
@@ -59,17 +63,17 @@ namespace Aether.Gameplay.Flow
             return requested;
         }
 
-        /// <summary>Clears only a pending play request after a failed scene load.</summary>
         public static void ClearPlayRequest()
         {
             _playRequested = false;
+            _requestedLevelPath = null;
         }
 
-        /// <summary>Drops any pending request. Used by tests and by a deliberate return to the menu.</summary>
         public static void Clear()
         {
             _playRequested = false;
             _openSettingsRequested = false;
+            _requestedLevelPath = null;
         }
     }
 }
