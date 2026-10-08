@@ -72,6 +72,7 @@ namespace Aether.Gameplay.Flow
         public static void ClearPlayRequest()
         {
             _playRequested = false;
+            _requestedLevelPath = null;
         }
 
         /// <summary>Drops any pending request. Used by tests and by a deliberate return to the menu.</summary>
