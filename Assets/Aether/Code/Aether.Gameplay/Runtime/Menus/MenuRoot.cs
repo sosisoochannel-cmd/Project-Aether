@@ -156,3 +156,5 @@ namespace Aether.Gameplay.Menus
         }
     }
 }
+
+// Build gate: keep this gameplay source in the Android player build validation path.
