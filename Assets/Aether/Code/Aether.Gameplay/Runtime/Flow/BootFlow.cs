@@ -44,10 +44,9 @@ namespace Aether.Gameplay.Flow
                     // The player asked to play. This scene has always been able to boot a region; it
                     // still is, and the menu simply chooses when it does.
                     SaveHost.Ensure();
-                    if (FindAnyObjectByType<LevelBootstrap>() == null)
-                    {
-                        gameObject.AddComponent<LevelBootstrap>();
-                    }
+                    LevelBootstrap bootstrap = FindAnyObjectByType<LevelBootstrap>();
+                    if (bootstrap == null) bootstrap = gameObject.AddComponent<LevelBootstrap>();
+                    bootstrap.ConfigureLevelPath(GameLaunch.TakeRequestedLevelPath());
 
                     return;
                 }
