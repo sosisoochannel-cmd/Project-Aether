@@ -103,6 +103,7 @@ namespace Aether.Gameplay.Levels
             {
                 BuildTerrain(level, root.transform);
                 BuildCanopy(level, root.transform);
+                BuildForestAtmosphere(level, root.transform);
             }
 
             var built = new BuiltLevel(root, level);
@@ -149,6 +150,49 @@ namespace Aether.Gameplay.Levels
 
             CreateKind(level, canopy.transform, LevelTileKind.CanopyBack, LevelPalette.CanopyBack, SortingCanopyBack);
             CreateKind(level, canopy.transform, LevelTileKind.CanopyFront, LevelPalette.CanopyFront, SortingCanopyFront);
+        }
+
+        private static void BuildForestAtmosphere(LevelData level, Transform parent)
+        {
+            // M4's identity is carried by depth, not by gameplay markers. These silhouettes are
+            // deliberately deterministic so the same level data always produces the same framing.
+            var atmosphere = new GameObject("ForestAtmosphere");
+            atmosphere.transform.SetParent(parent, false);
+
+            float groundY = (level.Height - 20f) * level.TileSize;
+            Color trunk = new Color(0.055f, 0.105f, 0.075f, 0.95f);
+            Color crown = new Color(0.075f, 0.17f, 0.105f, 0.72f);
+            Color haze = new Color(0.20f, 0.34f, 0.25f, 0.075f);
+
+            CreateAtmosphereRect(atmosphere.transform, "Haze", new Vector2(level.Width * level.TileSize * 0.5f, groundY + 3.2f),
+                new Vector2(level.Width * level.TileSize, 4.6f), haze, -40);
+
+            int treeCount = Mathf.Max(10, level.Width / 8);
+            for (int i = 0; i < treeCount; i++)
+            {
+                float t = treeCount <= 1 ? 0f : i / (float)(treeCount - 1);
+                float x = Mathf.Lerp(1.5f, (level.Width - 1.5f) * level.TileSize, t);
+                float height = 3.8f + ((i * 17) % 5) * 0.42f;
+                float width = 1.15f + ((i * 11) % 4) * 0.18f;
+
+                CreateAtmosphereRect(atmosphere.transform, $"Tree_{i}_Trunk",
+                    new Vector2(x, groundY + height * 0.42f), new Vector2(width * 0.28f, height), trunk, -35);
+                CreateAtmosphereRect(atmosphere.transform, $"Tree_{i}_Crown",
+                    new Vector2(x, groundY + height * 0.88f), new Vector2(width * 1.65f, height * 0.82f), crown, -34);
+            }
+        }
+
+        private static void CreateAtmosphereRect(Transform parent, string name, Vector2 position,
+                                                  Vector2 size, Color colour, int sortingOrder)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = position;
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = PlaceholderVisuals.Square;
+            renderer.color = colour;
+            renderer.sortingOrder = sortingOrder;
+            go.transform.localScale = new Vector3(size.x, size.y, 1f);
         }
 
         private static void CreateKind(LevelData level, Transform parent, LevelTileKind kind, Color colour, int sorting)
