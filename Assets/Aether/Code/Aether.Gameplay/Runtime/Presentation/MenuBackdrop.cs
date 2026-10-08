@@ -184,6 +184,11 @@ namespace Aether.Gameplay.Presentation
 
             // Switched off means switched off: no per-frame callback is left behind.
             enabled = MotionEnabled;
+            if (_fireflies != null)
+            {
+                for (int i = 0; i < _fireflies.Length; i++)
+                    if (_fireflies[i] != null) _fireflies[i].gameObject.SetActive(MotionEnabled);
+            }
 
             if (!MotionEnabled) Rest();
         }
