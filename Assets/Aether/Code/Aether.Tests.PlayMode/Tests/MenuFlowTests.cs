@@ -898,3 +898,18 @@ namespace Aether.Tests.PlayMode
             }
 
             return visible;
+        }
+
+        private static int ScreenCount(MenuRoot root, MenuScreenId id)
+        {
+            var screens = root.GetComponentsInChildren<MenuScreen>(true);
+            int found = 0;
+            for (int i = 0; i < screens.Length; i++)
+            {
+                if (screens[i].Id == id) found++;
+            }
+
+            return found;
+        }
+    }
+}
