@@ -33,6 +33,9 @@ namespace Aether.Gameplay.Presentation
         private RectTransform _rect;
         private Image _mark;
         private Image _shadow;
+        private Image _halo;
+        private Image _coreGlow;
+        private Image _scan;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
         private float _height = MenuTheme.Metrics.LogoHeight;
@@ -69,6 +72,9 @@ namespace Aether.Gameplay.Presentation
             logo._rect.sizeDelta = new Vector2(MenuTheme.Metrics.LogoMaxWidth, height);
 
             logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.24f));
+            logo._halo = MenuUi.CreateImage("Halo", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
+            logo._coreGlow = MenuUi.CreateImage("Core Glow", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
+            logo._scan = MenuUi.CreateImage("Light Sweep", logo._rect, MenuArt.Square, new Color(1f, 1f, 1f, 0f));
             logo._mark = MenuUi.CreateImage("Mark", logo._rect, null, MenuTheme.Palette.Ink);
 
             Sprite source = Resources.Load<Sprite>(MarkResourcePath);
@@ -109,6 +115,14 @@ namespace Aether.Gameplay.Presentation
 
             Place(_mark, width, height, Vector2.zero);
             Place(_shadow, width, height, new Vector2(2f, -2f));
+            Place(_halo, width * 1.18f, height * 1.18f, Vector2.zero);
+            Place(_coreGlow, width * 1.04f, height * 1.04f, Vector2.zero);
+            Place(_scan, Mathf.Max(4f, width * 0.055f), height * 1.35f, Vector2.zero);
+            _halo.transform.SetAsFirstSibling();
+            _coreGlow.transform.SetSiblingIndex(1);
+            _shadow.transform.SetSiblingIndex(2);
+            _mark.transform.SetSiblingIndex(3);
+            _scan.transform.SetAsLastSibling();
             _shadow.color = new Color(0f, 0f, 0f, 0.24f);
             _mark.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink,
                                                          MenuPreferences.HighContrast);
@@ -235,67 +249,93 @@ namespace Aether.Gameplay.Presentation
 
         private IEnumerator PresentRoutine()
         {
-            // The panel already owns the main fade. This is a smaller, independent motion pass:
-            // the mark rises into place, settles, then breathes by only a couple of pixels. It gives
-            // the brand a premium "arrive" moment without competing with the menu entries.
-            _rect.anchoredPosition = _restPosition + new Vector2(0f, 10f);
-            _rect.localScale = Vector3.one * 0.965f;
+            _rect.anchoredPosition = _restPosition + new Vector2(0f, 14f);
+            _rect.localScale = Vector3.one * 0.94f;
 
             Color markTarget = _mark.color;
             Color shadowTarget = _shadow != null ? _shadow.color : new Color(0f, 0f, 0f, 0f);
-            _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b, 0f);
-            if (_shadow != null)
-                _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f);
+            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
 
             if (MenuPreferences.ReducedMotion)
             {
                 _rect.anchoredPosition = _restPosition;
                 _rect.localScale = Vector3.one;
-                _mark.color = markTarget;
-                if (_shadow != null) _shadow.color = shadowTarget;
-                _presentation = null;
+                SetLogoEffectColors(markTarget, shadowTarget, 0f, 0f, 0f);
                 yield break;
             }
 
+            SetLogoEffectColors(
+                new Color(markTarget.r, markTarget.g, markTarget.b, 0f),
+                new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), 0f, 0f, 0f);
+
             float elapsed = 0f;
-            const float duration = 0.42f;
+            const float duration = 0.58f;
             while (elapsed < duration)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float ease = 1f - Mathf.Pow(1f - t, 3f);
                 _rect.anchoredPosition = Vector2.LerpUnclamped(
-                    _restPosition + new Vector2(0f, 10f), _restPosition, ease);
-                _rect.localScale = Vector3.one * Mathf.Lerp(0.965f, 1f, ease);
-                _mark.color = Color.Lerp(
-                    new Color(markTarget.r, markTarget.g, markTarget.b, 0f), markTarget, ease);
-                if (_shadow != null)
-                    _shadow.color = Color.Lerp(
-                        new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f),
-                        shadowTarget, ease);
+                    _restPosition + new Vector2(0f, 14f), _restPosition, ease);
+                _rect.localScale = Vector3.one * Mathf.Lerp(0.94f, 1f, ease);
+                float glow = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.72f));
+                SetLogoEffectColors(
+                    Color.Lerp(new Color(markTarget.r, markTarget.g, markTarget.b, 0f), markTarget, ease),
+                    Color.Lerp(new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), shadowTarget, ease),
+                    glow * 0.11f, glow * 0.16f, 0f);
                 yield return null;
             }
 
-            _rect.anchoredPosition = _restPosition;
-            _rect.localScale = Vector3.one;
-            _mark.color = markTarget;
-            if (_shadow != null) _shadow.color = shadowTarget;
+            float sweepDuration = 0.72f;
+            elapsed = 0f;
+            while (elapsed < sweepDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / sweepDuration);
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                if (_scan != null)
+                {
+                    float x = Mathf.Lerp(-0.62f, 0.62f, eased) * _rect.rect.width;
+                    _scan.rectTransform.anchoredPosition = new Vector2(x, 0f);
+                    float edge = Mathf.Sin(t * Mathf.PI);
+                    _scan.color = new Color(accent.r, accent.g, accent.b, edge * 0.13f);
+                }
+                yield return null;
+            }
 
-            // Very restrained idle breathing. It is deliberately slower than the backdrop so the
-            // logo feels alive rather than animated like a button.
+            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, 0f);
+
             elapsed = 0f;
             while (isActiveAndEnabled && !MenuPreferences.ReducedMotion)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float breathe = Mathf.Sin(elapsed * Mathf.PI * 2f / 11f);
-                _rect.anchoredPosition = _restPosition + new Vector2(0f, breathe * 1.25f);
+                _rect.anchoredPosition = _restPosition + new Vector2(0f, breathe * 1.15f);
                 _rect.localScale = Vector3.one * (1f + breathe * 0.0015f);
+
+                float pulse = 0.5f + 0.5f * breathe;
+                if (_halo != null)
+                    _halo.color = new Color(accent.r, accent.g, accent.b, 0.025f + pulse * 0.025f);
+                if (_coreGlow != null)
+                    _coreGlow.color = new Color(accent.r, accent.g, accent.b, 0.045f + pulse * 0.025f);
                 yield return null;
             }
 
             _rect.anchoredPosition = _restPosition;
             _rect.localScale = Vector3.one;
+            SetLogoEffectColors(markTarget, shadowTarget, 0.03f, 0.06f, 0f);
             _presentation = null;
+        }
+
+        private void SetLogoEffectColors(Color mark, Color shadow, float haloAlpha, float coreAlpha, float scanAlpha)
+        {
+            _mark.color = mark;
+            if (_shadow != null) _shadow.color = shadow;
+
+            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
+            if (_halo != null) _halo.color = new Color(accent.r, accent.g, accent.b, haloAlpha);
+            if (_coreGlow != null) _coreGlow.color = new Color(accent.r, accent.g, accent.b, coreAlpha);
+            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, scanAlpha);
         }
 
         private void ReportUnavailable(string reason)
@@ -321,8 +361,14 @@ namespace Aether.Gameplay.Presentation
         private void Remove()
         {
             if (_shadow != null) Destroy(_shadow.gameObject);
+            if (_halo != null) Destroy(_halo.gameObject);
+            if (_coreGlow != null) Destroy(_coreGlow.gameObject);
+            if (_scan != null) Destroy(_scan.gameObject);
             if (_mark != null) Destroy(_mark.gameObject);
             _shadow = null;
+            _halo = null;
+            _coreGlow = null;
+            _scan = null;
             _mark = null;
         }
 
