@@ -28,7 +28,7 @@ namespace Aether.Gameplay.Menus
     {
         /// <summary>Saves, fades the menu's music, and hands over to the region.</summary>
         /// <returns>False when the save or scene prerequisite fails; the menu remains usable.</returns>
-        public static bool PlayRegion()
+        public static bool PlayRegion(string levelPath = null)
         {
             if (MenuTransition.Instance.Busy) return false;
             if (!Application.CanStreamedLevelBeLoaded(Scenes.Boot))
@@ -54,7 +54,7 @@ namespace Aether.Gameplay.Menus
                 audio.FadeOut(MenuTheme.Motion.TransitionFade(MenuPreferences.ReducedMotion));
             }
 
-            GameLaunch.RequestPlay();
+            GameLaunch.RequestPlay(levelPath);
             MenuTransition.Instance.GoToScene(Scenes.Boot);
             return true;
         }
