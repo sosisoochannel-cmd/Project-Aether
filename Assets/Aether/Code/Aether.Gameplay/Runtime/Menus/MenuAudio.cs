@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using Aether.Core.Settings;
 using Aether.Gameplay.Sound;
 using UnityEngine;
@@ -50,6 +51,8 @@ namespace Aether.Gameplay.Menus
         private AudioMixerGroup _musicGroup;
         private AudioMixerGroup _uiGroup;
         private Coroutine _fade;
+        private readonly Dictionary<string, AudioClip> _generatedCues = new Dictionary<string, AudioClip>();
+        private AudioClip _generatedMusic;
 
         /// <summary>The live menu audio, or null before the menu has been built.</summary>
         public static MenuAudio Instance
@@ -180,6 +183,7 @@ namespace Aether.Gameplay.Menus
             if (audio == null || audio._oneShots == null) return;
 
             AudioClip clip = Resources.Load<AudioClip>(UiCueFolder + cueId);
+            if (clip == null) clip = audio.GetOrCreateFallbackCue(cueId);
             if (clip == null) return;
 
             audio._oneShots.PlayOneShot(clip, Mathf.Clamp01(volume));
@@ -197,20 +201,78 @@ namespace Aether.Gameplay.Menus
         public static void Confirm()
         {
             Request("ui.confirm");
+            Haptics.Tap();
         }
 
         /// <summary>A value changed: a switch, a slider step, a choice.</summary>
         public static void Adjust()
         {
             Request("ui.adjust", 0.7f);
+            Haptics.Tap();
         }
 
         /// <summary>The back action, and a cancelled dialog.</summary>
         public static void Back()
         {
             Request("ui.back", 0.8f);
+            Haptics.Tap();
         }
 
+        private AudioClip GetOrCreateFallbackCue(string cueId)
+        {
+            AudioClip existing;
+            if (_generatedCues.TryGetValue(cueId, out existing)) return existing;
+
+            const int sampleRate = 44100;
+            float duration = cueId == "ui.confirm" ? 0.42f : cueId == "ui.back" ? 0.28f : cueId == "ui.adjust" ? 0.18f : 0.12f;
+            int samples = Mathf.CeilToInt(sampleRate * duration);
+            var data = new float[samples];
+            float startFrequency = cueId == "ui.back" ? 520f : cueId == "ui.adjust" ? 660f : 440f;
+            float endFrequency = cueId == "ui.back" ? 260f : cueId == "ui.adjust" ? 990f : 660f;
+
+            for (int i = 0; i < samples; i++)
+            {
+                float t = i / (float)sampleRate;
+                float p = Mathf.Clamp01(t / duration);
+                float frequency = Mathf.Lerp(startFrequency, endFrequency, p);
+                float envelope = Mathf.Exp(-t * (cueId == "ui.confirm" ? 7f : 14f));
+                float sample = Mathf.Sin(2f * Mathf.PI * frequency * t) * envelope;
+                if (cueId == "ui.confirm") sample += 0.45f * Mathf.Sin(2f * Mathf.PI * frequency * 2f * t) * Mathf.Exp(-t * 11f);
+                data[i] = sample * 0.18f;
+            }
+
+            AudioClip generated = AudioClip.Create("Aether_" + cueId.Replace(".", "_"), samples, 1, sampleRate, false);
+            generated.SetData(data, 0);
+            _generatedCues.Add(cueId, generated);
+            return generated;
+        }
+
+        private AudioClip CreateFallbackTheme()
+        {
+            const int sampleRate = 22050;
+            const int seconds = 12;
+            int samples = sampleRate * seconds;
+            var data = new float[samples];
+            float[] roots = { 110f, 146.83f, 123.47f };
+            float[] fifths = { 164.81f, 220f, 185f };
+
+            for (int i = 0; i < samples; i++)
+            {
+                float t = i / (float)sampleRate;
+                int section = Mathf.FloorToInt(t / 4f) % 3;
+                float local = t - (section * 4f);
+                float envelope = Mathf.Clamp01(local / 0.65f) * Mathf.Clamp01((4f - local) / 0.75f);
+                float root = roots[section];
+                float fifth = fifths[section];
+                float pad = Mathf.Sin(2f * Mathf.PI * root * t) * 0.32f + Mathf.Sin(2f * Mathf.PI * fifth * t) * 0.20f + Mathf.Sin(2f * Mathf.PI * root * 2.003f * t) * 0.09f;
+                float pulse = Mathf.Exp(-Mathf.Repeat(t + 0.8f, 2f) * 2.8f) * Mathf.Sin(2f * Mathf.PI * root * 4f * t) * 0.08f;
+                data[i] = (pad + pulse) * envelope * 0.13f;
+            }
+
+            AudioClip clip = AudioClip.Create("Aether_Menu_Ambience_Fallback", samples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
         private IEnumerator FadeRoutine(float seconds)
         {
             float from = _music.volume;
@@ -233,6 +295,11 @@ namespace Aether.Gameplay.Menus
         private void OnDestroy()
         {
             if (_instance == this) _instance = null;
+            if (_generatedMusic != null) Destroy(_generatedMusic);
+            foreach (KeyValuePair<string, AudioClip> pair in _generatedCues)
+                if (pair.Value != null) Destroy(pair.Value);
+            _generatedCues.Clear();
+            _generatedMusic = null;
         }
 
         private static AudioSource Source(Transform parent, string name, bool loop)
