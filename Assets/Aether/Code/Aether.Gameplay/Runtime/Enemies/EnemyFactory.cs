@@ -69,6 +69,15 @@ namespace Aether.Gameplay.Enemies
             var telegraph = host.AddComponent<EnemyTelegraph>();
             telegraph.Configure(renderer, controller);
 
+            var shadow = new GameObject("GroundShadow");
+            shadow.transform.SetParent(host.transform, false);
+            shadow.transform.localPosition = new Vector3(0f, -BodyHeight * 0.50f, 0.02f);
+            shadow.transform.localScale = new Vector3(BodyWidth * 0.85f, BodyHeight * 0.10f, 1f);
+            var shadowRenderer = shadow.AddComponent<SpriteRenderer>();
+            shadowRenderer.sprite = PlaceholderVisuals.Circle;
+            shadowRenderer.color = new Color(0.02f, 0.03f, 0.06f, 0.24f);
+            shadowRenderer.sortingOrder = SortingOrder - 1;
+
             motor.ConfigureSolidLayers(GameplayLayers.Ground);
             controller.ConfigureLayers(GameplayLayers.Ground, GameplayLayers.Player);
             controller.ConfigurePatrol(patrolTiles);
