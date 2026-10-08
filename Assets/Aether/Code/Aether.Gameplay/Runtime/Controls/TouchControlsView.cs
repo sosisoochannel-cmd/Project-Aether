@@ -195,8 +195,6 @@ namespace Aether.Gameplay.Controls
         private static void ApplyPressed(SpriteRenderer renderer, bool pressed)
         {
             if (renderer == null) return;
-            float pulse = pressed ? 1.075f : 1f;
-            renderer.transform.localScale = Vector3.one * pulse * renderer.transform.localScale.x / Mathf.Max(0.0001f, renderer.transform.localScale.x);
             Color c = renderer.color;
             c.a = (pressed ? 0.98f : 0.86f) * Layout.OpacityScale;
             renderer.color = c;
