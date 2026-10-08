@@ -36,7 +36,7 @@ namespace Aether.Gameplay.Levels
     {
         [Tooltip("Resource path of the level to boot, without extension.")]
         [SerializeField]
-        private string _levelPath = "Levels/region4.whispering-woods.level";
+        private string _levelPath = "Levels/region1.greenway.level";
 
         [Tooltip("Build the level as soon as this component starts. Turn off to drive the boot by hand.")]
         [SerializeField]
@@ -65,6 +65,11 @@ namespace Aether.Gameplay.Levels
 
         /// <summary>The region's interface and run state, or null before boot.</summary>
         public GameplayShell Shell { get; private set; }
+
+        public void ConfigureLevelPath(string levelPath)
+        {
+            if (!string.IsNullOrEmpty(levelPath)) _levelPath = levelPath;
+        }
 
         private void Start()
         {
