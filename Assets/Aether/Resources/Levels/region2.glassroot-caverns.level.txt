@@ -1,0 +1,99 @@
+# Project Aether - level data.
+#
+# THIS FILE IS THE SOURCE OF TRUTH for the level.
+# Scenes and Tilemaps are baked representations generated from this file and must never be
+# edited by hand; a hand-edited scene is overwritten by the next bake.
+#
+# Grid convention: row 0 is the TOP of the map. An entity at (x, y) stands on tile (x, y),
+# so its feet rest on that tile's top edge. Tiles are one world unit.
+#
+# Things marked with '=' are not just decoration: they are the surfaces the level expects
+# the player to try to stand on, and the traversal solver treats them accordingly.
+
+aether-level 1
+
+[meta]
+id           = region2.glassroot_caverns
+display_name = Glassroot Caverns
+region       = region2
+tile_size    = 1
+
+[legend]
+. = Empty
+# = Ground
+% = DeepRock
+= = Platform
+, = CanopyBack
+" = CanopyFront
+
+[tiles]
+........................................................................................................................
+........................................................................................................................
+.......""..,,,,,,,,,.........."",,,,"",,...........,,,,,,,,,.......""..,,,,,,,,,...........,,,,,"",,...........,,,,,,,,.
+..,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,.
+..,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,,,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,,.,,,,,,,,.
+..,,,,,,,,...........,,,,,,,,,..........,,,,,,,,,,...........,,,,,,,,,...........,,,,,,,,,...........,,,,,,,,,....,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,.....................,.............................,.....
+....,..................,................,.....................,...............,,,,,,,.............................,.....
+##..,..................,................,.....................,...............,,,,,,,.............................,....#
+##..,..................,................,.....................,...............,,,,,,,.............................,....#
+##..,..................,................,.....................,.....................,.............................,....#
+##..,..................,................,.....................,................=====,.............................,....#
+##..,..................,................,.....................,.............========,.............................,....#
+##..,..................,................,.....................,.............===.....,.............................,....#
+##..,.......===........,................,.....................,........====.........,....#####......==............,....#
+##..,.......===........,................,.....................,........====.........,....#####......==............,....#
+##################..##############..############################################################..########..############
+##################..##############..############################################################..########..############
+##################..##############..############################################################..########..############
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%..%%%%%%%%%%%%
+
+[entities]
+# --- player ---
+player_start = id=glassroot_caverns.start, x=5, y=20
+
+# --- traversal anchors: no behaviour, they only give the solver fixed points to prove ---
+anchor       = id=anchor.glassroot_caverns.terrace.west, x=4, y=20
+anchor       = id=anchor.glassroot_caverns.terrace.east, x=11, y=20
+anchor       = id=anchor.glassroot_caverns.walkway, x=22, y=20
+
+# --- checkpoints. 'respawn=x:y' is the exact tile the player is returned to; it is authored
+# explicitly so a future layout change can never silently move somebody's respawn ---
+checkpoint   = id=checkpoint.glassroot_caverns.entry, x=60, y=20, respawn=60:20
+checkpoint   = id=checkpoint.glassroot_caverns.overhang, x=86, y=20, respawn=86:20
+
+# --- enemies: three encounters, escalating, all Forest Stalkers on purpose ---
+enemy        = id=enemy.glassroot_caverns.crawler.01, type=thorn_crawler, x=47, y=20, patrol=5
+enemy        = id=enemy.glassroot_caverns.watcher.01, type=canopy_watcher, x=72, y=15, patrol=0
+enemy        = id=enemy.glassroot_caverns.stalker.02, type=forest_stalker, x=91, y=18, patrol=2
+enemy        = id=enemy.glassroot_caverns.watcher.01, type=canopy_watcher, x=84, y=15, patrol=0
+enemy        = id=enemy.glassroot_caverns.stalker.03, type=forest_stalker, x=103, y=20, patrol=1
+
+# --- first secret, and the first trace that someone came through before ---
+discovery    = id=secret.glassroot_caverns.overhang, x=81, y=15, kind=master_clue, flag=secret.glassroot_caverns.overhang
+
+# --- environmental storytelling: never text, always a thing in the world ---
+story        = id=story.glassroot_caverns.cut_trail, x=30, y=20, kind=cut_trail
+story        = id=story.glassroot_caverns.unnatural_growth, x=84, y=20, kind=unnatural_growth
+story        = id=story.glassroot_caverns.old_marker, x=114, y=20, kind=old_marker
+
+# --- region exit ---
+exit         = id=exit.glassroot_caverns.north, x=117, y=20
+
+[validation]
+# Every link below must be proved by the traversal solver using the real player tuning.
+# must=walk means the route may contain no jump at all.
+reach = glassroot_caverns.start -> anchor.glassroot_caverns.terrace.east, must=walk
+reach = glassroot_caverns.start -> anchor.glassroot_caverns.walkway
+reach = glassroot_caverns.start -> enemy.glassroot_caverns.stalker.01
+reach = glassroot_caverns.start -> checkpoint.glassroot_caverns.entry
+reach = glassroot_caverns.start -> checkpoint.glassroot_caverns.overhang
+reach = glassroot_caverns.start -> secret.glassroot_caverns.overhang
+reach = glassroot_caverns.start -> exit.glassroot_caverns.north
+reach = checkpoint.glassroot_caverns.overhang -> exit.glassroot_caverns.north
