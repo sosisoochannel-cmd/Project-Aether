@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Aether.Gameplay.Localization;
 
 namespace Aether.Gameplay.Menus.Components
 {
@@ -178,7 +179,7 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_label == null) return;
 
-            string wanted = MenuUi.Track(text, Tracking);
+            string wanted = MenuUi.PrepareText(LanguageService.IsRightToLeft ? text : MenuUi.Track(text, Tracking));
             if (_label.text == wanted) return;
             _label.text = wanted;
         }
@@ -264,7 +265,7 @@ namespace Aether.Gameplay.Menus.Components
 
             bool wanted = !string.IsNullOrEmpty(text);
             if (_help.gameObject.activeSelf != wanted) _help.gameObject.SetActive(wanted);
-            if (wanted && _help.text != text) _help.text = text;
+            if (wanted && _help.text != text) _help.text = MenuUi.PrepareText(text);
 
             // With a second line the label moves up to make room for it; without one it is centred.
             _labelY = wanted ? 15f : 0f;
@@ -409,7 +410,7 @@ namespace Aether.Gameplay.Menus.Components
             bool show = !string.IsNullOrEmpty(wanted);
 
             if (_meta.gameObject.activeSelf != show) _meta.gameObject.SetActive(show);
-            if (show && _meta.text != wanted) _meta.text = wanted;
+            if (show && _meta.text != wanted) _meta.text = MenuUi.PrepareText(wanted);
         }
 
         // -- state -----------------------------------------------------------------------------
