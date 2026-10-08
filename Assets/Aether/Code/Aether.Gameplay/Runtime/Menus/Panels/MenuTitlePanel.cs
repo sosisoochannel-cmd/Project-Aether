@@ -1,5 +1,6 @@
 using Aether.Gameplay.Presentation;
 using UnityEngine;
+using Aether.Gameplay.Localization;
 using UnityEngine.UI;
 
 namespace Aether.Gameplay.Menus.Panels
@@ -39,18 +40,20 @@ namespace Aether.Gameplay.Menus.Panels
                                                     MenuTheme.Metrics.TitleSize, MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.TitleTracking);
             panel._title.fontStyle = FontStyle.Bold;
-            panel._title.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._title.rectTransform.pivot = new Vector2(0f, 1f);
+            panel._title.rectTransform.anchorMin = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._title.rectTransform.anchorMax = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._title.rectTransform.pivot = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._title.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
 
             panel._subtitle = MenuUi.CreateTrackedText("Subtitle", panel.Rect,
                                                        MenuStrings.Get(subtitleKey),
                                                        MenuTheme.Metrics.SubtitleSize,
                                                        MenuTheme.Palette.InkMuted,
                                                        MenuTheme.Metrics.SubtitleTracking);
-            panel._subtitle.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.pivot = new Vector2(0f, 1f);
+            panel._subtitle.rectTransform.anchorMin = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._subtitle.rectTransform.anchorMax = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._subtitle.rectTransform.pivot = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
+            panel._subtitle.alignment = LanguageService.IsRightToLeft ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
 
             panel._rule = MenuUi.CreateImage("Rule", panel.Rect, MenuArt.Solid, MenuTheme.Palette.Line);
             panel._rule.rectTransform.anchorMin = new Vector2(0f, 1f);
