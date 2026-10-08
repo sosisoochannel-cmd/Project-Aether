@@ -2,103 +2,49 @@ using UnityEngine;
 
 namespace Aether.Gameplay.Controls
 {
-    /// <summary>
-    /// The on-screen controls, expressed as gameplay input.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This class knows nothing about rendering and nothing about touch hardware: the view decides
-    /// what a finger did and calls these methods, and gameplay reads the same members it reads from
-    /// a keyboard. Either side can be replaced — a different control layout, or a replay that drives
-    /// the same methods — without touching the other.
-    /// </para>
-    /// <para>
-    /// Presses are latched, exactly like the device source, so a tap that begins and ends between two
-    /// physics steps is still acted on exactly once.
-    /// </para>
-    /// </remarks>
+    /// <summary>Touch gameplay commands. Movement is intentionally digital: dedicated left/right controls replace the old joystick.</summary>
     public sealed class TouchInputSource : IGameplayInput
     {
-        private Vector2 _move;
+        private bool _leftHeld;
+        private bool _rightHeld;
         private bool _jumpHeld;
         private bool _jumpLatch;
         private bool _attackLatch;
         private bool _dodgeLatch;
         private bool _enabled = true;
 
-        /// <inheritdoc />
-        public Vector2 Move => _move;
-
-        /// <inheritdoc />
-        public bool JumpHeld => _jumpHeld && _enabled;
-
-        /// <inheritdoc />
+        public Vector2 Move => !_enabled ? Vector2.zero :
+            new Vector2((_rightHeld ? 1f : 0f) - (_leftHeld ? 1f : 0f), 0f);
+        public bool JumpHeld => _enabled && _jumpHeld;
         public bool JumpPressed => _enabled && _jumpLatch;
-
-        /// <inheritdoc />
         public bool AttackPressed => _enabled && _attackLatch;
-
-        /// <inheritdoc />
         public bool DodgePressed => _enabled && _dodgeLatch;
 
-        /// <inheritdoc />
         public bool Enabled
         {
             get => _enabled;
-            set
-            {
-                _enabled = value;
-                if (!value) Reset();
-            }
+            set { _enabled = value; if (!value) Reset(); }
         }
 
-        /// <summary>Analogue stick value. Magnitude is clamped to one by the view.</summary>
-        public void SetMove(Vector2 move)
-        {
-            _move = _enabled ? Vector2.ClampMagnitude(move, 1f) : Vector2.zero;
-        }
+        public void PressLeft() { if (_enabled) _leftHeld = true; }
+        public void ReleaseLeft() => _leftHeld = false;
+        public void PressRight() { if (_enabled) _rightHeld = true; }
+        public void ReleaseRight() => _rightHeld = false;
 
-        /// <summary>Finger down on jump.</summary>
-        public void PressJump()
-        {
-            if (!_enabled) return;
-            _jumpHeld = true;
-            _jumpLatch = true;
-        }
-
-        /// <summary>Finger lifted from jump.</summary>
+        public void PressJump() { if (!_enabled) return; _jumpHeld = true; _jumpLatch = true; }
         public void ReleaseJump() => _jumpHeld = false;
+        public void PressAttack() { if (_enabled) _attackLatch = true; }
+        public void PressDodge() { if (_enabled) _dodgeLatch = true; }
 
-        /// <summary>Finger down on attack.</summary>
-        public void PressAttack()
-        {
-            if (_enabled) _attackLatch = true;
-        }
-
-        /// <summary>Finger down on dodge.</summary>
-        public void PressDodge()
-        {
-            if (_enabled) _dodgeLatch = true;
-        }
-
-        /// <summary>Drops every held and latched value. Called when the overlay is hidden.</summary>
         public void Reset()
         {
-            _move = Vector2.zero;
+            _leftHeld = _rightHeld = false;
             _jumpHeld = false;
-            _jumpLatch = false;
-            _attackLatch = false;
-            _dodgeLatch = false;
+            _jumpLatch = _attackLatch = _dodgeLatch = false;
         }
 
-        /// <inheritdoc />
         public void ConsumeJump() => _jumpLatch = false;
-
-        /// <inheritdoc />
         public void ConsumeAttack() => _attackLatch = false;
-
-        /// <inheritdoc />
         public void ConsumeDodge() => _dodgeLatch = false;
-
     }
 }
