@@ -155,7 +155,7 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Refresh()
         {
             SaveData run = SaveHost.Peek();
-            _body.text = MenuStrings.Get("chapters.body");
+            _body.text = MenuUi.PrepareText(MenuStrings.Get("chapters.body"));
             _regions.Refresh();
 
             for (int i = 0; i < _rows.Length; i++)
@@ -209,11 +209,11 @@ namespace Aether.Gameplay.Menus.Screens
                 if (describedSlot > 0 && SaveHost.LoadSlot(describedSlot))
                 {
                     MenuAudio.Confirm();
-                    if (!Host.PlayRegion()) _body.text = MenuStrings.Get("menu.start.failed");
+                    if (!Host.PlayRegion()) _body.text = MenuUi.PrepareText(MenuStrings.Get("menu.start.failed"));
                     return;
                 }
 
-                _body.text = MenuStrings.Get("menu.continue.unavailable");
+                _body.text = MenuUi.PrepareText(MenuStrings.Get("menu.continue.unavailable"));
                 return;
             }
 
@@ -222,12 +222,12 @@ namespace Aether.Gameplay.Menus.Screens
             {
                 if (SaveHost.BeginNewGameIn(free, chapter.Id) == null)
                 {
-                    _body.text = MenuStrings.Get("slots.new.failed");
+                    _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.new.failed"));
                     return;
                 }
 
                 MenuAudio.Confirm();
-                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!Host.PlayRegion()) _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.transition.failed"));
                 return;
             }
 
