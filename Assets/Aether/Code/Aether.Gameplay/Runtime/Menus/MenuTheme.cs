@@ -44,10 +44,10 @@ namespace Aether.Gameplay.Menus
             public static readonly Color Ink = new Color(0.93f, 0.92f, 0.85f, 1f);
 
             /// <summary>Secondary text: softer ivory for subtitles, values and help lines.</summary>
-            public static readonly Color InkMuted = new Color(0.66f, 0.68f, 0.61f, 1f);
+            public static readonly Color InkMuted = new Color(0.76f, 0.77f, 0.71f, 1f);
 
             /// <summary>Tertiary text: footnotes and version details, still readable on the ground.</summary>
-            public static readonly Color InkFaint = new Color(0.47f, 0.49f, 0.44f, 1f);
+            public static readonly Color InkFaint = new Color(0.57f, 0.59f, 0.53f, 1f);
 
             /// <summary>Hairlines, separators and the tracks of sliders.</summary>
             public static readonly Color Line = new Color(0.22f, 0.25f, 0.20f, 0.68f);
@@ -56,7 +56,7 @@ namespace Aether.Gameplay.Menus
             public static readonly Color Accent = new Color(0.68f, 0.78f, 0.57f, 1f);
 
             /// <summary>The accent at a lower opacity for selected-row surfaces.</summary>
-            public static readonly Color AccentWash = new Color(0.68f, 0.78f, 0.57f, 0.12f);
+            public static readonly Color AccentWash = new Color(0.68f, 0.78f, 0.57f, 0.18f);
 
             /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
             public static readonly Color Locked = new Color(0.46f, 0.49f, 0.43f, 1f);
@@ -142,7 +142,7 @@ namespace Aether.Gameplay.Menus
             public const float SubtitleTracking = 12f;
             public const float TitleGapRule = 18f;
             public const float TitleRuleWidth = 300f;
-            public const float TitleRuleHeight = 2f;
+            public const float TitleRuleHeight = 3f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
             public const float TitleGapBody = 24f;
@@ -162,12 +162,12 @@ namespace Aether.Gameplay.Menus
 
             // -- the rows
             /// <summary>Primary rows: CONTINUE, NEW GAME.</summary>
-            public const float PrimarySize = 40f;
+            public const float PrimarySize = 46f;
             public const float PrimaryTracking = 8f;
             public const float PrimaryPitch = 188f;
 
             /// <summary>Secondary and system rows: the explore grid and the two system entries.</summary>
-            public const float SecondarySize = 26f;
+            public const float SecondarySize = 30f;
             public const float SecondaryTracking = 6f;
             public const float SecondaryPitch = 148f;
 
@@ -175,14 +175,14 @@ namespace Aether.Gameplay.Menus
             public const int SecondaryColumns = 2;
 
             // -- the caret that marks the highlighted row
-            public const float CaretWidth = 14f;
-            public const float CaretHeight = 20f;
+            public const float CaretWidth = 18f;
+            public const float CaretHeight = 24f;
 
             /// <summary>How far left of the text the caret is drawn, so text never moves.</summary>
             public const float CaretOutdent = 26f;
 
             /// <summary>How far a highlighted row's text slides, in units. Small on purpose.</summary>
-            public const float HighlightNudge = 8f;
+            public const float HighlightNudge = 10f;
 
             // -- the two clusters, as fractions of the content box
             /// <summary>Width of the primary column (the spine on the left).</summary>
