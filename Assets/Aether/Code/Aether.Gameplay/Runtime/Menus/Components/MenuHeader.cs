@@ -1,4 +1,5 @@
 using UnityEngine;
+using Aether.Gameplay.Localization;
 using UnityEngine.UI;
 
 namespace Aether.Gameplay.Menus.Components
@@ -61,9 +62,11 @@ namespace Aether.Gameplay.Menus.Components
                                                      MenuTheme.Metrics.ScreenTitleSize,
                                                      MenuTheme.Palette.Ink,
                                                      MenuTheme.Metrics.ScreenTitleTracking);
-            header._title.rectTransform.anchorMin = new Vector2(0f, 0f);
-            header._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            header._title.rectTransform.pivot = new Vector2(0f, 0.5f);
+            bool rtl = LanguageService.IsRightToLeft;
+            header._title.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            header._title.rectTransform.anchorMin = new Vector2(rtl ? 1f : 0f, 0f);
+            header._title.rectTransform.anchorMax = new Vector2(rtl ? 1f : 0f, 1f);
+            header._title.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
             header._title.rectTransform.anchoredPosition = new Vector2(0f, -6f);
             header._title.rectTransform.sizeDelta = new Vector2(10f, 0f);
 
@@ -80,15 +83,15 @@ namespace Aether.Gameplay.Menus.Components
             header._back = MenuButton.Create("Back", header._rect, MenuStrings.Get("common.back"),
                                              MenuButton.Weight.Secondary);
             header._back.Nav = nav;
-            header._back.Rect.anchorMin = new Vector2(1f, 1f);
-            header._back.Rect.anchorMax = new Vector2(1f, 1f);
-            header._back.Rect.pivot = new Vector2(1f, 1f);
+            header._back.Rect.anchorMin = new Vector2(rtl ? 0f : 1f, 1f);
+            header._back.Rect.anchorMax = new Vector2(rtl ? 0f : 1f, 1f);
+            header._back.Rect.pivot = new Vector2(rtl ? 0f : 1f, 1f);
             header._back.Rect.anchoredPosition = Vector2.zero;
             header._back.Rect.sizeDelta = new Vector2(MenuTheme.Metrics.BackHitWidth,
                                                               MenuTheme.Metrics.ScreenHeaderPitch);
             header._back.ApplyLayout(MenuTheme.Metrics.CaretOutdent + 14f, 14f);
             header._back.SetRuleWidth(MenuTheme.Metrics.BackHitWidth);
-            header._back.SetCaretMirrored(true);
+            header._back.SetCaretMirrored(!rtl);
 
             return header;
         }
