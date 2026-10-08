@@ -99,9 +99,11 @@ namespace Aether.Gameplay.Progression
     {
         /// <summary>Stable id of the one playable chapter.</summary>
         public const string GreenwayId = "greenway";
+        public const string WhisperingWoodsId = "whisperingWoods";
 
         /// <summary>The world fact the level's exit records when the region is finished.</summary>
         public const string GreenwayCompletionFlag = "region.completed.greenway.north";
+        public const string WhisperingWoodsCompletionFlag = "region.completed.woods.depths";
 
         /// <summary>Every chapter, in order.</summary>
         public static readonly ChapterDefinition[] All =
@@ -114,6 +116,15 @@ namespace Aether.Gameplay.Progression
                 "Levels/region1.greenway.level",
                 ChapterAvailability.Playable,
                 "objective.greenway.exit"),
+
+            new ChapterDefinition(
+                WhisperingWoodsId,
+                "chapter.whisperingWoods.title",
+                "chapter.whisperingWoods.subtitle",
+                "chapter.whisperingWoods.body",
+                "Levels/region2.whispering_woods.level",
+                ChapterAvailability.Playable,
+                "objective.whisperingWoods.exit"),
 
             new ChapterDefinition(
                 "hollow",
@@ -228,6 +239,7 @@ namespace Aether.Gameplay.Progression
         public static string CompletionFlagOf(string chapterId)
         {
             if (chapterId == GreenwayId) return GreenwayCompletionFlag;
+            if (chapterId == WhisperingWoodsId) return WhisperingWoodsCompletionFlag;
             return "region.completed." + chapterId;
         }
     }

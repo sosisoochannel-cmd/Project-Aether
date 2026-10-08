@@ -189,7 +189,7 @@ namespace Aether.Gameplay.Menus
             { "locked.achievements.body", "The screen that lists achievements is not in this build yet. The achievements themselves are defined, and are awarded as they are earned." },
 
             // -- the chapter list
-            { "chapters.body", "One region is playable in this build. The rest are named so the road ahead is honest." },
+            { "chapters.body", "Two regions are playable in this build. The rest are named so the road ahead is honest." },
             { "chapters.play", "PLAY THIS CHAPTER" },
             { "chapters.resume", "RESUME THIS CHAPTER" },
             { "chapters.completed", "COMPLETED" },
@@ -200,6 +200,9 @@ namespace Aether.Gameplay.Menus
             { "chapter.greenway.title", "THE GREENWAY" },
             { "chapter.greenway.subtitle", "REGION ONE" },
             { "chapter.greenway.body", "A cut trail through old canopy. Somebody came through here before you, and the region has been holding its breath since." },
+            { "chapter.whisperingWoods.title", "WHISPERING WOODS" },
+            { "chapter.whisperingWoods.subtitle", "REGION TWO" },
+            { "chapter.whisperingWoods.body", "A narrower path beneath old growth. The forest goes quiet here, and the marks left behind are harder to read." },
             { "chapter.hollow.title", "THE HOLLOW" },
             { "chapter.hollow.subtitle", "REGION TWO" },
             { "chapter.hollow.body", "Beneath the greenway, a worked-out seam that remembers who filled it in." },
@@ -308,6 +311,8 @@ namespace Aether.Gameplay.Menus
             // -- in the region: the objective strip, the pause menu, the load, the end
             { "objective.greenway.exit", "REACH THE NORTH EXIT" },
             { "objective.greenway.exit.body", "Follow the cut trail north. Checkpoints keep your place." },
+            { "objective.whisperingWoods.exit", "REACH THE DEPTHS EXIT" },
+            { "objective.whisperingWoods.exit.body", "Move through the quiet woods, uncover what was left behind, and reach the depths exit." },
             { "hud.findings", "{0} OF {1} FOUND" },
             { "hud.deaths", "{0} FALLS" },
             { "hud.pause", "PAUSE" },
@@ -338,8 +343,8 @@ namespace Aether.Gameplay.Menus
             { "error.load.title", "THE SCREEN COULD NOT LOAD" },
             { "error.load.body", "Loading did not finish. Return to the menu and try again; your last saved progress is still there." },
             { "error.menu", "RETURN TO THE MAIN MENU" },
-            { "complete.title", "GREENWAY COMPLETE" },
-            { "complete.body", "The north exit is behind you. The next region is not in this build — what is here is finished." },
+            { "complete.title", "REGION COMPLETE" },
+            { "complete.body", "The exit is behind you. What is here is finished; the next chapter is where the road continues." },
             { "complete.saveFailed", "THE RUN COULD NOT BE SAVED. STAY HERE AND RETRY BEFORE YOU LEAVE." },
             { "complete.stats", "{0} PLAYED · {1} DEATH(S) · {2} OF {3} FOUND" },
             { "complete.continue", "KEEP EXPLORING" },

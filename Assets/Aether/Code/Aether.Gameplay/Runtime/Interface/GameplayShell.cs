@@ -234,7 +234,7 @@ namespace Aether.Gameplay.Interface
         private void OnWorldFlag(WorldFlagSetEvent raised)
         {
             if (_completed) return;
-            if (raised.FlagId != ChapterCatalog.GreenwayCompletionFlag) return;
+            if (raised.FlagId != ChapterCatalog.CompletionFlagOf(_chapter.Id)) return;
 
             ShowCompletion();
         }
@@ -314,7 +314,7 @@ namespace Aether.Gameplay.Interface
 
         private bool IsCompleted()
         {
-            return _session != null && _session.World.IsSet(ChapterCatalog.GreenwayCompletionFlag);
+            return _session != null && _session.World.IsSet(ChapterCatalog.CompletionFlagOf(_chapter.Id));
         }
 
         private int CountDiscoveries()

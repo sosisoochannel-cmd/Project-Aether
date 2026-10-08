@@ -1,0 +1,90 @@
+# Project Aether - M4 Whispering Woods level.
+#
+# Source of truth for the second region. Runtime and editor consumers must derive their
+# representations from this file; it is never hand-edited through a baked scene.
+#
+# Design goals:
+# - the player leaves the open Greenway and enters a narrower, denser route;
+# - encounters alternate with breathing spaces rather than becoming a combat corridor;
+# - the silent zone is represented as a semantic story space, ready for a future audio backend;
+# - the shortcut returns the player to the first checkpoint without creating a progression lock.
+
+aether-level 1
+
+[meta]
+id           = region2.whispering_woods
+display_name = Whispering Woods
+region       = region2
+tile_size    = 1
+
+[legend]
+. = Empty
+# = Ground
+% = DeepRock
+= = Platform
+, = CanopyBack
+" = CanopyFront
+
+[tiles]
+........................................................................................................................
+........................................................................................................................
+..........""",,,,,,,,.............."",,,,,,,,,,,.................""""....,,,,,,,,,..............,,,,,,,,............
+..,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,....
+..,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,....,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,....
+..,,,,,,.................,,,,,,,,,,,,.................,,,,,,,,,,,,.................,,,,,,,,,,,,..................
+........................................................................................................................
+........................................................................................................................
+........................................................................................................................
+........................................................................................................................
+........................................................................................................................
+........................................................................................................................
+....................===...............................=====......................===...............................
+....................===...............................=====......................===...............................
+....................===...............................=====......................===...............................
+##..................===.........................====......................................................==........
+##..................===.........................====..............#####..................................==........
+##...............................................................#####..............................................
+##....................................====.......................#####...............=====........................
+##....................................====...........................................=====........................
+########################..############################..###############################..########################
+########################..############################..###############################..########################
+########################..############################..###############################..########################
+%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%%%%%%%%%
+
+[entities]
+player_start = id=whispering.start, x=5, y=20
+
+anchor       = id=anchor.woods.entry, x=12, y=20
+anchor       = id=anchor.woods.silent.east, x=47, y=20
+anchor       = id=anchor.woods.shortcut, x=74, y=20
+anchor       = id=anchor.woods.exit, x=109, y=20
+
+checkpoint   = id=checkpoint.woods.entry, x=30, y=20, respawn=30:20
+checkpoint   = id=checkpoint.woods.depths, x=78, y=20, respawn=78:20
+
+enemy        = id=enemy.woods.stalker.01, type=forest_stalker, x=21, y=20, patrol=3
+enemy        = id=enemy.woods.crawler.01, type=thorn_crawler, x=55, y=20, patrol=2
+enemy        = id=enemy.woods.watcher.01, type=canopy_watcher, x=67, y=15, patrol=0
+enemy        = id=enemy.woods.stalker.02, type=forest_stalker, x=89, y=20, patrol=2
+enemy        = id=enemy.woods.crawler.02, type=thorn_crawler, x=101, y=20, patrol=2
+
+discovery    = id=secret.woods.silent.trace, x=61, y=19, kind=master_clue, flag=secret.woods.silent.trace
+
+story        = id=story.woods.silent_zone, x=47, y=20, kind=silent_zone
+story        = id=story.woods.broken_path, x=73, y=20, kind=broken_path
+story        = id=story.woods.root_marks, x=96, y=20, kind=root_marks
+
+exit         = id=exit.woods.depths, x=111, y=20
+
+[validation]
+reach = whispering.start -> anchor.woods.entry, must=walk
+reach = whispering.start -> anchor.woods.silent.east
+reach = whispering.start -> anchor.woods.shortcut
+reach = whispering.start -> checkpoint.woods.entry
+reach = checkpoint.woods.entry -> anchor.woods.silent.east
+reach = anchor.woods.silent.east -> secret.woods.silent.trace
+reach = checkpoint.woods.entry -> checkpoint.woods.depths
+reach = checkpoint.woods.depths -> anchor.woods.exit
+reach = checkpoint.woods.depths -> exit.woods.depths

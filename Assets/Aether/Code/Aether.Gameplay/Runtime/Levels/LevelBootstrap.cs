@@ -3,6 +3,7 @@ using Aether.Gameplay.Cameras;
 using Aether.Gameplay.Controls;
 using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Interface;
+using Aether.Gameplay.Flow;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
 using UnityEngine;
@@ -68,7 +69,19 @@ namespace Aether.Gameplay.Levels
 
         private void Start()
         {
-            if (_bootOnStart) Boot();
+            if (!_bootOnStart) return;
+
+            // Scene wiring remains optional: a fresh Boot uses the serialized first-region fallback,
+            // while a menu hand-off can select any validated Resources level without creating a second
+            // scene or duplicating the level runtime.
+            if (GameLaunch.IsPlayRequested)
+            {
+                string requested = GameLaunch.TakeRequestedLevelPath();
+                if (!string.IsNullOrEmpty(requested)) _levelPath = requested;
+                GameLaunch.ClearPlayRequest();
+            }
+
+            Boot();
         }
 
         /// <summary>
@@ -204,7 +217,7 @@ namespace Aether.Gameplay.Levels
             {
                 // A level that does not parse is a build-time mistake that reached runtime. Say so
                 // loudly with the exact line, and do not attempt to play a partial level.
-                Debug.LogError($"The Greenway level data could not be read. {ex.Message}", this);
+                Debug.LogError($"The requested level data could not be read. {ex.Message}", this);
                 return null;
             }
         }
