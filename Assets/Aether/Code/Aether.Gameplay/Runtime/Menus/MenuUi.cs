@@ -148,9 +148,17 @@ namespace Aether.Gameplay.Menus
         public static void Place(RectTransform rect, Vector2 anchor, Vector2 offset, Vector2 size,
                                  Vector2? pivot = null)
         {
+            Vector2 actualPivot = pivot ?? new Vector2(0f, 0.5f);
+            if (LanguageService.IsRightToLeft)
+            {
+                anchor.x = 1f - anchor.x;
+                offset.x = -offset.x;
+                actualPivot.x = 1f - actualPivot.x;
+            }
+
             rect.anchorMin = anchor;
             rect.anchorMax = anchor;
-            rect.pivot = pivot ?? new Vector2(0f, 0.5f);
+            rect.pivot = actualPivot;
             rect.anchoredPosition = offset;
             rect.sizeDelta = size;
         }
