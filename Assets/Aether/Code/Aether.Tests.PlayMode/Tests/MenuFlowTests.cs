@@ -1589,6 +1589,46 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator DeadAmbushEnemy_RestoresItsAuthoredAmbushStateOnRetry()
+        {
+            var parent = new GameObject("ambush-respawn-test-root");
+            var definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            definition.hideFlags = HideFlags.HideAndDontSave;
+
+            try
+            {
+                FieldInfo behaviourField = typeof(EnemyDefinition).GetField(
+                    "_behaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(behaviourField, Is.Not.Null);
+                behaviourField.SetValue(definition, EnemyBehaviour.AmbushDropper);
+
+                EnemyController enemy = EnemyFactory.Create(
+                    definition, new Vector2(0f, 3f), parent.transform, 0f);
+                yield return null;
+
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Ambush),
+                    "The authored ambush archetype must start perched.");
+
+                enemy.Health.TakeDamage(new DamageInfo(
+                    enemy.Health.Max + 1f, enemy.Motor.Position + Vector2.left));
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Dead),
+                    "Lethal damage must enter the dead state before retry.");
+
+                enemy.ResetForSpawn(new Vector2(0f, 3f));
+
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Ambush),
+                    "A retry must restore the authored ambush state, not convert this enemy to a normal idle patrol.");
+                Assert.That(enemy.Motor.Body.gravityScale, Is.Zero,
+                    "An ambush enemy must regain its gravity-free perch after reset.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator EnemyFirstAlertPublishesPlayerSpottedExactlyOnce()
         {
             var parent = new GameObject("enemy-alert-test-root");
