@@ -1328,9 +1328,9 @@ namespace Aether.Tests.PlayMode
                 "enemy = id=enemy.default, type=forest_stalker, x=1, y=0\n" +
                 "enemy = id=enemy.stationary, type=forest_stalker, x=1, y=0, patrol=0\n";
 
-            LevelData parsed = LevelParser.Parse(levelText, "patrol-default-test");
-            LevelEntity inherited = parsed.Entities.Find(entity => entity.Id == "enemy.default");
-            LevelEntity stationary = parsed.Entities.Find(entity => entity.Id == "enemy.stationary");
+            LevelData patrolLevelData = LevelParser.Parse(levelText, "patrol-default-test");
+            LevelEntity inherited = patrolLevelData.Entities.Find(entity => entity.Id == "enemy.default");
+            LevelEntity stationary = patrolLevelData.Entities.Find(entity => entity.Id == "enemy.stationary");
 
             Assert.That(inherited, Is.Not.Null);
             Assert.That(inherited.PatrolTiles, Is.EqualTo(-1),
