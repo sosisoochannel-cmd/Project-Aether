@@ -122,7 +122,7 @@ namespace Aether.Gameplay.Flow
             public const float MaxHeightFraction = 0.40f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
-            public const float RevealScale = 0.90f;
+            public const float RevealScale = 0.94f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
             public const float RevealRise = 0.055f;
