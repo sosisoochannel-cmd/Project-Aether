@@ -1039,7 +1039,10 @@ namespace Aether.Tests.PlayMode
             try
             {
                 LevelData data = LevelParser.Parse(levelText, "terrain-layer-test");
-                BuiltLevel built = LevelRuntimeBuilder.Build(data, null, parent.transform, true);
+                LevelContent content = LevelContent.Load();
+                Assert.That(content.PlayerTuning, Is.Not.Null, "The player tuning asset must exist for a level build.");
+                Assert.That(content.PlayerFirstAttack, Is.Not.Null, "The player's starting attack asset must exist for a level build.");
+                BuiltLevel built = LevelRuntimeBuilder.Build(data, content, parent.transform, true);
                 Transform terrain = built.Root.transform.Find("Terrain");
                 Assert.That(terrain, Is.Not.Null);
 
@@ -1705,8 +1708,8 @@ namespace Aether.Tests.PlayMode
 
                 Assert.AreEqual(1, spotted,
                     "The first alert must publish PlayerSpotted so discovery/achievement tracking can run.");
-                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Patrol),
-                    "A passive enemy must not enter the attack-only Alert state.");
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Idle),
+                    "A passive enemy configured to hold its post must remain idle after first sighting.");
                 beginAlert.Invoke(enemy, null);
                 Assert.AreEqual(1, spotted,
                     "A passive enemy must publish its first-sighting event only once per spawn.");
