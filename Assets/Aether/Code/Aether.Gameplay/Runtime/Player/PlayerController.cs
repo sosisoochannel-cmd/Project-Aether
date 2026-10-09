@@ -191,6 +191,14 @@ namespace Aether.Gameplay.Player
 
         private void FixedUpdate()
         {
+            // A missing tuning asset is a configuration error, but it must not become a
+            // NullReferenceException on every physics tick. Keep the body inert until repaired.
+            if (_tuning == null)
+            {
+                _motor.Stop();
+                return;
+            }
+
             float dt = Time.fixedDeltaTime;
 
             _motor.RefreshGrounded();
