@@ -17,6 +17,7 @@ namespace Aether.Gameplay.Menus
         private string _rendered;
         private TextAnchor _leftToRightAlignment;
         private bool _lastDirectionWasRtl;
+        private bool _dirty = true;
 
         private void Awake()
         {
@@ -28,15 +29,31 @@ namespace Aether.Gameplay.Menus
             _lastDirectionWasRtl = false;
         }
 
+        private void OnEnable()
+        {
+            LanguageService.Changed += OnLanguageChanged;
+            _dirty = true;
+        }
+
+        private void OnDisable()
+        {
+            LanguageService.Changed -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            _dirty = true;
+        }
+
         private void LateUpdate()
         {
             if (_text == null) return;
 
             string current = _text.text ?? string.Empty;
             bool textChanged = _rendered == null || !string.Equals(current, _rendered, System.StringComparison.Ordinal);
-            bool rtl = LanguageService.IsRightToLeft;
-            if (!textChanged && rtl == _lastDirectionWasRtl) return;
+            if (!textChanged && !_dirty) return;
             if (textChanged) _source = current;
+            bool rtl = LanguageService.IsRightToLeft;
             if (rtl != _lastDirectionWasRtl)
             {
                 _text.alignment = rtl ? Mirror(_leftToRightAlignment) : _leftToRightAlignment;
@@ -58,6 +75,7 @@ namespace Aether.Gameplay.Menus
                 _text.text = output;
 
             _rendered = output;
+            _dirty = false;
         }
 
         private static TextAnchor Mirror(TextAnchor anchor)
