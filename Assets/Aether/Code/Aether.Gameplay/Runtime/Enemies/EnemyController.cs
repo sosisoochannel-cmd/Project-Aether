@@ -527,11 +527,7 @@ namespace Aether.Gameplay.Enemies
 
                 if (c._stateTimer < c._definition.AttackWindupDelay) return;
 
-                if (c.InAttackRange())
-                {
-                    c.TryBeginAttack();
-                    return;
-                }
+                if (c.InAttackRange() && c.TryBeginAttack()) return;
 
                 c._machine.ChangeState(c, EnemyStateId.Chase);
             }
@@ -580,11 +576,9 @@ namespace Aether.Gameplay.Enemies
                 {
                     // Only commit once the approach has settled, so an enemy does not attack from
                     // mid-stride with its telegraph half-hidden by its own movement.
-                    if (Mathf.Abs(c._motor.VelocityX) < c._definition.MoveSpeed * 0.5f)
-                    {
-                        c.TryBeginAttack();
+                    if (Mathf.Abs(c._motor.VelocityX) < c._definition.MoveSpeed * 0.5f
+                        && c.TryBeginAttack())
                         return;
-                    }
                 }
 
                 c.MoveWithTerrainChecks(direction, dt);
@@ -774,9 +768,23 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Moves into the alert state and records the transition.</summary>
         private void BeginAlert()
         {
-            // AlertState.Enter owns the first-alert latch, sound and PlayerSpotted event.
-            // Setting _hasAlerted here would make Enter believe the cue already fired, so no
-            // enemy would ever announce its first sighting to the discovery/achievement systems.
+            if (_definition == null) return;
+
+            // Passive archetypes can notice the player, but have no attack timeline to enter. Keep
+            // their current movement state and announce the first sighting directly; entering Alert
+            // without an attack would otherwise leave them stuck there forever.
+            if (!_definition.CanAttack)
+            {
+                if (!_hasAlerted)
+                {
+                    _hasAlerted = true;
+                    FireCue(_definition.AlertCueId);
+                    PlayerSpotted?.Invoke(this);
+                }
+                return;
+            }
+
+            // For attackers, AlertState.Enter owns the first-alert latch, sound and discovery event.
             _machine.ChangeState(this, EnemyStateId.Alert);
         }
     }
