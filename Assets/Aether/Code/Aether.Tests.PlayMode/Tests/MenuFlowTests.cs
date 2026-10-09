@@ -1102,6 +1102,32 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void DisablingAnOpenPauseRestoresThePreviousTimeScale()
+        {
+            float originalScale = Time.timeScale;
+            var host = new GameObject("pause-lifecycle-test");
+            try
+            {
+                GameplayPause pause = host.AddComponent<GameplayPause>();
+                typeof(GameplayPause).GetField("_open", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(pause, true);
+                typeof(GameplayPause).GetField("_previousTimeScale", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(pause, 0.5f);
+
+                Time.timeScale = 0f;
+                host.SetActive(false);
+
+                Assert.That(Time.timeScale, Is.EqualTo(0.5f),
+                    "Disabling or tearing down an open pause must not leave the global clock frozen.");
+            }
+            finally
+            {
+                Time.timeScale = originalScale;
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void PersianMenuRowsAndHeadersMirrorTheirReadingEdges()
         {
             string previousLanguage = LanguageService.Code;
