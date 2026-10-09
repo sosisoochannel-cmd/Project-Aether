@@ -102,6 +102,14 @@ namespace Aether.Gameplay
             _instance = this;
         }
 
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            // Android may suspend or reclaim the process without delivering OnApplicationQuit.
+            // Persist the latest snapshot when entering the background; RequestSave deliberately
+            // keeps the player's automatic-save preference in control of this write.
+            if (pauseStatus) RequestSave();
+        }
+
         private void OnDestroy()
         {
             if (_instance == this) _instance = null;

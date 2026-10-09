@@ -1,7 +1,9 @@
 using System;
 using System.IO;
 using Aether.Core.Progression;
+using Aether.Gameplay;
 using Aether.Gameplay.Storage;
+using UnityEngine;
 using NUnit.Framework;
 
 namespace Aether.Tests.PlayMode
@@ -25,6 +27,51 @@ namespace Aether.Tests.PlayMode
         public void TearDown()
         {
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
+        }
+
+        [Test]
+        public void GameSession_SavesLatestSnapshotWhenApplicationPauses()
+        {
+            var host = new GameObject("GameSession pause persistence test");
+            var store = new SaveSlotStore(1, _folder);
+            try
+            {
+                GameSession session = host.AddComponent<GameSession>();
+                session.Store = store;
+                session.World.Set("test.lifecycle.pause-progress");
+
+                host.SendMessage("OnApplicationPause", true);
+
+                Assert.That(store.TryLoad(out SaveData loaded), Is.True,
+                    "A backgrounded mobile session must persist its current snapshot.");
+                Assert.That(loaded.World.IsSet("test.lifecycle.pause-progress"), Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
+        public void GameSession_PauseSaveStillRespectsAutomaticWritePreference()
+        {
+            var host = new GameObject("GameSession pause autosave preference test");
+            var store = new SaveSlotStore(1, _folder) { AutomaticWrites = false };
+            try
+            {
+                GameSession session = host.AddComponent<GameSession>();
+                session.Store = store;
+                session.World.Set("test.lifecycle.must-not-autosave");
+
+                host.SendMessage("OnApplicationPause", true);
+
+                Assert.That(store.HasStoredProgress, Is.False,
+                    "Pausing must not bypass the player's automatic-save preference.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
         }
 
         [Test]
