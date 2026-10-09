@@ -18,10 +18,10 @@ namespace Aether.Gameplay.Menus
         private TextAnchor _leftToRightAlignment;
         private bool _lastDirectionWasRtl;
         private bool _dirty = true;
-        private bool _capturedOverflowModes;
         private HorizontalWrapMode _sourceHorizontalOverflow;
         private VerticalWrapMode _sourceVerticalOverflow;
         private Vector2 _lastRectSize;
+        private bool _processing;
 
         private void Awake()
         {
@@ -32,36 +32,47 @@ namespace Aether.Gameplay.Menus
             _leftToRightAlignment = _text.alignment;
             _lastDirectionWasRtl = false;
             _lastRectSize = new Vector2(-1f, -1f);
+            // MenuUi configures the Text component before attaching this adapter, so these are
+            // the authored overflow settings rather than Unity's temporary defaults.
+            _sourceHorizontalOverflow = _text.horizontalOverflow;
+            _sourceVerticalOverflow = _text.verticalOverflow;
         }
 
         private void OnEnable()
         {
             LanguageService.Changed += OnLanguageChanged;
+            if (_text != null) _text.RegisterDirtyLayoutCallback(OnTextLayoutDirty);
             _dirty = true;
+            RefreshIfNeeded();
         }
 
         private void OnDisable()
         {
             LanguageService.Changed -= OnLanguageChanged;
+            if (_text != null) _text.UnregisterDirtyLayoutCallback(OnTextLayoutDirty);
         }
 
         private void OnLanguageChanged()
         {
             _dirty = true;
+            RefreshIfNeeded();
         }
 
-        private void LateUpdate()
+        // Text.text changes mark the Graphic's layout dirty. Listen to that notification and to
+        // actual rect-size changes instead of polling every frame just to discover the same facts.
+        private void OnTextLayoutDirty()
         {
-            if (_text == null) return;
+            RefreshIfNeeded();
+        }
 
-            if (!_capturedOverflowModes)
-            {
-                // Capture in LateUpdate rather than Awake: paragraph builders set wrapping after
-                // adding this component, and Awake would see the temporary default value.
-                _sourceHorizontalOverflow = _text.horizontalOverflow;
-                _sourceVerticalOverflow = _text.verticalOverflow;
-                _capturedOverflowModes = true;
-            }
+        private void OnRectTransformDimensionsChange()
+        {
+            RefreshIfNeeded();
+        }
+
+        private void RefreshIfNeeded()
+        {
+            if (_text == null || _processing) return;
 
             string current = _text.text ?? string.Empty;
             Vector2 rectSize = _text.rectTransform.rect.size;
@@ -70,39 +81,49 @@ namespace Aether.Gameplay.Menus
             if (!textChanged && !_dirty && !sizeChanged) return;
             if (textChanged) _source = current;
             _lastRectSize = rectSize;
-            bool rtl = LanguageService.IsRightToLeft;
-            if (rtl != _lastDirectionWasRtl)
-            {
-                _text.alignment = rtl ? Mirror(_leftToRightAlignment) : _leftToRightAlignment;
-                _lastDirectionWasRtl = rtl;
-            }
 
-            string output = _source;
-            if (rtl && !string.IsNullOrEmpty(_source))
+            _processing = true;
+            try
             {
-                if (_sourceHorizontalOverflow == HorizontalWrapMode.Wrap && ContainsRtl(_source))
+                bool rtl = LanguageService.IsRightToLeft;
+                if (rtl != _lastDirectionWasRtl)
                 {
-                    output = ShapeRightToLeft(WrapToSourceWidth(_source, rectSize));
-                    _text.horizontalOverflow = HorizontalWrapMode.Overflow;
-                    _text.verticalOverflow = VerticalWrapMode.Overflow;
+                    _text.alignment = rtl ? Mirror(_leftToRightAlignment) : _leftToRightAlignment;
+                    _lastDirectionWasRtl = rtl;
+                }
+
+                string output = _source;
+                if (rtl && !string.IsNullOrEmpty(_source))
+                {
+                    if (_sourceHorizontalOverflow == HorizontalWrapMode.Wrap && ContainsRtl(_source))
+                    {
+                        output = ShapeRightToLeft(WrapToSourceWidth(_source, rectSize));
+                        _text.horizontalOverflow = HorizontalWrapMode.Overflow;
+                        _text.verticalOverflow = VerticalWrapMode.Overflow;
+                    }
+                    else
+                    {
+                        output = ShapeRightToLeft(_source);
+                        _text.horizontalOverflow = _sourceHorizontalOverflow;
+                        _text.verticalOverflow = _sourceVerticalOverflow;
+                    }
                 }
                 else
                 {
-                    output = ShapeRightToLeft(_source);
                     _text.horizontalOverflow = _sourceHorizontalOverflow;
                     _text.verticalOverflow = _sourceVerticalOverflow;
                 }
-            }
-            else
-            {
-                _text.horizontalOverflow = _sourceHorizontalOverflow;
-                _text.verticalOverflow = _sourceVerticalOverflow;
-            }
-            if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
-                _text.text = output;
 
-            _rendered = output;
-            _dirty = false;
+                if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
+                    _text.text = output;
+
+                _rendered = output;
+                _dirty = false;
+            }
+            finally
+            {
+                _processing = false;
+            }
         }
 
         private string WrapToSourceWidth(string source, Vector2 extents)
