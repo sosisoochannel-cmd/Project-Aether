@@ -135,6 +135,11 @@ namespace Aether.Gameplay.Levels
                 var collider = go.AddComponent<BoxCollider2D>();
                 collider.size = rect.WorldSize(level.TileSize);
                 collider.offset = Vector2.zero;
+
+                // The parent was assigned before these rectangles existed. Unity does not inherit
+                // a parent's layer when a child is created, so assign each collider explicitly or
+                // the player's Ground-layer probe will never see the terrain.
+                GameplayLayers.Assign(go, GameplayLayers.GroundName);
             }
 
             // One collider for the whole terrain would be cheaper still, but a box that spans a gap
