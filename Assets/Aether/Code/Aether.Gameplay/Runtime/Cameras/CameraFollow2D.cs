@@ -83,7 +83,7 @@ namespace Aether.Gameplay.Cameras
         /// </remarks>
         public void ApplySettings()
         {
-            CameraSettings wanted = AetherSettings.Ensure().Values.Camera;
+            CameraSettings wanted = (_settings ?? AetherSettings.Ensure()).Values.Camera;
             _smoothTime = wanted.FollowSmoothing;
             _lookAhead = new Vector2(wanted.LookAhead, _lookAhead.y);
         }
@@ -97,13 +97,16 @@ namespace Aether.Gameplay.Cameras
             _lookAheadVelocity = Vector2.zero;
             _currentLookAhead = Vector2.zero;
 
-            AetherSettings.Ensure().Changed += OnSettingsChanged;
+            _settings = AetherSettings.Ensure();
+            _settings.Changed -= OnSettingsChanged;
+            _settings.Changed += OnSettingsChanged;
             ApplySettings();
         }
 
         private void OnDisable()
         {
-            AetherSettings.Current.Changed -= OnSettingsChanged;
+            if (_settings != null) _settings.Changed -= OnSettingsChanged;
+            _settings = null;
         }
 
         private void OnSettingsChanged(string id)
@@ -125,6 +128,7 @@ namespace Aether.Gameplay.Cameras
         }
 
         private Camera _camera;
+        private SettingsService _settings;
         private Rigidbody2D _targetBody;
         private Vector3 _followVelocity;
         private Vector2 _currentLookAhead;
