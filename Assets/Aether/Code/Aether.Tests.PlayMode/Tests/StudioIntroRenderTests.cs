@@ -304,17 +304,15 @@ namespace Aether.Tests.PlayMode
                 Assert.Less(arriving.Bottom, markOnly.Bottom - 0.02f,
                             "the lockup does not reach further down at 0.90s, so the wordmark is not drawn");
 
-                // 4. The light crosses the finished lockup. Lit means brighter than the lockup's own ink
-                //    at rest, so it can only be the highlight - and it is on the logo, not around it.
-                stage = "check the light crosses the lockup, and only the lockup";
-                Assert.Greater(light.BrightOfInk, 0.05f,
-                               "no light is crossing the lockup at 1.55s: nothing on the ink is brighter "
-                               + "than the resting logo");
+                // 4. The logo stays crisp: no travelling sheen, glow, or flare is drawn over the mark.
+                stage = "check the logo has no shine layer";
+                Assert.Less(light.BrightOfInk, 0.01f,
+                            "the ident still has bright highlight pixels; the shine layer should be absent");
                 Assert.Greater(light.BlackFraction, 0.90f,
-                               $"only {light.BlackFraction:P1} of the frame is black while the light is "
-                               + "on: the highlight is being drawn over the black around the lockup too");
+                               $"only {light.BlackFraction:P1} of the frame is black; the ident must not "
+                               + "paint a glow or light band into the surrounding black");
                 Assert.Less(hold.BrightOfInk, 0.01f,
-                            "the standing lockup carries lit pixels, so the light never left it");
+                            "the standing logo has highlight pixels despite the shine layer being removed");
 
                 // 5. The quiet part of the hold is completely still: the reverse glint has not started yet,
                 //    so these two frames must match exactly.
@@ -379,11 +377,8 @@ namespace Aether.Tests.PlayMode
                                 + $"{frames[i].At:0.000}s of the animation, so it is not that moment");
                 }
 
-                // What the sequence itself was drawing at each moment, in its own numbers: the order
-                // the ident has to read in, stated independently of the pixels above. The wordmark is
-                // at zero while the mark arrives, which is what "the mark leads" means; the light is
-                // on during the pass and off during the hold; and neither the light nor the fade has
-                // started while the two frames compared for stillness are being taken.
+                // What the sequence itself was drawing at each moment: the mark leads, the wordmark
+                // follows, and no separate shine renderer exists during the hold.
                 stage = "check the sequence was in the right moment for every frame";
                 Assert.That(black.MarkAlpha, Is.EqualTo(0f).Within(0.001f),
                             $"something is already up at the opening: mark a={black.MarkAlpha:0.000}");
@@ -396,18 +391,18 @@ namespace Aether.Tests.PlayMode
                 Assert.That(arriving.WordAlpha, Is.GreaterThan(0.5f),
                             $"the wordmark is only at {arriving.WordAlpha:0.000} at 0.90s, so it has "
                             + "not arrived after the mark");
-                Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
-                            "the primary light is not switched on at 1.55s, so nothing crosses the lockup");
+                Assert.That(light.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
+                            "a sheen renderer was created for the logo");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
-                            $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 2.05s");
+                            "the logo should remain free of a shine layer during the hold");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
-                            "the reverse glint starts too early during the quiet hold");
-                Assert.Greater(secondLight.SheenAlpha, 0.05f,
-                               "the scheduled reverse glint is missing from the logo hold");
-                Assert.Greater(secondLight.BrightOfInk, 0.05f,
-                               "the reverse glint does not brighten the logo ink");
+                            "a hidden shine layer should not appear during the hold");
+                Assert.That(secondLight.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
+                            "the logo's old reverse glint must remain removed");
+                Assert.Less(secondLight.BrightOfInk, 0.01f,
+                            "bright highlight pixels remain on the logo at 2.62s");
                 Assert.Greater(secondLight.BlackFraction, 0.90f,
-                               "the reverse glint spills into the black around the logo");
+                               "the black background is being filled by a glow or light band");
                 Assert.That(still.MarkAlpha, Is.EqualTo(1f).Within(0.001f),
                             $"the fade has started by 2.25s (mark a={still.MarkAlpha:0.000}), so the "
                             + "two frames compared for stillness are not both the hold");
