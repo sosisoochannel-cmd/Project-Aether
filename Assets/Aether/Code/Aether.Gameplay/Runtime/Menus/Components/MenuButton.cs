@@ -1,3 +1,4 @@
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -65,6 +66,7 @@ namespace Aether.Gameplay.Menus.Components
         private bool _locked;
         private bool _accented;
         private bool _informational;
+        private bool _caretMirrored;
         private string _metaText;
         private string _lockNote;
         private float _textBaseX;
@@ -224,8 +226,16 @@ namespace Aether.Gameplay.Menus.Components
         /// </remarks>
         public void SetCaretMirrored(bool mirrored)
         {
+            _caretMirrored = mirrored;
+            ApplyCaretDirection();
+        }
+
+        private void ApplyCaretDirection()
+        {
             if (_caret == null) return;
-            _caret.rectTransform.localScale = new Vector3(mirrored ? -1f : 1f, 1f, 1f);
+            // A forward row points toward the reading direction; a Back row points the other way.
+            bool flip = LanguageService.IsRightToLeft ^ _caretMirrored;
+            _caret.rectTransform.localScale = new Vector3(flip ? -1f : 1f, 1f, 1f);
         }
 
         /// <summary>
@@ -264,13 +274,15 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_label == null) return;
 
-            if (_caret != null) _caret.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
-            if (_icon != null) _icon.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
+            bool rtl = LanguageService.IsRightToLeft;
+            float startOutdent = rtl ? caretOutdent : -caretOutdent;
+            if (_caret != null) _caret.rectTransform.anchoredPosition = new Vector2(startOutdent, 0f);
+            if (_icon != null) _icon.rectTransform.anchoredPosition = new Vector2(startOutdent, 0f);
 
             _textBaseX = textInset;
-            _label.rectTransform.anchoredPosition = new Vector2(_textBaseX, _labelY);
-            if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(textInset, -18f);
-            if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(-textInset, 0f);
+            _label.rectTransform.anchoredPosition = new Vector2(rtl ? -_textBaseX : _textBaseX, _labelY);
+            if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(rtl ? -textInset : textInset, -18f);
+            if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(rtl ? textInset : -textInset, 0f);
         }
 
         // -- construction ----------------------------------------------------------------------
@@ -279,15 +291,18 @@ namespace Aether.Gameplay.Menus.Components
         {
             MenuArt.EnsureBuilt();
 
+            bool rtl = LanguageService.IsRightToLeft;
+            float start = rtl ? 1f : 0f;
+            float end = rtl ? 0f : 1f;
             _plate = GetComponent<Image>();
 
             _selectionGlow = MenuUi.CreateImage("SelectionGlow", transform, MenuArt.Glow,
                                                 new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
                                                           MenuTheme.Palette.Accent.b, 0f));
-            _selectionGlow.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _selectionGlow.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _selectionGlow.rectTransform.pivot = new Vector2(0.08f, 0.5f);
-            _selectionGlow.rectTransform.anchoredPosition = new Vector2(42f, 0f);
+            _selectionGlow.rectTransform.anchorMin = new Vector2(start, 0.5f);
+            _selectionGlow.rectTransform.anchorMax = new Vector2(start, 0.5f);
+            _selectionGlow.rectTransform.pivot = new Vector2(rtl ? 0.92f : 0.08f, 0.5f);
+            _selectionGlow.rectTransform.anchoredPosition = new Vector2(rtl ? -42f : 42f, 0f);
             _selectionGlow.rectTransform.sizeDelta = new Vector2(520f, 150f);
             _selectionGlow.raycastTarget = false;
             _selectionGlow.gameObject.SetActive(false);
@@ -305,40 +320,41 @@ namespace Aether.Gameplay.Menus.Components
 
             _rule = MenuUi.CreateHairline("Rule", transform, new Color(1f, 1f, 1f, 0f),
                                           MenuTheme.Metrics.TitleRuleHeight);
-            _rule.rectTransform.anchorMin = new Vector2(0f, 0f);
-            _rule.rectTransform.anchorMax = new Vector2(0f, 0f);
-            _rule.rectTransform.pivot = new Vector2(0f, 0f);
+            _rule.rectTransform.anchorMin = new Vector2(start, 0f);
+            _rule.rectTransform.anchorMax = new Vector2(start, 0f);
+            _rule.rectTransform.pivot = new Vector2(rtl ? 1f : 0f, 0f);
             _rule.rectTransform.anchoredPosition = Vector2.zero;
             _rule.rectTransform.sizeDelta = new Vector2(0f, MenuTheme.Metrics.TitleRuleHeight);
 
             _accent = MenuUi.CreateImage("Accent", transform, MenuArt.Solid, MenuTheme.Palette.Accent);
-            _accent.rectTransform.anchorMin = new Vector2(0f, 0f);
-            _accent.rectTransform.anchorMax = new Vector2(0f, 1f);
-            _accent.rectTransform.pivot = new Vector2(1f, 0.5f);
+            _accent.rectTransform.anchorMin = new Vector2(start, 0f);
+            _accent.rectTransform.anchorMax = new Vector2(start, 1f);
+            _accent.rectTransform.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
             _accent.rectTransform.sizeDelta = new Vector2(4f, -14f);
-            _accent.rectTransform.anchoredPosition = new Vector2(-8f, 0f);
+            _accent.rectTransform.anchoredPosition = new Vector2(rtl ? 8f : -8f, 0f);
             _accent.gameObject.SetActive(false);
 
             _caret = MenuUi.CreateImage("Caret", transform, MenuArt.Triangle,
                                         MenuTheme.Palette.InkFaint);
-            _caret.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _caret.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _caret.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _caret.rectTransform.anchorMin = new Vector2(start, 0.5f);
+            _caret.rectTransform.anchorMax = new Vector2(start, 0.5f);
+            _caret.rectTransform.pivot = new Vector2(start, 0.5f);
             _caret.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.CaretWidth,
                                                         MenuTheme.Metrics.CaretHeight);
+            ApplyCaretDirection();
 
             _icon = MenuUi.CreateImage("Locked", transform, MenuArt.Padlock, MenuTheme.Palette.Locked);
-            _icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _icon.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _icon.rectTransform.anchorMin = new Vector2(start, 0.5f);
+            _icon.rectTransform.anchorMax = new Vector2(start, 0.5f);
+            _icon.rectTransform.pivot = new Vector2(start, 0.5f);
             _icon.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.CaretHeight,
                                                        MenuTheme.Metrics.CaretHeight);
             _icon.gameObject.SetActive(false);
 
             _control = MenuUi.CreateNode("Control", transform);
-            _control.anchorMin = new Vector2(1f, 0.5f);
-            _control.anchorMax = new Vector2(1f, 0.5f);
-            _control.pivot = new Vector2(1f, 0.5f);
+            _control.anchorMin = new Vector2(end, 0.5f);
+            _control.anchorMax = new Vector2(end, 0.5f);
+            _control.pivot = new Vector2(end, 0.5f);
             _control.anchoredPosition = Vector2.zero;
             _control.sizeDelta = Vector2.zero;
             _control.SetAsLastSibling();
@@ -353,18 +369,18 @@ namespace Aether.Gameplay.Menus.Components
             _label = MenuUi.CreateText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
                                        TextAnchor.MiddleLeft,
                                        _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
-            _label.rectTransform.anchorMin = new Vector2(0f, 0f);
-            _label.rectTransform.anchorMax = new Vector2(0f, 1f);
-            _label.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _label.rectTransform.anchorMin = new Vector2(start, 0f);
+            _label.rectTransform.anchorMax = new Vector2(start, 1f);
+            _label.rectTransform.pivot = new Vector2(start, 0.5f);
             _label.rectTransform.anchoredPosition = Vector2.zero;
             _label.rectTransform.sizeDelta = new Vector2(10f, 0f);
 
             _meta = MenuUi.CreateText("Meta", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
                                       TextAnchor.MiddleRight);
-            _meta.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _meta.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _meta.rectTransform.pivot = new Vector2(1f, 0.5f);
+            _meta.rectTransform.anchorMin = new Vector2(end, 0f);
+            _meta.rectTransform.anchorMax = new Vector2(end, 1f);
+            _meta.rectTransform.pivot = new Vector2(end, 0.5f);
             _meta.rectTransform.anchoredPosition = Vector2.zero;
             _meta.rectTransform.sizeDelta = new Vector2(10f, 0f);
             _meta.gameObject.SetActive(false);
@@ -372,9 +388,9 @@ namespace Aether.Gameplay.Menus.Components
             _help = MenuUi.CreateText("Help", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
                                       TextAnchor.MiddleLeft);
-            _help.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _help.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _help.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _help.rectTransform.anchorMin = new Vector2(start, 0.5f);
+            _help.rectTransform.anchorMax = new Vector2(start, 0.5f);
+            _help.rectTransform.pivot = new Vector2(start, 0.5f);
             _help.rectTransform.sizeDelta = new Vector2(10f, MenuTheme.Metrics.SettingHelpSize * 2f);
             _help.rectTransform.anchoredPosition = new Vector2(0f, -18f);
             _help.gameObject.SetActive(false);
