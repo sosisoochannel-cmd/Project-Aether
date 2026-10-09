@@ -87,7 +87,7 @@ namespace Aether.Gameplay.Player
                 {
                     case AttackPhase.Startup:
                     case AttackPhase.Active:
-                        return _controller.Tuning.AttackMoveSpeedMultiplier;
+                        return controller.Tuning.AttackMoveSpeedMultiplier;
                     default:
                         return 1f;
                 }
@@ -103,6 +103,12 @@ namespace Aether.Gameplay.Player
             _runner.HitboxActivated += attack => HitboxActivated?.Invoke(attack);
             _runner.AttackFinished += attack => AttackFinished?.Invoke(attack);
             _runner.HitLanded += collider => HitLanded?.Invoke(collider);
+        }
+
+        private PlayerController ResolveController()
+        {
+            if (_controller == null) _controller = GetComponent<PlayerController>();
+            return _controller;
         }
 
         /// <summary>Advances the attack timeline. Called once per frame by <see cref="PlayerController"/>.</summary>
@@ -122,7 +128,8 @@ namespace Aether.Gameplay.Player
         /// </summary>
         public bool TryStartAttack()
         {
-            if (_controller != null && !_controller.Health.IsAlive) return false;
+            PlayerController controller = ResolveController();
+            if (controller != null && !controller.Health.IsAlive) return false;
             if (_firstAttack == null) return false;
 
             bool started = _runner.RequestAttack(_firstAttack);
