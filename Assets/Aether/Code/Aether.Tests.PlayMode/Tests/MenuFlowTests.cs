@@ -1311,6 +1311,27 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelParser_RejectsUnknownEntityAttributesInsteadOfSilentlyIgnoringTypos()
+        {
+            const string malformed =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = parser-attribute-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0, patrl=3\n";
+
+            LevelParseException error = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(malformed, "parser-attribute-test"));
+
+            Assert.That(error.Message, Does.Contain("unknown attribute 'patrl'"),
+                "A typo in a level entity must fail loudly rather than silently changing gameplay.");
+        }
+
+        [Test]
         public void FallingBelowTheLevelStartsDeathAndRespawnEvenDuringInvulnerability()
         {
             float originalScale = Time.timeScale;
