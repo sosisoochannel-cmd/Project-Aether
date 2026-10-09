@@ -114,6 +114,36 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void SaveSlotStore_OrphanTemporaryFileIsNotMistakenForACompletedSave()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_store.Location));
+            File.WriteAllText(_store.Location + ".tmp", "{ partially written save");
+
+            Assert.That(_store.HasStoredProgress, Is.False,
+                "An unfinished temporary document must not appear as a completed run.");
+            SaveSlotInfo info = _store.Describe();
+            Assert.That(info.Exists, Is.False);
+            Assert.That(info.Playable, Is.False);
+        }
+
+        [Test]
+        public void SaveSlotStore_FutureVersionIsUnavailableNotCorrupt()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_store.Location));
+            var future = new SaveData { Version = SaveData.CurrentVersion + 100 };
+            File.WriteAllText(_store.Location, JsonUtility.ToJson(future));
+
+            SaveSlotInfo info = _store.Describe();
+            Assert.That(info.Exists, Is.True);
+            Assert.That(info.Unavailable, Is.True,
+                "A save from a newer build should be preserved and reported as unavailable.");
+            Assert.That(info.Corrupt, Is.False,
+                "An unsupported format is not the same as a damaged save.");
+            Assert.That(info.Playable, Is.False);
+            Assert.That(_store.TryLoad(out SaveData ignored), Is.False);
+        }
+
+        [Test]
         public void SaveSlotStore_ClearRemovesPrimaryBackupAndInterruptedTemporaryFile()
         {
             var snapshot = new SaveData();
