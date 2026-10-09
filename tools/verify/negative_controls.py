@@ -84,6 +84,14 @@ def append_line(root: str, rel: str, line: str):
     return [(path, original)]
 
 
+def copy_file(root: str, source_rel: str, destination_rel: str):
+    """Copy a content asset into the temporary repository and remove it after the control."""
+    source = os.path.join(root, source_rel)
+    destination = os.path.join(root, destination_rel)
+    shutil.copy2(source, destination)
+    return [("DELETE", destination)]
+
+
 def retune(root: str, rel: str, name: str, value: str):
     """Set a C# float constant by name, whatever it currently holds.
 
@@ -493,6 +501,13 @@ def controls() -> list[Control]:
                               "            float radius = JumpRadius;"),
             ["VERIFICATION PASSED"],
             must_fail=False),
+        Control(
+            "levelcheck: duplicate enemy archetype ids are rejected",
+            solver,
+            lambda root: copy_file(
+                root, ENEMY,
+                "Assets/Aether/Resources/Content/Enemies/ForestStalkerDuplicate.asset"),
+            ["duplicate enemy type id"]),
         Control(
             "levelcheck: a wide gap makes the exit genuinely unreachable",
             solver,
