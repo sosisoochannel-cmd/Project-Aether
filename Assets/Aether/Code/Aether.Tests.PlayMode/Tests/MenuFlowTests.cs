@@ -1306,6 +1306,49 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator EnemyHealthPublishesFullHealthWhenTakenFromPool()
+        {
+            EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            GameObject enemyObject = new GameObject("pooled-enemy-health-reset-test");
+            enemyObject.AddComponent<Rigidbody2D>();
+            enemyObject.AddComponent<BoxCollider2D>();
+            enemyObject.AddComponent<EnemyMotor2D>();
+            EnemyHealth health = enemyObject.AddComponent<EnemyHealth>();
+
+            try
+            {
+                health.Initialize(definition);
+                float reportedCurrent = -1f;
+                float reportedMax = -1f;
+                health.HealthChanged += (current, max) =>
+                {
+                    reportedCurrent = current;
+                    reportedMax = max;
+                };
+
+                health.TakeDamage(new DamageInfo(1f, Vector2.left));
+                Assert.That(health.Current, Is.LessThan(health.Max),
+                    "The setup must leave the pooled enemy damaged before reuse.");
+
+                health.OnReturnedToPool();
+                health.OnTakenFromPool();
+
+                Assert.That(health.Current, Is.EqualTo(health.Max));
+                Assert.That(reportedCurrent, Is.EqualTo(health.Max),
+                    "Reusing an enemy must notify health-bar listeners of the reset.");
+                Assert.That(reportedMax, Is.EqualTo(health.Max));
+                Assert.That(health.IsInvulnerable, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(enemyObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator PooledEnemy_RestartsItsStateMachineWhenResetAfterReenable()
         {
             EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
