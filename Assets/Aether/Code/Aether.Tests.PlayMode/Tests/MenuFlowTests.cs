@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Aether.Core.Settings;
+using Aether.Core.Events;
+using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
@@ -921,6 +923,67 @@ namespace Aether.Tests.PlayMode
 
             public bool Exists => Stored != null;
             public string Location => "isolated menu test store";
+        }
+
+        [Test]
+        public void EventBus_PublishKeepsItsOriginalSubscriberSnapshotDuringMutation()
+        {
+            var bus = new EventBus();
+            int secondCalls = 0;
+            int lateCalls = 0;
+            bool changed = false;
+            Action<int> second = _ => secondCalls++;
+            Action<int> late = _ => lateCalls++;
+            Action<int> first = _ =>
+            {
+                if (changed) return;
+                changed = true;
+                bus.Unsubscribe(second);
+                bus.Subscribe(late);
+            };
+
+            bus.Subscribe(first);
+            bus.Subscribe(second);
+            bus.Publish(1);
+
+            Assert.That(secondCalls, Is.EqualTo(1),
+                "Unsubscribing during dispatch must not remove a handler from the dispatch already in progress.");
+            Assert.That(lateCalls, Is.Zero,
+                "A handler subscribed during dispatch must wait until the next publish.");
+
+            bus.Publish(2);
+            Assert.That(secondCalls, Is.EqualTo(1));
+            Assert.That(lateCalls, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ComponentPool_EnforcesCapacityRejectsForeignObjectsAndDisposesLeasedObjects()
+        {
+            var prefab = new GameObject("pool-prefab");
+            var capped = new ComponentPool<Transform>(prefab.transform, prewarm: 8, maxSize: 2);
+            Assert.That(capped.TotalCreated, Is.EqualTo(2),
+                "Prewarming must obey the same hard cap as runtime creation.");
+            Assert.That(capped.AvailableCount, Is.EqualTo(2));
+            capped.Dispose();
+            yield return null;
+
+            var pool = new ComponentPool<Transform>(prefab.transform, prewarm: 0, maxSize: 1);
+            var foreign = new GameObject("foreign-object");
+            pool.Release(foreign.transform);
+            Assert.That(pool.AvailableCount, Is.Zero,
+                "An object not created by this pool must never enter its available stack.");
+
+            Transform leased = pool.Get();
+            Assert.That(leased, Is.Not.Null);
+            Assert.That(pool.TotalCreated, Is.EqualTo(1));
+            pool.Dispose();
+            yield return null;
+
+            Assert.That(leased == null, Is.True,
+                "Dispose must destroy checked-out instances too, not only objects already returned.");
+            UnityEngine.Object.Destroy(prefab);
+            UnityEngine.Object.Destroy(foreign);
+            yield return null;
         }
 
         /// <summary>Waits for every block of the screen that is up to finish arriving.</summary>
