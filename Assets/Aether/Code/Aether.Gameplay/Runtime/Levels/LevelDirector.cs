@@ -28,6 +28,7 @@ namespace Aether.Gameplay.Levels
     {
         /// <summary>How long the death beat lasts before control returns.</summary>
         private const float RespawnDelay = 0.9f;
+        private const float FallDeathMargin = 4f;
 
         private readonly List<EnemyController> _enemies = new List<EnemyController>();
         private readonly List<Vector2> _enemyFeet = new List<Vector2>();
@@ -100,6 +101,16 @@ namespace Aether.Gameplay.Levels
 
         private void Update()
         {
+            // The authored terrain contains open pits all the way through the map. Without a
+            // lower-world guard, a player who falls through one can keep falling forever because
+            // there is no collider below the level to produce a normal death event.
+            if (Time.timeScale > 0f && _player != null && _built != null && _built.Data != null
+                && _player.Health != null && _player.Health.IsAlive
+                && _player.Motor.Position.y < _built.Data.WorldBounds.yMin - FallDeathMargin)
+            {
+                _player.Health.ForceDeath();
+            }
+
             if (_respawnAt <= float.NegativeInfinity || Time.time < _respawnAt) return;
 
             _respawnAt = float.NegativeInfinity;

@@ -1234,6 +1234,58 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void FallingBelowTheLevelStartsDeathAndRespawnEvenDuringInvulnerability()
+        {
+            float originalScale = Time.timeScale;
+            Time.timeScale = 1f;
+
+            PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
+            Assert.That(tuning, Is.Not.Null, "The runtime player tuning asset must be available to PlayMode tests.");
+
+            var playerRoot = new GameObject("falling-player");
+            playerRoot.SetActive(false);
+            PlayerController player = playerRoot.AddComponent<PlayerController>();
+            typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(player, tuning);
+            playerRoot.SetActive(true);
+
+            var levelRoot = new GameObject("falling-level");
+            var levelData = new LevelData(
+                "fall-test", "Fall Test", "test", 1f, 10, 10,
+                new LevelTileKind[100],
+                new List<LevelEntity>(),
+                new List<TraversalConnection>());
+            var built = new BuiltLevel(levelRoot, levelData)
+            {
+                PlayerStartFeet = new Vector2(2f, 2f)
+            };
+            var directorRoot = new GameObject("falling-director");
+            LevelDirector director = directorRoot.AddComponent<LevelDirector>();
+
+            try
+            {
+                director.Initialize(null, built, player);
+                player.Health.BeginInvulnerability(10f);
+                player.transform.position = new Vector3(2f, -5f, 0f);
+                Physics2D.SyncTransforms();
+
+                director.SendMessage("Update");
+
+                Assert.That(player.Health.IsAlive, Is.False,
+                    "A fall out of the world must be fatal even when ordinary hit damage is blocked.");
+                Assert.That(director.IsRespawning, Is.True,
+                    "The death event must enter the same checkpoint respawn flow as other deaths.");
+            }
+            finally
+            {
+                Time.timeScale = originalScale;
+                UnityEngine.Object.DestroyImmediate(directorRoot);
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+                UnityEngine.Object.DestroyImmediate(levelRoot);
+            }
+        }
+
+        [Test]
         public void DeathRespawnRestoresPlayerControl()
         {
             PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");

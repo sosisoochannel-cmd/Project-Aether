@@ -128,6 +128,20 @@ namespace Aether.Gameplay.Player
         }
 
         /// <summary>
+        /// Causes an immediate death regardless of the current invulnerability window. Used for
+        /// lethal world boundaries such as falling out of the level, which must not be bypassed by
+        /// a temporary hit-reaction shield.
+        /// </summary>
+        public void ForceDeath()
+        {
+            if (!IsAlive) return;
+
+            _currentHealth = 0f;
+            HealthChanged?.Invoke(_currentHealth, _maxHealth);
+            Died?.Invoke();
+        }
+
+        /// <summary>
         /// Heals the player, never exceeding <see cref="Max"/>. Used by checkpoints and pickups.
         /// Returns the amount actually restored so callers can avoid playing feedback for a no-op.
         /// </summary>
