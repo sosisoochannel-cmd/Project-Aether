@@ -953,6 +953,12 @@ def read_enemy_kinds(root: str) -> Dict[str, EnemyKind]:
             else:
                 has_attack = False
 
+        if type_id in kinds:
+            raise LevelParseError(
+                path, 0,
+                f"duplicate enemy type id '{type_id}' in '{os.path.basename(path)}' and "
+                f"'{os.path.basename(kinds[type_id].path)}'")
+
         kinds[type_id] = EnemyKind(
             type_id=type_id,
             path=os.path.relpath(path, root).replace(os.sep, "/"),
@@ -1472,7 +1478,12 @@ def main() -> int:
           f"air dodge {tuning.allow_air_dodge}")
     print()
 
-    results, problems, orphan_problems, notes = report(level, solver, root)
+    try:
+        results, problems, orphan_problems, notes = report(level, solver, root)
+    except LevelParseError as error:
+        print(f"  FAIL level data: {error}")
+        return 1
+
     for result in results:
         print(f"  {'OK  ' if result.ok else 'FAIL'} {result.describe()}")
     print()
