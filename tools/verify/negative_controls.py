@@ -531,6 +531,25 @@ def controls() -> list[Control]:
             lambda root: edit(root, LEVEL, "x=117, y=20", "x=117, y=23"),
             ["exit"]),
         Control(
+            "levelcheck: duplicate entity ids are rejected at parse time",
+            solver,
+            lambda root: edit(root, LEVEL,
+                              "anchor       = id=anchor.greenway.terrace.west",
+                              "anchor       = id=greenway.start"),
+            ["duplicate entity id 'greenway.start'"]),
+        Control(
+            "levelcheck: checkpoints require explicit respawn coordinates",
+            solver,
+            lambda root: edit(root, LEVEL,
+                              "checkpoint   = id=checkpoint.greenway.entry, x=60, y=20, respawn=60:20",
+                              "checkpoint   = id=checkpoint.greenway.entry, x=60, y=20"),
+            ["checkpoint 'checkpoint.greenway.entry' has no respawn"]),
+        Control(
+            "levelcheck: negative patrol widths are rejected",
+            solver,
+            lambda root: edit(root, LEVEL, "patrol=4", "patrol=-1"),
+            ["patrol must be non-negative"]),
+        Control(
             "levelcheck: a misspelled entity attribute is rejected",
             solver,
             lambda root: edit(root, LEVEL,
