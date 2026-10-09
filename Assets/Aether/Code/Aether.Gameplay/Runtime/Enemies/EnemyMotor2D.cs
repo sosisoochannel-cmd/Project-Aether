@@ -26,7 +26,7 @@ namespace Aether.Gameplay.Enemies
     /// </para>
     /// </remarks>
     [RequireComponent(typeof(Rigidbody2D))]
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class EnemyMotor2D : MonoBehaviour
     {
         [Header("Layers")]
