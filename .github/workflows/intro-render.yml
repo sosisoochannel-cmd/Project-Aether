@@ -48,6 +48,21 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      # Run the full repository-specific static suite before starting Unity. This catches broken
+      # asset references, assembly edges, localization drift, unreachable level geometry, menu
+      # layout regressions and deliberately injected negative cases without producing an APK.
+      - name: Run static project gates (no APK build)
+        run: |
+          set -euo pipefail
+          python3 tools/verify/gen_meta.py --check
+          python3 tools/verify/verify.py
+          python3 tools/verify/localization.py
+          python3 tools/verify/levelcheck.py
+          python3 tools/verify/intro.py
+          python3 tools/verify/touchlayout.py
+          python3 tools/verify/mainmenu.py
+          python3 tools/verify/negative_controls.py
+
       # The Unity image unpacks into /var/lib/docker and the import needs room afterwards, on a VM
       # that starts with about 14 GB free. Only host-side toolchains a *container* run cannot use
       # are removed - the editor, SDK, NDK and JDK all live inside the image.
