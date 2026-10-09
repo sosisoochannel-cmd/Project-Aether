@@ -104,6 +104,8 @@ namespace Aether.Gameplay.Levels
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (content.PlayerTuning == null)
                 throw new InvalidOperationException("Level content has no player tuning data.");
+            if (content.PlayerFirstAttack == null)
+                throw new InvalidOperationException("Level content has no player starting attack.");
 
             var root = new GameObject($"Level_{level.Id}");
             root.transform.SetParent(parent, false);
