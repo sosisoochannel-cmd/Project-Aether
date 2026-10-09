@@ -1206,7 +1206,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator PooledEnemy_RestartsItsStateMachineWhenResetAfterReenable()
         {
             EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
-            var enemyObject = new GameObject("pooled-enemy-lifecycle-test");
+            GameObject enemyObject = new GameObject("pooled-enemy-lifecycle-test");
             enemyObject.SetActive(false);
             enemyObject.AddComponent<Rigidbody2D>();
             enemyObject.AddComponent<BoxCollider2D>();
@@ -1271,7 +1271,7 @@ namespace Aether.Tests.PlayMode
         [Test]
         public void EnemyGroundProbeUsesOffsetFromBodyCenter()
         {
-            var probeObject = new GameObject("enemy-ground-probe-test");
+            GameObject probeObject = new GameObject("enemy-ground-probe-test");
             probeObject.AddComponent<Rigidbody2D>();
             BoxCollider2D collider = probeObject.AddComponent<BoxCollider2D>();
             collider.size = new Vector2(0.9f, 1.1f);
