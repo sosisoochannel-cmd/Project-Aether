@@ -61,7 +61,7 @@ namespace Aether.Gameplay.Flow
     /// <b>Everything is eased and nothing snaps.</b> Presence, scale and a small vertical rise are
     /// curves over elapsed time, the exit starts from wherever either part currently is (skipping
     /// mid-reveal fades from the current presence, not from full), and the whole sequence runs under
-    /// three seconds because an intro is a signature, not a wait. In order: a short black, the mark
+    /// about three and a half seconds because an intro is a signature, not a wait. In order: a short black, the mark
     /// arriving, the wordmark completing the lockup a beat later, two restrained light passes across
     /// it, a still hold, and a fade back to black — <see cref="Timing"/> holds the numbers.
     /// </para>
@@ -169,9 +169,9 @@ namespace Aether.Gameplay.Flow
         /// <remarks>
         /// <para>
         /// The sequence, in seconds from the first frame of the scene: pure black 0.00-0.30, the mark
-        /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, the light pass
-        /// 1.05-1.45, the complete lockup held completely still 1.45-2.25, and the fade to black
-        /// 2.25-2.85. The hand-over to the next scene comes <see cref="HandOver"/> after the last of
+        /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, the primary light pass
+        /// 1.15-1.87, the reverse glint 2.37-2.75, and the fade to black beginning at 2.92. The
+        /// second glint sits inside the hold and the hand-over comes <see cref="HandOver"/> after the last of
         /// the logo has gone.
         /// </para>
         /// <para>
@@ -179,7 +179,7 @@ namespace Aether.Gameplay.Flow
         /// makes the pass read as one continuous arrival instead of a separate beat bolted onto it.
         /// </para>
         /// <para>
-        /// That budget is a requirement, not a taste — an intro of this kind is two to three seconds —
+        /// That budget is a requirement, not a taste — an intro of this kind is roughly three to four seconds —
         /// and <c>tools/verify/intro.py</c> reads these numbers and fails if the phases stop making
         /// that shape, so buying a longer reveal means shortening something else on purpose.
         /// </para>
@@ -336,7 +336,7 @@ namespace Aether.Gameplay.Flow
 
         /// <summary>
         /// The intro's clock: how much time one drawn frame adds, in seconds. Real time in every
-        /// build, so the ident takes the same 2.95 seconds whatever the machine's frame rate is.
+        /// build, so the ident takes about 3.57 seconds whatever the machine's frame rate is.
         /// </summary>
         /// <remarks>
         /// The render test replaces this with a fixed step, because the clock an animation is
