@@ -1329,14 +1329,20 @@ namespace Aether.Tests.PlayMode
                 "enemy = id=enemy.stationary, type=forest_stalker, x=1, y=0, patrol=0\n";
 
             LevelData patrolLevelData = LevelParser.Parse(levelText, "patrol-default-test");
-            LevelEntity inherited = patrolLevelData.Entities.Find(entity => entity.Id == "enemy.default");
-            LevelEntity stationary = patrolLevelData.Entities.Find(entity => entity.Id == "enemy.stationary");
+            LevelEntity patrolDefaultEntity = null;
+            LevelEntity stationaryEntity = null;
+            for (int i = 0; i < patrolLevelData.Entities.Count; i++)
+            {
+                LevelEntity patrolEntity = patrolLevelData.Entities[i];
+                if (patrolEntity.Id == "enemy.default") patrolDefaultEntity = patrolEntity;
+                if (patrolEntity.Id == "enemy.stationary") stationaryEntity = patrolEntity;
+            }
 
-            Assert.That(inherited, Is.Not.Null);
-            Assert.That(inherited.PatrolTiles, Is.EqualTo(-1),
+            Assert.That(patrolDefaultEntity, Is.Not.Null);
+            Assert.That(patrolDefaultEntity.PatrolTiles, Is.EqualTo(-1),
                 "Omitting patrol must preserve the archetype's authored default.");
-            Assert.That(stationary, Is.Not.Null);
-            Assert.That(stationary.PatrolTiles, Is.Zero,
+            Assert.That(stationaryEntity, Is.Not.Null);
+            Assert.That(stationaryEntity.PatrolTiles, Is.Zero,
                 "Explicit patrol=0 must make this placement hold position.");
         }
 
