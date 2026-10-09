@@ -62,23 +62,20 @@ namespace Aether.Gameplay.Levels
             for (int i = 0; i < enemies.Length; i++)
             {
                 EnemyDefinition definition = enemies[i];
-                if (definition == null || string.IsNullOrEmpty(definition.TypeId))
+                if (definition == null) continue;
+
+                if (string.IsNullOrEmpty(definition.TypeId))
                 {
-                    if (definition != null)
-                    {
-                        Debug.LogError(
-                            $"Enemy definition '{definition.name}' has no type id, so level data " +
-                            "cannot refer to it. Set one in the inspector.");
-                    }
-                    continue;
+                    throw new System.InvalidOperationException(
+                        $"Enemy definition '{definition.name}' has no type id. " +
+                        "Set a unique type id in the inspector before the level can start.");
                 }
 
                 if (content._enemies.ContainsKey(definition.TypeId))
                 {
-                    Debug.LogError(
+                    throw new System.InvalidOperationException(
                         $"Two enemy definitions claim the type id '{definition.TypeId}'. " +
-                        "Level data would spawn an unpredictable one of them.");
-                    continue;
+                        "The level cannot start until every enemy archetype id is unique.");
                 }
 
                 content._enemies.Add(definition.TypeId, definition);
