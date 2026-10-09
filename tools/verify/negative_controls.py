@@ -516,6 +516,13 @@ def controls() -> list[Control]:
             lambda root: edit(root, LEVEL, "x=117, y=20", "x=117, y=23"),
             ["exit"]),
         Control(
+            "levelcheck: a misspelled entity attribute is rejected",
+            solver,
+            lambda root: edit(root, LEVEL,
+                              "type=forest_stalker, x=47, y=20, patrol=4",
+                              "type=forest_stalker, x=47, y=20, patrl=4"),
+            ["unknown attribute 'patrl'"]),
+        Control(
             "levelcheck: a tile character that is not in the legend",
             solver,
             lambda root: level_rows(root, [(20, 50, 1, "?")]),
