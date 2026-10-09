@@ -110,7 +110,7 @@ namespace Aether.Gameplay.Levels
                 if (Level.PlayerStartFeet == Vector2.zero && data.PlayerStart == null)
                 {
                     Debug.LogError($"Level '{data.Id}' has no player start; nothing can be spawned.", this);
-                    GameplayCurtain.Fail(
+                    FailBoot(
                         $"Level '{data.Id}' has no player start, so there is nowhere to put the player. " +
                         "This is a level data problem, not something the player did.");
                     return;
