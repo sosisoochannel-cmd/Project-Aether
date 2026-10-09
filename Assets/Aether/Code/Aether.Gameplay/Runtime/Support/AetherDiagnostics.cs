@@ -39,14 +39,14 @@ namespace Aether.Gameplay.Support
 
         private struct LogEntry
         {
-            public readonly string Time;
+            public readonly string Timestamp;
             public readonly string Type;
             public readonly string Message;
             public readonly string Stack;
 
             public LogEntry(string type, string message, string stack)
             {
-                Time = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'");
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'");
                 Type = type;
                 Message = message ?? string.Empty;
                 Stack = stack ?? string.Empty;
@@ -54,7 +54,7 @@ namespace Aether.Gameplay.Support
 
             public override string ToString()
             {
-                return "[" + Time + "] [" + Type + "] " + Message +
+                return "[" + Timestamp + "] [" + Type + "] " + Message +
                        (string.IsNullOrEmpty(Stack) ? string.Empty : "\n" + Stack);
             }
         }
