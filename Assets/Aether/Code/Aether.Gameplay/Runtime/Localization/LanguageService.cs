@@ -29,11 +29,9 @@ namespace Aether.Gameplay.Localization
     /// only way to be sure every label moved, and it happens once per change rather than per frame.
     /// </para>
     /// <para>
-    /// <b>Right-to-left is reported, not fabricated.</b> Arabic and Persian are catalogued, and
-    /// <see cref="IsRightToLeft"/> answers true for them; but the font this build bundles cannot draw
-    /// those scripts at all, and a Unity <c>Text</c> would draw them as disconnected, unshaped
-    /// letters even with a font that could. Their rows are therefore not selectable, the screen that
-    /// offers languages says why, and no shaping pass is faked here.
+    /// <b>Right-to-left is reported, not fabricated.</b> Persian is selectable because the bundled Noto Sans Arabic font covers its glyphs and the menu
+    /// renderer applies contextual shaping and right-to-left ordering before drawing legacy uGUI text.
+    /// Arabic remains unavailable until its complete translation and QA pass are ready.
     /// </para>
     /// </remarks>
     public static class LanguageService
