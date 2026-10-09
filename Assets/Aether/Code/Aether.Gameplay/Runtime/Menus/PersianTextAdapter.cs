@@ -63,16 +63,72 @@ namespace Aether.Gameplay.Menus
             string output = _source;
             if (rtl && !string.IsNullOrEmpty(_source))
             {
-                // Preserve Latin identifiers, digits and placeholders using the mixed-run shaper.
-                // Normalise repeated spaces for this legacy tokenizer; empty tokens would otherwise throw.
-                string safe = System.Text.RegularExpressions.Regex.Replace(_source, " {2,}", " ");
-                output = ArabicFixer.Fix(safe, false);
+                output = ShapeRightToLeft(_source);
             }
             if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
                 _text.text = output;
 
             _rendered = output;
             _dirty = false;
+        }
+
+        private static string ShapeRightToLeft(string source)
+        {
+            if (string.IsNullOrEmpty(source) || !ContainsRtl(source)) return source;
+
+            // Legacy uGUI has no bidi engine. Shape each Persian word independently, keep Latin
+            // identifiers/numbers in their original order, then reverse word order for the visual
+            // left-to-right renderer. Work per line so wrapping cannot reverse the order of lines.
+            string[] lines = System.Text.RegularExpressions.Regex.Split(source, @"(\r\n|\r|\n)");
+            var output = new System.Text.StringBuilder(source.Length + 8);
+
+            for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            {
+                string line = lines[lineIndex];
+                if (line == "\r\n" || line == "\r" || line == "\n")
+                {
+                    output.Append(line);
+                    continue;
+                }
+
+                string safe = System.Text.RegularExpressions.Regex.Replace(line, @"\s+", " ").Trim();
+                if (!ContainsRtl(safe))
+                {
+                    output.Append(safe);
+                    continue;
+                }
+
+                string[] words = safe.Split(' ');
+                for (int wordIndex = words.Length - 1; wordIndex >= 0; wordIndex--)
+                {
+                    string word = words[wordIndex];
+                    if (ContainsRtl(word))
+                        output.Append(ArabicFixer.Fix(word, false, true));
+                    else
+                        output.Append(word);
+
+                    if (wordIndex > 0) output.Append(' ');
+                }
+            }
+
+            return output.ToString();
+        }
+
+        private static bool ContainsRtl(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                if ((c >= '\u0600' && c <= '\u06FF) ||
+                    (c >= '\u0750' && c <= '\u077F) ||
+                    (c >= '\u08A0' && c <= '\u08FF) ||
+                    (c >= '\uFB50' && c <= '\uFDFF) ||
+                    (c >= '\uFE70' && c <= '\uFEFF))
+                    return true;
+            }
+
+            return false;
         }
 
         private static TextAnchor Mirror(TextAnchor anchor)
