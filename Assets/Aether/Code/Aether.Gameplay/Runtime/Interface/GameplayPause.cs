@@ -114,8 +114,13 @@ namespace Aether.Gameplay.Interface
             if (_open || _overlay == null) return;
             _open = true;
 
-            // The region stops. The overlay's own timing is unscaled, so this freezes the world
-            // without freezing the interface that is on top of it.
+            // Update still runs while timeScale is zero. Disable the actual input sources as well
+            // as physics, so a key pressed while paused cannot be queued for the first resumed frame.
+            if (_director != null && _director.Player != null)
+                _director.Player.InputEnabled = false;
+
+            // The overlay's own timing is unscaled, so the interface keeps animating while the
+            // world and its input are frozen.
             Time.timeScale = 0f;
 
             if (_touchControls != null) _touchControls.enabled = false;
@@ -139,6 +144,9 @@ namespace Aether.Gameplay.Interface
             _confirm.Cancel();
 
             Time.timeScale = 1f;
+
+            if (_director != null && _director.Player != null && _director.Player.Health.IsAlive)
+                _director.Player.InputEnabled = true;
 
             if (_touchControls != null) _touchControls.enabled = true;
             if (_hud != null) _hud.SetVisible(true);
