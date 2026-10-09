@@ -81,7 +81,8 @@ namespace Aether.Gameplay.Player
         {
             get
             {
-                if (_controller == null || _controller.Tuning == null) return 1f;
+                PlayerController controller = ResolveController();
+                if (controller == null || controller.Tuning == null) return 1f;
 
                 switch (_runner.Phase)
                 {
