@@ -38,6 +38,19 @@ namespace Aether.Gameplay.Menus
             _sourceVerticalOverflow = _text.verticalOverflow;
         }
 
+        /// <summary>
+        /// Records authored overflow modes after a text builder finishes configuring the Text.
+        /// Paragraphs are the one builder that switches wrapping on after CreateText returns.
+        /// </summary>
+        public void CaptureSourceOverflowModes()
+        {
+            if (_text == null) return;
+            _sourceHorizontalOverflow = _text.horizontalOverflow;
+            _sourceVerticalOverflow = _text.verticalOverflow;
+            _dirty = true;
+            RefreshIfNeeded();
+        }
+
         private void OnEnable()
         {
             LanguageService.Changed += OnLanguageChanged;
