@@ -2,8 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using Aether.Core.Settings;
 using Aether.Core.Events;
+using Aether.Core.Combat;
+using Aether.Data.Config;
+using Aether.Gameplay.Combat;
 using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Localization;
@@ -27,6 +31,18 @@ using UnityEngine.UI;
 
 namespace Aether.Tests.PlayMode
 {
+    // Runtime-only probe used to verify that multiple colliders on one body resolve to one receiver.
+    internal sealed class DamageReceiverProbe : MonoBehaviour, IDamageable
+    {
+        public int DamageCount { get; private set; }
+        public bool IsAlive => true;
+
+        public void TakeDamage(in DamageInfo damage)
+        {
+            DamageCount++;
+        }
+    }
+
     /// <summary>
     /// Builds the real menu in the real engine and drives it, the way a player would.
     /// </summary>
@@ -940,6 +956,44 @@ namespace Aether.Tests.PlayMode
 
             Assert.That(player.GetComponent<PlayerMotor>().Body.linearVelocity, Is.EqualTo(Vector2.zero));
             UnityEngine.Object.Destroy(player);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator AttackRunner_DamagesOneReceiverOnlyOnceAcrossMultipleColliders()
+        {
+            var attack = ScriptableObject.CreateInstance<AttackDefinition>();
+            attack.hideFlags = HideFlags.HideAndDontSave;
+            typeof(AttackDefinition).GetField("_startup", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(attack, 0f);
+            typeof(AttackDefinition).GetField("_active", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(attack, 0.2f);
+            typeof(AttackDefinition).GetField("_recovery", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(attack, 0.2f);
+            typeof(AttackDefinition).GetField("_hitboxOffset", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(attack, Vector2.zero);
+            typeof(AttackDefinition).GetField("_hitboxSize", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(attack, new Vector2(3f, 3f));
+
+            var target = new GameObject("multi-collider-target");
+            target.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+            DamageReceiverProbe receiver = target.AddComponent<DamageReceiverProbe>();
+            var firstChild = new GameObject("body-collider");
+            firstChild.transform.SetParent(target.transform, false);
+            firstChild.AddComponent<BoxCollider2D>();
+            var secondChild = new GameObject("hurtbox-collider");
+            secondChild.transform.SetParent(target.transform, false);
+            secondChild.AddComponent<BoxCollider2D>();
+
+            var runner = new AttackRunner();
+            int landedEvents = 0;
+            runner.HitLanded += _ => landedEvents++;
+            runner.RequestAttack(attack);
+            Physics2D.SyncTransforms();
+            runner.Tick(0.01f, Vector2.zero, 1, ~0, null, null);
+            runner.Tick(0.01f, Vector2.zero, 1, ~0, null, null);
+
+            Assert.That(receiver.DamageCount, Is.EqualTo(1),
+                "Two overlapping colliders attached to one damage receiver must not double its damage.");
+            Assert.That(landedEvents, Is.EqualTo(1));
+
+            UnityEngine.Object.Destroy(target);
+            UnityEngine.Object.Destroy(attack);
             yield return null;
         }
 
