@@ -195,20 +195,26 @@ namespace Aether.Gameplay.Flow
             /// <summary>How much later than the mark the wordmark starts: the hierarchy.</summary>
             public const float WordmarkDelay = 0.25f;
 
-            /// <summary>The wordmark's arrival: 0.55s to 1.15s.</summary>
+            /// <summary>The wordmark's arrival, completing the lockup at 1.15s.</summary>
             public const float WordmarkReveal = 0.60f;
 
-            /// <summary>When the light pass begins, in seconds from the first frame.</summary>
-            public const float SheenStartsAt = 1.05f;
+            /// <summary>The primary light pass starts only after the complete logo has settled.</summary>
+            public const float SheenStartsAt = 1.15f;
 
-            /// <summary>How long the light takes to cross the lockup: 1.05s to 1.45s.</summary>
-            public const float SheenDuration = 0.40f;
+            /// <summary>A slower, clearly visible first sweep, from 1.15s to 1.87s.</summary>
+            public const float SheenDuration = 0.72f;
 
-            /// <summary>The complete lockup, completely still: 1.45s to 2.25s.</summary>
-            public const float Hold = 0.80f;
+            /// <summary>Delay from the end of the first sweep until a shorter reverse glint begins.</summary>
+            public const float SecondarySheenDelay = 0.50f;
 
-            /// <summary>The fade from the complete lockup to pure black: 2.25s to 2.85s.</summary>
-            public const float Exit = 0.60f;
+            /// <summary>The second, reverse-direction glint lasts from 2.37s to 2.75s.</summary>
+            public const float SecondarySheenDuration = 0.38f;
+
+            /// <summary>Time after the first pass begins before the fade starts: the second pass also fits inside it.</summary>
+            public const float Hold = 1.05f;
+
+            /// <summary>The fade from the complete lockup to pure black.</summary>
+            public const float Exit = 0.55f;
 
             /// <summary>Black held after the lockup has gone, so the hand-over is not a hard cut.</summary>
             public const float HandOver = 0.10f;
@@ -387,7 +393,9 @@ namespace Aether.Gameplay.Flow
                 return;
             }
 
-            if (!_playOnAwake || !Preference.Enabled)
+            // The studio mark is part of every normal launch, not a randomized or persisted one-shot.
+            // Only the explicit scene switch used by tools/tests may suppress the ident.
+            if (!_playOnAwake)
             {
                 HandOver();
                 return;
@@ -571,18 +579,24 @@ namespace Aether.Gameplay.Flow
         {
             if (_sheenRenderer == null) return;
 
-            float progress = Mathf.Clamp01((elapsed - Timing.SheenStartsAt) / Timing.SheenDuration);
-            if (progress <= 0f || progress >= 1f)
+            if (!TryGetSheenPass(elapsed, out float progress, out bool reverse))
             {
                 HideSheen();
                 return;
             }
 
-            float crest = Mathf.Lerp(-Sheen.BandHalfWidth, 1f + Sheen.BandHalfWidth,
-                                     EaseInOutSine(progress));
+            float start = reverse
+                ? Timing.SheenStartsAt + Timing.SheenDuration + Timing.SecondarySheenDelay
+                : Timing.SheenStartsAt;
+            float duration = reverse ? Timing.SecondarySheenDuration : Timing.SheenDuration;
+            float crest = reverse
+                ? Mathf.Lerp(1f + Sheen.BandHalfWidth, -Sheen.BandHalfWidth, EaseInOutSine(progress))
+                : Mathf.Lerp(-Sheen.BandHalfWidth, 1f + Sheen.BandHalfWidth, EaseInOutSine(progress));
             float presence = EaseInOutSine(Mathf.Clamp01(progress / Sheen.EdgeFade)) *
                              EaseInOutSine(Mathf.Clamp01((1f - progress) / Sheen.EdgeFade));
 
+            // Keep the phase calculation explicit: both sweeps use the same logo-derived mask, but
+            // the second travels back across it. No random timing or one-frame trigger can suppress it.
             for (int i = 0; i < _sheenPixels.Length; i++)
             {
                 float strength = _sheenMask[i] / 255f * SheenBand(_sheenAcross[i] - crest);
@@ -593,6 +607,30 @@ namespace Aether.Gameplay.Flow
             _sheenTexture.Apply(false, false);
             _sheenRenderer.color = new Color(1f, 1f, 1f, 1f);
             Place(_sheenRenderer.transform, Vector2.zero, 1f, 0f);
+        }
+
+        private static bool TryGetSheenPass(float elapsed, out float progress, out bool reverse)
+        {
+            float first = (elapsed - Timing.SheenStartsAt) / Timing.SheenDuration;
+            if (first > 0f && first < 1f)
+            {
+                progress = first;
+                reverse = false;
+                return true;
+            }
+
+            float secondStart = Timing.SheenStartsAt + Timing.SheenDuration + Timing.SecondarySheenDelay;
+            float second = (elapsed - secondStart) / Timing.SecondarySheenDuration;
+            if (second > 0f && second < 1f)
+            {
+                progress = second;
+                reverse = true;
+                return true;
+            }
+
+            progress = 0f;
+            reverse = false;
+            return false;
         }
 
         /// <summary>
@@ -623,8 +661,7 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         private static float SheenDim(float elapsed)
         {
-            float progress = Mathf.Clamp01((elapsed - Timing.SheenStartsAt) / Timing.SheenDuration);
-            if (progress <= 0f || progress >= 1f) return 1f;
+            if (!TryGetSheenPass(elapsed, out float progress, out _)) return 1f;
             float bell = progress < 0.5f ? progress * 2f : (1f - progress) * 2f;
             return Mathf.Lerp(1f, Sheen.DimWhilePassing, EaseInOutSine(bell));
         }
