@@ -1208,6 +1208,38 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator EnemyInitializedBeforeAwakePassesDefinitionIntoHealth()
+        {
+            var definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            var enemyObject = new GameObject("enemy-initialize-before-awake-test");
+            enemyObject.SetActive(false);
+            enemyObject.AddComponent<Rigidbody2D>();
+            enemyObject.AddComponent<BoxCollider2D>();
+            enemyObject.AddComponent<EnemyMotor2D>();
+            enemyObject.AddComponent<EnemyHealth>();
+            EnemyController enemy = enemyObject.AddComponent<EnemyController>();
+
+            try
+            {
+                // A pool can configure an inactive object before Unity calls Awake. The controller
+                // must still initialise its health component rather than leaving it with one HP.
+                enemy.Initialize(definition, null);
+                enemyObject.SetActive(true);
+                yield return null;
+
+                Assert.That(enemy.Health, Is.Not.Null);
+                Assert.That(enemy.Health.Definition, Is.SameAs(definition));
+                Assert.That(enemy.Health.Max, Is.EqualTo(definition.MaxHealth));
+                Assert.That(enemy.Health.Current, Is.EqualTo(definition.MaxHealth));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(enemyObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator PooledEnemy_RestartsItsStateMachineWhenResetAfterReenable()
         {
             EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
