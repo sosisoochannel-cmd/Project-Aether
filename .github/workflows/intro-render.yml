@@ -235,8 +235,8 @@ jobs:
             echo "::error::the test framework ran no tests; the render test was not discovered"
             exit 1
           fi
-          if [ "$frames" -lt 7 ]; then
-            echo "::error::only $frames frame(s) were written; seven moments were expected"
+          if [ "$frames" -lt 8 ]; then
+            echo "::error::only $frames frame(s) were written; eight moments were expected"
             exit 1
           fi
           echo "::notice title=Verdict::every moment rendered and measured, no test failures"
