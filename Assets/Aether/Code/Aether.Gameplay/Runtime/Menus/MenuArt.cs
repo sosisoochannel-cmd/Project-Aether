@@ -175,7 +175,12 @@ namespace Aether.Gameplay.Menus
 
         private static Font ResolveFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // A shipped script font is required for Persian/Arabic. Never rely on the device's
+            // operating-system fallback: Android vendors do not expose the same fonts to Unity.
+            Font font = Resources.Load<Font>("Fonts/NotoSansArabic");
+            if (font != null) return font;
+
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font != null) return font;
 
             // Older editors ship the same file under its old name. One call, no second error logged.
