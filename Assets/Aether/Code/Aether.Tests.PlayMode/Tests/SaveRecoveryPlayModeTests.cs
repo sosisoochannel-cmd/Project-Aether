@@ -100,8 +100,11 @@ namespace Aether.Tests.PlayMode
             Assert.That(_store.Save(snapshot, true), Is.True);
             string oldDocument = File.ReadAllText(_store.Location);
 
-            snapshot.World.Set("test.recovery.new-progress");
-            Assert.That(_store.Save(snapshot, true), Is.True);
+            // A distinct snapshot models a later save. Keeping the old flag in the same
+            // in-memory object would make both flags valid data, not prove which document won.
+            var newerSnapshot = new SaveData();
+            newerSnapshot.World.Set("test.recovery.new-progress");
+            Assert.That(_store.Save(newerSnapshot, true), Is.True);
             File.WriteAllText(_store.Location + ".bak", oldDocument);
 
             Assert.That(_store.TryLoad(out SaveData loaded), Is.True);
