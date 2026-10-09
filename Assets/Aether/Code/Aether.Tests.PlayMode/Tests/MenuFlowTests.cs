@@ -400,8 +400,7 @@ namespace Aether.Tests.PlayMode
 
             // Compared against the label the row would be drawn with, so the check is about the
             // row and not about the order the rows happen to be built in.
-            string wanted = MenuUi.Track(MenuStrings.Get("menu.continue"),
-                                         MenuTheme.Metrics.PrimaryTracking);
+            string wanted = MenuStrings.Get("menu.continue");
             MenuButton continueRow = null;
             IList<MenuButton> rows = screen.Play.Rows;
             for (int i = 0; i < rows.Count; i++)
@@ -786,8 +785,7 @@ namespace Aether.Tests.PlayMode
             var menu = (MainMenuScreen)root.System.Current;
 
             // By label, not by index: the check is about the row the player reads.
-            string wanted = MenuUi.Track(MenuStrings.Get("menu.newGame"),
-                                         MenuTheme.Metrics.PrimaryTracking);
+            string wanted = MenuStrings.Get("menu.newGame");
             MenuButton newGame = null;
             IList<MenuButton> rows = menu.Play.Rows;
             for (int i = 0; i < rows.Count; i++)
