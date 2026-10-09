@@ -136,6 +136,8 @@ def parse_level(path: str) -> Level:
     legend: Dict[str, int] = {}
     tiles: List[List[int]] = []
     entities: List[LevelEntity] = []
+    entity_lines: Dict[str, int] = {}
+    seen_entity_ids = set()
     claims: List[ReachClaim] = []
 
     section = None
@@ -225,7 +227,12 @@ def parse_level(path: str) -> Level:
             continue
 
         if section == "entities":
-            entities.append(_parse_entity(path, line_no, stripped))
+            entity = _parse_entity(path, line_no, stripped)
+            if entity.id in seen_entity_ids:
+                raise LevelParseError(path, line_no, f"duplicate entity id '{entity.id}'")
+            seen_entity_ids.add(entity.id)
+            entities.append(entity)
+            entity_lines[entity.id] = line_no
             continue
 
         if section == "validation":
@@ -249,6 +256,18 @@ def parse_level(path: str) -> Level:
         raise LevelParseError(path, 1, "the [legend] section is empty")
 
     width = len(tiles[0])
+    height = len(tiles)
+    for entity in entities:
+        if not (0 <= entity.x < width and 0 <= entity.y < height):
+            raise LevelParseError(path, entity_lines[entity.id],
+                                  f"entity '{entity.id}' is outside the map")
+        if entity.kind == "Checkpoint":
+            parts = entity.attrs["respawn"].split(":")
+            rx, ry = int(parts[0].strip()), int(parts[1].strip())
+            if not (0 <= rx < width and 0 <= ry < height):
+                raise LevelParseError(path, entity_lines[entity.id],
+                                      f"checkpoint '{entity.id}' respawn is outside the map")
+
     for i, row in enumerate(tiles):
         if len(row) != width:
             raise LevelParseError(path, 1, f"tile row {i} has {len(row)} columns, expected {width}")
@@ -279,6 +298,16 @@ ENTITY_ATTRIBUTES = {
     "id", "x", "y", "type", "kind", "flag", "note", "patrol", "respawn",
 }
 
+ENTITY_ATTRIBUTES_BY_KIND = {
+    "player_start": {"id", "x", "y", "note"},
+    "checkpoint": {"id", "x", "y", "note", "respawn"},
+    "enemy": {"id", "x", "y", "note", "type", "patrol"},
+    "discovery": {"id", "x", "y", "note", "kind", "flag"},
+    "story": {"id", "x", "y", "note", "kind"},
+    "exit": {"id", "x", "y", "note"},
+    "anchor": {"id", "x", "y", "note"},
+}
+
 META_ATTRIBUTES = {"id", "display_name", "region", "tile_size"}
 
 
@@ -305,6 +334,9 @@ def _parse_entity(path: str, line_no: int, text: str) -> LevelEntity:
         if attribute not in ENTITY_ATTRIBUTES:
             raise LevelParseError(path, line_no,
                                   f"{key} has unknown attribute '{attribute}'")
+        if attribute not in ENTITY_ATTRIBUTES_BY_KIND[key]:
+            raise LevelParseError(path, line_no,
+                                  f"{key} does not support attribute '{attribute}'")
 
     if "id" not in attrs:
         raise LevelParseError(path, line_no, f"{key} has no id")
@@ -316,6 +348,32 @@ def _parse_entity(path: str, line_no: int, text: str) -> LevelEntity:
         y = int(attrs["y"])
     except ValueError:
         raise LevelParseError(path, line_no, f"{key} '{attrs['id']}' has a non-integer position")
+
+    if key == "enemy" and not attrs.get("type"):
+        raise LevelParseError(path, line_no, f"enemy '{attrs['id']}' has no type")
+    if key == "discovery" and not attrs.get("flag"):
+        raise LevelParseError(path, line_no, f"discovery '{attrs['id']}' has no flag")
+    if key == "checkpoint":
+        respawn = attrs.get("respawn")
+        if respawn is None:
+            raise LevelParseError(path, line_no, f"checkpoint '{attrs['id']}' has no respawn")
+        parts = respawn.split(":")
+        if len(parts) != 2:
+            raise LevelParseError(path, line_no,
+                                  f"checkpoint '{attrs['id']}' respawn '{respawn}' is not 'x:y'")
+        try:
+            int(parts[0].strip())
+            int(parts[1].strip())
+        except ValueError:
+            raise LevelParseError(path, line_no,
+                                  f"checkpoint '{attrs['id']}' respawn '{respawn}' is not numeric")
+    if key == "enemy" and "patrol" in attrs:
+        try:
+            patrol = int(attrs["patrol"])
+        except ValueError:
+            raise LevelParseError(path, line_no, f"enemy '{attrs['id']}' patrol is not an integer")
+        if patrol < 0:
+            raise LevelParseError(path, line_no, f"enemy '{attrs['id']}' patrol must be non-negative")
 
     return LevelEntity(kind=ENTITY_KINDS[key], id=attrs["id"], x=x, y=y, attrs=attrs)
 
