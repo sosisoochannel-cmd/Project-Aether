@@ -122,6 +122,7 @@ namespace Aether.Gameplay.Controls
         }
 
         private Camera _camera;
+        private SettingsService _settings;
         private TouchInputSource _source;
         private Transform _stickBase;
         private Transform _stickKnob;
@@ -197,14 +198,26 @@ namespace Aether.Gameplay.Controls
 
         private void OnEnable()
         {
-            AetherSettings.Ensure().Changed += OnSettingsChanged;
+            // Subscribe and unsubscribe symmetrically. Re-enabling this view must not add
+            // duplicate handlers, and a settings reset must not make us unsubscribe from a
+            // newly-created service while leaving the original service holding this component.
+            _settings = AetherSettings.Ensure();
+            _settings.Changed -= OnSettingsChanged;
+            _settings.Changed += OnSettingsChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (_settings != null) _settings.Changed -= OnSettingsChanged;
+            _settings = null;
+            ReleaseEverything();
         }
 
         private void OnDestroy()
         {
-            AetherSettings.Current.Changed -= OnSettingsChanged;
-            if (_source == null) return;
-            _source.Reset();
+            if (_settings != null) _settings.Changed -= OnSettingsChanged;
+            _settings = null;
+            if (_source != null) _source.Reset();
         }
 
         /// <summary>
@@ -255,11 +268,6 @@ namespace Aether.Gameplay.Controls
             ReadTouches();
             RefreshLayout(force: false);
             _source.SetMove(_stickValue);
-        }
-
-        private void OnDisable()
-        {
-            ReleaseEverything();
         }
 
         /// <summary>
