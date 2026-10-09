@@ -23,7 +23,6 @@ namespace Aether.Gameplay.Player
     /// </para>
     /// </remarks>
     [RequireComponent(typeof(PlayerMotor))]
-    [RequireComponent(typeof(PlayerController))]
     public sealed class PlayerCombat : MonoBehaviour
     {
         [Header("Attacks")]
