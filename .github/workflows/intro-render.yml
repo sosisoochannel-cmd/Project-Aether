@@ -18,7 +18,7 @@ name: Intro render (temporary)
 on:
   push:
     branches:
-      - arena/01a10203-project-aether
+      - arena/257547c7-project-aether
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
