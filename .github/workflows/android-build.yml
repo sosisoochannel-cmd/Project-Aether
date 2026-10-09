@@ -228,11 +228,13 @@ jobs:
           mkdir -p Assets/Aether/Resources/Fonts
           # Noto Sans Arabic includes Persian letters (پ چ ژ گ ک ی) and Arabic glyphs.
           # Stage it before Unity starts so the normal asset importer includes it in Resources.
-          font_url="https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth,wght%5D.ttf"
+          font_url="https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf"
           curl --fail --location --silent --show-error --retry 3 "$font_url" \
             --output Assets/Aether/Resources/Fonts/NotoSansArabic.ttf
           test "$(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic.ttf)" -gt 100000
-          echo "Staged Noto Sans Arabic font ($(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic.ttf) bytes)."
+          curl --fail --location --silent --show-error --retry 3 "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/OFL.txt" --output Assets/Aether/Resources/Fonts/NotoSansArabic-OFL.txt
+          test "$(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic-OFL.txt)" -gt 1000
+          echo "Staged Noto Sans Arabic font ($(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic.ttf) bytes) and its OFL license."
 
       - name: Install the GameCI CLI
         id: cli
