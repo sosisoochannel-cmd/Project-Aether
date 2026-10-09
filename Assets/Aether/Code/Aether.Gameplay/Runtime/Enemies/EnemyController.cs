@@ -738,7 +738,9 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Moves into the alert state and records the transition.</summary>
         private void BeginAlert()
         {
-            _hasAlerted = true;
+            // AlertState.Enter owns the first-alert latch, sound and PlayerSpotted event.
+            // Setting _hasAlerted here would make Enter believe the cue already fired, so no
+            // enemy would ever announce its first sighting to the discovery/achievement systems.
             _machine.ChangeState(this, EnemyStateId.Alert);
         }
     }
