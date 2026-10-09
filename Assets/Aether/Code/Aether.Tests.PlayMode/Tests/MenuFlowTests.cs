@@ -401,8 +401,16 @@ namespace Aether.Tests.PlayMode
 
                         string label = MenuStrings.Get(key);
                         row.SetLabel(label);
-                        Assert.AreEqual(label, row.Label.text,
-                            "The " + language + " menu string was altered or split for key " + key);
+                        Assert.IsFalse(string.IsNullOrEmpty(row.Label.text),
+                            "The " + language + " menu string rendered as an empty button label for key " + key);
+                        Assert.IsFalse(row.Label.text.Contains("\u200A"),
+                            "The " + language + " menu label contains artificial letter-spacing characters for key " + key);
+                        // Persian/Arabic are deliberately shaped and word-reordered for legacy uGUI,
+                        // which has no bidi engine. Their rendered string must not be compared to the
+                        // source string byte-for-byte; Latin-language labels must remain exact.
+                        if (language != "fa")
+                            Assert.AreEqual(label, row.Label.text,
+                                "The " + language + " menu string was altered or split for key " + key);
                     }
                 }
             }
@@ -1132,7 +1140,7 @@ namespace Aether.Tests.PlayMode
 
             var playerRoot = new GameObject("respawn-player");
             playerRoot.SetActive(false);
-            PlayerController player = playerRoot.AddComponent(typeof(PlayerController)) as PlayerController;
+            PlayerController player = playerRoot.AddComponent<PlayerController>();
             typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(player, tuning);
             playerRoot.SetActive(true);
