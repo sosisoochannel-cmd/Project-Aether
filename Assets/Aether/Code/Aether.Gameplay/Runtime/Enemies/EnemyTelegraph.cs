@@ -50,6 +50,8 @@ namespace Aether.Gameplay.Enemies
         private bool _animating;
         private float _alertPulseRemaining;
         private float _hitFlashRemaining;
+        private float _impactPulseRemaining;
+        private bool _deadPresentation;
 
         /// <summary>Supplies the visual. Called by the factory before the object is activated.</summary>
         public void Configure(SpriteRenderer renderer, EnemyController controller)
@@ -116,11 +118,13 @@ namespace Aether.Gameplay.Enemies
         private void OnDamaged(DamageInfo info)
         {
             _hitFlashRemaining = HitFlashSeconds;
+            _impactPulseRemaining = 0.16f;
             enabled = true;
         }
 
         private void OnDied()
         {
+            _deadPresentation = true;
             ApplyState(EnemyStateId.Dead);
             enabled = true;
         }
@@ -168,6 +172,12 @@ namespace Aether.Gameplay.Enemies
             if (_renderer == null) return;
 
             float scale = 1f;
+            if (_deadPresentation)
+            {
+                // A short, readable defeat collapse; the controller/spawner still owns removal.
+                float deathProgress = Mathf.Clamp01(1f - (_hitFlashRemaining / HitFlashSeconds));
+                scale = Mathf.Lerp(1f, 0.72f, deathProgress);
+            }
             if (_animating && _controller != null)
             {
                 // The wind-up ramp: the body swells as the attack approaches, so the last moment
@@ -180,6 +190,13 @@ namespace Aether.Gameplay.Enemies
                     // Past the wind-up the attack is live: the colour says danger, not "get ready".
                     _target = LevelPalette.EnemyActive;
                 }
+            }
+
+            if (_impactPulseRemaining > 0f)
+            {
+                _impactPulseRemaining -= Time.deltaTime;
+                float pulse = Mathf.Sin(Mathf.Clamp01(_impactPulseRemaining / 0.16f) * Mathf.PI);
+                scale *= 1f + 0.14f * pulse;
             }
 
             if (_alertPulseRemaining > 0f)
@@ -208,7 +225,7 @@ namespace Aether.Gameplay.Enemies
 
             // Nothing left to show: stop being called at all until something happens. An idle
             // level of three enemies costs three disabled components rather than three updates.
-            if (!_animating && _alertPulseRemaining <= 0f && _hitFlashRemaining <= 0f
+            if (!_animating && _alertPulseRemaining <= 0f && _hitFlashRemaining <= 0f && _impactPulseRemaining <= 0f
                 && (_renderer.color - colour).maxColorComponent < 0.02f
                 && (_visual == null
                     || (_visual.localScale - new Vector3(_baseScale.x * scale, _baseScale.y * scale,
