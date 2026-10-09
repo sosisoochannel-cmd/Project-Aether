@@ -229,6 +229,42 @@ namespace Aether.Tests
             Object.DestroyImmediate(followUp);
         }
 
+        [Test]
+        public void GroundingQuery_IgnoresTriggersEvenWhenGlobalPhysicsSettingIncludesThem()
+        {
+            bool previousQueriesHitTriggers = Physics2D.queriesHitTriggers;
+            var obstacle = new GameObject("trigger-only-ground-test");
+            obstacle.layer = 30;
+            var collider = obstacle.AddComponent<BoxCollider2D>();
+            collider.isTrigger = true;
+            obstacle.transform.position = Vector2.zero;
+
+            try
+            {
+                Physics2D.queriesHitTriggers = true;
+                Physics2D.SyncTransforms();
+                LayerMask mask = 1 << 30;
+
+                Assert.That(
+                    Physics2DQuery.OverlapsBox(Vector2.zero, Vector2.one, 0f, mask),
+                    Is.False,
+                    "A trigger volume must not make the player appear grounded.");
+
+                collider.isTrigger = false;
+                Physics2D.SyncTransforms();
+
+                Assert.That(
+                    Physics2DQuery.OverlapsBox(Vector2.zero, Vector2.one, 0f, mask),
+                    Is.True,
+                    "A solid collider on the configured ground layer must still be detected.");
+            }
+            finally
+            {
+                Physics2D.queriesHitTriggers = previousQueriesHitTriggers;
+                Object.DestroyImmediate(obstacle);
+            }
+        }
+
         /// <summary>
         /// Writes a private serialised field. Used because these fields are intentionally
         /// inspector-authored and have no public setter.
