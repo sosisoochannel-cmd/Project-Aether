@@ -122,10 +122,10 @@ namespace Aether.Gameplay.Flow
             public const float MaxHeightFraction = 0.40f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
-            public const float RevealScale = 0.965f;
+            public const float RevealScale = 0.78f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
-            public const float RevealRise = 0.018f;
+            public const float RevealRise = 0.055f;
 
             /// <summary>
             /// Where the artwork splits into mark and wordmark, as a fraction of its height
@@ -140,7 +140,7 @@ namespace Aether.Gameplay.Flow
             public const float WordmarkSplit = 0.605f;
 
             /// <summary>How far the wordmark rises into its place, in safe-area heights.</summary>
-            public const float WordmarkRise = 0.008f;
+            public const float WordmarkRise = 0.020f;
         }
 
         /// <summary>
@@ -458,10 +458,9 @@ namespace Aether.Gameplay.Flow
                 {
                     RevealAt(elapsed, false, out float markPresence, out float markScale, out float markRise);
                     RevealAt(elapsed, true, out float wordPresence, out float wordScale, out float wordRise);
-                    float dim = SheenDim(elapsed);
-                    Draw(_mark, markPresence, markScale, markRise, dim);
-                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim);
-                    DrawSheen(elapsed);
+                    // No glow, lens flare or travelling highlight: the studio mark stays crisp.
+                    Draw(_mark, markPresence, markScale, markRise, 1f);
+                    Draw(_wordmark, wordPresence, wordScale, wordRise, 1f);
                 }
 
                 if (elapsed >= exitStartsAt + exitLength) break;
@@ -500,9 +499,12 @@ namespace Aether.Gameplay.Flow
             float startsAt = Timing.BlackHold + (wordmark ? Timing.WordmarkDelay : 0f);
             float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
             float linear = Ramp(elapsed, startsAt, duration);
-            float settle = EaseInOutSine(linear);
+            float settle = EaseOutBack(linear);
             presence = wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
-            scale = Mathf.Lerp(Layout.RevealScale, 1f, settle);
+            // The mark lands with a controlled overshoot, like a carved insignia locking into place;
+            // opacity remains monotonic, so the motion feels weighty rather than flickery.
+            float startScale = wordmark ? 0.86f : Layout.RevealScale;
+            scale = Mathf.Lerp(startScale, 1f, settle);
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
 
@@ -753,7 +755,7 @@ namespace Aether.Gameplay.Flow
                 _wordmark = BuildPart("StudioWordmark", _wordmarkSprite, wordmarkBounds, lockupCentre);
             }
 
-            BuildSheen(coverage, width, lockup);
+            // Deliberately do not build a sheen layer. The ident is driven by silhouette, timing and motion.
         }
 
         /// <summary>
@@ -1114,6 +1116,14 @@ namespace Aether.Gameplay.Flow
         {
             float inverse = 1f - t;
             return 1f - (inverse * inverse * inverse);
+        }
+
+        /// <summary>A controlled overshoot that gives the emblem a decisive, cinematic landing.</summary>
+        private static float EaseOutBack(float t)
+        {
+            const float overshoot = 1.35f;
+            float shifted = t - 1f;
+            return 1f + (overshoot + 1f) * shifted * shifted * shifted + overshoot * shifted * shifted;
         }
 
         /// <summary>The gentlest ease-out: the one the mark's arrival rides.</summary>
