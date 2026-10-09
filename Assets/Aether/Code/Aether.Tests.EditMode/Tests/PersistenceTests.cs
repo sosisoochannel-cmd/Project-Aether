@@ -100,6 +100,25 @@ namespace Aether.Tests
         }
 
         [Test]
+        public void SettingsService_FlushWithoutStoreIsSessionOnlyAndCanPersistLater()
+        {
+            var settings = new SettingsService();
+            settings.Load();
+            settings.Set("audio.master", 0.35f);
+
+            Assert.That(settings.Flush(), Is.True,
+                "A session-only settings service must not report a persistence failure when no store exists.");
+            Assert.That(settings.IsDirty, Is.True,
+                "Keep the change dirty so a store attached later can persist it.");
+
+            var store = new MemorySettingsStore();
+            settings.Store = store;
+            Assert.That(settings.Flush(), Is.True);
+            Assert.That(settings.IsDirty, Is.False);
+            Assert.That(SettingsCatalog.Read(store.Stored, "audio.master"), Is.EqualTo(0.35f).Within(0.001f));
+        }
+
+        [Test]
         public void SettingsService_RetriesAFailedWriteAndClearsDirtyOnlyAfterSuccess()
         {
             var store = new MemorySettingsStore();
