@@ -163,6 +163,15 @@ namespace Aether.Gameplay.Menus.Screens
             _system.SetColumns(columns);
 
             bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            if (_version != null)
+            {
+                float footerEdge = rtl ? 0f : 1f;
+                _version.rectTransform.anchorMin = new Vector2(footerEdge, 0f);
+                _version.rectTransform.anchorMax = new Vector2(footerEdge, 0f);
+                _version.rectTransform.pivot = new Vector2(footerEdge, 0f);
+                _version.rectTransform.anchoredPosition =
+                    new Vector2(0f, MenuTheme.Metrics.ScreenMarginBottom * 0.25f);
+            }
 
             _play.Layout(leftWidth, box);
             SetHorizontalSide(_play.Rect, rtl);
