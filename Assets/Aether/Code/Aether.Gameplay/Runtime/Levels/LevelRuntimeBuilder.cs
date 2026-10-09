@@ -256,7 +256,7 @@ namespace Aether.Gameplay.Levels
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
-            collider.size = new Vector2(1.2f, 1.8f);
+            collider.size = new Vector2(1.2f / 1.4f, 1.8f / 1.4f);
 
             var trigger = go.AddComponent<CheckpointTrigger>();
             trigger.Configure(entity, feet);
@@ -283,7 +283,7 @@ namespace Aether.Gameplay.Levels
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
-            collider.size = new Vector2(1.4f, 1.6f);
+            collider.size = new Vector2(1.4f / 0.8f, 1.6f / 0.8f);
 
             var trigger = go.AddComponent<DiscoveryTrigger>();
             trigger.Configure(entity);
@@ -305,7 +305,7 @@ namespace Aether.Gameplay.Levels
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
-            collider.size = new Vector2(1.6f, 3.2f);
+            collider.size = Vector2.one;
 
             var trigger = go.AddComponent<LevelExitTrigger>();
             trigger.Configure(entity);
