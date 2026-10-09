@@ -443,6 +443,10 @@ namespace Aether.Gameplay.Player
         {
             public void Enter(PlayerController c)
             {
+                // Hit-stun must withhold every action, not merely cancel the swing already in flight.
+                // Disabling the input source also clears queued touch/keyboard presses so they cannot
+                // fire immediately when recovery ends.
+                c.InputEnabled = false;
                 c._combat.Cancel();
             }
 
@@ -461,7 +465,11 @@ namespace Aether.Gameplay.Player
                     c._motor.IsGrounded ? PlayerStateId.Grounded : PlayerStateId.Airborne);
             }
 
-            public void Exit(PlayerController c) { }
+            public void Exit(PlayerController c)
+            {
+                // A lethal hit transitions Hurt -> Dead. Never briefly restore input on that path.
+                if (c._health.IsAlive) c.InputEnabled = true;
+            }
         }
 
         private sealed class DeadState : IState<PlayerController>
