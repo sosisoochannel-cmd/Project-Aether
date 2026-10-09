@@ -7,9 +7,11 @@ using Aether.Core.Settings;
 using Aether.Core.Events;
 using Aether.Core.Combat;
 using Aether.Data.Config;
+using Aether.Data.Levels;
 using Aether.Gameplay.Combat;
 using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
+using Aether.Gameplay.Levels;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
@@ -940,6 +942,48 @@ namespace Aether.Tests.PlayMode
 
             public bool Exists => Stored != null;
             public string Location => "isolated menu test store";
+        }
+
+        [UnityTest]
+        public IEnumerator GeneratedTerrainCollidersUseTheGroundLayer()
+        {
+            int groundLayer = LayerMask.NameToLayer("Ground");
+            Assert.That(groundLayer, Is.GreaterThan(0),
+                "The project must define the Ground physics layer.");
+
+            const string levelText =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = terrain-layer-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "##\n" +
+                "##\n" +
+                "[entities]\n";
+
+            var parent = new GameObject("terrain-layer-test-root");
+            try
+            {
+                LevelData data = LevelParser.Parse(levelText, "terrain-layer-test");
+                BuiltLevel built = LevelRuntimeBuilder.Build(data, null, parent.transform, true);
+                Transform terrain = built.Root.transform.Find("Terrain");
+                Assert.That(terrain, Is.Not.Null);
+
+                BoxCollider2D[] colliders = terrain.GetComponentsInChildren<BoxCollider2D>();
+                Assert.That(colliders.Length, Is.GreaterThan(0));
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    Assert.That(colliders[i].gameObject.layer, Is.EqualTo(groundLayer),
+                        "Every generated solid collider must be visible to the player's Ground-layer probe.");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(parent);
+            }
+
+            yield return null;
         }
 
         [UnityTest]
