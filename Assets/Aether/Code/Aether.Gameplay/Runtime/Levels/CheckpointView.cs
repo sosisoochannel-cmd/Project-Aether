@@ -19,14 +19,28 @@ namespace Aether.Gameplay.Levels
         /// <summary>Supplies the visual. Called by the level builder.</summary>
         public void Configure(SpriteRenderer renderer, CheckpointTrigger trigger)
         {
+            if (_trigger != null) _trigger.ActivatedChanged -= OnActivatedChanged;
+
             _renderer = renderer;
             _trigger = trigger;
-            if (_renderer != null) _renderer.color = LevelPalette.CheckpointIdle;
+
+            // AddComponent invokes OnEnable before the builder can call Configure on an active
+            // GameObject. Subscribe here too, and reflect the current state instead of always
+            // painting a restored checkpoint as idle.
+            if (isActiveAndEnabled && _trigger != null)
+                _trigger.ActivatedChanged += OnActivatedChanged;
+
+            OnActivatedChanged(_trigger != null && _trigger.Activated);
         }
 
         private void OnEnable()
         {
-            if (_trigger != null) _trigger.ActivatedChanged += OnActivatedChanged;
+            if (_trigger != null)
+            {
+                _trigger.ActivatedChanged -= OnActivatedChanged;
+                _trigger.ActivatedChanged += OnActivatedChanged;
+                OnActivatedChanged(_trigger.Activated);
+            }
         }
 
         private void OnDisable()
