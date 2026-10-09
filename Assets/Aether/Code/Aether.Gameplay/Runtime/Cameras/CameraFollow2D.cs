@@ -122,9 +122,15 @@ namespace Aether.Gameplay.Cameras
         public void Configure(Transform target, Vector2 boundsMin, Vector2 boundsMax)
         {
             _target = target;
+            _targetBody = target != null ? target.GetComponent<Rigidbody2D>() : null;
             _boundsMin = boundsMin;
             _boundsMax = boundsMax;
             _useBounds = true;
+
+            // The curtain is still covering the scene while the level is assembled. Snap now so
+            // the first revealed frame is already centred on the player, and refresh the cached
+            // body when a camera is reused for another target.
+            SnapToTarget();
         }
 
         private Camera _camera;
