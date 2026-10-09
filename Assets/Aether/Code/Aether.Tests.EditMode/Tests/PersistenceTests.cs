@@ -138,6 +138,26 @@ namespace Aether.Tests
         }
 
         [Test]
+        public void SettingsService_WithoutStoreFlushesSessionOnlyAndPersistsIfStoreIsLaterAttached()
+        {
+            var settings = new SettingsService();
+            settings.Load();
+            settings.Set("audio.master", 0.35f);
+
+            Assert.That(settings.IsDirty, Is.True);
+            Assert.That(settings.Flush(), Is.True,
+                "A session-only settings service has nothing to write and must not report a lifecycle failure.");
+            Assert.That(settings.IsDirty, Is.True,
+                "Do not discard pending values: a store may be attached later in the same session.");
+
+            var store = new MemorySettingsStore();
+            settings.Store = store;
+            Assert.That(settings.Flush(), Is.True);
+            Assert.That(settings.IsDirty, Is.False);
+            Assert.That(SettingsCatalog.Read(store.Stored, "audio.master"), Is.EqualTo(0.35f).Within(0.001f));
+        }
+
+        [Test]
         public void FrameRateSetting_PreservesAndAppliesThe120FpsRequest()
         {
             SettingDefinition definition = SettingsCatalog.Find("graphics.frameRate");
