@@ -150,7 +150,7 @@ namespace Aether.Gameplay.Enemies
 
         /// <summary>Half-width of this enemy's patrol, in world units.</summary>
         private float PatrolDistance =>
-            _patrolDistanceOverride > 0f
+            _patrolDistanceOverride >= 0f
                 ? _patrolDistanceOverride
                 : (_definition != null ? _definition.PatrolDistance : 0f);
 
