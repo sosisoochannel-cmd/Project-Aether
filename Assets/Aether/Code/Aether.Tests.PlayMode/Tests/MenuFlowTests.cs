@@ -1216,6 +1216,77 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void RestartRegionClearsCheckpointSoFutureRespawnsReturnToStart()
+        {
+            PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
+            Assert.That(tuning, Is.Not.Null, "The runtime player tuning asset must be available to PlayMode tests.");
+
+            var sessionRoot = new GameObject("restart-session-test");
+            var levelRoot = new GameObject("restart-level-test");
+            var directorRoot = new GameObject("restart-director-test");
+            try
+            {
+                var session = sessionRoot.AddComponent<Aether.Gameplay.GameSession>();
+                session.World.ActiveCheckpointId = "checkpoint.from-before-restart";
+
+                var built = new BuiltLevel(levelRoot, null)
+                {
+                    PlayerStartFeet = new Vector2(4f, 2f)
+                };
+                PlayerFactory.Create(
+                    built.PlayerStartFeet + new Vector2(0f, tuning.BodyHeight * 0.5f),
+                    tuning, null, levelRoot.transform);
+
+                var director = directorRoot.AddComponent<LevelDirector>();
+                director.Initialize(session, built, built.Root.GetComponentInChildren<PlayerController>());
+                director.RestartRegion();
+
+                Assert.AreEqual(string.Empty, session.World.ActiveCheckpointId,
+                    "Restart must forget the previous checkpoint, not just teleport temporarily.");
+
+                director.PerformRespawn();
+                Assert.AreEqual(built.PlayerStartFeet, director.RespawnFeet,
+                    "A death after restarting must return to the region start, not the old checkpoint.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(directorRoot);
+                UnityEngine.Object.DestroyImmediate(levelRoot);
+                UnityEngine.Object.DestroyImmediate(sessionRoot);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EnemyFirstAlertPublishesPlayerSpottedExactlyOnce()
+        {
+            var parent = new GameObject("enemy-alert-test-root");
+            var definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            definition.hideFlags = HideFlags.HideAndDontSave;
+            try
+            {
+                EnemyController enemy = EnemyFactory.Create(definition, Vector2.zero, parent.transform, 0);
+                int spotted = 0;
+                enemy.PlayerSpotted += _ => spotted++;
+
+                // Start must initialise the state machine before the private perception transition
+                // is driven. This isolates the first-alert transition without relying on physics.
+                yield return null;
+                MethodInfo beginAlert = typeof(EnemyController).GetMethod(
+                    "BeginAlert", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(beginAlert, Is.Not.Null, "The enemy alert transition must exist.");
+                beginAlert.Invoke(enemy, null);
+
+                Assert.AreEqual(1, spotted,
+                    "The first alert must publish PlayerSpotted so discovery/achievement tracking can run.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [Test]
         public void DisablingAnOpenPauseRestoresThePreviousTimeScale()
         {
             float originalScale = Time.timeScale;
