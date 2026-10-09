@@ -210,7 +210,7 @@ namespace Aether.Gameplay.Flow
             /// <summary>The second, reverse-direction glint lasts from 2.37s to 2.75s.</summary>
             public const float SecondarySheenDuration = 0.38f;
 
-            /// <summary>Time after the first pass begins before the fade starts: the second pass also fits inside it.</summary>
+            /// <summary>Quiet hold after the first sweep, long enough for the reverse glint and a clean exit.</summary>
             public const float Hold = 1.05f;
 
             /// <summary>The fade from the complete lockup to pure black.</summary>
