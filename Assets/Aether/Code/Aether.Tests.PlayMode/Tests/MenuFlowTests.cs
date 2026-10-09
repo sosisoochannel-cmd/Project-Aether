@@ -1135,6 +1135,16 @@ namespace Aether.Tests.PlayMode
                 playerRoot.SetActive(true);
                 yield return null;
 
+                float healthBeforeMalformedPayloads = playerController.Health.Current;
+                playerController.Health.TakeDamage(new DamageInfo(float.NaN, Vector2.left));
+                playerController.Health.TakeDamage(new DamageInfo(
+                    1f, Vector2.left, float.PositiveInfinity));
+                Assert.That(playerController.Health.Current, Is.EqualTo(healthBeforeMalformedPayloads),
+                    "Malformed damage must not alter player health or physics state.");
+                Assert.That(playerController.Health.Heal(float.PositiveInfinity), Is.EqualTo(0f),
+                    "Non-finite healing must be rejected rather than poisoning current health.");
+                Assert.That(playerController.Health.Current, Is.EqualTo(healthBeforeMalformedPayloads));
+
                 Assert.That(combat.TryStartAttack(), Is.True, "The configured opening attack should start.");
                 Assert.That(combat.IsAttacking, Is.True);
 
@@ -1353,6 +1363,12 @@ namespace Aether.Tests.PlayMode
                     reportedCurrent = current;
                     reportedMax = max;
                 };
+
+                health.TakeDamage(new DamageInfo(float.NaN, Vector2.left));
+                health.TakeDamage(new DamageInfo(
+                    1f, Vector2.left, 0f, float.PositiveInfinity));
+                Assert.That(health.Current, Is.EqualTo(health.Max),
+                    "Malformed damage must not poison a pooled enemy's health.");
 
                 health.TakeDamage(new DamageInfo(1f, Vector2.left));
                 Assert.That(health.Current, Is.LessThan(health.Max),

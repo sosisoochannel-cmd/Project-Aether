@@ -75,16 +75,19 @@ jobs:
           df -h /
           remove_path() {
             [ -e "$1" ] || { echo "- $2: not present"; return 0; }
-            sudo rm -rf --one-file-system "$1" || true
-            echo "- $2: removed $1"
+            if timeout 30s sudo rm -rf --one-file-system "$1"; then
+              echo "- $2: removed $1"
+            else
+              echo "- $2: removal failed or timed out; continuing"
+            fi
           }
           remove_path /usr/local/lib/android "host Android SDK/NDK"
-          remove_path "$AGENT_TOOLSDIRECTORY" "pre-installed language runtimes"
+          # Do not delete AGENT_TOOLSDIRECTORY: active runner tooling may live there.
           remove_path /opt/ghc "Haskell GHC"
           remove_path /usr/local/.ghcup "Haskell GHCup"
           remove_path /usr/share/dotnet ".NET SDK"
           remove_path /usr/local/share/boost "Boost headers"
-          docker image prune --all --force || true
+          timeout 30s docker image prune --all --force || echo "- Docker image prune timed out; continuing"
           df -h /
           echo "::notice title=Disk::$(df -Ph / | awk 'NR==2 {print $4}') free on /"
 

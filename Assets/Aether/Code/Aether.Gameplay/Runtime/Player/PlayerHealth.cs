@@ -75,8 +75,19 @@ namespace Aether.Gameplay.Player
         {
             _motor = GetComponent<PlayerMotor>();
             _controller = GetComponent<PlayerController>();
+
+            // Inspector/prefab data can be stale or corrupted; never let non-finite values enter
+            // the player's health, recovery timers, or invulnerability calculations.
+            _maxHealth = IsFinite(_maxHealth) ? Mathf.Max(1f, _maxHealth) : 5f;
+            _hurtLockout = IsFinite(_hurtLockout) ? Mathf.Clamp(_hurtLockout, 0f, 1f) : 0.22f;
+            _invulnerabilityAfterHit = IsFinite(_invulnerabilityAfterHit)
+                ? Mathf.Clamp(_invulnerabilityAfterHit, 0f, 3f)
+                : 0.75f;
             _currentHealth = _maxHealth;
         }
+
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
 
         private void Start()
         {
@@ -89,7 +100,7 @@ namespace Aether.Gameplay.Player
         /// </summary>
         public void BeginInvulnerability(float duration)
         {
-            if (duration <= 0f) return;
+            if (!IsFinite(duration) || duration <= 0f) return;
             _invulnerableUntil = Mathf.Max(_invulnerableUntil, Time.time + duration);
         }
 
@@ -104,7 +115,7 @@ namespace Aether.Gameplay.Player
         {
             if (!IsAlive) return;
             if (IsInvulnerable) return;
-            if (damage.Amount <= 0f) return;
+            if (!damage.IsValid) return;
 
             _currentHealth = Mathf.Max(0f, _currentHealth - damage.Amount);
             Damaged?.Invoke(damage);
@@ -147,7 +158,7 @@ namespace Aether.Gameplay.Player
         /// </summary>
         public float Heal(float amount)
         {
-            if (amount <= 0f) return 0f;
+            if (!IsFinite(amount) || amount <= 0f) return 0f;
             if (!IsAlive) return 0f;
 
             float before = _currentHealth;

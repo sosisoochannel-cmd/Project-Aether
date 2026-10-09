@@ -45,6 +45,18 @@ namespace Aether.Core.Combat
         /// </summary>
         public readonly GameObject Source;
 
+        /// <summary>
+        /// True only when the damage payload contains finite numbers and a positive damage amount.
+        /// This prevents corrupted data from propagating NaN or infinity into health and physics.
+        /// </summary>
+        public bool IsValid =>
+            IsFinite(Amount) && Amount > 0f &&
+            IsFinite(SourcePosition.x) && IsFinite(SourcePosition.y) &&
+            IsFinite(KnockbackSpeed) && IsFinite(LiftSpeed);
+
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
         public DamageInfo(
             float amount,
             Vector2 sourcePosition,

@@ -61,7 +61,10 @@ namespace Aether.Gameplay.Enemies
         public float Current => _currentHealth;
 
         /// <summary>Maximum hit points.</summary>
-        public float Max => _definition != null ? _definition.MaxHealth : 1f;
+        public float Max =>
+            _definition != null && IsFinite(_definition.MaxHealth)
+                ? Mathf.Max(1f, _definition.MaxHealth)
+                : 1f;
 
         /// <summary>Normalised health, for damage flashes and health bars.</summary>
         public float Normalized => Max <= 0f ? 0f : _currentHealth / Max;
@@ -77,6 +80,9 @@ namespace Aether.Gameplay.Enemies
             _motor = GetComponent<EnemyMotor2D>();
         }
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
         private void Start()
         {
             if (_definition == null)
@@ -89,8 +95,8 @@ namespace Aether.Gameplay.Enemies
                 return;
             }
 
-            _currentHealth = _definition.MaxHealth;
-            HealthChanged?.Invoke(_currentHealth, _definition.MaxHealth);
+            _currentHealth = Max;
+            HealthChanged?.Invoke(_currentHealth, Max);
         }
 
         /// <summary>
@@ -111,7 +117,7 @@ namespace Aether.Gameplay.Enemies
         {
             if (!IsAlive) return;
             if (IsInvulnerable) return;
-            if (damage.Amount <= 0f) return;
+            if (!damage.IsValid) return;
 
             _currentHealth = Mathf.Max(0f, _currentHealth - damage.Amount);
             Damaged?.Invoke(damage);
@@ -125,7 +131,8 @@ namespace Aether.Gameplay.Enemies
 
             if (_definition != null)
             {
-                if (_definition.InvulnerabilityAfterHit > 0f)
+                if (IsFinite(_definition.InvulnerabilityAfterHit) &&
+                    _definition.InvulnerabilityAfterHit > 0f)
                 {
                     _invulnerableUntil = Time.time + _definition.InvulnerabilityAfterHit;
                 }
@@ -139,7 +146,10 @@ namespace Aether.Gameplay.Enemies
                 }
             }
 
-            Staggered?.Invoke(_definition != null ? _definition.StaggerDuration : 0.2f);
+            float staggerDuration = _definition != null && IsFinite(_definition.StaggerDuration)
+                ? Mathf.Clamp(_definition.StaggerDuration, 0f, 1.5f)
+                : 0.2f;
+            Staggered?.Invoke(staggerDuration);
         }
 
         private void Die()
