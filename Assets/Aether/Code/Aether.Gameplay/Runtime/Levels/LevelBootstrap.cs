@@ -200,6 +200,18 @@ namespace Aether.Gameplay.Levels
                 Level.Root.SetActive(false);
                 Destroy(Level.Root);
             }
+            else
+            {
+                // Build can throw before returning its BuiltLevel handle. Remove a partially
+                // assembled runtime root by its reserved name so those enemies cannot keep ticking.
+                for (int i = transform.childCount - 1; i >= 0; i--)
+                {
+                    Transform child = transform.GetChild(i);
+                    if (!child.name.StartsWith("Level_")) continue;
+                    child.gameObject.SetActive(false);
+                    Destroy(child.gameObject);
+                }
+            }
 
             Level = null;
             AchievementService.Detach();
