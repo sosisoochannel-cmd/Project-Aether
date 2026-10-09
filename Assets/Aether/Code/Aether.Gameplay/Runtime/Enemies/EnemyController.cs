@@ -710,7 +710,10 @@ namespace Aether.Gameplay.Enemies
 
             public void Exit(EnemyController c)
             {
-                if (c._motor.Body != null) c._motor.Body.gravityScale = 1f;
+                // EnemyMotor2D applies gravity manually for every state. Restoring Unity gravity
+                // here would apply gravity twice after an ambush drop and make its fall speed
+                // diverge from the authored telegraph and terminal-speed clamp.
+                if (c._motor.Body != null) c._motor.Body.gravityScale = 0f;
             }
         }
 
