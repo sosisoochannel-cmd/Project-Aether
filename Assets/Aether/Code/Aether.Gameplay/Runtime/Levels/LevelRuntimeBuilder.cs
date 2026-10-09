@@ -133,7 +133,11 @@ namespace Aether.Gameplay.Levels
                     terrain.transform, SortingTerrain, LevelPalette.For(rect.Kind));
 
                 var collider = go.AddComponent<BoxCollider2D>();
-                collider.size = rect.WorldSize(level.TileSize);
+                // CreateRectObject scales the transform to the rectangle's world size. BoxCollider2D
+                // dimensions are local-space, so assigning that same size here squares the scale
+                // (a 20-unit floor becomes 400 units wide). A unit local box gives the exact intended
+                // world-space dimensions for any tile size.
+                collider.size = Vector2.one;
                 collider.offset = Vector2.zero;
 
                 // The parent was assigned before these rectangles existed. Unity does not inherit
