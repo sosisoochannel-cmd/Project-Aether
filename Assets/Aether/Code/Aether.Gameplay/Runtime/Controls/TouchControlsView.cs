@@ -303,6 +303,10 @@ namespace Aether.Gameplay.Controls
             Touchscreen screen = Touchscreen.current;
             if (screen == null)
             {
+                // If the active touchscreen disappears, Unity may never deliver a release event.
+                // Clear every captured pointer and latch rather than leaving movement or an attack
+                // stuck until the next focus change.
+                ReleaseEverything();
                 if (_visible) SetVisible(false);
                 return;
             }
