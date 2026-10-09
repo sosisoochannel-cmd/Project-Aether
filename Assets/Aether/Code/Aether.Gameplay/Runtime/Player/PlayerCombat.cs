@@ -130,7 +130,15 @@ namespace Aether.Gameplay.Player
         public bool TryStartAttack()
         {
             PlayerController controller = ResolveController();
-            if (controller != null && !controller.Health.IsAlive) return false;
+            // Input gating is a gameplay invariant, not merely a UI concern. Other systems and
+            // buffered callbacks can call this method too, so never start an attack during hit-stun,
+            // death, a cutscene, or any other state that has withheld player control.
+            if (controller != null &&
+                (!controller.Health.IsAlive || !controller.InputEnabled))
+            {
+                return false;
+            }
+
             if (_firstAttack == null) return false;
 
             bool started = _runner.RequestAttack(_firstAttack);
