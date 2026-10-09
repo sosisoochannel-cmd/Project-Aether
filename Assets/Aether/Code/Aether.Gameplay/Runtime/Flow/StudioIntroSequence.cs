@@ -170,7 +170,7 @@ namespace Aether.Gameplay.Flow
         /// <para>
         /// The sequence, in seconds from the first frame of the scene: pure black 0.00-0.30, the mark
         /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, the primary light pass
-        /// 1.15-1.87, the reverse glint 2.37-2.75, and the fade to black beginning at 2.92. The
+        /// 1.15-1.97, the reverse glint 2.39-2.87, and the fade to black beginning at 2.97. The
         /// second glint sits inside the hold and the hand-over comes <see cref="HandOver"/> after the last of
         /// the logo has gone.
         /// </para>
@@ -335,7 +335,7 @@ namespace Aether.Gameplay.Flow
 
         /// <summary>
         /// The intro's clock: how much time one drawn frame adds, in seconds. Real time in every
-        /// build, so the ident takes about 3.57 seconds whatever the machine's frame rate is.
+        /// build, so the ident takes about 3.62 seconds whatever the machine's frame rate is.
         /// </summary>
         /// <remarks>
         /// The render test replaces this with a fixed step, because the clock an animation is
