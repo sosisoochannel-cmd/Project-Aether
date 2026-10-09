@@ -1078,7 +1078,7 @@ namespace Aether.Tests.PlayMode
             LogAssert.Expect(LogType.Error, expected);
 
             GameObject untunedPlayerHost = new GameObject("untuned-player");
-            untunedPlayerHost.AddComponent<PlayerController>();
+            untunedPlayerHost.AddComponent(typeof(PlayerController));
             yield return new WaitForFixedUpdate();
 
             Assert.That(untunedPlayerHost.GetComponent<PlayerMotor>().Body.linearVelocity, Is.EqualTo(Vector2.zero));
