@@ -107,6 +107,7 @@ namespace Aether.Gameplay.Enemies
         private float _stateTimer;
         private float _staggerRemaining;
         private bool _hasAlerted;
+        private bool _hasStarted;
 
         /// <summary>Raised after a state transition, with (previous, current).</summary>
         public event Action<EnemyStateId, EnemyStateId> StateChanged;
@@ -201,6 +202,7 @@ namespace Aether.Gameplay.Enemies
                 ? EnemyStateId.Ambush
                 : (PatrolDistance > 0.05f ? EnemyStateId.Patrol : EnemyStateId.Idle);
 
+            _hasStarted = true;
             _machine.Start(this, initial);
         }
 
@@ -256,7 +258,10 @@ namespace Aether.Gameplay.Enemies
                         : (PatrolDistance > 0.05f
                             ? EnemyStateId.Patrol
                             : EnemyStateId.Idle);
-                _machine.ChangeState(this, spawnState);
+                if (_machine.IsRunning)
+                    _machine.ChangeState(this, spawnState);
+                else if (_hasStarted)
+                    _machine.Start(this, spawnState);
             }
         }
 
