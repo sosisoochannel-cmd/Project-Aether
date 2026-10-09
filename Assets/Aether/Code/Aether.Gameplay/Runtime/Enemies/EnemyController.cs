@@ -247,21 +247,25 @@ namespace Aether.Gameplay.Enemies
             _hasAlerted = false;
             _staggerRemaining = 0f;
 
+            EnemyStateId spawnState =
+                _definition != null && _definition.Behaviour == EnemyBehaviour.AmbushDropper
+                    ? EnemyStateId.Ambush
+                    : (PatrolDistance > 0.05f
+                        ? EnemyStateId.Patrol
+                        : EnemyStateId.Idle);
+
             if (_machine.IsRunning)
             {
                 // Restore the archetype's authored opening behaviour. Resetting every enemy to
                 // Idle silently turns ambush enemies into ordinary enemies after the first death
                 // and also erases patrol routes until they happen to transition again.
-                EnemyStateId spawnState =
-                    _definition != null && _definition.Behaviour == EnemyBehaviour.AmbushDropper
-                        ? EnemyStateId.Ambush
-                        : (PatrolDistance > 0.05f
-                            ? EnemyStateId.Patrol
-                            : EnemyStateId.Idle);
-                if (_machine.IsRunning)
-                    _machine.ChangeState(this, spawnState);
-                else if (_hasStarted)
-                    _machine.Start(this, spawnState);
+                _machine.ChangeState(this, spawnState);
+            }
+            else if (_hasStarted)
+            {
+                // A pooled enemy is stopped by OnDisable. It has already run Start once, so it
+                // must explicitly restart its state machine when the pool returns it to service.
+                _machine.Start(this, spawnState);
             }
         }
 
