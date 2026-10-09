@@ -125,6 +125,13 @@ namespace Aether.Gameplay.Menus
         public static void Stretch(RectTransform rect, float left = 0f, float right = 0f,
                                    float top = 0f, float bottom = 0f)
         {
+            if (LanguageService.IsRightToLeft)
+            {
+                float swap = left;
+                left = right;
+                right = swap;
+            }
+
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.pivot = new Vector2(0.5f, 0.5f);
@@ -152,6 +159,13 @@ namespace Aether.Gameplay.Menus
         public static void Row(RectTransform rect, float top, float height, float left = 0f,
                                float right = 0f, Vector2? pivot = null)
         {
+            if (LanguageService.IsRightToLeft)
+            {
+                float swap = left;
+                left = right;
+                right = swap;
+            }
+
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = pivot ?? new Vector2(0.5f, 1f);
@@ -187,7 +201,7 @@ namespace Aether.Gameplay.Menus
             content = CreateNode("Content", viewport);
             content.anchorMin = new Vector2(0f, 1f);
             content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0f, 1f);
+            content.pivot = new Vector2(LanguageService.IsRightToLeft ? 1f : 0f, 1f);
             content.anchoredPosition = Vector2.zero;
             content.sizeDelta = Vector2.zero;
 
@@ -282,6 +296,13 @@ namespace Aether.Gameplay.Menus
         public static void Corner(RectTransform rect, Vector2 anchor, Vector2 offset, Vector2 size,
                                   Vector2 pivot)
         {
+            if (LanguageService.IsRightToLeft)
+            {
+                anchor.x = 1f - anchor.x;
+                offset.x = -offset.x;
+                pivot.x = 1f - pivot.x;
+            }
+
             rect.anchorMin = anchor;
             rect.anchorMax = anchor;
             rect.pivot = pivot;
@@ -292,6 +313,13 @@ namespace Aether.Gameplay.Menus
         /// <summary>Anchors a node to a column of the parent, as fractions of its width.</summary>
         public static void Column(RectTransform rect, float left, float right, float top, float height)
         {
+            if (LanguageService.IsRightToLeft)
+            {
+                float mirroredLeft = 1f - right;
+                right = 1f - left;
+                left = mirroredLeft;
+            }
+
             rect.anchorMin = new Vector2(left, 1f);
             rect.anchorMax = new Vector2(right, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
