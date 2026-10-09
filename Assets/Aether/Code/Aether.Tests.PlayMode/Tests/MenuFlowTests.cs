@@ -1327,6 +1327,11 @@ namespace Aether.Tests.PlayMode
 
                 Assert.AreEqual(1, spotted,
                     "The first alert must publish PlayerSpotted so discovery/achievement tracking can run.");
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Patrol),
+                    "A passive enemy must not enter the attack-only Alert state.");
+                beginAlert.Invoke(enemy, null);
+                Assert.AreEqual(1, spotted,
+                    "A passive enemy must publish its first-sighting event only once per spawn.");
             }
             finally
             {
