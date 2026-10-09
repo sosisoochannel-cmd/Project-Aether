@@ -155,6 +155,18 @@ def parse_level(path: str) -> Level:
             continue
 
         if stripped == "":
+            if section == "tiles":
+                next_index = index + 1
+                while next_index < len(raw) and raw[next_index].strip() == "":
+                    next_index += 1
+                next_is_section = (
+                    next_index < len(raw)
+                    and raw[next_index].strip().startswith("[")
+                    and raw[next_index].strip().endswith("]")
+                )
+                if next_index < len(raw) and not next_is_section:
+                    raise LevelParseError(path, line_no,
+                                          "tile row is empty; use tile characters for empty cells")
             continue
 
         if section == "tiles":
@@ -193,6 +205,9 @@ def parse_level(path: str) -> Level:
             if value not in KIND_MAP:
                 raise LevelParseError(path, line_no,
                                       f"unknown tile kind '{value}'; known kinds: {', '.join(sorted(KIND_MAP))}")
+            if key in legend:
+                raise LevelParseError(path, line_no,
+                                      f"legend symbol '{key}' is declared more than once")
             legend[key] = KIND_MAP[value]
             continue
 
@@ -200,7 +215,13 @@ def parse_level(path: str) -> Level:
             if "=" not in stripped:
                 raise LevelParseError(path, line_no, f"expected 'key = value', got '{stripped}'")
             key, _, value = stripped.partition("=")
-            meta[key.strip()] = value.strip()
+            key = key.strip()
+            value = value.strip()
+            if key not in META_ATTRIBUTES:
+                raise LevelParseError(path, line_no, f"unknown metadata key '{key}'")
+            if key in meta:
+                raise LevelParseError(path, line_no, f"metadata key '{key}' is declared more than once")
+            meta[key] = value
             continue
 
         if section == "entities":
@@ -257,6 +278,8 @@ ENTITY_KINDS = {
 ENTITY_ATTRIBUTES = {
     "id", "x", "y", "type", "kind", "flag", "note", "patrol", "respawn",
 }
+
+META_ATTRIBUTES = {"id", "display_name", "region", "tile_size"}
 
 
 def _parse_entity(path: str, line_no: int, text: str) -> LevelEntity:
