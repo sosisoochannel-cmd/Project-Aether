@@ -1037,6 +1037,11 @@ namespace Aether.Tests.PlayMode
                     Assert.That(colliders[i].gameObject.layer, Is.EqualTo(groundLayer),
                         "Every generated solid collider must be visible to the player's Ground-layer probe.");
                 }
+
+                Assert.That(colliders[0].bounds.size.x, Is.EqualTo(2f).Within(0.01f),
+                    "A merged two-tile floor must be two world units wide, not four or more.");
+                Assert.That(colliders[0].bounds.size.y, Is.EqualTo(2f).Within(0.01f),
+                    "A merged two-tile floor must be two world units tall, not scaled twice.");
             }
             finally
             {
