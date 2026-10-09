@@ -109,15 +109,25 @@ namespace Aether.Gameplay.Menus.Screens
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
             _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
                                          MenuTheme.Metrics.VersionTracking);
-            _version.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _version.rectTransform.anchorMax = new Vector2(1f, 0f);
-            _version.rectTransform.pivot = new Vector2(1f, 0f);
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            float footerEdge = rtl ? 0f : 1f;
+            _version.rectTransform.anchorMin = new Vector2(footerEdge, 0f);
+            _version.rectTransform.anchorMax = new Vector2(footerEdge, 0f);
+            _version.rectTransform.pivot = new Vector2(footerEdge, 0f);
             _version.rectTransform.anchoredPosition = new Vector2(0f, MenuTheme.Metrics.ScreenMarginBottom * 0.25f);
             _version.rectTransform.sizeDelta = new Vector2(600f, FooterHeight);
 
             _dialogNav = new MenuNav();
             _confirm = MenuConfirmPanel.Create("Confirm", Host.DialogRoot, _dialogNav);
             _confirm.Closed = OnDialogClosed;
+        }
+
+        private static void SetHorizontalSide(RectTransform rect, bool rightSide)
+        {
+            float edge = rightSide ? 1f : 0f;
+            rect.anchorMin = new Vector2(edge, rect.anchorMin.y);
+            rect.anchorMax = new Vector2(edge, rect.anchorMax.y);
+            rect.pivot = new Vector2(edge, rect.pivot.y);
         }
 
         private void AddDestination(MenuEntryPanel panel, MenuScreenId destination, string labelKey)
@@ -152,15 +162,20 @@ namespace Aether.Gameplay.Menus.Screens
             _explore.SetColumns(columns);
             _system.SetColumns(columns);
 
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+
             _play.Layout(leftWidth, box);
+            SetHorizontalSide(_play.Rect, rtl);
             _play.Rect.anchoredPosition = new Vector2(0f, -top);
 
             _explore.Layout(rightWidth, box);
-            _explore.Rect.anchoredPosition = new Vector2(width - rightWidth, -top);
+            SetHorizontalSide(_explore.Rect, !rtl);
+            _explore.Rect.anchoredPosition = new Vector2(0f, -top);
 
             float systemTop = top + _explore.Height + MenuTheme.Metrics.ClusterGap;
             _system.Layout(rightWidth, box);
-            _system.Rect.anchoredPosition = new Vector2(width - rightWidth, -systemTop);
+            SetHorizontalSide(_system.Rect, !rtl);
+            _system.Rect.anchoredPosition = new Vector2(0f, -systemTop);
 
             float bottom = Mathf.Max(top + _play.Height, systemTop + _system.Height);
             MenuUi.SetContentHeight(_content, bottom + MenuTheme.Metrics.ParagraphBlockPadding);
