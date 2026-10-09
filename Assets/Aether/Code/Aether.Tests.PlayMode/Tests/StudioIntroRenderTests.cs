@@ -158,10 +158,9 @@ namespace Aether.Tests.PlayMode
             var frames = new List<Frame>();
             try
             {
-                // The intro plays unless a player has turned it off; this run wants to watch it, so the
-                // preference is set to its documented default rather than left to whatever the machine
-                // happened to have saved. Nothing else about the intro is touched.
-                PlayerPrefs.SetInt(IntroPreferenceKey, 1);
+                // Regression guard: even an old saved "disabled" value must not suppress the ident.
+                // The startup logo and its glints are deterministic on every normal launch.
+                PlayerPrefs.SetInt(IntroPreferenceKey, 0);
                 PlayerPrefs.Save();
 
                 Note($"screen {Screen.width}x{Screen.height}, batch mode {Application.isBatchMode}, "
