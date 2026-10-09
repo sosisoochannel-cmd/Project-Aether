@@ -523,6 +523,22 @@ def controls() -> list[Control]:
                               "type=forest_stalker, x=47, y=20, patrl=4"),
             ["unknown attribute 'patrl'"]),
         Control(
+            "levelcheck: a blank row inside the tile map is rejected",
+            solver,
+            lambda root: edit(root, LEVEL, "[tiles]\n", "[tiles]\n\n"),
+            ["tile row is empty"]),
+        Control(
+            "levelcheck: a misspelled metadata key is rejected",
+            solver,
+            lambda root: edit(root, LEVEL, "display_name = The Greenway",
+                              "display_nam = The Greenway"),
+            ["unknown metadata key 'display_nam'"]),
+        Control(
+            "levelcheck: duplicate legend symbols are rejected",
+            solver,
+            lambda root: edit(root, LEVEL, "# = Ground\n", "# = Ground\n# = Empty\n"),
+            ["legend symbol '#' is declared more than once"]),
+        Control(
             "levelcheck: a tile character that is not in the legend",
             solver,
             lambda root: level_rows(root, [(20, 50, 1, "?")]),
