@@ -1102,6 +1102,40 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void PersianMenuRowsAndHeadersMirrorTheirReadingEdges()
+        {
+            string previousLanguage = LanguageService.Code;
+            var root = new GameObject("rtl-menu-layout-test");
+            try
+            {
+                LanguageService.Set("fa");
+                MenuHeader header = MenuHeader.Create(root.transform, MenuStrings.Get("menu.continue"), null);
+                Text title = header.transform.Find("Title").GetComponent<Text>();
+
+                Assert.That(title.rectTransform.anchorMin.x, Is.EqualTo(1f),
+                    "RTL screen titles must start at the right edge, not overflow off the left edge.");
+                Assert.That(title.alignment, Is.EqualTo(TextAnchor.MiddleRight));
+                Assert.That(header.Back.Rect.anchorMin.x, Is.EqualTo(0f),
+                    "The back hit target belongs on the left in an RTL header.");
+                Assert.That(header.Back.transform.Find("Caret").localScale.x, Is.EqualTo(1f),
+                    "The RTL back caret points right, opposite to an LTR back caret.");
+
+                MenuButton row = MenuButton.Create("RTLRow", root.transform,
+                    MenuStrings.Get("menu.continue"), MenuButton.Weight.Primary);
+                Assert.That(row.Label.rectTransform.anchorMin.x, Is.EqualTo(1f));
+                Assert.That(row.ControlArea.anchorMin.x, Is.EqualTo(0f),
+                    "The row's control area must mirror to the logical end of an RTL row.");
+                Assert.That(row.transform.Find("Caret").GetComponent<RectTransform>().anchorMin.x,
+                    Is.EqualTo(1f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+                LanguageService.Set(previousLanguage);
+            }
+        }
+
+        [Test]
         public void EventBus_PublishKeepsItsOriginalSubscriberSnapshotDuringMutation()
         {
             var bus = new EventBus();
