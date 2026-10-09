@@ -11,6 +11,7 @@ using Aether.Data.Levels;
 using Aether.Gameplay.Combat;
 using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
+using Aether.Gameplay.Interface;
 using Aether.Gameplay.Controls;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Localization;
