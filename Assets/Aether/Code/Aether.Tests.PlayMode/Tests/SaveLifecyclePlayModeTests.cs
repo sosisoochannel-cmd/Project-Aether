@@ -101,6 +101,32 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void DisablingAutosaveStopsAutomaticWritesButSaveNowStillPersists()
+        {
+            GameSession session = SaveHost.BeginNewGameIn(1, ChapterCatalog.First.Id);
+            Assert.IsNotNull(session);
+            Assert.IsTrue(session.SetWorldFlag("test.lifecycle.before-autosave-off"));
+            Assert.IsTrue(SaveHost.SaveNow());
+
+            AetherSettings.Ensure().Values.Gameplay.Autosave = false;
+            SaveHost.ApplySettings();
+            Assert.IsFalse(SaveSlots.For(1).AutomaticWrites);
+            Assert.IsFalse(SaveSlots.For(2).AutomaticWrites);
+            Assert.IsFalse(SaveSlots.For(3).AutomaticWrites);
+
+            Assert.IsTrue(session.SetWorldFlag("test.lifecycle.automatic-write-disabled"));
+            Assert.IsTrue(SaveSlots.For(1).TryLoad(out SaveData beforeExplicitSave));
+            Assert.IsFalse(beforeExplicitSave.World.IsSet("test.lifecycle.automatic-write-disabled"),
+                "Turning autosave off still wrote a gameplay change to disk.");
+
+            Assert.IsTrue(SaveHost.SaveNow(),
+                "The explicit Save Now command should work even when autosave is disabled.");
+            Assert.IsTrue(SaveSlots.For(1).TryLoad(out SaveData afterExplicitSave));
+            Assert.IsTrue(afterExplicitSave.World.IsSet("test.lifecycle.automatic-write-disabled"),
+                "The explicit save did not persist the latest snapshot.");
+        }
+
+        [Test]
         public void DeletingActiveSlotThenPausingDoesNotRecreateItsSave()
         {
             GameSession session = SaveHost.BeginNewGameIn(1, ChapterCatalog.First.Id);
