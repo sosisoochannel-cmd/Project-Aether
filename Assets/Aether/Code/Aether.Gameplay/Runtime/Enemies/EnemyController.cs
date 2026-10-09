@@ -242,7 +242,16 @@ namespace Aether.Gameplay.Enemies
 
             if (_machine.IsRunning)
             {
-                _machine.ChangeState(this, EnemyStateId.Idle);
+                // Restore the archetype's authored opening behaviour. Resetting every enemy to
+                // Idle silently turns ambush enemies into ordinary enemies after the first death
+                // and also erases patrol routes until they happen to transition again.
+                EnemyStateId spawnState =
+                    _definition != null && _definition.Behaviour == EnemyBehaviour.AmbushDropper
+                        ? EnemyStateId.Ambush
+                        : (_definition != null && _definition.Patrols
+                            ? EnemyStateId.Patrol
+                            : EnemyStateId.Idle);
+                _machine.ChangeState(this, spawnState);
             }
         }
 
