@@ -27,6 +27,7 @@ using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Settings;
 using Aether.Gameplay.Storage;
 using Aether.Gameplay.Sound;
+using Aether.Gameplay.Support;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -1079,6 +1080,33 @@ namespace Aether.Tests.PlayMode
             }
 
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator DiagnosticsCapturesManualFindingInExportedReport()
+        {
+            AetherDiagnostics diagnostics = UnityEngine.Object.FindFirstObjectByType<AetherDiagnostics>();
+            GameObject createdHost = null;
+            if (diagnostics == null)
+            {
+                createdHost = new GameObject("diagnostics-regression-test");
+                diagnostics = createdHost.AddComponent<AetherDiagnostics>();
+            }
+
+            try
+            {
+                AetherDiagnostics.RecordFinding("REGRESSION_TEST", "diagnostic-capture-probe");
+                yield return null;
+
+                string report = diagnostics.ExportReport();
+                StringAssert.Contains("Varellon / Project Aether diagnostics", report);
+                StringAssert.Contains("diagnostic-capture-probe", report,
+                    "A captured finding must appear in the report that can be shared for debugging.");
+            }
+            finally
+            {
+                if (createdHost != null) UnityEngine.Object.DestroyImmediate(createdHost);
+            }
         }
 
         [UnityTest]
