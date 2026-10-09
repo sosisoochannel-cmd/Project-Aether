@@ -18,7 +18,7 @@ namespace Aether.Gameplay.Levels
     /// after the level shifts under them, and it makes "no softlock" impossible to guarantee.
     /// </para>
     /// </remarks>
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class CheckpointTrigger : MonoBehaviour
     {
         private LevelEntity _entity;
