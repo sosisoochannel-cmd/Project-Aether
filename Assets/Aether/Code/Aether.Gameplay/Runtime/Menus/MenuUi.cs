@@ -103,7 +103,8 @@ namespace Aether.Gameplay.Menus
         /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
         public static string Track(string content, float spacing)
         {
-            if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft) return content;
+            if (string.IsNullOrEmpty(content) || spacing <= 0 ||
+                LanguageService.IsRightToLeft || LanguageService.Code != "en") return content;
 
             // Hair spaces create legal line-break opportunities in Unity's legacy Text renderer.
             // Applying them to a phrase can split a button label into fragments (for example,
