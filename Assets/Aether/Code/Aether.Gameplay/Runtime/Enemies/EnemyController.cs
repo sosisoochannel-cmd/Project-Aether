@@ -143,10 +143,10 @@ namespace Aether.Gameplay.Enemies
             _targetLayers = targetLayers;
         }
 
-        /// <summary>Sets this placement's patrol half-width in world units. Zero means hold position.</summary>
+        /// <summary>Sets this placement's patrol half-width. Negative inherits the archetype; zero holds position.</summary>
         public void ConfigurePatrol(float patrolDistance)
         {
-            _patrolDistanceOverride = Mathf.Max(0f, patrolDistance);
+            _patrolDistanceOverride = patrolDistance < 0f ? -1f : Mathf.Max(0f, patrolDistance);
         }
 
         /// <summary>Half-width of this enemy's patrol, in world units.</summary>

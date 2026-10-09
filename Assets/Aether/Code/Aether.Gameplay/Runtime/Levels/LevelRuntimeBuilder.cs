@@ -251,7 +251,8 @@ namespace Aether.Gameplay.Levels
             }
 
             EnemyController controller = EnemyFactory.Create(
-                definition, feet, parent, entity.PatrolTiles * built.Data.TileSize);
+                definition, feet, parent,
+                entity.PatrolTiles < 0 ? -1f : entity.PatrolTiles * built.Data.TileSize);
             built.Enemies.Add(new BuiltLevel.EnemySpawn(controller, entity, feet));
         }
 

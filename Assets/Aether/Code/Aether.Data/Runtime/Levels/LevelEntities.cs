@@ -67,7 +67,8 @@ namespace Aether.Data.Levels
         public string TypeId { get; internal set; }
 
         /// <summary>Half-width of an enemy's patrol, in tiles. Zero means the enemy holds position.</summary>
-        public int PatrolTiles { get; internal set; }
+        /// <summary>Half-width in tiles; -1 inherits the archetype default, zero holds position.</summary>
+        public int PatrolTiles { get; internal set; } = -1;
 
         /// <summary>Exact respawn tile for a checkpoint, so the respawn can hug the ground.</summary>
         public Vector2Int RespawnPosition { get; internal set; }

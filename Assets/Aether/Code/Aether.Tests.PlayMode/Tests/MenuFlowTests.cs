@@ -1313,6 +1313,34 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelParser_DistinguishesOmittedPatrolFromExplicitZero()
+        {
+            const string levelText =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = patrol-default-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "##\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n" +
+                "enemy = id=enemy.default, type=forest_stalker, x=1, y=0\n" +
+                "enemy = id=enemy.stationary, type=forest_stalker, x=1, y=0, patrol=0\n";
+
+            LevelData parsed = LevelParser.Parse(levelText, "patrol-default-test");
+            LevelEntity inherited = parsed.Entities.Find(entity => entity.Id == "enemy.default");
+            LevelEntity stationary = parsed.Entities.Find(entity => entity.Id == "enemy.stationary");
+
+            Assert.That(inherited, Is.Not.Null);
+            Assert.That(inherited.PatrolTiles, Is.EqualTo(-1),
+                "Omitting patrol must preserve the archetype's authored default.");
+            Assert.That(stationary, Is.Not.Null);
+            Assert.That(stationary.PatrolTiles, Is.Zero,
+                "Explicit patrol=0 must make this placement hold position.");
+        }
+
+        [Test]
         public void LevelParser_RejectsUnknownEntityAttributesInsteadOfSilentlyIgnoringTypos()
         {
             const string malformed =

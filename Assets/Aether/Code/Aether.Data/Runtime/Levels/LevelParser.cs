@@ -296,7 +296,7 @@ namespace Aether.Data.Levels
             {
                 if (!int.TryParse(patrolText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int patrol) || patrol < 0)
                 {
-                    throw new LevelParseException(source, line, $"enemy '{id}' patrol '{patrolText}' is not a positive integer");
+                    throw new LevelParseException(source, line, $"enemy '{id}' patrol '{patrolText}' must be a non-negative integer");
                 }
                 entity.PatrolTiles = patrol;
             }
