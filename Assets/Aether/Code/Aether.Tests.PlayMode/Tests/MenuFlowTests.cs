@@ -1020,7 +1020,10 @@ namespace Aether.Tests.PlayMode
                 "[tiles]\n" +
                 "##\n" +
                 "##\n" +
-                "[entities]\n";
+                "[entities]\n" +
+                "checkpoint = id=checkpoint.test, x=0, y=0, respawn=0:0\n" +
+                "discovery = id=discovery.test, x=1, y=0, flag=secret.test, kind=secret\n" +
+                "exit = id=exit.test, x=1, y=1\n";
 
             var parent = new GameObject("terrain-layer-test-root");
             try
@@ -1042,6 +1045,20 @@ namespace Aether.Tests.PlayMode
                     "A merged two-tile floor must be two world units wide, not four or more.");
                 Assert.That(colliders[0].bounds.size.y, Is.EqualTo(2f).Within(0.01f),
                     "A merged two-tile floor must be two world units tall, not scaled twice.");
+
+                BoxCollider2D checkpointCollider = built.Root.transform
+                    .Find("Entities/Checkpoint_checkpoint.test").GetComponent<BoxCollider2D>();
+                BoxCollider2D discoveryCollider = built.Root.transform
+                    .Find("Entities/Discovery_discovery.test").GetComponent<BoxCollider2D>();
+                BoxCollider2D exitCollider = built.Root.transform
+                    .Find("Entities/Exit_exit.test").GetComponent<BoxCollider2D>();
+
+                Assert.That(checkpointCollider.bounds.size.x, Is.EqualTo(1.2f).Within(0.01f));
+                Assert.That(checkpointCollider.bounds.size.y, Is.EqualTo(1.8f).Within(0.01f));
+                Assert.That(discoveryCollider.bounds.size.x, Is.EqualTo(1.4f).Within(0.01f));
+                Assert.That(discoveryCollider.bounds.size.y, Is.EqualTo(1.6f).Within(0.01f));
+                Assert.That(exitCollider.bounds.size.x, Is.EqualTo(1.6f).Within(0.01f));
+                Assert.That(exitCollider.bounds.size.y, Is.EqualTo(3.2f).Within(0.01f));
             }
             finally
             {
