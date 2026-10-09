@@ -26,7 +26,7 @@ namespace Aether.Gameplay.Player
     /// </para>
     /// </remarks>
     [RequireComponent(typeof(Rigidbody2D))]
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class PlayerMotor : MonoBehaviour
     {
         [Header("Grounding")]
