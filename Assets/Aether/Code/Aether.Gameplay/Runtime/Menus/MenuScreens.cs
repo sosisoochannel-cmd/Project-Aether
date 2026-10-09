@@ -37,6 +37,9 @@ namespace Aether.Gameplay.Menus
 
         /// <summary>Where a new run is put, and what each stored run contains.</summary>
         SaveSlots = 7,
+
+        /// <summary>Less-frequent destinations, kept one level below the main menu.</summary>
+        Explore = 8,
     }
 
     /// <summary>
@@ -67,6 +70,8 @@ namespace Aether.Gameplay.Menus
                     return MenuScreen.Create<AchievementsScreen>(id, parent, host);
                 case MenuScreenId.SaveSlots:
                     return MenuScreen.Create<SaveSlotScreen>(id, parent, host);
+                case MenuScreenId.Explore:
+                    return MenuScreen.Create<ExploreScreen>(id, parent, host);
                 default:
                     return MenuScreen.Create<MainMenuScreen>(id, parent, host);
             }
@@ -84,6 +89,7 @@ namespace Aether.Gameplay.Menus
                 case MenuScreenId.Collection: return "menu.collection";
                 case MenuScreenId.Achievements: return "menu.achievements";
                 case MenuScreenId.SaveSlots: return "slots.title";
+                case MenuScreenId.Explore: return "menu.exploreSection";
                 default: return "menu.title";
             }
         }
