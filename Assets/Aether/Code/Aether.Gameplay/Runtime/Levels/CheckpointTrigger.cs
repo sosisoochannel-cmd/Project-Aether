@@ -60,6 +60,14 @@ namespace Aether.Gameplay.Levels
             ActivatedChanged?.Invoke(true);
         }
 
+        /// <summary>Restores the active marker from saved world state without writing a new save event.</summary>
+        public void RestoreActivated()
+        {
+            if (Activated) return;
+            Activated = true;
+            ActivatedChanged?.Invoke(true);
+        }
+
         /// <summary>
         /// Re-arms the trigger, used when returning to the level. Whether it *does* anything is
         /// decided by the session: activating an already-active checkpoint publishes the event again,
