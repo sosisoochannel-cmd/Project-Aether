@@ -12,6 +12,7 @@ using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Menus.Screens;
 using Aether.Gameplay.Presentation;
+using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Settings;
