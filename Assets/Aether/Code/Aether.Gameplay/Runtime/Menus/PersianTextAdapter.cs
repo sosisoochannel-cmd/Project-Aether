@@ -165,7 +165,7 @@ namespace Aether.Gameplay.Menus
                 {
                     string word = words[wordIndex];
                     if (ContainsRtl(word))
-                        output.Append(ArabicFixer.Fix(word, false, true));
+                        output.Append(ArabicFixer.Fix(word, false, false));
                     else
                         output.Append(word);
 
@@ -182,11 +182,14 @@ namespace Aether.Gameplay.Menus
             for (int i = 0; i < value.Length; i++)
             {
                 char c = value[i];
-                if ((c >= '\u0600' && c <= '\u06FF') ||
-                    (c >= '\u0750' && c <= '\u077F') ||
-                    (c >= '\u08A0' && c <= '\u08FF') ||
-                    (c >= '\uFB50' && c <= '\uFDFF') ||
-                    (c >= '\uFE70' && c <= '\uFEFF'))
+                // Arabic/Persian digits are RTL-script code points, but numbers themselves must
+                // stay left-to-right and must not make a digits-only string enter the shaper.
+                if (char.IsLetter(c) &&
+                    ((c >= '\u0600' && c <= '\u06FF') ||
+                     (c >= '\u0750' && c <= '\u077F') ||
+                     (c >= '\u08A0' && c <= '\u08FF') ||
+                     (c >= '\uFB50' && c <= '\uFDFF') ||
+                     (c >= '\uFE70' && c <= '\uFEFF')))
                     return true;
             }
 
