@@ -36,8 +36,9 @@ permissions:
 
 concurrency:
   group: intro-render-${{ github.ref }}
-  # Only the newest branch head matters during rapid test-fix iterations.
-  cancel-in-progress: true
+  # Let one verification finish; newer commits replace the pending run instead of cancelling
+  # the active static suite halfway through its 98 regression controls.
+  cancel-in-progress: false
 
 jobs:
   render:
