@@ -97,13 +97,14 @@ namespace Aether.Gameplay.Levels
 
                 LevelContent content = LevelContent.Load();
                 LevelData data = LoadLevelData();
-                if (data == null || content.PlayerTuning == null)
+                if (data == null || content.PlayerTuning == null || content.PlayerFirstAttack == null)
                 {
-                    // Nothing to play, and saying so is the whole job now. The curtain becomes the
-                    // failure screen with a real way back to the menu on it.
+                    // The tuning and opening attack are both required for a functional player.
+                    // Booting without the attack asset would produce a level that looks playable but
+                    // silently refuses every attack input.
                     FailBoot(
-                        "The region could not start: the level data or the content catalogue did not " +
-                        "load. There is no playable level in this build configuration.");
+                        "The region could not start: the level data or required player content did not " +
+                        "load. Restore the missing content asset before trying again.");
                     return;
                 }
 
