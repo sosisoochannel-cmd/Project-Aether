@@ -1114,10 +1114,18 @@ namespace Aether.Tests.PlayMode
                 Assert.That(playerController.State, Is.EqualTo(PlayerStateId.Hurt));
                 Assert.That(combat.IsAttacking, Is.False,
                     "Taking a hit must cancel the active attack so the player cannot attack through hit-stun.");
+                Assert.That(playerController.InputEnabled, Is.False,
+                    "Hit-stun must withhold player input, not just cancel the current attack.");
+
+                yield return new WaitForSeconds(0.30f);
+                Assert.That(playerController.State, Is.Not.EqualTo(PlayerStateId.Hurt),
+                    "The authored hurt lockout should end and return control.");
+                Assert.That(playerController.InputEnabled, Is.True,
+                    "Player input must return after non-lethal hit recovery.");
 
                 playerController.Health.ResetToFull();
                 playerController.Health.ClearInvulnerability();
-                Assert.That(combat.TryStartAttack(), Is.True, "The attack should be startable after recovery setup.");
+                Assert.That(combat.TryStartAttack(), Is.True, "The attack should be startable after recovery.");
                 Assert.That(combat.IsAttacking, Is.True);
 
                 playerController.Health.ForceDeath();
