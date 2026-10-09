@@ -1,3 +1,4 @@
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -78,6 +79,7 @@ namespace Aether.Gameplay.Menus
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
             text.supportRichText = false;
+            host.AddComponent<PersianTextAdapter>();
             return text;
         }
 
@@ -101,7 +103,7 @@ namespace Aether.Gameplay.Menus
         /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
         public static string Track(string content, float spacing)
         {
-            if (string.IsNullOrEmpty(content) || spacing <= 0) return content;
+            if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft) return content;
 
             int gap = Mathf.RoundToInt(spacing);
             if (gap <= 0) return content;
