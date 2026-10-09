@@ -1113,7 +1113,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator PlayerCombatIsCancelledWhenHurtOrKilled()
         {
             PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
-            AttackDefinition attack = Resources.Load<AttackDefinition>("Content/PlayerFirstAttack");
+            AttackDefinition attack = Resources.Load<AttackDefinition>("Content/Attack.Strike");
             Assert.That(tuning, Is.Not.Null, "The player tuning asset must be available.");
             Assert.That(attack, Is.Not.Null, "The first attack asset must be available.");
 
