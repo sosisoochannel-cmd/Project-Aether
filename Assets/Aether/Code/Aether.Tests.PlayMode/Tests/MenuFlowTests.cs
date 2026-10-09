@@ -1174,6 +1174,16 @@ namespace Aether.Tests.PlayMode
                 Assert.That(targetField, Is.Not.Null);
                 Assert.That(targetField.GetValue(enemy), Is.SameAs(player.transform),
                     "Every enemy must receive the actual player target; otherwise perception and combat never start.");
+
+                enemy.Motor.FacingSign = -1;
+                typeof(EnemyController).GetField("_stateTimer", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(enemy, 4f);
+                enemy.ResetForSpawn(Vector2.zero);
+                Assert.That(enemy.Motor.FacingSign, Is.EqualTo(1),
+                    "An enemy retry must restore the same authored starting direction.");
+                Assert.That(typeof(EnemyController).GetField("_stateTimer",
+                    BindingFlags.Instance | BindingFlags.NonPublic).GetValue(enemy), Is.EqualTo(0f),
+                    "A respawned ambusher must not inherit an expired telegraph timer.");
             }
             finally
             {

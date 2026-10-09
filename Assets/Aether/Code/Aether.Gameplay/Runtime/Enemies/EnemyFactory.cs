@@ -30,7 +30,7 @@ namespace Aether.Gameplay.Enemies
 
         /// <summary>Creates an enemy standing at <paramref name="feet"/>.</summary>
         public static EnemyController Create(EnemyDefinition definition, Vector2 feet, Transform parent,
-                                             int patrolTiles)
+                                             float patrolDistance)
         {
             Color colour = LevelPalette.EnemyIdle;
             var host = new GameObject($"Enemy_{definition.TypeId}");
@@ -67,7 +67,7 @@ namespace Aether.Gameplay.Enemies
 
             motor.ConfigureSolidLayers(GameplayLayers.Ground);
             controller.ConfigureLayers(GameplayLayers.Ground, GameplayLayers.Player);
-            controller.ConfigurePatrol(patrolTiles);
+            controller.ConfigurePatrol(patrolDistance);
 
             host.SetActive(true);
 

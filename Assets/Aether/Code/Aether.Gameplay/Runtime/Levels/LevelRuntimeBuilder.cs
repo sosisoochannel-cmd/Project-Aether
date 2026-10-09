@@ -248,7 +248,8 @@ namespace Aether.Gameplay.Levels
                     $"({entity.Position.x},{entity.Position.y}), but no matching archetype exists.");
             }
 
-            EnemyController controller = EnemyFactory.Create(definition, feet, parent, entity.PatrolTiles);
+            EnemyController controller = EnemyFactory.Create(
+                definition, feet, parent, entity.PatrolTiles * built.Data.TileSize);
             built.Enemies.Add(new BuiltLevel.EnemySpawn(controller, entity, feet));
         }
 

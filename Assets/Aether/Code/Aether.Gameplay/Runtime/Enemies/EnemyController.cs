@@ -143,9 +143,9 @@ namespace Aether.Gameplay.Enemies
         }
 
         /// <summary>Narrows or widens this instance's patrol. Zero or less keeps the archetype's.</summary>
-        public void ConfigurePatrol(int patrolTiles)
+        public void ConfigurePatrol(float patrolDistance)
         {
-            if (patrolTiles > 0) _patrolDistanceOverride = patrolTiles;
+            if (patrolDistance > 0f) _patrolDistanceOverride = patrolDistance;
         }
 
         /// <summary>Half-width of this enemy's patrol, in world units.</summary>
@@ -235,8 +235,14 @@ namespace Aether.Gameplay.Enemies
             if (_motor.Body != null) _motor.Body.linearVelocity = Vector2.zero;
             _motor.SnapToGround();
 
+            // Every retry must be the same authored encounter, not the direction the enemy happened
+            // to face when it died. Reset the state timer even when ChangeState below is a no-op
+            // because the machine is already in its opening state (notably Ambush).
+            _motor.FacingSign = 1;
             _postPosition = _motor.Position;
-            _patrolTargetX = _postPosition.x;
+            _stateTimer = 0f;
+            _patrolTargetX = _postPosition.x
+                + (_definition != null && _definition.Patrols ? _motor.FacingSign * PatrolDistance : 0f);
             _hasAlerted = false;
             _staggerRemaining = 0f;
 
@@ -306,20 +312,24 @@ namespace Aether.Gameplay.Enemies
             Vector2 center = self + new Vector2(_motor.FacingSign * (_definition.DetectionRange * 0.5f), 0f);
             var size = new Vector2(_definition.DetectionRange, _definition.DetectionHeight * 2f);
 
-            if (_sightBlockingLayers.value != 0)
-            {
-                // A wall between the two means no sight, even if the box overlaps.
-                RaycastHit2D blocked = Physics2D.Linecast(self, target, _sightBlockingLayers);
-                if (blocked.collider != null) return false;
-            }
+            // A wall between the two means no sight, even if the detection box overlaps.
+            if (!HasClearLineToPlayer()) return false;
 
             return Physics2D.OverlapBox(center, size, 0f, _targetLayers) != null;
+        }
+
+        private bool HasClearLineToPlayer()
+        {
+            if (_player == null) return false;
+            if (_sightBlockingLayers.value == 0) return true;
+
+            return Physics2D.Linecast(_motor.Position, _player.position, _sightBlockingLayers).collider == null;
         }
 
         /// <summary>True when the player is close enough to be worth attacking.</summary>
         private bool InAttackRange()
         {
-            if (_player == null || _definition == null) return false;
+            if (_player == null || _definition == null || !HasClearLineToPlayer()) return false;
 
             Vector2 delta = (Vector2)_player.position - _motor.Position;
             if (Mathf.Abs(delta.y) > _definition.DetectionHeight) return false;
@@ -374,6 +384,15 @@ namespace Aether.Gameplay.Enemies
             {
                 _motor.Move(0f, deltaTime);
                 _motor.FacingSign = -_motor.FacingSign;
+
+                // Patrol bounds are authored around the post. If a wall or ledge arrives before
+                // the target, turn the route around too; otherwise the target remains behind the
+                // obstacle and the patrol state flips toward it forever without moving.
+                if (_machine.IsRunning && _machine.Current == EnemyStateId.Patrol)
+                {
+                    _patrolTargetX = _postPosition.x + (_motor.FacingSign * PatrolDistance);
+                    _stateTimer = 0f;
+                }
                 return;
             }
 
@@ -542,6 +561,15 @@ namespace Aether.Gameplay.Enemies
 
                 float direction = c.DirectionToPlayer();
                 c.FacePlayerOrDirection(direction);
+
+                // Ground enemies have no jump/pathfinding ability. If a ledge or wall blocks their
+                // direct route, abandon the chase instead of oscillating at the obstacle forever.
+                if (c._motor.IsGrounded && (c._motor.IsLedgeAhead() || c._motor.IsWallAhead()))
+                {
+                    c._motor.Move(0f, dt);
+                    c._machine.ChangeState(c, EnemyStateId.Idle);
+                    return;
+                }
 
                 if (c.InAttackRange())
                 {
