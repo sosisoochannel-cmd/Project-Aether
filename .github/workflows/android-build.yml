@@ -222,6 +222,18 @@ jobs:
           restore-keys: |
             Library-Android-
 
+      - name: Stage the bundled Persian and Arabic font
+        run: |
+          set -euo pipefail
+          mkdir -p Assets/Aether/Resources/Fonts
+          # Noto Sans Arabic includes Persian letters (پ چ ژ گ ک ی) and Arabic glyphs.
+          # Stage it before Unity starts so the normal asset importer includes it in Resources.
+          font_url="https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth,wght%5D.ttf"
+          curl --fail --location --silent --show-error --retry 3 "$font_url" \
+            --output Assets/Aether/Resources/Fonts/NotoSansArabic.ttf
+          test "$(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic.ttf)" -gt 100000
+          echo "Staged Noto Sans Arabic font ($(wc -c < Assets/Aether/Resources/Fonts/NotoSansArabic.ttf) bytes)."
+
       - name: Install the GameCI CLI
         id: cli
         env:
