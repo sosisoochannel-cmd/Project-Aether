@@ -352,6 +352,41 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void MenuButtonLabelsPreserveWordBoundariesAcrossLanguages()
+        {
+            var parent = new GameObject("LabelBoundaryTest", typeof(RectTransform));
+            try
+            {
+                MenuButton row = MenuButton.Create("LabelBoundaryRow", parent.transform,
+                                                  "NEW GAME", MenuButton.Weight.Primary);
+                string[] labels =
+                {
+                    "NEW GAME",
+                    "NUEVA PARTIDA",
+                    "NOUVELLE PARTIE",
+                    "NEUES SPIEL",
+                    "NOVO JOGO",
+                    "НОВАЯ ИГРА",
+                    "YENİ OYUN",
+                    "بازی جدید",
+                    "دستاوردها",
+                    "ACHIEVEMENTS"
+                };
+
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    row.SetLabel(labels[i]);
+                    Assert.AreEqual(labels[i], row.Label.text,
+                        "A menu button changed or split the source label: " + labels[i]);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
         [UnityTest]
         public IEnumerator The_main_menu_locks_continue_when_there_is_nothing_to_continue()
         {
