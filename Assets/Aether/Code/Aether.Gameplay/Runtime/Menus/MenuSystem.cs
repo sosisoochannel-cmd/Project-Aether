@@ -315,10 +315,16 @@ namespace Aether.Gameplay.Menus
             if (nav != null) nav.Submit();
         }
 
-        /// <summary>Hands over to the region. One line, because the order of operations lives in one place.</summary>
+        /// <summary>Hands over to the default region.</summary>
         public bool PlayRegion()
         {
             return MenuFlow.PlayRegion();
+        }
+
+        /// <summary>Hands over to a selected chapter's level, keeping launch policy in MenuFlow.</summary>
+        public bool PlayRegion(string levelPath)
+        {
+            return MenuFlow.PlayRegion(levelPath);
         }
 
         private void OnMoveRequested(MenuNav.Move move)
