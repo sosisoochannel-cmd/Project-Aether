@@ -1,0 +1,81 @@
+using System;
+using System.IO;
+using Aether.Core.Progression;
+using Aether.Gameplay.Storage;
+using NUnit.Framework;
+
+namespace Aether.Tests.PlayMode
+{
+    /// <summary>Regression tests for the recovery path used by real on-device save files.</summary>
+    public sealed class SaveRecoveryPlayModeTests
+    {
+        private string _folder;
+        private string _root;
+        private SaveSlotStore _store;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _folder = "Aether-Recovery-Test-" + Guid.NewGuid().ToString("N");
+            _store = new SaveSlotStore(1, _folder);
+            _root = Path.GetDirectoryName(_store.Location);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (Directory.Exists(_root)) Directory.Delete(_root, true);
+        }
+
+        [Test]
+        public void SaveSlotStore_RecoversReadableBackupWhenPrimaryIsCorrupt()
+        {
+            var snapshot = new SaveData();
+            snapshot.World.Set("test.recovery.backup-progress");
+            Assert.That(_store.Save(snapshot, true), Is.True);
+
+            string primary = File.ReadAllText(_store.Location);
+            File.WriteAllText(_store.Location + ".bak", primary);
+            File.WriteAllText(_store.Location, "{ interrupted write");
+
+            Assert.That(_store.TryLoad(out SaveData recovered), Is.True,
+                "A damaged primary must not hide a readable recovery copy.");
+            Assert.That(recovered.World.IsSet("test.recovery.backup-progress"), Is.True);
+            Assert.That(_store.Describe().Playable, Is.True,
+                "The save-slot menu must see a recoverable backup as playable progress.");
+        }
+
+        [Test]
+        public void SaveSlotStore_PrefersValidPrimaryOverOlderBackup()
+        {
+            var snapshot = new SaveData();
+            snapshot.World.Set("test.recovery.old-progress");
+            Assert.That(_store.Save(snapshot, true), Is.True);
+            string oldDocument = File.ReadAllText(_store.Location);
+
+            snapshot.World.Set("test.recovery.new-progress");
+            Assert.That(_store.Save(snapshot, true), Is.True);
+            File.WriteAllText(_store.Location + ".bak", oldDocument);
+
+            Assert.That(_store.TryLoad(out SaveData loaded), Is.True);
+            Assert.That(loaded.World.IsSet("test.recovery.new-progress"), Is.True,
+                "A stale recovery copy must never override a valid primary save.");
+            Assert.That(loaded.World.IsSet("test.recovery.old-progress"), Is.False);
+        }
+
+        [Test]
+        public void SaveSlotStore_ClearRemovesPrimaryBackupAndInterruptedTemporaryFile()
+        {
+            var snapshot = new SaveData();
+            Assert.That(_store.Save(snapshot, true), Is.True);
+            File.WriteAllText(_store.Location + ".bak", "stale backup");
+            File.WriteAllText(_store.Location + ".tmp", "interrupted write");
+
+            Assert.That(_store.Clear(), Is.True);
+            Assert.That(File.Exists(_store.Location), Is.False);
+            Assert.That(File.Exists(_store.Location + ".bak"), Is.False);
+            Assert.That(File.Exists(_store.Location + ".tmp"), Is.False);
+            Assert.That(_store.HasStoredProgress, Is.False);
+        }
+    }
+}
