@@ -74,6 +74,15 @@ def edit(root: str, rel: str, old: str, new: str):
     return [(path, original)]
 
 
+def append_line(root: str, rel: str, line: str):
+    """Append one line to a file, returning the undo action."""
+    path = os.path.join(root, rel)
+    original = open(path, encoding="utf-8").read()
+    separator = "" if not original or original.endswith("\n") else "\n"
+    open(path, "w", encoding="utf-8").write(original + separator + line.rstrip("\n") + "\n")
+    return [(path, original)]
+
+
 def retune(root: str, rel: str, name: str, value: str):
     """Set a C# float constant by name, whatever it currently holds.
 
@@ -945,9 +954,8 @@ def controls() -> list[Control]:
         Control(
             "localization: a sheet invents a key English does not have",
             strings,
-            lambda root: edit(root, "tools/localization/strings_es.txt",
-                              "menu.title=AETHER",
-                              "menu.title=AETHER\nmenu.titulo=PROYECTO AETHER"),
+            lambda root: append_line(root, "tools/localization/strings_es.txt",
+                                     "menu.titulo=PROYECTO AETHER"),
             ["key(s) that English does not have"]),
         Control(
             "localization: a sheet is left incomplete",
