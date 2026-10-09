@@ -107,7 +107,7 @@ namespace Aether.Data.Levels
         public Vector2Int CellAt(Vector2 world)
         {
             int col = Mathf.FloorToInt(world.x / TileSize);
-            int row = Mathf.FloorToInt((Height * TileSize) - world.y);
+            int row = Mathf.FloorToInt(((Height * TileSize) - world.y) / TileSize);
             return new Vector2Int(col, row);
         }
 
