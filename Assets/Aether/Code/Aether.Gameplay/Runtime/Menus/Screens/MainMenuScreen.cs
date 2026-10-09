@@ -143,8 +143,8 @@ namespace Aether.Gameplay.Menus.Screens
 
             // On narrower landscape windows the primary and secondary clusters stack instead of
             // competing for horizontal space. This is especially important for long RTL and
-            // translated labels. Keep the secondary list vertical: each row
-            // remains a comfortable touch target across translations and interface scales.
+            // translated labels. Keep the secondary list vertical: each row remains a comfortable
+            // touch target across translations and interface scales.
             _explore.SetColumns(1);
 
             _play.Layout(leftWidth, box);
