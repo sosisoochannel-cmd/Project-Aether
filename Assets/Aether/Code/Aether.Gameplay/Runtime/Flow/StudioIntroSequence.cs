@@ -62,7 +62,7 @@ namespace Aether.Gameplay.Flow
     /// curves over elapsed time, the exit starts from wherever either part currently is (skipping
     /// mid-reveal fades from the current presence, not from full), and the whole sequence runs under
     /// three seconds because an intro is a signature, not a wait. In order: a short black, the mark
-    /// arriving, the wordmark completing the lockup a beat later, one restrained light pass across
+    /// arriving, the wordmark completing the lockup a beat later, two restrained light passes across
     /// it, a still hold, and a fade back to black — <see cref="Timing"/> holds the numbers.
     /// </para>
     /// <para>
@@ -248,16 +248,16 @@ namespace Aether.Gameplay.Flow
         public static class Sheen
         {
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
-            public const float BandHalfWidth = 0.42f;
+            public const float BandHalfWidth = 0.28f;
 
             /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
             public const float Tilt = 0.14f;
 
             /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
-            public const float HighlightPeak = 0.85f;
+            public const float HighlightPeak = 0.92f;
 
             /// <summary>How far the logo is taken down while the light is crossing it.</summary>
-            public const float DimWhilePassing = 0.93f;
+            public const float DimWhilePassing = 0.91f;
 
             /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
             public const float EdgeFade = 0.12f;
@@ -585,10 +585,6 @@ namespace Aether.Gameplay.Flow
                 return;
             }
 
-            float start = reverse
-                ? Timing.SheenStartsAt + Timing.SheenDuration + Timing.SecondarySheenDelay
-                : Timing.SheenStartsAt;
-            float duration = reverse ? Timing.SecondarySheenDuration : Timing.SheenDuration;
             float crest = reverse
                 ? Mathf.Lerp(1f + Sheen.BandHalfWidth, -Sheen.BandHalfWidth, EaseInOutSine(progress))
                 : Mathf.Lerp(-Sheen.BandHalfWidth, 1f + Sheen.BandHalfWidth, EaseInOutSine(progress));
