@@ -249,7 +249,7 @@ namespace Aether.Gameplay.Menus.Screens
             _rows.Refresh();
         }
 
-        private void OnDialogClosed()
+        protected override void OnDialogClosed()
         {
             if (_inCategory) Nav.Select(_header.Back, true);
             else Nav.SelectFirst();
