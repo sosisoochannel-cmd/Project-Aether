@@ -40,6 +40,7 @@ namespace Aether.Core.Pooling
         private readonly T _prefab;
         private readonly Transform _parent;
         private readonly Stack<T> _available;
+        private readonly HashSet<T> _allInstances = new HashSet<T>();
         private readonly int _maxSize;
 
         private int _totalCreated;
@@ -59,9 +60,10 @@ namespace Aether.Core.Pooling
             _prefab = prefab != null ? prefab : throw new ArgumentNullException(nameof(prefab));
             _parent = parent;
             _maxSize = Mathf.Max(1, maxSize);
-            _available = new Stack<T>(Mathf.Max(4, prewarm));
+            _available = new Stack<T>(Mathf.Max(4, Mathf.Min(prewarm, _maxSize)));
 
-            for (int i = 0; i < prewarm; i++)
+            // Prewarming obeys the same hard ceiling as runtime creation.
+            for (int i = 0; i < Mathf.Min(prewarm, _maxSize); i++)
             {
                 T instance = CreateInstance();
                 if (instance == null) break;
@@ -122,6 +124,10 @@ namespace Aether.Core.Pooling
         {
             if (instance == null) return;
 
+            // Only objects created by this pool may be returned. Accepting an unrelated component
+            // would bypass the creation ceiling and could put the same object in two pools.
+            if (!_allInstances.Contains(instance)) return;
+
             // Guard against the same instance being returned twice, which would hand the same
             // object to two callers later. Cheap because the pool is small.
             if (_available.Contains(instance)) return;
@@ -141,15 +147,16 @@ namespace Aether.Core.Pooling
         /// </summary>
         public void Dispose()
         {
-            while (_available.Count > 0)
+            foreach (T instance in _allInstances)
             {
-                T instance = _available.Pop();
                 if (instance == null) continue;
 
                 if (Application.isPlaying) UnityEngine.Object.Destroy(instance.gameObject);
                 else UnityEngine.Object.DestroyImmediate(instance.gameObject);
             }
 
+            _available.Clear();
+            _allInstances.Clear();
             _totalCreated = 0;
         }
 
@@ -161,6 +168,7 @@ namespace Aether.Core.Pooling
             if (instance == null) return null;
 
             _totalCreated++;
+            _allInstances.Add(instance);
             return instance;
         }
     }
