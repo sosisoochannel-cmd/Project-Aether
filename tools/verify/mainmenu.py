@@ -873,36 +873,26 @@ def check_composition(gate: Gate) -> None:
     title_source = read(TITLE_PANEL)
 
     footer = number(main, r"FooterHeight\s*=\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
-    minimum_cell = number(main, r"MinimumSecondaryCell\s*=\s*([0-9.]+)f",
-                          "MainMenuScreen.MinimumSecondaryCell")
     title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
     subtitle_factor = number(title_source, r"SubtitleSize \* ([0-9.]+)f",
                              "the subtitle's line height")
-    columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
-        r"SecondaryColumns = (\d+)", read(THEME)) else int(m.get("SecondaryColumns", 2))
 
-    # The row counts are read out of the screen, not assumed. They were a constant until a ninth
-    # entry was added to a cluster and the composition quietly grew 118 units past the viewport
-    # while this check went on measuring the screen it remembered: an arithmetic check that counts
-    # the wrong rows is worse than no arithmetic, because it reports a fit that is not there.
+    # Count the real rows in the two visible clusters. Secondary destinations are now one vertical
+    # list; less-frequent screens are measured separately on ExploreScreen rather than being
+    # crowded into the first screen.
     clusters = {}
-    for cluster, panel in (("Play", "_play"), ("Explore", "_explore"), ("System", "_system")):
+    for cluster, panel in (("Play", "_play"), ("Explore", "_explore")):
         start = main.find(f'{panel} = MenuEntryPanel.Create')
         if start < 0:
             gate.check(False, f"the main menu no longer builds a {cluster} cluster")
             continue
 
         end = len(main)
-        for other in ("_play", "_explore", "_system"):
-            if other == panel:
-                continue
-            found = main.find(f'{other} = MenuEntryPanel.Create', start + 1)
-            if found > 0:
-                end = min(end, found)
+        other_panel = "_explore" if panel == "_play" else "_play"
+        found = main.find(f'{other_panel} = MenuEntryPanel.Create', start + 1)
+        if found > 0:
+            end = min(end, found)
 
-        # The cluster ends where the next method begins: the helper that adds a destination is a
-        # method body, and its own call to AddEntry is not a row of whichever cluster happens to
-        # be last in the file.
         method = main.find("        private ", start + 1)
         if method > 0:
             end = min(end, method)
@@ -910,13 +900,12 @@ def check_composition(gate: Gate) -> None:
         block = main[start:end]
         clusters[cluster] = block.count("AddEntry(") + block.count("AddDestination(")
 
-    for cluster in ("Play", "Explore", "System"):
+    for cluster in ("Play", "Explore"):
         gate.check(clusters.get(cluster, 0) > 0,
                    f"the {cluster} cluster has no rows, so what it holds cannot be measured")
 
     primary_rows = clusters.get("Play", 0)
     secondary_rows = clusters.get("Explore", 0)
-    system_rows = clusters.get("System", 0)
 
     for name, aspect in ASPECTS:
         canvas_h = REFERENCE_HEIGHT
@@ -930,22 +919,18 @@ def check_composition(gate: Gate) -> None:
                        + m["TitleRuleHeight"])
         top = title_block + m["TitleGapBody"]
 
-        right = box_w * m["RightBlockFraction"]
-        left = box_w * m["LeftColumnFraction"]
-        cell = right / columns
-        gate.check(cell >= minimum_cell,
-                   f"{name}: a two-column cell is {cell:.0f} units wide, under the {minimum_cell:.0f} "
-                   "the grid needs before it drops to one column")
-        gate.check(left < right,
+        compact = box_w < 1200
+        left = box_w if compact else box_w * m["LeftColumnFraction"]
+        right = box_w if compact else box_w * m["RightBlockFraction"]
+        gate.check(compact or left < right,
                    f"{name}: the primary column ({left:.0f}) is not narrower than the secondary "
                    f"block ({right:.0f}), so the composition has no hierarchy")
 
         section = m["SectionLabelHeight"] + m["SectionLabelGap"]
         play = section + (primary_rows * m["PrimaryPitch"])
-        explore = section + (_bands(secondary_rows, columns) * m["SecondaryPitch"])
-        system_top = top + explore + m["ClusterGap"]
-        system = section + (_bands(system_rows, columns) * m["SecondaryPitch"])
-        content = max(top + play, system_top + system) + m["ParagraphBlockPadding"]
+        explore = secondary_rows * m["SecondaryPitch"]
+        secondary_top = top + play + m["ClusterGap"] if compact else top
+        content = max(top + play, secondary_top + explore) + m["ParagraphBlockPadding"]
 
         gate.check(content <= viewport,
                    f"{name}: the main menu is {content:.0f} units tall in a {viewport:.0f}-unit "
