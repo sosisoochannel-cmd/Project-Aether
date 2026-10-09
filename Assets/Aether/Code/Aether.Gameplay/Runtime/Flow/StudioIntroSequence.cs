@@ -201,17 +201,17 @@ namespace Aether.Gameplay.Flow
             /// <summary>The primary light pass starts only after the complete logo has settled.</summary>
             public const float SheenStartsAt = 1.15f;
 
-            /// <summary>A slower, clearly visible first sweep, from 1.15s to 1.87s.</summary>
-            public const float SheenDuration = 0.72f;
+            /// <summary>A slower, clearly visible first sweep, from 1.15s to 1.97s.</summary>
+            public const float SheenDuration = 0.82f;
 
             /// <summary>Delay from the end of the first sweep until a shorter reverse glint begins.</summary>
-            public const float SecondarySheenDelay = 0.50f;
+            public const float SecondarySheenDelay = 0.42f;
 
-            /// <summary>The second, reverse-direction glint lasts from 2.37s to 2.75s.</summary>
-            public const float SecondarySheenDuration = 0.38f;
+            /// <summary>The second, reverse-direction glint lasts from 2.39s to 2.87s.</summary>
+            public const float SecondarySheenDuration = 0.48f;
 
             /// <summary>Quiet hold after the first sweep, long enough for the reverse glint and a clean exit.</summary>
-            public const float Hold = 1.05f;
+            public const float Hold = 1.00f;
 
             /// <summary>The fade from the complete lockup to pure black.</summary>
             public const float Exit = 0.55f;
@@ -248,19 +248,19 @@ namespace Aether.Gameplay.Flow
         public static class Sheen
         {
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
-            public const float BandHalfWidth = 0.28f;
+            public const float BandHalfWidth = 0.30f;
 
             /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
-            public const float Tilt = 0.14f;
+            public const float Tilt = 0.16f;
 
             /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
-            public const float HighlightPeak = 0.92f;
+            public const float HighlightPeak = 0.94f;
 
             /// <summary>How far the logo is taken down while the light is crossing it.</summary>
-            public const float DimWhilePassing = 0.91f;
+            public const float DimWhilePassing = 0.90f;
 
             /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
-            public const float EdgeFade = 0.12f;
+            public const float EdgeFade = 0.14f;
 
             /// <summary>Mask texels per artwork pixel. It carries a soft gradient, nothing finer.</summary>
             public const float Resolution = 0.45f;
