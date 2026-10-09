@@ -327,6 +327,31 @@ namespace Aether.Tests.PlayMode
             Assert.IsFalse(dialog.IsOpen, "the dialog stayed open after being cancelled");
         }
 
+        [Test]
+        public void TrackingNeverAddsBreaksInsideMultiwordOrLongLabels()
+        {
+            string[] phrases =
+            {
+                "NEW GAME",
+                "New Game",
+                "Nueva partida",
+                "Nouvelle partie",
+                "Neues Spiel",
+                "Novo Jogo",
+                "Новая игра",
+                "Yeni Oyun",
+                "بازی جدید",
+                "NOVA PARTIDA",
+                "ACHIEVEMENTS"
+            };
+
+            for (int i = 0; i < phrases.Length; i++)
+            {
+                Assert.AreEqual(phrases[i], MenuUi.Track(phrases[i], 2f),
+                    "tracking altered a phrase or long label: " + phrases[i]);
+            }
+        }
+
         [UnityTest]
         public IEnumerator The_main_menu_locks_continue_when_there_is_nothing_to_continue()
         {
