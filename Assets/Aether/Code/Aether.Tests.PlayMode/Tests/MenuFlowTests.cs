@@ -1077,7 +1077,7 @@ namespace Aether.Tests.PlayMode
                 "The player will not move. Assign a tuning asset in the inspector.";
             LogAssert.Expect(LogType.Error, expected);
 
-            var player = new GameObject("untuned-player");
+            GameObject player = new GameObject("untuned-player");
             player.AddComponent<PlayerController>();
             yield return new WaitForFixedUpdate();
 
