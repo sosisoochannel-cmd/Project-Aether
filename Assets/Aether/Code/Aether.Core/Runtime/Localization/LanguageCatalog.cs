@@ -18,8 +18,7 @@ namespace Aether.Core.Localization
     /// <c>Aether.Gameplay.Localization</c>, where the screens are.
     /// </para>
     /// <para>
-    /// <b>The font flag is a fact, not a preference.</b> The project bundles one font — Unity's
-    /// Liberation Sans fallback — and it has no Arabic, Persian, Chinese, Japanese or Korean glyphs.
+    /// <b>The font flag is a fact, not a preference.</b> The project bundles a script font for Persian; other unsupported scripts remain unavailable.
     /// Offering one of those languages would show a screen of empty boxes, which is worse than not
     /// offering it; so a language whose script the font cannot draw says so here, and the row that
     /// offers it is disabled with the reason on it. When a font pack arrives, that is one flag.
@@ -106,7 +105,7 @@ namespace Aether.Core.Localization
             new LanguageDefinition("ru", "Русский", "Russian", TextDirection.LeftToRight, true),
             new LanguageDefinition("tr", "Türkçe", "Turkish", TextDirection.LeftToRight, true),
             new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, false),
-            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, false),
+            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
             new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, false),
             new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, false),
             new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, false),
@@ -127,12 +126,13 @@ namespace Aether.Core.Localization
         /// <b>What is not here is not a secret.</b> French, German, Italian, Portuguese, Russian and
         /// Turkish are named in <see cref="All"/>, are not offered yet, and the settings screen says
         /// so; each becomes selectable by translating its sheet and adding the code here, which is a
-        /// data-only change. Arabic, Persian, Chinese, Japanese and Korean are a different case
-        /// entirely: the font this build carries cannot draw those scripts at all, so they are marked
-        /// as such and are not offered however complete a sheet might be.
+        /// data-only change. Arabic, Chinese, Japanese and Korean are a different case entirely: the font this build carries
+        /// cannot draw those scripts at all, so they are marked as such and are not offered however
+        /// complete a sheet might be. Persian is offered only when its bundled script font and full
+        /// translated table are present.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es", "fr" };
+        public static readonly string[] Offered = { "en", "es", "fr", "fa" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)
