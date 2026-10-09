@@ -20,8 +20,9 @@ namespace Aether.Gameplay.Player
     /// <see cref="IsInvulnerable"/>, which removes the most common source of double-hit bugs.
     /// </para>
     /// </remarks>
+    // PlayerController already requires PlayerHealth. Do not require the controller back
+    // from this component: reciprocal RequireComponent attributes form a circular dependency.
     [RequireComponent(typeof(PlayerMotor))]
-    [RequireComponent(typeof(PlayerController))]
     public sealed class PlayerHealth : MonoBehaviour, IDamageable
     {
         [Header("Health")]
