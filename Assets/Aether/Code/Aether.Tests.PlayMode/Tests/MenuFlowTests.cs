@@ -11,6 +11,7 @@ using Aether.Data.Levels;
 using Aether.Gameplay.Combat;
 using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
+using Aether.Gameplay.Controls;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
@@ -942,6 +943,40 @@ namespace Aether.Tests.PlayMode
 
             public bool Exists => Stored != null;
             public string Location => "isolated menu test store";
+        }
+
+        [Test]
+        public void DisablingGameplayInputRouterClearsHeldAndQueuedTouchInput()
+        {
+            var host = new GameObject("input-router-test");
+            try
+            {
+                var router = host.AddComponent<GameplayInputRouter>();
+                var touch = new TouchInputSource();
+                router.AddSource(touch);
+
+                touch.SetMove(Vector2.right);
+                touch.PressJump();
+                touch.PressAttack();
+                touch.PressDodge();
+
+                Assert.That(router.Move, Is.EqualTo(Vector2.right));
+                Assert.That(router.JumpPressed, Is.True);
+                Assert.That(router.AttackPressed, Is.True);
+                Assert.That(router.DodgePressed, Is.True);
+
+                router.Enabled = false;
+
+                Assert.That(router.Move, Is.EqualTo(Vector2.zero));
+                Assert.That(router.JumpHeld, Is.False);
+                Assert.That(router.JumpPressed, Is.False);
+                Assert.That(router.AttackPressed, Is.False);
+                Assert.That(router.DodgePressed, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
         }
 
         [UnityTest]
