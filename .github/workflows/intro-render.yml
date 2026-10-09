@@ -170,8 +170,8 @@ jobs:
           # Best two, most informative first, whichever of them the run actually produced: a run
           # that failed early still has one frame, and that frame is the evidence.
           sent=0
-          for f in IntroRender/intro-1.50s-small.png IntroRender/intro-2.55s-small.png \
-                   IntroRender/intro-0.50s-small.png IntroRender/intro-3.35s-small.png; do
+          for f in IntroRender/intro-1.55s-small.png IntroRender/intro-2.62s-small.png \
+                   IntroRender/intro-0.50s-small.png IntroRender/intro-3.40s-small.png; do
             [ -f "$f" ] || continue
             [ "$sent" -lt 2 ] || break
             echo "::notice title=Frame $(basename "$f")::$(base64 -w0 "$f" | head -c 60000)"
