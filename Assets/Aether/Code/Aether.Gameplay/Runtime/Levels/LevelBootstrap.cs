@@ -304,6 +304,9 @@ namespace Aether.Gameplay.Levels
             Camera camera = Camera.main;
             if (camera != null)
             {
+                // This is a 2D platformer; bounds math and framing are defined for an orthographic
+                // camera, so do not inherit a perspective camera from a scene or editor setup.
+                camera.orthographic = true;
                 if (camera.orthographicSize <= 0f) camera.orthographicSize = _cameraSize;
                 return camera;
             }
