@@ -1491,6 +1491,28 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator EnemyPlacement_ZeroPatrolDistanceOverridesArchetypeDefault()
+        {
+            var definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            var host = new GameObject("zero-patrol-enemy-test");
+            var controller = host.AddComponent<EnemyController>();
+            controller.Initialize(definition, null);
+            controller.ConfigurePatrol(0f);
+
+            PropertyInfo patrolProperty = typeof(EnemyController).GetProperty(
+                "PatrolDistance", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(patrolProperty, Is.Not.Null);
+            Assert.That(definition.PatrolDistance, Is.GreaterThan(0f),
+                "The test must prove that a zero placement override beats a nonzero archetype default.");
+            Assert.That((float)patrolProperty.GetValue(controller), Is.Zero,
+                "A zero patrol placement must hold position instead of falling back to the archetype patrol.");
+
+            UnityEngine.Object.Destroy(host);
+            UnityEngine.Object.Destroy(definition);
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator ComponentPool_EnforcesCapacityRejectsForeignObjectsAndDisposesLeasedObjects()
         {
             var prefab = new GameObject("pool-prefab");
