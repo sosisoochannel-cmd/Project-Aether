@@ -178,7 +178,14 @@ namespace Aether.Gameplay.Levels
             {
                 DiscoveryTrigger discovery = Level.Discoveries[i];
                 if (discovery != null && discovery.AlreadyRecorded)
+                {
+                    // Older snapshots can contain the world flag but lack the collection entry.
+                    // Repair both views before hiding the find, otherwise the missing collection
+                    // record can never be reconstructed because its trigger no longer runs.
+                    if (_session != null)
+                        _session.RecordFinding(discovery.FlagId, discovery.Id);
                     discovery.gameObject.SetActive(false);
+                }
             }
         }
 

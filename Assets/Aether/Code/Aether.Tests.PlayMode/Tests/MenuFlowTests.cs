@@ -1196,6 +1196,28 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void RecordFindingRepairsCollectionWhenWorldFlagAlreadyExists()
+        {
+            var host = new GameObject("finding-repair-session");
+            try
+            {
+                var session = host.AddComponent<Aether.Gameplay.GameSession>();
+                session.World.Set("secret.repair-test");
+
+                bool changed = session.RecordFinding("secret.repair-test", "collection.repair-test");
+
+                Assert.That(changed, Is.True);
+                Assert.That(session.World.IsSet("secret.repair-test"), Is.True);
+                Assert.That(session.Collection.Has("collection.repair-test"), Is.True,
+                    "A legacy world flag must not prevent the missing collection entry from being repaired.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void LevelData_CellAtScalesVerticalCoordinatesByTileSize()
         {
             var level = new LevelData(

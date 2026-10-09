@@ -24,6 +24,9 @@ namespace Aether.Gameplay.Levels
     {
         private LevelEntity _entity;
 
+        /// <summary>Stable entity id used by the collection catalogue.</summary>
+        public string Id => _entity != null ? _entity.Id : null;
+
         /// <summary>Flag raised in the save file when this is found.</summary>
         public string FlagId => _entity != null ? _entity.Flag : null;
 

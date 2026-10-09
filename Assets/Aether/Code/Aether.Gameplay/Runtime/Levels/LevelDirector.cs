@@ -58,6 +58,12 @@ namespace Aether.Gameplay.Levels
         public void Initialize(GameSession session, BuiltLevel built, PlayerController player,
                                CameraFollow2D camera = null)
         {
+            // Initialize can be called again by a test harness or a future region hand-off. Remove
+            // the old callback before replacing the player so a former player cannot drive this
+            // director's respawn timer after it is no longer the active character.
+            if (_player != null && _player.Health != null)
+                _player.Health.Died -= OnPlayerDied;
+
             _session = session;
             _built = built;
             _player = player;
@@ -80,8 +86,9 @@ namespace Aether.Gameplay.Levels
 
             RespawnFeet = ResolveRespawnFeet();
 
-            if (_player != null)
+            if (_player != null && _player.Health != null)
             {
+                _player.Health.Died -= OnPlayerDied;
                 _player.Health.Died += OnPlayerDied;
             }
         }
@@ -224,8 +231,12 @@ namespace Aether.Gameplay.Levels
 
                 Debug.LogWarning(
                     $"The session records checkpoint '{activeId}' but this level has no such " +
-                    "checkpoint. Falling back to the level start, which is safe but wrong: the level " +
-                    "and the save file have drifted apart.");
+                    "checkpoint. Falling back to the level start and clearing the stale checkpoint id.");
+                if (_session != null)
+                {
+                    _session.World.ActiveCheckpointId = string.Empty;
+                    _session.RequestSave();
+                }
             }
 
             return _built.PlayerStartFeet;

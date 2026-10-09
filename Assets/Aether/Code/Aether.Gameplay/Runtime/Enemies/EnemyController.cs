@@ -567,7 +567,12 @@ namespace Aether.Gameplay.Enemies
                 if (c._motor.IsGrounded && (c._motor.IsLedgeAhead() || c._motor.IsWallAhead()))
                 {
                     c._motor.Move(0f, dt);
-                    c._machine.ChangeState(c, EnemyStateId.Idle);
+                    c._motor.FacingSign = -c._motor.FacingSign;
+                    c._machine.ChangeState(
+                        c,
+                        c._definition != null && c._definition.Patrols
+                            ? EnemyStateId.Patrol
+                            : EnemyStateId.Idle);
                     return;
                 }
 
