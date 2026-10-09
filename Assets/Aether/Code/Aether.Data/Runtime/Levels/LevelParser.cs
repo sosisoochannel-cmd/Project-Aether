@@ -43,6 +43,12 @@ namespace Aether.Data.Levels
                 { "anchor", LevelEntityKind.Anchor },
             };
 
+        private static readonly HashSet<string> EntityAttributeTokens =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "id", "x", "y", "type", "kind", "flag", "note", "patrol", "respawn",
+            };
+
         /// <summary>Parses level text. Throws <see cref="LevelParseException"/> on the first problem.</summary>
         public static LevelData Parse(string text, string sourceName)
         {
@@ -257,6 +263,15 @@ namespace Aether.Data.Levels
                     throw new LevelParseException(source, line, $"attribute '{key}' given twice");
                 }
                 attributes[key] = value;
+            }
+
+            foreach (string attribute in attributes.Keys)
+            {
+                if (!EntityAttributeTokens.Contains(attribute))
+                {
+                    throw new LevelParseException(source, line,
+                        $"{token} has unknown attribute '{attribute}'");
+                }
             }
 
             if (!attributes.TryGetValue("id", out string id) || string.IsNullOrEmpty(id))
