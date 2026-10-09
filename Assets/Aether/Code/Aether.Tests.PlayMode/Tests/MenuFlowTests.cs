@@ -1427,6 +1427,44 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelParser_RejectsEntitiesMissingRequiredGameplayReferences()
+        {
+            const string missingDiscoveryFlag =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = missing-discovery-flag-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n" +
+                "discovery = id=secret, x=0, y=0, kind=secret\n";
+
+            LevelParseException discoveryError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(missingDiscoveryFlag, "missing-discovery-flag-test"));
+            Assert.That(discoveryError.Line, Is.EqualTo(10),
+                "A discovery without a persistence flag would look collectible but never save.");
+
+            const string missingEnemyType =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = missing-enemy-type-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n" +
+                "enemy = id=enemy, x=0, y=0\n";
+
+            LevelParseException enemyError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(missingEnemyType, "missing-enemy-type-test"));
+            Assert.That(enemyError.Line, Is.EqualTo(10),
+                "An enemy without an archetype must fail at parse time, not during level assembly.");
+        }
+
+        [Test]
         public void FallingBelowTheLevelStartsDeathAndRespawnEvenDuringInvulnerability()
         {
             float originalScale = Time.timeScale;
