@@ -165,9 +165,11 @@ namespace Aether.Gameplay.Enemies
         /// <inheritdoc />
         public void OnTakenFromPool()
         {
-            // A pooled enemy must not remember how it died.
+            // A pooled enemy must not remember how it died. Publish the reset as well, otherwise
+            // a reused health bar or any other listener can keep displaying the previous life.
             _invulnerableUntil = float.NegativeInfinity;
             _currentHealth = Max;
+            HealthChanged?.Invoke(_currentHealth, Max);
         }
 
         /// <inheritdoc />
