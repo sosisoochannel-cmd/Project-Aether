@@ -36,9 +36,6 @@ namespace Aether.Gameplay.Menus.Screens
         /// <summary>Height reserved at the bottom of the screen for the version line.</summary>
         private const float FooterHeight = 40f;
 
-        /// <summary>The narrowest a grid cell may be before two columns become one.</summary>
-        private const float MinimumSecondaryCell = 300f;
-
         private ScrollRect _scroll;
         private RectTransform _content;
         private MenuTitlePanel _title;
@@ -144,11 +141,9 @@ namespace Aether.Gameplay.Menus.Screens
             float leftWidth = compact ? width : width * MenuTheme.Metrics.LeftColumnFraction;
             float rightWidth = compact ? width : width * MenuTheme.Metrics.RightBlockFraction;
 
-            // The grid keeps two columns while a cell can hold a comfortable translated label.
-            // On narrower landscape windows the whole secondary block becomes one column; below the
-            // compact breakpoint the primary and secondary clusters stack instead of competing for
-            // horizontal space. This is especially important for long RTL and German/Russian strings.
-            // Keep the secondary list vertical. A short list reads faster than a grid, and each row
+            // On narrower landscape windows the primary and secondary clusters stack instead of
+            // competing for horizontal space. This is especially important for long RTL and
+            // translated labels. Keep the secondary list vertical: each row
             // remains a comfortable touch target across translations and interface scales.
             _explore.SetColumns(1);
 
