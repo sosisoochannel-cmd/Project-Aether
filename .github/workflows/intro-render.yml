@@ -35,7 +35,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: intro-render-${{ github.ref }}
+  group: intro-render-bounded-cleanup-${{ github.ref }}
   # Only the latest head matters during rapid fix iterations; do not waste runner time
   # on an older revision when a newer one is ready.
   cancel-in-progress: true
