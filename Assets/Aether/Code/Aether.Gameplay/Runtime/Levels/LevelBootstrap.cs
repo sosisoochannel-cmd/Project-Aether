@@ -5,6 +5,7 @@ using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Progression.Achievements;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
