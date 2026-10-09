@@ -1186,6 +1186,22 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelData_CellAtScalesVerticalCoordinatesByTileSize()
+        {
+            var level = new LevelData(
+                "cell-test", "Cell Test", "test", 2f, 4, 3,
+                new LevelTileKind[12],
+                new List<LevelEntity>(),
+                new List<TraversalConnection>());
+
+            Vector2Int cell = level.CellAt(new Vector2(3f, 3f));
+
+            Assert.That(cell.x, Is.EqualTo(1));
+            Assert.That(cell.y, Is.EqualTo(1),
+                "World Y must be converted into tile units before computing a row when TileSize is not one.");
+        }
+
+        [Test]
         public void DeathRespawnRestoresPlayerControl()
         {
             PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
