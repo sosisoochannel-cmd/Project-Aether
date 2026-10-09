@@ -82,11 +82,10 @@ namespace Aether.Core.Events
             Action<T> handlers = existing as Action<T>;
             if (handlers == null) return;
 
-            Delegate[] snapshot = handlers.GetInvocationList();
-            for (int i = 0; i < snapshot.Length; i++)
-            {
-                ((Action<T>)snapshot[i]).Invoke(payload);
-            }
+            // A multicast delegate is already an immutable snapshot. Invoking it directly preserves
+            // subscription order and mutation-during-dispatch semantics without allocating the
+            // array returned by GetInvocationList() on every publish.
+            handlers.Invoke(payload);
         }
 
         /// <summary>Removes every subscription. Call when tearing down a scene or on hard restart.</summary>
