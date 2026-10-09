@@ -1269,6 +1269,32 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void EnemyGroundProbeUsesOffsetFromBodyCenter()
+        {
+            var root = new GameObject("enemy-ground-probe-test");
+            root.AddComponent<Rigidbody2D>();
+            BoxCollider2D collider = root.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(0.9f, 1.1f);
+            EnemyMotor2D motor = root.AddComponent<EnemyMotor2D>();
+            EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+
+            try
+            {
+                motor.Initialize(definition);
+                root.transform.position = new Vector3(0f, 0.55f, 0f);
+                Physics2D.SyncTransforms();
+
+                Assert.That(motor.GetGroundProbeCenter().y, Is.EqualTo(0.03f).Within(0.02f),
+                    "The ground probe must sit at the feet; a probe half a body below them reports grounded while hovering.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [Test]
         public void LevelData_CellAtScalesVerticalCoordinatesByTileSize()
         {
             var level = new LevelData(

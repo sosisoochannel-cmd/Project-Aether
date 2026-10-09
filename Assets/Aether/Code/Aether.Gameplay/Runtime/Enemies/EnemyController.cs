@@ -278,12 +278,15 @@ namespace Aether.Gameplay.Enemies
                 _runner.Tick(Time.deltaTime, origin, _motor.FacingSign, _targetLayers, _motor.Body, gameObject);
             }
 
-            _stateTimer += Time.deltaTime;
         }
 
         private void FixedUpdate()
         {
             _motor.RefreshGrounded();
+            // Every state timer is consumed by FixedTick, so advance it on the same clock as the
+            // state machine. Updating it once per render frame made telegraphs and patrol pauses
+            // drift relative to physics when the frame rate and fixed rate disagreed.
+            if (_health.IsAlive) _stateTimer += Time.fixedDeltaTime;
             _machine.FixedTick(this, Time.fixedDeltaTime);
         }
 

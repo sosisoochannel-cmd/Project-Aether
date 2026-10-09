@@ -138,14 +138,23 @@ namespace Aether.Gameplay.Enemies
             _body.linearVelocity = Vector2.zero;
         }
 
+        /// <summary>World-space centre of the grounding probe, also used by selected gizmos.</summary>
+        public Vector2 GetGroundProbeCenter()
+        {
+            float offset = _definition != null ? _definition.GroundProbeOffset : 0.5f;
+            Bounds bounds = _collider.bounds;
+
+            // GroundProbeOffset is measured from the body's centre. Keep the probe just above the
+            // feet with a small downward bias so it overlaps the floor, rather than placing it half
+            // a body-height below the feet where it would report grounded while hovering.
+            return new Vector2(bounds.center.x, bounds.center.y - offset - 0.02f);
+        }
+
         /// <summary>Recomputes grounding. Call once per physics step, before AI logic.</summary>
         public void RefreshGrounded()
         {
-            float offset = _definition != null ? _definition.GroundProbeOffset : 0.5f;
-
-            Bounds bounds = _collider.bounds;
-            Vector2 probeCenter = new Vector2(bounds.center.x, bounds.min.y - offset + 0.06f);
-            var probeSize = new Vector2(Mathf.Max(0.1f, bounds.size.x * 0.7f), 0.14f);
+            Vector2 probeCenter = GetGroundProbeCenter();
+            var probeSize = new Vector2(Mathf.Max(0.1f, _collider.bounds.size.x * 0.7f), 0.14f);
 
             IsGrounded = Physics2DQuery.OverlapsBox(probeCenter, probeSize, 0f, _solidLayers);
         }
@@ -240,7 +249,7 @@ namespace Aether.Gameplay.Enemies
 
             Gizmos.color = Application.isPlaying && IsGrounded ? Color.green : Color.yellow;
             Gizmos.DrawWireCube(
-                new Vector2(bounds.center.x, bounds.min.y - offset + 0.06f),
+                new Vector2(bounds.center.x, bounds.center.y - offset - 0.02f),
                 new Vector2(Mathf.Max(0.1f, bounds.size.x * 0.7f), 0.14f));
 
             float reach = _definition != null ? _definition.LedgeProbeDistance : 0.55f;
