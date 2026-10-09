@@ -1098,9 +1098,9 @@ namespace Aether.Tests.PlayMode
             PlayerCombat combat = playerRoot.AddComponent<PlayerCombat>();
             combat.Configure(attack, ~0);
             playerRoot.AddComponent<GameplayInputRouter>();
-            PlayerController controller = playerRoot.AddComponent<PlayerController>();
+            PlayerController playerController = playerRoot.AddComponent<PlayerController>();
             typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(controller, tuning);
+                .SetValue(playerController, tuning);
 
             try
             {
@@ -1110,18 +1110,18 @@ namespace Aether.Tests.PlayMode
                 Assert.That(combat.TryStartAttack(), Is.True, "The configured opening attack should start.");
                 Assert.That(combat.IsAttacking, Is.True);
 
-                controller.Health.TakeDamage(new DamageInfo(1f, Vector2.left));
-                Assert.That(controller.State, Is.EqualTo(PlayerStateId.Hurt));
+                playerController.Health.TakeDamage(new DamageInfo(1f, Vector2.left));
+                Assert.That(playerController.State, Is.EqualTo(PlayerStateId.Hurt));
                 Assert.That(combat.IsAttacking, Is.False,
                     "Taking a hit must cancel the active attack so the player cannot attack through hit-stun.");
 
-                controller.Health.ResetToFull();
-                controller.Health.ClearInvulnerability();
+                playerController.Health.ResetToFull();
+                playerController.Health.ClearInvulnerability();
                 Assert.That(combat.TryStartAttack(), Is.True, "The attack should be startable after recovery setup.");
                 Assert.That(combat.IsAttacking, Is.True);
 
-                controller.Health.ForceDeath();
-                Assert.That(controller.State, Is.EqualTo(PlayerStateId.Dead));
+                playerController.Health.ForceDeath();
+                Assert.That(playerController.State, Is.EqualTo(PlayerStateId.Dead));
                 Assert.That(combat.IsAttacking, Is.False,
                     "Death must cancel the attack so a dead player cannot keep dealing damage.");
             }
