@@ -38,6 +38,7 @@ namespace Aether.Gameplay.Player
         private bool _jumpLatch;
         private bool _attackLatch;
         private bool _dodgeLatch;
+        private bool _enabled = true;
 
         /// <summary>Movement axis, already normalised to at most unit length.</summary>
         public Vector2 Move { get; private set; }
@@ -46,16 +47,28 @@ namespace Aether.Gameplay.Player
         public bool JumpHeld { get; private set; }
 
         /// <summary>True on the first frame a jump press was seen and not yet consumed.</summary>
-        public bool JumpPressed => _jumpLatch;
+        public bool JumpPressed => _enabled && _jumpLatch;
 
         /// <summary>True on the first frame an attack press was seen and not yet consumed.</summary>
-        public bool AttackPressed => _attackLatch;
+        public bool AttackPressed => _enabled && _attackLatch;
 
         /// <summary>True on the first frame a dodge press was seen and not yet consumed.</summary>
-        public bool DodgePressed => _dodgeLatch;
+        public bool DodgePressed => _enabled && _dodgeLatch;
 
         /// <summary>When false, all output is zeroed. Used by cutscenes, pause and death.</summary>
-        public bool Enabled { get; set; } = true;
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                _enabled = value;
+                if (value) return;
+
+                ClearLatches();
+                Move = Vector2.zero;
+                JumpHeld = false;
+            }
+        }
 
         private void Awake()
         {
