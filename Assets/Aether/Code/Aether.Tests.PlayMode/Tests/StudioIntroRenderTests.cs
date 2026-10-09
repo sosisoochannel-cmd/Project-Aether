@@ -366,7 +366,7 @@ namespace Aether.Tests.PlayMode
                 Assert.Less(leaving.InkFraction, hold.InkFraction * 0.25f,
                             "the lockup is still on screen at 3.40s, so the fade is not far enough along");
                 Assert.Greater(leaving.BlackFraction, 0.95f,
-                               $"only {leaving.BlackFraction:P1} of the frame is black at 3.35s");
+                               $"only {leaving.BlackFraction:P1} of the frame is black at 3.40s");
 
                 // The frames claim a moment each, and were taken at it: within half a step. A frame
                 // taken late is a frame about some other moment, and the order above would be a claim
@@ -399,7 +399,7 @@ namespace Aether.Tests.PlayMode
                 Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
                             "the primary light is not switched on at 1.55s, so nothing crosses the lockup");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
-                            $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 1.95s");
+                            $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 2.05s");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
                             "the reverse glint starts too early during the quiet hold");
                 Assert.Greater(secondLight.SheenAlpha, 0.05f,
