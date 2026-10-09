@@ -49,6 +49,12 @@ namespace Aether.Data.Levels
                 "id", "x", "y", "type", "kind", "flag", "note", "patrol", "respawn",
             };
 
+        private static readonly HashSet<string> MetaAttributeTokens =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "id", "display_name", "region", "tile_size",
+            };
+
         /// <summary>Parses level text. Throws <see cref="LevelParseException"/> on the first problem.</summary>
         public static LevelData Parse(string text, string sourceName)
         {
@@ -82,7 +88,23 @@ namespace Aether.Data.Levels
                     continue;
                 }
 
-                if (trimmed.Length == 0) continue;
+                if (trimmed.Length == 0)
+                {
+                    if (section == "tiles")
+                    {
+                        int next = index + 1;
+                        while (next < lines.Length && string.IsNullOrWhiteSpace(lines[next])) next++;
+                        bool sectionFollows = next < lines.Length
+                            && lines[next].TrimStart().StartsWith("[", StringComparison.Ordinal)
+                            && lines[next].TrimEnd().EndsWith("]", StringComparison.Ordinal);
+                        if (next < lines.Length && !sectionFollows)
+                        {
+                            throw new LevelParseException(sourceName, lineNumber,
+                                "tile row is empty; use tile characters for empty cells");
+                        }
+                    }
+                    continue;
+                }
 
                 if (section == "tiles")
                 {
@@ -134,6 +156,11 @@ namespace Aether.Data.Levels
                         throw new LevelParseException(sourceName, lineNumber,
                             $"unknown tile kind '{kindName}'");
                     }
+                    if (legend.ContainsKey(key))
+                    {
+                        throw new LevelParseException(sourceName, lineNumber,
+                            $"legend symbol '{key}' is declared more than once");
+                    }
                     legend[key] = kind;
                     continue;
                 }
@@ -146,7 +173,19 @@ namespace Aether.Data.Levels
                         throw new LevelParseException(sourceName, lineNumber,
                             $"expected 'key = value', got '{trimmed}'");
                     }
-                    meta[trimmed.Substring(0, split).Trim()] = trimmed.Substring(split + 1).Trim();
+                    string metaKey = trimmed.Substring(0, split).Trim();
+                    string metaValue = trimmed.Substring(split + 1).Trim();
+                    if (!MetaAttributeTokens.Contains(metaKey))
+                    {
+                        throw new LevelParseException(sourceName, lineNumber,
+                            $"unknown metadata key '{metaKey}'");
+                    }
+                    if (meta.ContainsKey(metaKey))
+                    {
+                        throw new LevelParseException(sourceName, lineNumber,
+                            $"metadata key '{metaKey}' is declared more than once");
+                    }
+                    meta[metaKey] = metaValue;
                     continue;
                 }
 
@@ -291,6 +330,15 @@ namespace Aether.Data.Levels
             entity.MarkerKind = markerKind;
             entity.Flag = flag;
             entity.Note = note;
+
+            if (kind == LevelEntityKind.Enemy && string.IsNullOrEmpty(typeId))
+            {
+                throw new LevelParseException(source, line, $"enemy '{id}' has no type");
+            }
+            if (kind == LevelEntityKind.Discovery && string.IsNullOrEmpty(flag))
+            {
+                throw new LevelParseException(source, line, $"discovery '{id}' has no flag");
+            }
 
             if (attributes.TryGetValue("patrol", out string patrolText))
             {
