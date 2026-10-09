@@ -19,7 +19,7 @@ namespace Aether.Gameplay.Levels
     /// need.
     /// </para>
     /// </remarks>
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class DiscoveryTrigger : MonoBehaviour
     {
         private LevelEntity _entity;
