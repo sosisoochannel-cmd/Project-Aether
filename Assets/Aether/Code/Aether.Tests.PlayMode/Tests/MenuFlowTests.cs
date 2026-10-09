@@ -1227,8 +1227,6 @@ namespace Aether.Tests.PlayMode
             try
             {
                 var session = sessionRoot.AddComponent<Aether.Gameplay.GameSession>();
-                session.World.ActiveCheckpointId = "checkpoint.from-before-restart";
-
                 var built = new BuiltLevel(levelRoot, null)
                 {
                     PlayerStartFeet = new Vector2(4f, 2f)
@@ -1239,6 +1237,9 @@ namespace Aether.Tests.PlayMode
 
                 var director = directorRoot.AddComponent<LevelDirector>();
                 director.Initialize(session, built, built.Root.GetComponentInChildren<PlayerController>());
+                // Simulate a previously active checkpoint after initialization, so the test focuses
+                // on the restart transition rather than the stale-id fallback diagnostic.
+                session.World.ActiveCheckpointId = "checkpoint.from-before-restart";
                 director.RestartRegion();
 
                 Assert.AreEqual(string.Empty, session.World.ActiveCheckpointId,
