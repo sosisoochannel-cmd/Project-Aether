@@ -67,8 +67,15 @@ namespace Aether.Gameplay.Levels
             _enemyFeet.Clear();
             for (int i = 0; i < built.Enemies.Count; i++)
             {
-                _enemies.Add(built.Enemies[i].Controller);
+                EnemyController enemy = built.Enemies[i].Controller;
+                _enemies.Add(enemy);
                 _enemyFeet.Add(built.Enemies[i].Feet);
+
+                // The factory cannot know which player this level will spawn. Wire the target here,
+                // once both sides exist; without this, every enemy's perception sees a null player
+                // and the entire region silently becomes a combat-free walk.
+                if (enemy != null && _player != null)
+                    enemy.Initialize(enemy.Definition, _player.transform);
             }
 
             RespawnFeet = ResolveRespawnFeet();
