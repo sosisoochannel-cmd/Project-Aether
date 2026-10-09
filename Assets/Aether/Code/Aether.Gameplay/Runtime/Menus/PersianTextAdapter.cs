@@ -63,13 +63,10 @@ namespace Aether.Gameplay.Menus
             string output = _source;
             if (rtl && !string.IsNullOrEmpty(_source))
             {
-                // The mixed-run overload keeps Latin words from being reversed with Persian text.
-                // Its legacy tokenizer cannot accept empty tokens, so preserve unusual repeated-space
-                // strings rather than risk throwing during a UI frame.
-                if (_source.Contains("  "))
-                    output = ArabicFixer.Fix(_source, false, true);
-                else
-                    output = ArabicFixer.Fix(_source, false);
+                // Preserve Latin identifiers, digits and placeholders using the mixed-run shaper.
+                // Normalise repeated spaces for this legacy tokenizer; empty tokens would otherwise throw.
+                string safe = System.Text.RegularExpressions.Regex.Replace(_source, " {2,}", " ");
+                output = ArabicFixer.Fix(safe, false);
             }
             if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
                 _text.text = output;
