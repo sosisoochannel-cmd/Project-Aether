@@ -147,8 +147,15 @@ namespace Aether.Gameplay.Interface
         public void Close()
         {
             if (!_open) return;
-            if (_confirm != null) _confirm.Cancel();
-            RestorePauseState();
+            try
+            {
+                if (_confirm != null) _confirm.Cancel();
+            }
+            finally
+            {
+                // Even a broken confirmation widget must never strand the simulation at timeScale 0.
+                RestorePauseState();
+            }
 
             System.Action handler = Resumed;
             if (handler != null) handler();
