@@ -1132,7 +1132,7 @@ namespace Aether.Tests.PlayMode
 
             var playerRoot = new GameObject("respawn-player");
             playerRoot.SetActive(false);
-            PlayerController player = playerRoot.AddComponent<PlayerController>();
+            PlayerController player = playerRoot.AddComponent(typeof(PlayerController)) as PlayerController;
             typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(player, tuning);
             playerRoot.SetActive(true);
