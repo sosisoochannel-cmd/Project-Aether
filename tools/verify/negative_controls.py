@@ -946,8 +946,8 @@ def controls() -> list[Control]:
             "localization: a sheet invents a key English does not have",
             strings,
             lambda root: edit(root, "tools/localization/strings_es.txt",
-                              "menu.title=PROJECT AETHER",
-                              "menu.title=PROJECT AETHER\nmenu.titulo=PROYECTO AETHER"),
+                              "menu.title=AETHER",
+                              "menu.title=AETHER\nmenu.titulo=PROYECTO AETHER"),
             ["key(s) that English does not have"]),
         Control(
             "localization: a sheet is left incomplete",
