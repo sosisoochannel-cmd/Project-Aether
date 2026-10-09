@@ -254,6 +254,10 @@ ENTITY_KINDS = {
     "anchor": "Anchor",
 }
 
+ENTITY_ATTRIBUTES = {
+    "id", "x", "y", "type", "kind", "flag", "note", "patrol", "respawn",
+}
+
 
 def _parse_entity(path: str, line_no: int, text: str) -> LevelEntity:
     key, _, rest = text.partition("=")
@@ -273,6 +277,11 @@ def _parse_entity(path: str, line_no: int, text: str) -> LevelEntity:
         if k in attrs:
             raise LevelParseError(path, line_no, f"attribute '{k}' given twice")
         attrs[k] = v
+
+    for attribute in attrs:
+        if attribute not in ENTITY_ATTRIBUTES:
+            raise LevelParseError(path, line_no,
+                                  f"{key} has unknown attribute '{attribute}'")
 
     if "id" not in attrs:
         raise LevelParseError(path, line_no, f"{key} has no id")
