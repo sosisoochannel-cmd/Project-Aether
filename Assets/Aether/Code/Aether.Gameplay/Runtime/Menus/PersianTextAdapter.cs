@@ -43,7 +43,17 @@ namespace Aether.Gameplay.Menus
                 _lastDirectionWasRtl = rtl;
             }
 
-            string output = rtl ? ArabicFixer.Fix(_source, false, true) : _source;
+            string output = _source;
+            if (rtl && !string.IsNullOrEmpty(_source))
+            {
+                // The mixed-run overload keeps Latin words from being reversed with Persian text.
+                // Its legacy tokenizer cannot accept empty tokens, so preserve unusual repeated-space
+                // strings rather than risk throwing during a UI frame.
+                if (_source.Contains("  "))
+                    output = ArabicFixer.Fix(_source, false, true);
+                else
+                    output = ArabicFixer.Fix(_source, false);
+            }
             if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
                 _text.text = output;
 
