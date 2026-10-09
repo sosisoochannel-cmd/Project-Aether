@@ -109,27 +109,29 @@ namespace Aether.Gameplay.Menus
         {
             if (string.IsNullOrEmpty(source) || extents.x <= 1f) return source;
 
-            var generator = new TextGenerator();
-            TextGenerationSettings settings = _text.GetGenerationSettings(extents);
-            settings.horizontalOverflow = HorizontalWrapMode.Wrap;
-            settings.verticalOverflow = VerticalWrapMode.Overflow;
-            if (!generator.Populate(source, settings) || generator.lines.Count <= 1) return source;
-
-            var wrapped = new System.Text.StringBuilder(source.Length + generator.lines.Count);
-            for (int i = 0; i < generator.lines.Count; i++)
+            using (var generator = new TextGenerator())
             {
-                int start = generator.lines[i].startCharIdx;
-                int end = i + 1 < generator.lines.Count
-                    ? generator.lines[i + 1].startCharIdx
-                    : source.Length;
-                start = Mathf.Clamp(start, 0, source.Length);
-                end = Mathf.Clamp(end, start, source.Length);
-                string line = source.Substring(start, end - start).TrimEnd('\r', '\n');
-                if (i > 0) wrapped.Append('\n');
-                wrapped.Append(line);
-            }
+                TextGenerationSettings settings = _text.GetGenerationSettings(extents);
+                settings.horizontalOverflow = HorizontalWrapMode.Wrap;
+                settings.verticalOverflow = VerticalWrapMode.Overflow;
+                if (!generator.Populate(source, settings) || generator.lines.Count <= 1) return source;
 
-            return wrapped.ToString();
+                var wrapped = new System.Text.StringBuilder(source.Length + generator.lines.Count);
+                for (int i = 0; i < generator.lines.Count; i++)
+                {
+                    int start = generator.lines[i].startCharIdx;
+                    int end = i + 1 < generator.lines.Count
+                        ? generator.lines[i + 1].startCharIdx
+                        : source.Length;
+                    start = Mathf.Clamp(start, 0, source.Length);
+                    end = Mathf.Clamp(end, start, source.Length);
+                    string line = source.Substring(start, end - start).TrimEnd('\r', '\n');
+                    if (i > 0) wrapped.Append('\n');
+                    wrapped.Append(line);
+                }
+
+                return wrapped.ToString();
+            }
         }
 
         private static string ShapeRightToLeft(string source)
