@@ -69,6 +69,7 @@ namespace Aether.Gameplay.Player
         private bool _inputEnabled = true;
 
         private float _lastGroundedAt = float.NegativeInfinity;
+        private bool _wasGroundedLastStep;
         private float _jumpBufferedAt = float.NegativeInfinity;
         private float _nextDodgeAt = float.NegativeInfinity;
         private float _dodgeEndsAt;
@@ -106,9 +107,12 @@ namespace Aether.Gameplay.Player
             set
             {
                 _inputEnabled = value;
-                // Disabling control must clear held buttons and queued presses at the source, not
-                // just ignore them here. Otherwise a jump pressed while dead or paused fires on
-                // the first frame control returns.
+                if (!value)
+                {
+                    // The controller's jump buffer is separate from the device latches. Clear both,
+                    // or a jump buffered just before pause/death can fire after control returns.
+                    _jumpBufferedAt = float.NegativeInfinity;
+                }
                 if (_input != null) _input.Enabled = value;
             }
         }
@@ -171,7 +175,10 @@ namespace Aether.Gameplay.Player
 
         private void OnDisable()
         {
-            _machine.Stop(this);
+            _machine?.Stop(this);
+            _jumpBufferedAt = float.NegativeInfinity;
+            _lastGroundedAt = float.NegativeInfinity;
+            _wasGroundedLastStep = false;
         }
 
         private void Update()
@@ -213,23 +220,26 @@ namespace Aether.Gameplay.Player
 
             float dt = Time.fixedDeltaTime;
 
+            bool wasGroundedLastStep = _wasGroundedLastStep;
             _motor.RefreshGrounded();
+            bool groundedNow = _motor.IsGrounded;
 
-            bool wasGrounded = _lastGroundedAt > float.NegativeInfinity &&
-                               Time.time - _lastGroundedAt <= _tuning.CoyoteTime;
-
-            if (_motor.IsGrounded)
+            if (groundedNow)
             {
                 _lastGroundedAt = Time.time;
                 _airJumpsUsed = 0;
 
-                if (!wasGrounded && _machine.Current == PlayerStateId.Airborne) Landed?.Invoke();
+                if (!wasGroundedLastStep && _machine.Current == PlayerStateId.Airborne) Landed?.Invoke();
             }
-            else if (wasGrounded)
+            else if (wasGroundedLastStep)
             {
+                // This is a physical edge, not the whole coyote window: notify once when leaving ground.
                 LeftGround?.Invoke();
             }
 
+            // Store the probe result before the state tick. StartJump intentionally clears IsGrounded
+            // during that tick, and the next physics step still needs to observe the ground->air edge.
+            _wasGroundedLastStep = groundedNow;
             _machine.FixedTick(this, dt);
         }
 
@@ -305,6 +315,7 @@ namespace Aether.Gameplay.Player
             _motor.TeleportTo(position);
             _lastGroundedAt = float.NegativeInfinity;
             _jumpBufferedAt = float.NegativeInfinity;
+            _wasGroundedLastStep = false;
             _nextDodgeAt = float.NegativeInfinity;
             _airJumpsUsed = 0;
 
