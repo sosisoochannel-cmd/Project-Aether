@@ -33,10 +33,10 @@ namespace Aether.Gameplay.Menus
             if (_text == null) return;
 
             string current = _text.text ?? string.Empty;
-            if (_rendered == null || !string.Equals(current, _rendered, System.StringComparison.Ordinal))
-                _source = current;
-
+            bool textChanged = _rendered == null || !string.Equals(current, _rendered, System.StringComparison.Ordinal);
             bool rtl = LanguageService.IsRightToLeft;
+            if (!textChanged && rtl == _lastDirectionWasRtl) return;
+            if (textChanged) _source = current;
             if (rtl != _lastDirectionWasRtl)
             {
                 _text.alignment = rtl ? Mirror(_leftToRightAlignment) : _leftToRightAlignment;
