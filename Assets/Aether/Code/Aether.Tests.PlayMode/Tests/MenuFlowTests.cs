@@ -946,6 +946,31 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void CheckpointViewSubscribesAfterRuntimeConfigurationAndRestoresLitState()
+        {
+            var host = new GameObject("checkpoint-view-test");
+            try
+            {
+                var renderer = host.AddComponent<SpriteRenderer>();
+                var trigger = host.AddComponent<CheckpointTrigger>();
+                var view = host.AddComponent<CheckpointView>();
+
+                // AddComponent invokes OnEnable before Configure on an active GameObject.
+                view.Configure(renderer, trigger);
+                Assert.That(renderer.color, Is.EqualTo(LevelPalette.CheckpointIdle));
+
+                trigger.RestoreActivated();
+
+                Assert.That(trigger.Activated, Is.True);
+                Assert.That(renderer.color, Is.EqualTo(LevelPalette.CheckpointActive));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void DisablingGameplayInputRouterClearsHeldAndQueuedTouchInput()
         {
             var host = new GameObject("input-router-test");
