@@ -370,14 +370,19 @@ def check_screens(gate: Gate) -> None:
                 "menu.quit.confirm", "menu.newGame.confirm", "data.reset.title", "data.reset.body"):
         gate.check(f'"{key}"' in table, f"the string table has no '{key}'")
 
-    # The brief's entry points, each of which has to exist as a row on the main menu.
+    # The main menu stays deliberately short: two primary actions and three secondary choices.
+    # The Explore submenu retains the less-frequent destinations without crowding the first screen.
     main = read(MAIN_SCREEN)
-    for destination in ("Chapters", "Characters", "Collection", "Achievements", "Settings",
-                        "Credits"):
+    for destination in ("Chapters", "Explore", "Settings"):
         gate.check(f"MenuScreenId.{destination}" in main,
                    f"the main menu has no row for {destination}")
     for key in ("menu.continue", "menu.newGame"):
         gate.check(f'"{key}"' in main, f"the main menu has no {key} entry")
+
+    explore = read(f"{SCREENS}/ExploreScreen.cs")
+    for destination in ("Characters", "Collection", "Achievements", "Credits"):
+        gate.check(f"MenuScreenId.{destination}" in explore,
+                   f"the Explore screen has no row for {destination}")
 
     # BACK has to exist everywhere it can be reached from, and the main menu has to answer the
     # system back gesture itself.
