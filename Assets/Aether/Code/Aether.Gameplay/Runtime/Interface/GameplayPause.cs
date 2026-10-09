@@ -72,6 +72,9 @@ namespace Aether.Gameplay.Interface
         private GameplayHud _hud;
         private float _savedNoteUntil = float.NegativeInfinity;
         private bool _open;
+        private float _previousTimeScale = 1f;
+        private bool _playerInputWasEnabled;
+        private bool _touchControlsWereEnabled;
 
         private GameSession _session;
         private LevelDirector _director;
@@ -113,6 +116,10 @@ namespace Aether.Gameplay.Interface
         {
             if (_open || _overlay == null) return;
             _open = true;
+            _previousTimeScale = Time.timeScale;
+            _playerInputWasEnabled = _director != null && _director.Player != null
+                && _director.Player.InputEnabled;
+            _touchControlsWereEnabled = _touchControls != null && _touchControls.enabled;
 
             // Update still runs while timeScale is zero. Disable the actual input sources as well
             // as physics, so a key pressed while paused cannot be queued for the first resumed frame.
@@ -140,20 +147,8 @@ namespace Aether.Gameplay.Interface
         public void Close()
         {
             if (!_open) return;
-            _open = false;
-            _confirm.Cancel();
-
-            Time.timeScale = 1f;
-
-            if (_director != null && _director.Player != null && _director.Player.Health.IsAlive)
-                _director.Player.InputEnabled = true;
-
-            if (_touchControls != null) _touchControls.enabled = true;
-            if (_hud != null) _hud.SetVisible(true);
-
-            _overlay.gameObject.SetActive(false);
-            _group.alpha = 0f;
-            _group.blocksRaycasts = false;
+            if (_confirm != null) _confirm.Cancel();
+            RestorePauseState();
 
             System.Action handler = Resumed;
             if (handler != null) handler();
@@ -373,6 +368,39 @@ namespace Aether.Gameplay.Interface
             _restartRow.SetMeta(null);
             _settingsRow.SetMeta(MenuStrings.Get("pause.settings.meta"));
             _leaveRow.SetMeta(null);
+        }
+
+        private void RestorePauseState()
+        {
+            _open = false;
+            Time.timeScale = _previousTimeScale;
+
+            if (_playerInputWasEnabled && _director != null && _director.Player != null
+                && _director.Player.Health.IsAlive)
+                _director.Player.InputEnabled = true;
+
+            if (_touchControls != null) _touchControls.enabled = _touchControlsWereEnabled;
+            if (_hud != null) _hud.SetVisible(true);
+            if (_overlay != null) _overlay.gameObject.SetActive(false);
+            if (_group != null)
+            {
+                _group.alpha = 0f;
+                _group.blocksRaycasts = false;
+            }
+        }
+
+        // A scene transition or an owner teardown can destroy/disable the pause component without a
+        // normal Close click. Never let that leave the global simulation clock frozen.
+        private void OnDisable()
+        {
+            if (_open) RestorePauseState();
+        }
+
+        private void OnDestroy()
+        {
+            if (!_open) return;
+            _open = false;
+            Time.timeScale = _previousTimeScale;
         }
 
         private void Update()
