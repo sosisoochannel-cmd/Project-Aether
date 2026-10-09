@@ -45,7 +45,7 @@ namespace Aether.Gameplay.Combat
     public sealed class AttackRunner
     {
         private readonly List<Collider2D> _overlapBuffer = new List<Collider2D>(8);
-        private readonly HashSet<Collider2D> _targetsHit = new HashSet<Collider2D>();
+        private readonly HashSet<IDamageable> _targetsHit = new HashSet<IDamageable>();
 
         private ContactFilter2D _filter;
         private bool _filterBuilt;
@@ -262,7 +262,12 @@ namespace Aether.Gameplay.Combat
                 if (hit == null) continue;
 
                 if (selfBody != null && hit.attachedRigidbody == selfBody) continue;
-                if (!_targetsHit.Add(hit)) continue;
+
+                // A character may have several colliders (body, hurtbox and child hitboxes), but it
+                // is one damage receiver. Track the receiver, not the collider, so one swing cannot
+                // deal repeated damage just because the overlap touched two of its shapes.
+                if (!DamageResolver.TryResolve(hit, out IDamageable target)) continue;
+                if (!_targetsHit.Add(target)) continue;
 
                 if (DamageResolver.TryDamage(hit, damage)) HitLanded?.Invoke(hit);
             }
