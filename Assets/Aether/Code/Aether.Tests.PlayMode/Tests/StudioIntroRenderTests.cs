@@ -60,7 +60,7 @@ namespace Aether.Tests.PlayMode
         /// arriving alone, the wordmark extending the lockup downwards, the light crossing the
         /// finished lockup, two frames of the still hold, and the end of the fade.
         /// </summary>
-        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.50f, 1.95f, 2.20f, 2.55f, 3.35f };
+        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.55f, 2.05f, 2.25f, 2.62f, 3.40f };
 
         /// <summary>A pixel at or above this luminance is part of the mark.</summary>
         private const float InkLuminance = 0.35f;
@@ -308,7 +308,7 @@ namespace Aether.Tests.PlayMode
                 //    at rest, so it can only be the highlight - and it is on the logo, not around it.
                 stage = "check the light crosses the lockup, and only the lockup";
                 Assert.Greater(light.BrightOfInk, 0.05f,
-                               "no light is crossing the lockup at 1.50s: nothing on the ink is brighter "
+                               "no light is crossing the lockup at 1.55s: nothing on the ink is brighter "
                                + "than the resting logo");
                 Assert.Greater(light.BlackFraction, 0.90f,
                                $"only {light.BlackFraction:P1} of the frame is black while the light is "
@@ -364,7 +364,7 @@ namespace Aether.Tests.PlayMode
                 // 6. And the fade takes the complete lockup to black rather than cutting it.
                 stage = "check the fade finishes in black";
                 Assert.Less(leaving.InkFraction, hold.InkFraction * 0.25f,
-                            "the lockup is still on screen at 3.35s, so the fade is not far enough along");
+                            "the lockup is still on screen at 3.40s, so the fade is not far enough along");
                 Assert.Greater(leaving.BlackFraction, 0.95f,
                                $"only {leaving.BlackFraction:P1} of the frame is black at 3.35s");
 
@@ -397,7 +397,7 @@ namespace Aether.Tests.PlayMode
                             $"the wordmark is only at {arriving.WordAlpha:0.000} at 0.90s, so it has "
                             + "not arrived after the mark");
                 Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
-                            "the primary light is not switched on at 1.50s, so nothing crosses the lockup");
+                            "the primary light is not switched on at 1.55s, so nothing crosses the lockup");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
                             $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 1.95s");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
