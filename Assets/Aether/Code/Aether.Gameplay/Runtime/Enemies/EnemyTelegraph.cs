@@ -105,6 +105,7 @@ namespace Aether.Gameplay.Enemies
         {
             // The wind-up ramp needs a value that changes during the state, not the state itself.
             _animating = current == EnemyStateId.Attacking;
+            _deadPresentation = current == EnemyStateId.Dead;
             ApplyState(current);
             enabled = true;
         }
