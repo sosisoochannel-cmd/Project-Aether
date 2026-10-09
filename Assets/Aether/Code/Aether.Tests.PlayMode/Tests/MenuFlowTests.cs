@@ -2004,6 +2004,28 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ComponentPool_ReplacesExternallyDestroyedLeasedObjectWithoutLeakingCapacity()
+        {
+            var prefab = new GameObject("pool-destroyed-prefab");
+            var pool = new ComponentPool<Transform>(prefab.transform, prewarm: 0, maxSize: 1);
+            Transform first = pool.Get();
+            Assert.That(first, Is.Not.Null);
+
+            UnityEngine.Object.Destroy(first.gameObject);
+            yield return null;
+
+            Transform replacement = pool.Get();
+            Assert.That(replacement, Is.Not.Null,
+                "A destroyed leased instance must not permanently consume the pool's live-instance limit.");
+            Assert.That(pool.TotalCreated, Is.EqualTo(2),
+                "The lifetime-created metric may grow while the live-instance cap remains one.");
+
+            pool.Dispose();
+            UnityEngine.Object.Destroy(prefab);
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator ComponentPool_EnforcesCapacityRejectsForeignObjectsAndDisposesLeasedObjects()
         {
             var prefab = new GameObject("pool-prefab");

@@ -101,6 +101,7 @@ namespace Aether.Core.Settings
         /// <summary>True when a value is outside what this setting may hold.</summary>
         public bool OutOfRange(float value)
         {
+            if (float.IsNaN(value) || float.IsInfinity(value)) return true;
             if (Kind == SettingKind.Toggle) return value != 0f && value != 1f;
             return value < Minimum - 0.0001f || value > Maximum + 0.0001f;
         }
@@ -108,6 +109,9 @@ namespace Aether.Core.Settings
         /// <summary>The value pulled into range and onto its step.</summary>
         public float Sanitise(float value)
         {
+            // A corrupt floating-point value must never reach audio, camera, or control settings.
+            // Fall back to this setting's first legal value (also the first option for choices).
+            if (float.IsNaN(value) || float.IsInfinity(value)) value = Minimum;
             if (Kind == SettingKind.Toggle) return value >= 0.5f ? 1f : 0f;
 
             float clamped = value < Minimum ? Minimum : (value > Maximum ? Maximum : value);

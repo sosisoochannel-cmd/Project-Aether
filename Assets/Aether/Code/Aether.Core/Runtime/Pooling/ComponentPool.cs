@@ -84,22 +84,24 @@ namespace Aether.Core.Pooling
         /// </summary>
         public T Get()
         {
-            T instance;
-            if (_available.Count > 0)
-            {
+            PruneDestroyedInstances();
+
+            T instance = null;
+            while (_available.Count > 0 && instance == null)
                 instance = _available.Pop();
-            }
-            else
+
+            if (instance == null)
             {
-                if (_totalCreated >= _maxSize) return null;
+                // The cap is a limit on live instances, not on lifetime churn. If a caller destroys
+                // a leased pooled object, that dead reference must not permanently exhaust the pool.
+                if (_allInstances.Count >= _maxSize) return null;
                 instance = CreateInstance();
                 if (instance == null) return null;
             }
 
             GameObject go = instance.gameObject;
-            if (!go.activeSelf) go.SetActive(true);
-
             if (instance is IPooledObject pooled) pooled.OnTakenFromPool();
+            if (!go.activeSelf) go.SetActive(true);
             return instance;
         }
 
@@ -158,6 +160,29 @@ namespace Aether.Core.Pooling
             _available.Clear();
             _allInstances.Clear();
             _totalCreated = 0;
+        }
+
+        private void PruneDestroyedInstances()
+        {
+            List<T> destroyed = null;
+            foreach (T instance in _allInstances)
+            {
+                if (instance != null) continue;
+                if (destroyed == null) destroyed = new List<T>();
+                destroyed.Add(instance);
+            }
+
+            if (destroyed == null) return;
+            for (int i = 0; i < destroyed.Count; i++) _allInstances.Remove(destroyed[i]);
+
+            // Stack.ToArray returns top-to-bottom. Rebuild in reverse to preserve the next-live
+            // instance that Get would otherwise have returned first.
+            T[] available = _available.ToArray();
+            _available.Clear();
+            for (int i = available.Length - 1; i >= 0; i--)
+            {
+                if (available[i] != null) _available.Push(available[i]);
+            }
         }
 
         private T CreateInstance()

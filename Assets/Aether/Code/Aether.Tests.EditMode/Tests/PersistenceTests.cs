@@ -158,6 +158,33 @@ namespace Aether.Tests
         }
 
         [Test]
+        public void SettingsService_LoadSanitisesNonFiniteValuesAndInvalidChoiceSettings()
+        {
+            var stored = new GameSettings();
+            stored.Controls.StickDeadZone = float.NaN;
+            stored.Audio.Master = float.NaN;
+            stored.Camera.FollowSmoothing = float.PositiveInfinity;
+            stored.Graphics.FrameRateLimit = 45;
+            stored.Language = "unsupported-language";
+
+            var store = new MemorySettingsStore { Stored = stored };
+            var settings = new SettingsService { Store = store };
+            settings.Load();
+
+            Assert.That(settings.Values.Controls.StickDeadZone, Is.EqualTo(0.14f).Within(0.0001f));
+            Assert.That(settings.Values.Audio.Master, Is.EqualTo(0.8f).Within(0.0001f));
+            Assert.That(settings.Values.Camera.FollowSmoothing, Is.EqualTo(0.16f).Within(0.0001f));
+            Assert.That(settings.Values.Graphics.FrameRateLimit, Is.EqualTo(30),
+                "A persisted choice that is not offered must snap to the first supported option.");
+            Assert.That(Aether.Core.Localization.LanguageCatalog.IsOffered(settings.Values.Language), Is.True,
+                "A stale language code must not survive load and leave the selector without a selection.");
+
+            SettingDefinition deadZone = SettingsCatalog.Find("controls.deadZone");
+            Assert.That(deadZone.OutOfRange(float.NaN), Is.True);
+            Assert.That(deadZone.Sanitise(float.NaN), Is.EqualTo(deadZone.Minimum));
+        }
+
+        [Test]
         public void FrameRateSetting_PreservesAndAppliesThe120FpsRequest()
         {
             SettingDefinition definition = SettingsCatalog.Find("graphics.frameRate");

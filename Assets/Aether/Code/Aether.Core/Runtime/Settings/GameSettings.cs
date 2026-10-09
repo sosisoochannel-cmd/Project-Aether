@@ -147,6 +147,13 @@ namespace Aether.Core.Settings
             Version = other.Version;
         }
 
+        /// <summary>Clamps a persisted float and repairs non-finite values to a safe default.</summary>
+        internal static float ClampFinite(float value, float minimum, float maximum, float fallback)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value)) return fallback;
+            return Mathf.Clamp(value, minimum, maximum);
+        }
+
         /// <summary>
         /// Pulls every value back into the range it is allowed to have.
         /// </summary>
@@ -202,12 +209,12 @@ namespace Aether.Core.Settings
 
         public void Clamp()
         {
-            Master = Mathf.Clamp01(Master);
-            Music = Mathf.Clamp01(Music);
-            Sfx = Mathf.Clamp01(Sfx);
-            Ui = Mathf.Clamp01(Ui);
-            Voice = Mathf.Clamp01(Voice);
-            Ambience = Mathf.Clamp01(Ambience);
+            Master = GameSettings.ClampFinite(Master, 0f, 1f, 0.8f);
+            Music = GameSettings.ClampFinite(Music, 0f, 1f, 0.7f);
+            Sfx = GameSettings.ClampFinite(Sfx, 0f, 1f, 0.9f);
+            Ui = GameSettings.ClampFinite(Ui, 0f, 1f, 0.8f);
+            Voice = GameSettings.ClampFinite(Voice, 0f, 1f, 0.9f);
+            Ambience = GameSettings.ClampFinite(Ambience, 0f, 1f, 0.6f);
         }
     }
 
@@ -295,12 +302,12 @@ namespace Aether.Core.Settings
 
         public void Clamp()
         {
-            StickDeadZone = Mathf.Clamp(StickDeadZone, 0f, 0.45f);
+            StickDeadZone = GameSettings.ClampFinite(StickDeadZone, 0f, 0.45f, 0.14f);
             // The ceiling is a geometry limit, not a taste limit: above it the attack button
             // reaches outside the safe area on a 4:3 tablet with a notch, which
             // tools/verify/touchlayout.py proves at both ends of this range.
-            ButtonSize = Mathf.Clamp(ButtonSize, 0.85f, 1.15f);
-            ButtonOpacity = Mathf.Clamp(ButtonOpacity, 0.3f, 1f);
+            ButtonSize = GameSettings.ClampFinite(ButtonSize, 0.85f, 1.15f, 1f);
+            ButtonOpacity = GameSettings.ClampFinite(ButtonOpacity, 0.3f, 1f, 1f);
         }
     }
 
@@ -334,8 +341,8 @@ namespace Aether.Core.Settings
 
         public void Clamp()
         {
-            FollowSmoothing = Mathf.Clamp(FollowSmoothing, 0.04f, 0.6f);
-            LookAhead = Mathf.Clamp(LookAhead, 0f, 3.5f);
+            FollowSmoothing = GameSettings.ClampFinite(FollowSmoothing, 0.04f, 0.6f, 0.16f);
+            LookAhead = GameSettings.ClampFinite(LookAhead, 0f, 3.5f, 1.7f);
         }
     }
 
@@ -416,7 +423,7 @@ namespace Aether.Core.Settings
 
         public void Clamp()
         {
-            UiScale = Mathf.Clamp(UiScale, 0.8f, 1.4f);
+            UiScale = GameSettings.ClampFinite(UiScale, 0.8f, 1.4f, 1f);
             if (SafeArea != SafeAreaMode.FullScreen && SafeArea != SafeAreaMode.Respect)
                 SafeArea = SafeAreaMode.Respect;
         }

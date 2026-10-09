@@ -93,6 +93,16 @@ namespace Aether.Core.Settings
             // A file is untrusted input. Everything that reaches gameplay has been checked against
             // the range its own definition declares before a single system reads it.
             Values.Clamp();
+
+            // Range-clamping alone cannot repair a choice that is numerically in range but is not
+            // one of its offered values (for example, a stale 45 FPS entry). Reuse each definition's
+            // sanitiser once at load so every runtime setting is a value the UI can represent.
+            for (int i = 0; i < SettingsCatalog.All.Length; i++)
+            {
+                SettingDefinition definition = SettingsCatalog.All[i];
+                SettingsCatalog.Write(Values, definition.Id, SettingsCatalog.Read(Values, definition.Id));
+            }
+
             Raise(null);
         }
 
