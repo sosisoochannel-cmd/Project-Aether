@@ -1082,6 +1082,58 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator PlayerCombatIsCancelledWhenHurtOrKilled()
+        {
+            PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
+            AttackDefinition attack = Resources.Load<AttackDefinition>("Content/PlayerFirstAttack");
+            Assert.That(tuning, Is.Not.Null, "The player tuning asset must be available.");
+            Assert.That(attack, Is.Not.Null, "The first attack asset must be available.");
+
+            var playerRoot = new GameObject("player-combat-cancellation-test");
+            playerRoot.SetActive(false);
+            playerRoot.AddComponent<Rigidbody2D>();
+            playerRoot.AddComponent<BoxCollider2D>();
+            playerRoot.AddComponent<PlayerMotor>();
+            playerRoot.AddComponent<PlayerHealth>();
+            PlayerCombat combat = playerRoot.AddComponent<PlayerCombat>();
+            combat.Configure(attack, ~0);
+            playerRoot.AddComponent<GameplayInputRouter>();
+            PlayerController controller = playerRoot.AddComponent<PlayerController>();
+            typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(controller, tuning);
+
+            try
+            {
+                playerRoot.SetActive(true);
+                yield return null;
+
+                Assert.That(combat.TryStartAttack(), Is.True, "The configured opening attack should start.");
+                Assert.That(combat.IsAttacking, Is.True);
+
+                controller.Health.TakeDamage(new DamageInfo(1f, Vector2.left));
+                Assert.That(controller.State, Is.EqualTo(PlayerStateId.Hurt));
+                Assert.That(combat.IsAttacking, Is.False,
+                    "Taking a hit must cancel the active attack so the player cannot attack through hit-stun.");
+
+                controller.Health.ResetToFull();
+                controller.Health.ClearInvulnerability();
+                Assert.That(combat.TryStartAttack(), Is.True, "The attack should be startable after recovery setup.");
+                Assert.That(combat.IsAttacking, Is.True);
+
+                controller.Health.ForceDeath();
+                Assert.That(controller.State, Is.EqualTo(PlayerStateId.Dead));
+                Assert.That(combat.IsAttacking, Is.False,
+                    "Death must cancel the attack so a dead player cannot keep dealing damage.");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(playerRoot);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator PlayerWithoutTuningStaysInertWithoutPhysicsExceptions()
         {
             const string expected =
