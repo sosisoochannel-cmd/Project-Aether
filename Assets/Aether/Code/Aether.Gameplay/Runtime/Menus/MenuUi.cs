@@ -105,16 +105,27 @@ namespace Aether.Gameplay.Menus
         {
             if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft) return content;
 
+            // Hair spaces create legal line-break opportunities in Unity's legacy Text renderer.
+            // Applying them to a phrase can split a button label into fragments (for example,
+            // "NEW GAME" can wrap as "NE WGAME") on narrow/mobile layouts. Translated phrases also
+            // vary substantially in length, accents and script, so tracking is deliberately limited
+            // to short, single-token ASCII capitals used as decorative headings. All phrases and
+            // non-English-script labels keep their exact source text and normal word boundaries.
+            if (content.Length > 8) return content;
+            for (int i = 0; i < content.Length; i++)
+            {
+                char c = content[i];
+                if (c < 'A' || c > 'Z') return content;
+            }
+
             int gap = Mathf.RoundToInt(spacing);
             if (gap <= 0) return content;
 
             var builder = new System.Text.StringBuilder(content.Length + (content.Length * gap));
             for (int i = 0; i < content.Length; i++)
             {
-                char c = content[i];
-                builder.Append(c);
+                builder.Append(content[i]);
                 if (i == content.Length - 1) break;
-                if (c == ' ' || content[i + 1] == ' ') continue;
                 for (int s = 0; s < gap; s++) builder.Append(HairSpace);
             }
 
