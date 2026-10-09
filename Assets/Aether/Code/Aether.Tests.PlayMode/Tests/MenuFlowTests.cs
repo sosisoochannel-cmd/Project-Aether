@@ -13,6 +13,7 @@ using Aether.Core.Pooling;
 using Aether.Gameplay.Flow;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Controls;
+using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
@@ -1130,6 +1131,58 @@ namespace Aether.Tests.PlayMode
             UnityEngine.Object.Destroy(target);
             UnityEngine.Object.Destroy(attack);
             yield return null;
+        }
+
+        [Test]
+        public void LevelDirectorAssignsTheSpawnedPlayerAsEveryEnemyTarget()
+        {
+            PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
+            Assert.That(tuning, Is.Not.Null, "The runtime player tuning asset must be available to PlayMode tests.");
+
+            var playerRoot = new GameObject("enemy-target-player");
+            playerRoot.SetActive(false);
+            playerRoot.AddComponent<GameplayInputRouter>();
+            PlayerController player = playerRoot.AddComponent<PlayerController>();
+            typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(player, tuning);
+            playerRoot.SetActive(true);
+
+            var enemyRoot = new GameObject("enemy-target-controller");
+            enemyRoot.SetActive(false);
+            enemyRoot.AddComponent<Rigidbody2D>();
+            enemyRoot.AddComponent<BoxCollider2D>();
+            enemyRoot.AddComponent<EnemyMotor2D>();
+            enemyRoot.AddComponent<EnemyHealth>();
+            EnemyController enemy = enemyRoot.AddComponent<EnemyController>();
+            enemyRoot.SetActive(true);
+
+            EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            enemy.Initialize(definition, null);
+
+            var levelRoot = new GameObject("enemy-target-level");
+            var built = new BuiltLevel(levelRoot, null);
+            built.Enemies.Add(new BuiltLevel.EnemySpawn(enemy, null, Vector2.zero));
+            var directorRoot = new GameObject("enemy-target-director");
+            LevelDirector director = directorRoot.AddComponent<LevelDirector>();
+
+            try
+            {
+                director.Initialize(null, built, player);
+
+                FieldInfo targetField = typeof(EnemyController).GetField(
+                    "_player", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(targetField, Is.Not.Null);
+                Assert.That(targetField.GetValue(enemy), Is.SameAs(player.transform),
+                    "Every enemy must receive the actual player target; otherwise perception and combat never start.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(directorRoot);
+                UnityEngine.Object.DestroyImmediate(enemyRoot);
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+                UnityEngine.Object.DestroyImmediate(levelRoot);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
         }
 
         [Test]
