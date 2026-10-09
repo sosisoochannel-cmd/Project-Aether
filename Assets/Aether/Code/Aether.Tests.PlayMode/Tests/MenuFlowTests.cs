@@ -1327,7 +1327,7 @@ namespace Aether.Tests.PlayMode
             LevelParseException error = Assert.Throws<LevelParseException>(
                 () => LevelParser.Parse(malformed, "parser-attribute-test"));
 
-            Assert.That(error.Message, Does.Contain("unknown attribute 'patrl'"),
+            Assert.That(error.ToString(), Does.Contain("unknown attribute 'patrl'"),
                 "A typo in a level entity must fail loudly rather than silently changing gameplay.");
         }
 
