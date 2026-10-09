@@ -66,6 +66,7 @@ namespace Aether.Gameplay.Player
         private PlayerHealth _health;
         private PlayerCombat _combat;
         private StateMachine<PlayerController, PlayerStateId> _machine;
+        private bool _inputEnabled = true;
 
         private float _lastGroundedAt = float.NegativeInfinity;
         private float _jumpBufferedAt = float.NegativeInfinity;
@@ -99,7 +100,18 @@ namespace Aether.Gameplay.Player
         public PlayerHealth Health => _health;
 
         /// <summary>When false, no input is read and the player keeps its current velocity.</summary>
-        public bool InputEnabled { get; set; } = true;
+        public bool InputEnabled
+        {
+            get => _inputEnabled;
+            set
+            {
+                _inputEnabled = value;
+                // Disabling control must clear held buttons and queued presses at the source, not
+                // just ignore them here. Otherwise a jump pressed while dead or paused fires on
+                // the first frame control returns.
+                if (_input != null) _input.Enabled = value;
+            }
+        }
 
         /// <summary>Legal facing direction, +1 or -1.</summary>
         public int FacingSign => _motor.FacingSign;
