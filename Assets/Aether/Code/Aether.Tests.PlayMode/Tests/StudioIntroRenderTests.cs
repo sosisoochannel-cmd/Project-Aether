@@ -367,7 +367,7 @@ namespace Aether.Tests.PlayMode
                 Assert.Less(leaving.InkFraction, hold.InkFraction * 0.25f,
                             "the lockup is still on screen at 3.35s, so the fade is not far enough along");
                 Assert.Greater(leaving.BlackFraction, 0.95f,
-                               $"only {leaving.BlackFraction:P1} of the frame is black at 2.70s");
+                               $"only {leaving.BlackFraction:P1} of the frame is black at 3.35s");
 
                 // The frames claim a moment each, and were taken at it: within half a step. A frame
                 // taken late is a frame about some other moment, and the order above would be a claim
@@ -398,16 +398,22 @@ namespace Aether.Tests.PlayMode
                             $"the wordmark is only at {arriving.WordAlpha:0.000} at 0.90s, so it has "
                             + "not arrived after the mark");
                 Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
-                            "the light is not switched on at 1.25s, so nothing crosses the lockup");
+                            "the primary light is not switched on at 1.50s, so nothing crosses the lockup");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
                             $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 1.95s");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
                             "the reverse glint starts too early during the quiet hold");
+                Assert.Greater(secondLight.SheenAlpha, 0.05f,
+                               "the scheduled reverse glint is missing from the logo hold");
+                Assert.Greater(secondLight.BrightOfInk, 0.05f,
+                               "the reverse glint does not brighten the logo ink");
+                Assert.Greater(secondLight.BlackFraction, 0.90f,
+                               "the reverse glint spills into the black around the logo");
                 Assert.That(still.MarkAlpha, Is.EqualTo(1f).Within(0.001f),
-                            $"the fade has started by 2.15s (mark a={still.MarkAlpha:0.000}), so the "
+                            $"the fade has started by 2.20s (mark a={still.MarkAlpha:0.000}), so the "
                             + "two frames compared for stillness are not both the hold");
                 Assert.That(leaving.MarkAlpha, Is.LessThan(0.5f),
-                            $"the lockup is still at {leaving.MarkAlpha:0.000} of its weight at 2.70s, "
+                            $"the lockup is still at {leaving.MarkAlpha:0.000} of its weight at 3.35s, "
                             + "so the fade is not under way");
 
                 stage = "done";
