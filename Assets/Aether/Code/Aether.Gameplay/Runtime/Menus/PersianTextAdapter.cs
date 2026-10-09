@@ -18,6 +18,10 @@ namespace Aether.Gameplay.Menus
         private TextAnchor _leftToRightAlignment;
         private bool _lastDirectionWasRtl;
         private bool _dirty = true;
+        private bool _capturedOverflowModes;
+        private HorizontalWrapMode _sourceHorizontalOverflow;
+        private VerticalWrapMode _sourceVerticalOverflow;
+        private Vector2 _lastRectSize;
 
         private void Awake()
         {
@@ -27,6 +31,7 @@ namespace Aether.Gameplay.Menus
             _source = _text.text ?? string.Empty;
             _leftToRightAlignment = _text.alignment;
             _lastDirectionWasRtl = false;
+            _lastRectSize = new Vector2(-1f, -1f);
         }
 
         private void OnEnable()
@@ -49,10 +54,22 @@ namespace Aether.Gameplay.Menus
         {
             if (_text == null) return;
 
+            if (!_capturedOverflowModes)
+            {
+                // Capture in LateUpdate rather than Awake: paragraph builders set wrapping after
+                // adding this component, and Awake would see the temporary default value.
+                _sourceHorizontalOverflow = _text.horizontalOverflow;
+                _sourceVerticalOverflow = _text.verticalOverflow;
+                _capturedOverflowModes = true;
+            }
+
             string current = _text.text ?? string.Empty;
+            Vector2 rectSize = _text.rectTransform.rect.size;
+            bool sizeChanged = rectSize != _lastRectSize;
             bool textChanged = _rendered == null || !string.Equals(current, _rendered, System.StringComparison.Ordinal);
-            if (!textChanged && !_dirty) return;
+            if (!textChanged && !_dirty && !sizeChanged) return;
             if (textChanged) _source = current;
+            _lastRectSize = rectSize;
             bool rtl = LanguageService.IsRightToLeft;
             if (rtl != _lastDirectionWasRtl)
             {
@@ -63,13 +80,56 @@ namespace Aether.Gameplay.Menus
             string output = _source;
             if (rtl && !string.IsNullOrEmpty(_source))
             {
-                output = ShapeRightToLeft(_source);
+                if (_sourceHorizontalOverflow == HorizontalWrapMode.Wrap && ContainsRtl(_source))
+                {
+                    output = ShapeRightToLeft(WrapToSourceWidth(_source, rectSize));
+                    _text.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    _text.verticalOverflow = VerticalWrapMode.Overflow;
+                }
+                else
+                {
+                    output = ShapeRightToLeft(_source);
+                    _text.horizontalOverflow = _sourceHorizontalOverflow;
+                    _text.verticalOverflow = _sourceVerticalOverflow;
+                }
+            }
+            else
+            {
+                _text.horizontalOverflow = _sourceHorizontalOverflow;
+                _text.verticalOverflow = _sourceVerticalOverflow;
             }
             if (!string.Equals(_text.text, output, System.StringComparison.Ordinal))
                 _text.text = output;
 
             _rendered = output;
             _dirty = false;
+        }
+
+        private string WrapToSourceWidth(string source, Vector2 extents)
+        {
+            if (string.IsNullOrEmpty(source) || extents.x <= 1f) return source;
+
+            var generator = new TextGenerator();
+            TextGenerationSettings settings = _text.GetGenerationSettings(extents);
+            settings.horizontalOverflow = HorizontalWrapMode.Wrap;
+            settings.verticalOverflow = VerticalWrapMode.Overflow;
+            if (!generator.Populate(source, settings) || generator.lines.Count <= 1) return source;
+
+            var wrapped = new System.Text.StringBuilder(source.Length + generator.lines.Count);
+            for (int i = 0; i < generator.lines.Count; i++)
+            {
+                int start = generator.lines[i].startCharIdx;
+                int end = i + 1 < generator.lines.Count
+                    ? generator.lines[i + 1].startCharIdx
+                    : source.Length;
+                start = Mathf.Clamp(start, 0, source.Length);
+                end = Mathf.Clamp(end, start, source.Length);
+                string line = source.Substring(start, end - start).TrimEnd('\r', '\n');
+                if (i > 0) wrapped.Append('\n');
+                wrapped.Append(line);
+            }
+
+            return wrapped.ToString();
         }
 
         private static string ShapeRightToLeft(string source)
