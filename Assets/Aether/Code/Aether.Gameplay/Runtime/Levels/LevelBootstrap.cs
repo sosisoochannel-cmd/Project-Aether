@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Levels
         private float _cameraSize = 5.6f;
 
         private GameSession _session;
+        private PlayerController _player;
 
         /// <summary>The level currently running, or null before boot.</summary>
         public BuiltLevel Level { get; private set; }
@@ -99,7 +100,7 @@ namespace Aether.Gameplay.Levels
                 {
                     // Nothing to play, and saying so is the whole job now. The curtain becomes the
                     // failure screen with a real way back to the menu on it.
-                    GameplayCurtain.Fail(
+                    FailBoot(
                         "The region could not start: the level data or the content catalogue did not " +
                         "load. There is no playable level in this build configuration.");
                     return;
@@ -121,12 +122,12 @@ namespace Aether.Gameplay.Levels
 
                 Vector2 respawnFeet = ResolveRespawnFeet(Level);
                 float halfHeight = content.PlayerTuning.BodyHeight * 0.5f;
-                PlayerController player = PlayerFactory.Create(respawnFeet + new Vector2(0f, halfHeight),
+                _player = PlayerFactory.Create(respawnFeet + new Vector2(0f, halfHeight),
                     content.PlayerTuning, content.PlayerFirstAttack, transform);
 
-                follow.Configure(player.transform, new Vector2(0f, 0f), data.WorldSize);
+                follow.Configure(_player.transform, new Vector2(0f, 0f), data.WorldSize);
 
-                AttachTouchControls(camera, player);
+                AttachTouchControls(camera, _player);
 
                 // A codex entry is earned when an enemy actually sees the player, not merely because
                 // its prefab was built. Subscriptions are removed with this bootstrap below.
@@ -135,12 +136,12 @@ namespace Aether.Gameplay.Levels
                 var directorHost = new GameObject("LevelDirector");
                 directorHost.transform.SetParent(transform, false);
                 Director = directorHost.AddComponent<LevelDirector>();
-                Director.Initialize(_session, Level, player, follow);
+                Director.Initialize(_session, Level, _player, follow);
 
                 // The region's own interface, and the thing that makes this a session rather than a
                 // level: objective, counters, pause, the clock that the run's playtime comes from, and
                 // the summary at the end of it.
-                Shell = GameplayShell.Attach(_session, Level, Director, player, TouchControls);
+                Shell = GameplayShell.Attach(_session, Level, Director, _player, TouchControls);
                 Shell.transform.SetParent(transform, false);
                 Shell.Reveal();
             }
@@ -149,9 +150,60 @@ namespace Aether.Gameplay.Levels
                 // Runtime content/build errors must become the same actionable curtain as parser
                 // failures. Leaving the cover up without a message would be an empty-screen dead end.
                 Debug.LogException(ex, this);
-                GameplayCurtain.Fail(
+                FailBoot(
                     "The region could not be assembled by this build. Return to the menu and try again.");
             }
+        }
+
+        /// <summary>
+        /// Tears down anything created before boot failed. A failure curtain must not leave a live
+        /// player or enemies running invisibly behind it.
+        /// </summary>
+        private void FailBoot(string message)
+        {
+            if (Shell != null)
+            {
+                Shell.gameObject.SetActive(false);
+                Destroy(Shell.gameObject);
+                Shell = null;
+            }
+
+            if (Director != null)
+            {
+                Director.gameObject.SetActive(false);
+                Destroy(Director.gameObject);
+                Director = null;
+            }
+
+            if (TouchControls != null)
+            {
+                TouchControls.gameObject.SetActive(false);
+                Destroy(TouchControls.gameObject);
+                TouchControls = null;
+            }
+
+            if (_player == null)
+            {
+                PlayerController[] partialPlayers = GetComponentsInChildren<PlayerController>(true);
+                if (partialPlayers.Length > 0) _player = partialPlayers[0];
+            }
+
+            if (_player != null)
+            {
+                _player.gameObject.SetActive(false);
+                Destroy(_player.gameObject);
+                _player = null;
+            }
+
+            if (Level != null && Level.Root != null)
+            {
+                Level.Root.SetActive(false);
+                Destroy(Level.Root);
+            }
+
+            Level = null;
+            AchievementService.Detach();
+            GameplayCurtain.Fail(message);
         }
 
         /// <summary>Listens for the first real notice event from each enemy in the built region.</summary>
