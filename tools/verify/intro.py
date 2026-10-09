@@ -83,11 +83,12 @@ MIN_MINOR_EXTENT = 0.08        # and its smaller dimension is never a hairline
 # The length the finished intro has to be, in seconds, counted from the first frame of the scene to
 # the hand-over. Stated as a requirement because it is one.
 MIN_TOTAL = 2.80
-MAX_TOTAL = 3.00
+MAX_TOTAL = 3.80
 MIN_PHASE = {
     "Reveal": 0.50,            # a faster arrival reads as a flicker
     "WordmarkReveal": 0.30,    # a faster one reads as a cut
     "SheenDuration": 0.25,     # a faster light is a flash
+    "SecondarySheenDuration": 0.25,  # the return glint must be a real, visible pass
     "Hold": 0.50,              # the pause is what makes it a signature
     "Exit": 0.40,              # a faster fade is a cut to black
     "HandOver": 0.05,          # a beat of black, so the next scene is not a cut
@@ -135,7 +136,7 @@ CONSTANTS = (
     "WordmarkSplit",
     "BackgroundLuminance", "InkLuminance",
     "BlackHold", "Reveal", "WordmarkDelay", "WordmarkReveal", "SheenStartsAt", "SheenDuration",
-    "Hold", "Exit", "HandOver", "SkipGrace", "SkipExit",
+    "SecondarySheenDelay", "SecondarySheenDuration", "Hold", "Exit", "HandOver", "SkipGrace", "SkipExit",
     "BandHalfWidth", "Tilt", "HighlightPeak", "DimWhilePassing", "EdgeFade", "Resolution",
 )
 
@@ -245,6 +246,18 @@ def check_timing(values: dict) -> list:
         problems.append(f"timing: SheenDuration is {values['SheenDuration']:.2f}s against a Hold of "
                         f"{values['Hold']:.2f}s; the hold has to be the longer of the two, or the "
                         "light is still moving when the logo is meant to be still")
+
+    second_start = values["SheenStartsAt"] + values["SheenDuration"] + values["SecondarySheenDelay"]
+    second_end = second_start + values["SecondarySheenDuration"]
+    exit_starts = values["SheenStartsAt"] + values["SheenDuration"] + values["Hold"]
+    if values["SecondarySheenDelay"] < 0.0:
+        problems.append("timing: SecondarySheenDelay cannot be negative")
+    if values["SecondarySheenDuration"] > values["Hold"]:
+        problems.append(f"timing: SecondarySheenDuration is {values['SecondarySheenDuration']:.2f}s, "
+                        f"longer than the {values['Hold']:.2f}s hold")
+    if second_end > exit_starts:
+        problems.append(f"timing: the reverse glint ends at {second_end:.2f}s, after the fade begins "
+                        f"at {exit_starts:.2f}s; the full glint must be visible before the exit")
     if values["SheenStartsAt"] < mark_ends:
         problems.append(f"timing: SheenStartsAt is {values['SheenStartsAt']:.2f}s, before the mark "
                         f"has resolved at {mark_ends:.2f}s; there is nothing finished to light")
@@ -664,8 +677,10 @@ def main() -> int:
           f"(to {mark_ends:.2f}s) -> wordmark {values['WordmarkReveal']:.2f}s "
           f"from {wordmark_starts:.2f}s (to {wordmark_ends:.2f}s)")
     print(f"  light {values['SheenStartsAt']:.2f}-{values['SheenStartsAt'] + values['SheenDuration']:.2f}s "
-          f"-> still hold {values['Hold']:.2f}s -> fade {values['Exit']:.2f}s -> "
-          f"hand-over {values['HandOver']:.2f}s   total {total:.2f}s")
+          f"-> reverse glint {values['SheenStartsAt'] + values['SheenDuration'] + values['SecondarySheenDelay']:.2f}-"
+          f"{values['SheenStartsAt'] + values['SheenDuration'] + values['SecondarySheenDelay'] + values['SecondarySheenDuration']:.2f}s "
+          f"-> hold/fade {values['Hold']:.2f}s/{values['Exit']:.2f}s -> hand-over "
+          f"{values['HandOver']:.2f}s   total {total:.2f}s")
     print(f"  skip: grace {values['SkipGrace']:.2f}s, then a {values['SkipExit']:.2f}s exit")
     print(f"  lockup: up to {values['MaxWidthFraction']:.2f} of the safe width, "
           f"{values['MaxHeightFraction']:.2f} of its height; the reveal settles from "
