@@ -9,14 +9,14 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Menus.Screens
 {
     /// <summary>
-    /// The main menu: the brand, the primary choices, the rest of the destinations, and the version.
+    /// The main menu: the brand, two primary choices, three secondary destinations, and the version.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The composition is deliberately uneven.</b> Two large entries on the left — CONTINUE and NEW
-    /// GAME, the two things a player actually came to do — and two clusters of smaller ones on the
-    /// right, under headings. A screen of eight equal buttons is the thing the brief rules out, and
-    /// the fix is not decoration: it is deciding which entries matter and letting the layout say so.
+    /// <b>The composition is deliberately restrained.</b> CONTINUE and NEW GAME are the two large
+    /// actions. CHAPTERS, EXPLORE, and SETTINGS sit in one quiet secondary list. Characters,
+    /// collection, achievements, and credits live one level deeper, so the first screen offers the
+    /// next meaningful action instead of every destination at once.
     /// </para>
     /// <para>
     /// <b>The content scrolls only when it has to.</b> At the standard interface size the whole menu
@@ -27,8 +27,8 @@ namespace Aether.Gameplay.Menus.Screens
     /// </para>
     /// <para>
     /// <b>What is not here.</b> No invented entries. CONTINUE is only usable when a run is stored,
-    /// QUIT is only asked for where closing the game is a real action, and the three destinations
-    /// that have no system behind them open a screen that says so.
+    /// QUIT is reached through Back or Settings. The secondary Explore screen keeps less frequent
+    /// destinations available without making the first screen compete with them.
     /// </para>
     /// </remarks>
     public sealed class MainMenuScreen : MenuScreen
@@ -44,7 +44,7 @@ namespace Aether.Gameplay.Menus.Screens
         private MenuTitlePanel _title;
         private MenuEntryPanel _play;
         private MenuEntryPanel _explore;
-        private MenuEntryPanel _system;
+
         private MenuButton _continue;
         private Text _version;
         private MenuConfirmPanel _confirm;
@@ -94,17 +94,12 @@ namespace Aether.Gameplay.Menus.Screens
             _continue.Activated = Continue;
             newGame.Activated = NewGame;
 
-            int columns = MenuTheme.Metrics.SecondaryColumns;
-
-            _explore = MenuEntryPanel.Create("Explore", _content, Nav, "menu.exploreSection", columns);
+            // One short, unheaded list gives the secondary choices room to breathe.
+            // Less-frequent destinations are grouped on Explore rather than competing here.
+            _explore = MenuEntryPanel.Create("Destinations", _content, Nav, null, 1);
             AddDestination(_explore, MenuScreenId.Chapters, "menu.chapters");
-            AddDestination(_explore, MenuScreenId.Characters, "menu.characters");
-            AddDestination(_explore, MenuScreenId.Collection, "menu.collection");
-            AddDestination(_explore, MenuScreenId.Achievements, "menu.achievements");
-
-            _system = MenuEntryPanel.Create("System", _content, Nav, "menu.systemSection", columns);
-            AddDestination(_system, MenuScreenId.Settings, "menu.settings");
-            AddDestination(_system, MenuScreenId.Credits, "menu.credits");
+            AddDestination(_explore, MenuScreenId.Explore, "menu.exploreSection");
+            AddDestination(_explore, MenuScreenId.Settings, "menu.settings");
 
             _version = MenuUi.CreateText("Version", Rect, string.Empty, MenuTheme.Metrics.VersionSize,
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
@@ -153,11 +148,9 @@ namespace Aether.Gameplay.Menus.Screens
             // On narrower landscape windows the whole secondary block becomes one column; below the
             // compact breakpoint the primary and secondary clusters stack instead of competing for
             // horizontal space. This is especially important for long RTL and German/Russian strings.
-            int columns = rightWidth / MenuTheme.Metrics.SecondaryColumns >= MinimumSecondaryCell
-                ? MenuTheme.Metrics.SecondaryColumns
-                : 1;
-            _explore.SetColumns(columns);
-            _system.SetColumns(columns);
+            // Keep the secondary list vertical. A short list reads faster than a grid, and each row
+            // remains a comfortable touch target across translations and interface scales.
+            _explore.SetColumns(1);
 
             _play.Layout(leftWidth, box);
             _explore.Layout(rightWidth, box);
@@ -171,13 +164,9 @@ namespace Aether.Gameplay.Menus.Screens
                 : top;
             _explore.Rect.anchoredPosition = new Vector2(secondaryX, -secondaryTop);
 
-            float systemTop = secondaryTop + _explore.Height + MenuTheme.Metrics.ClusterGap;
-            _system.Layout(rightWidth, box);
-            _system.Rect.anchoredPosition = new Vector2(secondaryX, -systemTop);
-
             float bottom = compact
-                ? systemTop + _system.Height
-                : Mathf.Max(top + _play.Height, systemTop + _system.Height);
+                ? secondaryTop + _explore.Height
+                : Mathf.Max(top + _play.Height, secondaryTop + _explore.Height);
             MenuUi.SetContentHeight(_content, bottom + MenuTheme.Metrics.ParagraphBlockPadding);
             _content.anchoredPosition = Vector2.zero;
         }
@@ -212,7 +201,6 @@ namespace Aether.Gameplay.Menus.Screens
             // of every cluster, not only the one under the player's finger.
             _play.Refresh();
             _explore.Refresh();
-            _system.Refresh();
         }
 
         /// <inheritdoc />
@@ -223,14 +211,12 @@ namespace Aether.Gameplay.Menus.Screens
             _title.Show(instant, 0f);
             _play.Show(instant, MenuTheme.Motion.EntranceStagger);
             _explore.Show(instant, MenuTheme.Motion.EntranceStagger * 2f);
-            _system.Show(instant, MenuTheme.Motion.EntranceStagger * 3f);
 
-            // The order the entries are offered in is the order they are read in: the brand, the two
-            // primary rows, then the two clusters. Rebuilt on every show, never on a refresh.
+            // The order mirrors the visual hierarchy: primary actions first, then destinations.
+            // Rebuilt on every show, never on a refresh.
             Nav.Clear();
             _play.Register();
             _explore.Register();
-            _system.Register();
             Nav.SelectFirst();
         }
 
