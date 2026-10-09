@@ -60,7 +60,7 @@ namespace Aether.Tests.PlayMode
         /// arriving alone, the wordmark extending the lockup downwards, the light crossing the
         /// finished lockup, two frames of the still hold, and the end of the fade.
         /// </summary>
-        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.25f, 1.85f, 2.15f, 2.70f };
+        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.50f, 1.95f, 2.20f, 2.55f, 3.35f };
 
         /// <summary>A pixel at or above this luminance is part of the mark.</summary>
         private const float InkLuminance = 0.35f;
@@ -277,7 +277,8 @@ namespace Aether.Tests.PlayMode
                 Frame light = frames[3];
                 Frame hold = frames[4];
                 Frame still = frames[5];
-                Frame leaving = frames[6];
+                Frame secondLight = frames[6];
+                Frame leaving = frames[7];
 
                 // 1. The sequence opens on black, and nothing is on it yet: the pause is its own beat.
                 stage = "check the opening black";
@@ -308,7 +309,7 @@ namespace Aether.Tests.PlayMode
                 //    at rest, so it can only be the highlight - and it is on the logo, not around it.
                 stage = "check the light crosses the lockup, and only the lockup";
                 Assert.Greater(light.BrightOfInk, 0.05f,
-                               "no light is crossing the lockup at 1.25s: nothing on the ink is brighter "
+                               "no light is crossing the lockup at 1.50s: nothing on the ink is brighter "
                                + "than the resting logo");
                 Assert.Greater(light.BlackFraction, 0.90f,
                                $"only {light.BlackFraction:P1} of the frame is black while the light is "
@@ -316,8 +317,8 @@ namespace Aether.Tests.PlayMode
                 Assert.Less(hold.BrightOfInk, 0.01f,
                             "the standing lockup carries lit pixels, so the light never left it");
 
-                // 5. The hold is completely still: two frames a third of a second apart are the same
-                //    picture, and it is the picture the layout promises.
+                // 5. The quiet part of the hold is completely still: the reverse glint has not started yet,
+                //    so these two frames must match exactly.
                 stage = "check the hold is completely still";
                 Assert.That(hold.MaxChannelDifference(still), Is.LessThanOrEqualTo(2),
                             "the lockup moves during the hold: two frames of it differ");
@@ -364,7 +365,7 @@ namespace Aether.Tests.PlayMode
                 // 6. And the fade takes the complete lockup to black rather than cutting it.
                 stage = "check the fade finishes in black";
                 Assert.Less(leaving.InkFraction, hold.InkFraction * 0.25f,
-                            "the lockup is still on screen at 2.70s, so the fade does not finish");
+                            "the lockup is still on screen at 3.35s, so the fade is not far enough along");
                 Assert.Greater(leaving.BlackFraction, 0.95f,
                                $"only {leaving.BlackFraction:P1} of the frame is black at 2.70s");
 
@@ -399,9 +400,9 @@ namespace Aether.Tests.PlayMode
                 Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
                             "the light is not switched on at 1.25s, so nothing crosses the lockup");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
-                            $"the light is still switched on ({hold.SheenAlpha:0.000}) at 1.85s");
+                            $"the first light is still switched on ({hold.SheenAlpha:0.000}) at 1.95s");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
-                            "the light comes back during the hold");
+                            "the reverse glint starts too early during the quiet hold");
                 Assert.That(still.MarkAlpha, Is.EqualTo(1f).Within(0.001f),
                             $"the fade has started by 2.15s (mark a={still.MarkAlpha:0.000}), so the "
                             + "two frames compared for stillness are not both the hold");
