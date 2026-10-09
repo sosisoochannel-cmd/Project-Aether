@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using Aether.Core.Settings;
 using Aether.Gameplay.Flow;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
@@ -353,36 +354,39 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
-        public void MenuButtonLabelsPreserveWordBoundariesAcrossLanguages()
+        public void EveryOfferedLanguagePreservesEveryMenuStringInButtonLabels()
         {
+            string originalLanguage = LanguageService.Code;
             var parent = new GameObject("LabelBoundaryTest", typeof(RectTransform));
             try
             {
                 MenuButton row = MenuButton.Create("LabelBoundaryRow", parent.transform,
-                                                  "NEW GAME", MenuButton.Weight.Primary);
-                string[] labels =
-                {
-                    "NEW GAME",
-                    "NUEVA PARTIDA",
-                    "NOUVELLE PARTIE",
-                    "NEUES SPIEL",
-                    "NOVO JOGO",
-                    "НОВАЯ ИГРА",
-                    "YENİ OYUN",
-                    "بازی جدید",
-                    "دستاوردها",
-                    "ACHIEVEMENTS"
-                };
+                                                  string.Empty, MenuButton.Weight.Primary);
+                string[] languages = { "en", "es", "fr", "fa" };
 
-                for (int i = 0; i < labels.Length; i++)
+                for (int languageIndex = 0; languageIndex < languages.Length; languageIndex++)
                 {
-                    row.SetLabel(labels[i]);
-                    Assert.AreEqual(labels[i], row.Label.text,
-                        "A menu button changed or split the source label: " + labels[i]);
+                    string language = languages[languageIndex];
+                    LanguageService.Set(language);
+                    Assert.AreEqual(language, LanguageService.Code,
+                        "The test could not activate offered language " + language);
+
+                    foreach (string key in MenuStrings.Keys)
+                    {
+                        Assert.IsTrue(LanguageService.Has(key),
+                            "The " + language + " table is missing menu key " + key);
+
+                        string label = MenuStrings.Get(key);
+                        row.SetLabel(label);
+                        Assert.AreEqual(label, row.Label.text,
+                            "The " + language + " menu string was altered or split for key " + key);
+                    }
                 }
             }
             finally
             {
+                if (LanguageService.Code != originalLanguage)
+                    LanguageService.Set(originalLanguage);
                 UnityEngine.Object.DestroyImmediate(parent);
             }
         }
