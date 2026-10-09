@@ -142,10 +142,10 @@ namespace Aether.Gameplay.Enemies
             _targetLayers = targetLayers;
         }
 
-        /// <summary>Narrows or widens this instance's patrol. Zero or less keeps the archetype's.</summary>
+        /// <summary>Sets this placement's patrol half-width in world units. Zero means hold position.</summary>
         public void ConfigurePatrol(float patrolDistance)
         {
-            if (patrolDistance > 0f) _patrolDistanceOverride = patrolDistance;
+            _patrolDistanceOverride = Mathf.Max(0f, patrolDistance);
         }
 
         /// <summary>Half-width of this enemy's patrol, in world units.</summary>
@@ -199,7 +199,7 @@ namespace Aether.Gameplay.Enemies
 
             EnemyStateId initial = _definition != null && _definition.Behaviour == EnemyBehaviour.AmbushDropper
                 ? EnemyStateId.Ambush
-                : (_definition != null && _definition.Patrols ? EnemyStateId.Patrol : EnemyStateId.Idle);
+                : (PatrolDistance > 0.05f ? EnemyStateId.Patrol : EnemyStateId.Idle);
 
             _machine.Start(this, initial);
         }
@@ -241,8 +241,7 @@ namespace Aether.Gameplay.Enemies
             _motor.FacingSign = 1;
             _postPosition = _motor.Position;
             _stateTimer = 0f;
-            _patrolTargetX = _postPosition.x
-                + (_definition != null && _definition.Patrols ? _motor.FacingSign * PatrolDistance : 0f);
+            _patrolTargetX = _postPosition.x + (_motor.FacingSign * PatrolDistance);
             _hasAlerted = false;
             _staggerRemaining = 0f;
 
@@ -254,7 +253,7 @@ namespace Aether.Gameplay.Enemies
                 EnemyStateId spawnState =
                     _definition != null && _definition.Behaviour == EnemyBehaviour.AmbushDropper
                         ? EnemyStateId.Ambush
-                        : (_definition != null && _definition.Patrols
+                        : (PatrolDistance > 0.05f
                             ? EnemyStateId.Patrol
                             : EnemyStateId.Idle);
                 _machine.ChangeState(this, spawnState);
@@ -566,7 +565,7 @@ namespace Aether.Gameplay.Enemies
                     c._motor.FacingSign = -c._motor.FacingSign;
                     c._machine.ChangeState(
                         c,
-                        c._definition != null && c._definition.Patrols
+                        c.PatrolDistance > 0.05f
                             ? EnemyStateId.Patrol
                             : EnemyStateId.Idle);
                     return;

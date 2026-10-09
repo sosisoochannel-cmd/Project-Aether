@@ -1175,6 +1175,13 @@ namespace Aether.Tests.PlayMode
                 Assert.That(targetField.GetValue(enemy), Is.SameAs(player.transform),
                     "Every enemy must receive the actual player target; otherwise perception and combat never start.");
 
+                enemy.ConfigurePatrol(0f);
+                PropertyInfo patrolDistance = typeof(EnemyController).GetProperty(
+                    "PatrolDistance", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(patrolDistance, Is.Not.Null);
+                Assert.That(patrolDistance.GetValue(enemy), Is.EqualTo(0f),
+                    "A placement with patrol=0 must hold position rather than falling back to the archetype's default patrol.");
+
                 enemy.Motor.FacingSign = -1;
                 typeof(EnemyController).GetField("_stateTimer", BindingFlags.Instance | BindingFlags.NonPublic)
                     .SetValue(enemy, 4f);
