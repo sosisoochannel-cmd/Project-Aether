@@ -925,6 +925,23 @@ namespace Aether.Tests.PlayMode
             public string Location => "isolated menu test store";
         }
 
+        [UnityTest]
+        public IEnumerator PlayerWithoutTuningStaysInertWithoutPhysicsExceptions()
+        {
+            const string expected =
+                "PlayerController on 'untuned-player' has no PlayerTuningData assigned. " +
+                "The player will not move. Assign a tuning asset in the inspector.";
+            LogAssert.Expect(LogType.Error, expected);
+
+            var player = new GameObject("untuned-player");
+            player.AddComponent<PlayerController>();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(player.GetComponent<PlayerMotor>().Body.linearVelocity, Is.EqualTo(Vector2.zero));
+            UnityEngine.Object.Destroy(player);
+            yield return null;
+        }
+
         [Test]
         public void EventBus_PublishKeepsItsOriginalSubscriberSnapshotDuringMutation()
         {
