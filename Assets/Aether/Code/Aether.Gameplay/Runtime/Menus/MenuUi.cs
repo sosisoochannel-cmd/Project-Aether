@@ -306,6 +306,7 @@ namespace Aether.Gameplay.Menus
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
             text.lineSpacing = Mathf.Max(1f, lineHeight / Mathf.Max(1f, size));
+            text.GetComponent<PersianTextAdapter>()?.CaptureSourceOverflowModes();
             return text;
         }
 
