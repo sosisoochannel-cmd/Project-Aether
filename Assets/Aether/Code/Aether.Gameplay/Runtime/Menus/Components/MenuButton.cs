@@ -138,24 +138,6 @@ namespace Aether.Gameplay.Menus.Components
         }
 
         /// <summary>
-        /// How far a row's own type is opened up.
-        /// </summary>
-        /// <remarks>
-        /// A primary row is a headline and a secondary row is a list entry, so they are tracked
-        /// differently. Keeping it here rather than at the call sites is what stops one screen from
-        /// having airy type and another from having none.
-        /// </remarks>
-        private float Tracking
-        {
-            get
-            {
-                return _weight == Weight.Primary
-                    ? MenuTheme.Metrics.PrimaryTracking
-                    : MenuTheme.Metrics.SecondaryTracking;
-            }
-        }
-
-        /// <summary>
         /// Redraws the row in its current state, re-reading the palette.
         /// </summary>
         /// <remarks>
@@ -169,16 +151,12 @@ namespace Aether.Gameplay.Menus.Components
             ApplyState(currentSelectionState, true);
         }
 
-        /// <summary>Sets the label. Safe to call every time a screen refreshes a pooled row.</summary>
-        /// <remarks>
-        /// The tracking is applied here, so callers pass the string the table holds and never a
-        /// spaced one: a label set through this can be re-set any number of times and looks the same.
-        /// </remarks>
+        /// <summary>Sets the exact translated label, safe to call on a pooled row.</summary>
         public void SetLabel(string text)
         {
             if (_label == null) return;
 
-            string wanted = MenuUi.Track(text, Tracking);
+            string wanted = text ?? string.Empty;
             if (_label.text == wanted) return;
             _label.text = wanted;
         }
@@ -281,7 +259,7 @@ namespace Aether.Gameplay.Menus.Components
             _control.sizeDelta = new Vector2(Mathf.Max(0f, width), 0f);
         }
 
-        /// <summary>Lays the row out for the track it was given. Called by the panel that owns it.</summary>
+        /// <summary>Lays out the row's text and selection details. Called by the panel that owns it.</summary>
         public void ApplyLayout(float caretOutdent, float textInset)
         {
             if (_label == null) return;
@@ -369,9 +347,12 @@ namespace Aether.Gameplay.Menus.Components
                 ? MenuTheme.Metrics.PrimarySize
                 : MenuTheme.Metrics.SecondarySize;
 
-            _label = MenuUi.CreateTrackedText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
-                                             Tracking, TextAnchor.MiddleLeft,
-                                             _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
+            // Interactive labels must keep their exact translated text. Hair-space tracking
+            // introduces legal break points inside a word (NEW GAME can render as NE WGAME on
+            // narrow screens), so decorative tracking is reserved for the wide section headings.
+            _label = MenuUi.CreateText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
+                                       TextAnchor.MiddleLeft,
+                                       _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
             _label.rectTransform.anchorMin = new Vector2(0f, 0f);
             _label.rectTransform.anchorMax = new Vector2(0f, 1f);
             _label.rectTransform.pivot = new Vector2(0f, 0.5f);
