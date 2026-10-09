@@ -59,6 +59,28 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void SaveNowWithoutLiveSessionRewritesTheSelectedStoredSlot()
+        {
+            GameSession session = SaveHost.BeginNewGameIn(2, ChapterCatalog.First.Id);
+            Assert.IsNotNull(session);
+            Assert.IsTrue(session.SetWorldFlag("test.lifecycle.menu-save-keeps-slot"));
+            Assert.IsTrue(SaveHost.SaveNow());
+
+            // A menu can outlive the scene's session object while retaining the chosen slot.
+            UnityEngine.Object.DestroyImmediate(session.gameObject);
+            Assert.IsNull(GameSession.Instance);
+            Assert.AreEqual(2, SaveHost.ActiveSlot);
+
+            Assert.IsTrue(SaveHost.SaveNow(),
+                "Save Now from the menu did not rewrite the selected stored run.");
+            Assert.IsTrue(SaveSlots.For(2).TryLoad(out SaveData stored));
+            Assert.IsTrue(stored.World.IsSet("test.lifecycle.menu-save-keeps-slot"),
+                "The menu save lost the selected run's progress.");
+            Assert.IsFalse(SaveSlots.For(1).HasStoredProgress,
+                "The menu save unexpectedly wrote to slot one.");
+        }
+
+        [Test]
         public void CorruptSlotCannotReplaceTheCurrentActiveRun()
         {
             GameSession session = SaveHost.BeginNewGameIn(1, ChapterCatalog.First.Id);
