@@ -66,7 +66,6 @@ namespace Aether.Data.Levels
         /// <summary>Enemy archetype id, or null for other kinds.</summary>
         public string TypeId { get; internal set; }
 
-        /// <summary>Half-width of an enemy's patrol, in tiles. Zero means the enemy holds position.</summary>
         /// <summary>Half-width in tiles; -1 inherits the archetype default, zero holds position.</summary>
         public int PatrolTiles { get; internal set; } = -1;
 
