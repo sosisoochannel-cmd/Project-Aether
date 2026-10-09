@@ -1202,6 +1202,50 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator PooledEnemy_RestartsItsStateMachineWhenResetAfterReenable()
+        {
+            EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            var root = new GameObject("pooled-enemy-lifecycle-test");
+            root.SetActive(false);
+            root.AddComponent<Rigidbody2D>();
+            root.AddComponent<BoxCollider2D>();
+            root.AddComponent<EnemyMotor2D>();
+            root.AddComponent<EnemyHealth>();
+            EnemyController enemy = root.AddComponent<EnemyController>();
+
+            try
+            {
+                enemy.Initialize(definition, null);
+                enemy.ConfigurePatrol(0f);
+                root.SetActive(true);
+                yield return null;
+
+                FieldInfo machineField = typeof(EnemyController).GetField(
+                    "_machine", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(machineField, Is.Not.Null);
+                object machine = machineField.GetValue(enemy);
+                PropertyInfo runningProperty = machine.GetType().GetProperty("IsRunning");
+                Assert.That(runningProperty, Is.Not.Null);
+                Assert.That(runningProperty.GetValue(machine), Is.True,
+                    "The initial spawn must have a running state machine.");
+
+                root.SetActive(false);
+                root.SetActive(true);
+                enemy.ResetForSpawn(Vector2.zero);
+
+                Assert.That(runningProperty.GetValue(machine), Is.True,
+                    "A recycled enemy must restart its state machine after OnDisable stopped it.");
+                Assert.That(enemy.State, Is.EqualTo(EnemyStateId.Idle),
+                    "A zero-patrol placement must return to its authored idle state.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
         [Test]
         public void RecordFindingRepairsCollectionWhenWorldFlagAlreadyExists()
         {
