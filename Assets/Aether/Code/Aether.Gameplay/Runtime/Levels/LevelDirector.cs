@@ -129,13 +129,8 @@ namespace Aether.Gameplay.Levels
 
             for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();
 
-            // A find the player already took stays taken: it is recorded in the save file, and a
-            // restart that let them collect it twice would make the collection's count a lie.
-            for (int i = 0; i < _built.Discoveries.Count; i++)
-            {
-                DiscoveryTrigger discovery = _built.Discoveries[i];
-                if (discovery != null && discovery.AlreadyRecorded) discovery.gameObject.SetActive(false);
-            }
+            // Already recorded discoveries stay collected across both restart and death respawn.
+            HideRecordedDiscoveries();
 
             _respawnAt = float.NegativeInfinity;
             float halfHeight = _player.Tuning != null ? _player.Tuning.BodyHeight * 0.5f : 0.7f;
@@ -143,6 +138,17 @@ namespace Aether.Gameplay.Levels
             _player.InputEnabled = true;
 
             if (_camera != null) _camera.SnapToTarget();
+        }
+
+        private void HideRecordedDiscoveries()
+        {
+            if (_built == null) return;
+            for (int i = 0; i < _built.Discoveries.Count; i++)
+            {
+                DiscoveryTrigger discovery = _built.Discoveries[i];
+                if (discovery != null && discovery.AlreadyRecorded)
+                    discovery.gameObject.SetActive(false);
+            }
         }
 
         /// <summary>
@@ -153,6 +159,8 @@ namespace Aether.Gameplay.Levels
         {
             if (_player == null || _built == null) return;
 
+            // This method is public for debug/test use too, so make repeated calls idempotent.
+            _respawnAt = float.NegativeInfinity;
             RespawnFeet = ResolveRespawnFeet();
 
             for (int i = 0; i < _enemies.Count; i++)
@@ -161,9 +169,11 @@ namespace Aether.Gameplay.Levels
             }
 
             for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();
+            HideRecordedDiscoveries();
 
             float halfHeight = _player.Tuning != null ? _player.Tuning.BodyHeight * 0.5f : 0.7f;
             _player.ResetForRespawn(RespawnFeet + new Vector2(0f, halfHeight));
+            _player.InputEnabled = true;
 
             // The view moves with the player, not after them. Without this the camera glides across
             // the whole region after every death, which reads as the game losing its place.
