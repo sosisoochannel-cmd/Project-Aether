@@ -117,6 +117,8 @@ namespace Aether.Gameplay.Levels
                     return;
                 }
 
+                RestorePersistedWorldState();
+
                 Camera camera = ResolveCamera();
                 CameraFollow2D follow = camera.gameObject.GetComponent<CameraFollow2D>();
                 if (follow == null) follow = camera.gameObject.AddComponent<CameraFollow2D>();
@@ -153,6 +155,30 @@ namespace Aether.Gameplay.Levels
                 Debug.LogException(ex, this);
                 FailBoot(
                     "The region could not be assembled by this build. Return to the menu and try again.");
+            }
+        }
+
+        /// <summary>Applies saved checkpoint and discovery state to the freshly built level.</summary>
+        private void RestorePersistedWorldState()
+        {
+            if (Level == null || _session == null) return;
+
+            string activeCheckpoint = _session.World.ActiveCheckpointId;
+            for (int i = 0; i < Level.Checkpoints.Count; i++)
+            {
+                CheckpointTrigger checkpoint = Level.Checkpoints[i];
+                if (checkpoint != null && !string.IsNullOrEmpty(activeCheckpoint)
+                    && checkpoint.CheckpointId == activeCheckpoint)
+                {
+                    checkpoint.RestoreActivated();
+                }
+            }
+
+            for (int i = 0; i < Level.Discoveries.Count; i++)
+            {
+                DiscoveryTrigger discovery = Level.Discoveries[i];
+                if (discovery != null && discovery.AlreadyRecorded)
+                    discovery.gameObject.SetActive(false);
             }
         }
 
