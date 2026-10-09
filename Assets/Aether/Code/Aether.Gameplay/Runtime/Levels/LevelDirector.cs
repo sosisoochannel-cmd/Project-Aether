@@ -129,6 +129,14 @@ namespace Aether.Gameplay.Levels
 
             RespawnFeet = _built.PlayerStartFeet;
 
+            // Restart means returning to the region's true beginning. Keeping the old checkpoint
+            // id would make a later death jump back to that checkpoint, contradicting the restart.
+            if (_session != null && !string.IsNullOrEmpty(_session.World.ActiveCheckpointId))
+            {
+                _session.World.ActiveCheckpointId = string.Empty;
+                _session.RequestSave();
+            }
+
             for (int i = 0; i < _enemies.Count; i++)
             {
                 if (_enemies[i] != null) _enemies[i].ResetForSpawn(_enemyFeet[i]);
@@ -175,7 +183,20 @@ namespace Aether.Gameplay.Levels
                 if (_enemies[i] != null) _enemies[i].ResetForSpawn(_enemyFeet[i]);
             }
 
-            for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();
+            // Keep the checkpoint we are actually respawning at visibly active. Other checkpoints
+            // are re-armed because the run's single saved checkpoint id is the source of truth.
+            string activeCheckpointId = _session != null ? _session.World.ActiveCheckpointId : string.Empty;
+            for (int i = 0; i < _built.Checkpoints.Count; i++)
+            {
+                CheckpointTrigger checkpoint = _built.Checkpoints[i];
+                if (checkpoint == null) continue;
+
+                if (!string.IsNullOrEmpty(activeCheckpointId) &&
+                    checkpoint.CheckpointId == activeCheckpointId)
+                    checkpoint.RestoreActivated();
+                else
+                    checkpoint.Rearm();
+            }
             HideRecordedDiscoveries();
 
             float halfHeight = _player.Tuning != null ? _player.Tuning.BodyHeight * 0.5f : 0.7f;
