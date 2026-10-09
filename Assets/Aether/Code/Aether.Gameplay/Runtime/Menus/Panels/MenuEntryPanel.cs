@@ -10,12 +10,11 @@ namespace Aether.Gameplay.Menus.Panels
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The main menu is three of these — PLAY, EXPLORE, SYSTEM — and the placeholder screens are one
-    /// each. A cluster is a section label and a grid of rows with a fixed number of columns, which is
-    /// all the main menu needs and all it should need: a grid of identical rectangles is exactly the
-    /// look the brief rules out, and the way to avoid it is to make the clusters genuinely different
-    /// — two large rows in one, a four-cell grid in another, a pair in the third — rather than to add
-    /// layout options nobody will use.
+    /// The main menu uses two deliberately different clusters: large primary actions and a short
+    /// vertical list of destinations. The Explore submenu uses the same panel for less-frequent
+    /// destinations. A cluster can optionally have a section label and a fixed number of columns, but
+    /// the current navigation keeps the secondary choices vertical so translated labels and touch
+    /// targets have room to breathe.
     /// </para>
     /// <para>
     /// Rows are created once and placed by arithmetic: no layout groups, nothing measured at runtime,
