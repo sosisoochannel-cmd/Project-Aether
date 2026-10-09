@@ -232,7 +232,11 @@ namespace Aether.Gameplay.Enemies
                         _baseScale.z)).sqrMagnitude < 1e-6f))
             {
                 _renderer.color = colour;
-                if (_visual != null) _visual.localScale = new Vector3(_baseScale.x, _baseScale.y, _baseScale.z);
+                if (_visual != null)
+                {
+                    float restingScale = _deadPresentation ? 0.72f : 1f;
+                    _visual.localScale = new Vector3(_baseScale.x * restingScale, _baseScale.y * restingScale, _baseScale.z);
+                }
                 enabled = false;
             }
         }
