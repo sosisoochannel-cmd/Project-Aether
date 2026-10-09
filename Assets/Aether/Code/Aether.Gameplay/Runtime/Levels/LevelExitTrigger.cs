@@ -12,7 +12,7 @@ namespace Aether.Gameplay.Levels
     /// Writing a placeholder "to be continued" screen now would be building presentation for content
     /// that does not exist, and it would have to be deleted.
     /// </remarks>
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class LevelExitTrigger : MonoBehaviour
     {
         private LevelEntity _entity;
