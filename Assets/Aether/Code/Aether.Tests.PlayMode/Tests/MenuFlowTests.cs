@@ -1116,6 +1116,8 @@ namespace Aether.Tests.PlayMode
                     "Taking a hit must cancel the active attack so the player cannot attack through hit-stun.");
                 Assert.That(playerController.InputEnabled, Is.False,
                     "Hit-stun must withhold player input, not just cancel the current attack.");
+                Assert.That(combat.TryStartAttack(), Is.False,
+                    "Attack requests must be rejected while hit-stun withholds player control.");
 
                 yield return new WaitForSeconds(0.30f);
                 Assert.That(playerController.State, Is.Not.EqualTo(PlayerStateId.Hurt),
@@ -1132,6 +1134,10 @@ namespace Aether.Tests.PlayMode
                 Assert.That(playerController.State, Is.EqualTo(PlayerStateId.Dead));
                 Assert.That(combat.IsAttacking, Is.False,
                     "Death must cancel the attack so a dead player cannot keep dealing damage.");
+                Assert.That(playerController.InputEnabled, Is.False,
+                    "Death must keep player input disabled.");
+                Assert.That(combat.TryStartAttack(), Is.False,
+                    "Attack requests must be rejected after death.");
             }
             finally
             {
