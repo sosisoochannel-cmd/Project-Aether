@@ -36,9 +36,9 @@ permissions:
 
 concurrency:
   group: intro-render-${{ github.ref }}
-  # Let one verification finish; newer commits replace the pending run instead of cancelling
-  # the active static suite halfway through its 98 regression controls.
-  cancel-in-progress: false
+  # Only the latest head matters during rapid fix iterations; do not waste runner time
+  # on an older revision when a newer one is ready.
+  cancel-in-progress: true
 
 jobs:
   render:
@@ -68,6 +68,8 @@ jobs:
       # that starts with about 14 GB free. Only host-side toolchains a *container* run cannot use
       # are removed - the editor, SDK, NDK and JDK all live inside the image.
       - name: Free disk space
+        timeout-minutes: 5
+        continue-on-error: true
         run: |
           set -euo pipefail
           df -h /
