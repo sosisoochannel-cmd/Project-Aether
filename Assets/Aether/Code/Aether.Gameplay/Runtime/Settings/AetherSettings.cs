@@ -87,7 +87,10 @@ namespace Aether.Gameplay.Settings
             }
 
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = framesPerSecond;
+
+            // Keep persisted or externally supplied values inside the actual frame-rate choices
+            // supported by this game's settings UI. Zero remains the explicit uncapped sentinel.
+            Application.targetFrameRate = Mathf.Clamp(framesPerSecond, 30, 120);
         }
 
         /// <summary>
