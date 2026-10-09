@@ -1191,6 +1191,8 @@ namespace Aether.Tests.PlayMode
                 Assert.That(typeof(EnemyController).GetField("_stateTimer",
                     BindingFlags.Instance | BindingFlags.NonPublic).GetValue(enemy), Is.EqualTo(0f),
                     "A respawned ambusher must not inherit an expired telegraph timer.");
+                Assert.That(enemy.Motor.Position.y, Is.EqualTo(0.5f).Within(0.03f),
+                    "Enemy spawn positions are feet coordinates and must be converted to the body's centre.");
             }
             finally
             {

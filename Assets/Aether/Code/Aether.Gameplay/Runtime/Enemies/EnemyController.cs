@@ -233,8 +233,22 @@ namespace Aether.Gameplay.Enemies
             _runner.Cancel();
             _health.ResetToFull();
 
-            transform.position = position;
-            if (_motor.Body != null) _motor.Body.linearVelocity = Vector2.zero;
+            // Spawn positions in level data are feet coordinates, not body centres. Place the
+            // Rigidbody at the correct centre explicitly, then sync transforms before the snap
+            // query; with autoSyncTransforms disabled, a raycast immediately after moving a
+            // Transform can otherwise read stale collider bounds and leave the enemy half-buried.
+            float colliderOffsetY = _motor.Collider != null
+                ? transform.TransformVector(_motor.Collider.offset).y
+                : 0f;
+            float halfHeight = _motor.Collider != null ? _motor.Collider.bounds.extents.y : 0f;
+            Vector2 centre = position + Vector2.up * (halfHeight - colliderOffsetY);
+            if (_motor.Body != null)
+            {
+                _motor.Body.position = centre;
+                _motor.Body.linearVelocity = Vector2.zero;
+            }
+            transform.position = centre;
+            Physics2D.SyncTransforms();
             _motor.SnapToGround();
 
             // Every retry must be the same authored encounter, not the direction the enemy happened

@@ -49,8 +49,17 @@ namespace Aether.Gameplay.Levels
             get
             {
                 GameSession session = GameSession.Instance;
-                return session != null && _entity != null && !string.IsNullOrEmpty(_entity.Flag)
-                       && session.World.IsSet(_entity.Flag);
+                if (session == null || _entity == null) return false;
+
+                // Either half of an older save can survive independently. Treat either as found,
+                // then let LevelBootstrap.RecordFinding repair the missing half before hiding this
+                // trigger so a collection entry can never become permanently unreachable.
+                bool flagRecorded = !string.IsNullOrEmpty(_entity.Flag)
+                    && session.World.IsSet(_entity.Flag);
+                bool collectionRecorded = !string.IsNullOrEmpty(_entity.Id)
+                    && session.Collection != null
+                    && session.Collection.Has(_entity.Id);
+                return flagRecorded || collectionRecorded;
             }
         }
 
