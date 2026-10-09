@@ -1077,12 +1077,12 @@ namespace Aether.Tests.PlayMode
                 "The player will not move. Assign a tuning asset in the inspector.";
             LogAssert.Expect(LogType.Error, expected);
 
-            GameObject player = new GameObject("untuned-player");
-            player.AddComponent<PlayerController>();
+            GameObject untunedPlayerHost = new GameObject("untuned-player");
+            untunedPlayerHost.AddComponent<PlayerController>();
             yield return new WaitForFixedUpdate();
 
-            Assert.That(player.GetComponent<PlayerMotor>().Body.linearVelocity, Is.EqualTo(Vector2.zero));
-            UnityEngine.Object.Destroy(player);
+            Assert.That(untunedPlayerHost.GetComponent<PlayerMotor>().Body.linearVelocity, Is.EqualTo(Vector2.zero));
+            UnityEngine.Object.Destroy(untunedPlayerHost);
             yield return null;
         }
 
