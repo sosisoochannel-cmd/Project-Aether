@@ -31,6 +31,11 @@ namespace Aether.Core.Combat
     /// </remarks>
     public static class Physics2DQuery
     {
+        // Shared because Unity runs these gameplay queries on its main thread. A one-result buffer
+        // avoids allocations while letting ContactFilter2D explicitly ignore triggers regardless
+        // of the project-wide Physics2D.queriesHitTriggers setting.
+        private static readonly Collider2D[] SingleHitBuffer = new Collider2D[1];
+
         /// <summary>
         /// Builds a reusable filter that ignores trigger colliders — the correct default for
         /// movement, grounding and hit detection, since triggers are the physics engine's mechanism
@@ -58,7 +63,8 @@ namespace Aether.Core.Combat
         /// </remarks>
         public static bool OverlapsBox(Vector2 center, Vector2 size, float angle, LayerMask layers)
         {
-            return Physics2D.OverlapBox(center, size, angle, layers) != null;
+            ContactFilter2D filter = CreateSolidFilter(layers);
+            return Physics2D.OverlapBox(center, size, angle, filter, SingleHitBuffer) > 0;
         }
 
         /// <summary>
