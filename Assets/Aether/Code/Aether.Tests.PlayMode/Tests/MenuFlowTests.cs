@@ -1465,6 +1465,61 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelParser_RejectsDuplicateIdsAndEntitiesOutsideTheMap()
+        {
+            const string duplicateIds =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = duplicate-id-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n" +
+                "anchor = id=start, x=0, y=0\n";
+
+            LevelParseException duplicateError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(duplicateIds, "duplicate-id-test"));
+            Assert.That(duplicateError.Line, Is.EqualTo(10));
+
+            const string outsideMap =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = outside-map-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=1, y=0\n";
+
+            LevelParseException boundsError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(outsideMap, "outside-map-test"));
+            Assert.That(boundsError.Line, Is.EqualTo(9));
+        }
+
+        [Test]
+        public void LevelParser_RejectsCheckpointWithoutExplicitRespawn()
+        {
+            const string malformed =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = missing-respawn-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "checkpoint = id=checkpoint, x=0, y=0\n";
+
+            LevelParseException error = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(malformed, "missing-respawn-test"));
+            Assert.That(error.Line, Is.EqualTo(9),
+                "A checkpoint must never silently default its respawn point to tile (0,0).");
+        }
+
+        [Test]
         public void FallingBelowTheLevelStartsDeathAndRespawnEvenDuringInvulnerability()
         {
             float originalScale = Time.timeScale;
