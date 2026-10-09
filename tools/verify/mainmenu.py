@@ -528,7 +528,7 @@ def check_localisation(gate: Gate) -> None:
 
     shown = {
         "MenuUi.CreateText": 2,
-        "MenuUi.CreateTrackedText": 2,
+        "MenuUi.CreateTrackedText": 1,
         "MenuUi.CreateParagraph": 2,
         "MenuButton.Create": 2,
         "MenuHeader.Create": 1,
@@ -537,6 +537,14 @@ def check_localisation(gate: Gate) -> None:
         "SetMeta": 0,
         "SetHelp": 0,
     }
+    button_source = read(os.path.join(
+        "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus",
+        "Components", "MenuButton.cs"))
+    gate.check('MenuUi.CreateText("Label", _textBlock, text' in button_source,
+               "menu buttons must render their exact source label without artificial tracking")
+    gate.check("MenuUi.Track(text, Tracking)" not in button_source,
+               "menu buttons must not insert hair spaces that allow words to break internally")
+
     for rel in files:
         text = read(rel)
         for name, index in shown.items():
