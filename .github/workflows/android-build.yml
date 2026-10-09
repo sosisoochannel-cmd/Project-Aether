@@ -25,6 +25,8 @@ on:
   push:
     branches:
       - main
+      # Temporary gameplay-test lane: the owner explicitly requested a build of this polish branch.
+      - arena/ultimate-visual-polish
     # Documentation cannot change an APK, and a build spends real minutes from the month's free
     # allowance, so a docs-only push should not start one.
     paths-ignore:
