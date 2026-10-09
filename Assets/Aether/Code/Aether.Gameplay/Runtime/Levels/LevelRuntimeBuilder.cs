@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Aether.Data.Config;
 using Aether.Data.Levels;
@@ -96,6 +97,14 @@ namespace Aether.Gameplay.Levels
         public static BuiltLevel Build(LevelData level, LevelContent content, Transform parent,
                                        bool includeGeometry = true)
         {
+            // Validate before allocating any Unity objects. Invalid content is a boot error,
+            // not a partially-created hierarchy that can leak into the next attempt.
+            if (level == null) throw new ArgumentNullException(nameof(level));
+            if (content == null) throw new ArgumentNullException(nameof(content));
+            if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (content.PlayerTuning == null)
+                throw new InvalidOperationException("Level content has no player tuning data.");
+
             var root = new GameObject($"Level_{level.Id}");
             root.transform.SetParent(parent, false);
 
@@ -230,11 +239,13 @@ namespace Aether.Gameplay.Levels
         {
             if (!content.TryGetEnemy(entity.TypeId, out EnemyDefinition definition))
             {
-                Debug.LogError(
-                    $"Level '{built.Data.Id}' places an enemy of type '{entity.TypeId}' at " +
-                    $"({entity.Position.x},{entity.Position.y}) but no such archetype exists. " +
-                    "The encounter is missing from the level as built.");
-                return;
+                // A missing archetype is a broken content reference. Silently skipping it
+                // makes a level look playable while removing an authored encounter, and can also
+                // hide a bad rename in the catalogue. Fail the boot so the error is visible and
+                // the partially-created level is torn down by LevelBootstrap.
+                throw new InvalidOperationException(
+                    $"Level '{built.Data.Id}' places enemy type '{entity.TypeId}' at " +
+                    $"({entity.Position.x},{entity.Position.y}), but no matching archetype exists.");
             }
 
             EnemyController controller = EnemyFactory.Create(definition, feet, parent, entity.PatrolTiles);
