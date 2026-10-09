@@ -1343,6 +1343,33 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void EnemyHealth_SanitisesNonFiniteDefinitionMaxHealth()
+        {
+            EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
+            GameObject enemyObject = new GameObject("enemy-invalid-max-health-test");
+            try
+            {
+                FieldInfo maxHealthField = typeof(EnemyDefinition).GetField(
+                    "_maxHealth", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(maxHealthField, Is.Not.Null);
+                maxHealthField.SetValue(definition, float.NaN);
+
+                EnemyHealth health = enemyObject.AddComponent<EnemyHealth>();
+                health.Initialize(definition);
+
+                Assert.That(health.Max, Is.EqualTo(1f),
+                    "A malformed archetype must fall back to one valid hit point.");
+                Assert.That(health.Current, Is.EqualTo(1f),
+                    "Non-finite asset values must never enter live health state.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(enemyObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
         [UnityTest]
         public IEnumerator EnemyHealthPublishesFullHealthWhenTakenFromPool()
         {

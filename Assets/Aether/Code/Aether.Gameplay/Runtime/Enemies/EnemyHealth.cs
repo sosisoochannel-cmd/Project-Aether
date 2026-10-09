@@ -107,7 +107,9 @@ namespace Aether.Gameplay.Enemies
         public void Initialize(EnemyDefinition definition)
         {
             _definition = definition;
-            _currentHealth = definition != null ? definition.MaxHealth : 1f;
+            // Read through Max after assigning the definition so malformed asset values are
+            // normalised before they enter the live health state.
+            _currentHealth = definition != null ? Max : 1f;
             _invulnerableUntil = float.NegativeInfinity;
             HealthChanged?.Invoke(_currentHealth, Max);
         }
