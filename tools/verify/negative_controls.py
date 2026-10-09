@@ -24,6 +24,7 @@ import zlib
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COPY_DIRS = ("Assets", "ProjectSettings", "Packages", "tools", "docs")
 IGNORE = shutil.ignore_patterns(".git", "Library", "Temp", "obj", "__pycache__", "*.bak")
+CONTROL_TIMEOUT_SECONDS = 30
 
 CODE = "Assets/Aether/Code"
 INTRO_CODE = f"{CODE}/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs"
@@ -1045,7 +1046,23 @@ def controls() -> list[Control]:
 def run_control(root: str, control: Control) -> bool:
     undo = control.mutate(root)
     try:
-        proc = subprocess.run(control.tool, cwd=root, capture_output=True, text=True)
+        try:
+            proc = subprocess.run(
+                control.tool,
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=CONTROL_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"  FAIL  ${control.name}\\n"
+                f"          timed out after {CONTROL_TIMEOUT_SECONDS}s; "
+                "the verifier must fail fast on injected faults",
+                flush=True,
+            )
+            return False
+
         output = proc.stdout + proc.stderr
         # The solver reports structural problems under their own prefix, and a raised Python
         # exception would mean the tool crashed rather than reported.
