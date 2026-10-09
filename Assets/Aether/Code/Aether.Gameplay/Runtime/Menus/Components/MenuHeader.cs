@@ -1,3 +1,4 @@
+using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -57,13 +58,17 @@ namespace Aether.Gameplay.Menus.Components
             header._rect.anchoredPosition = Vector2.zero;
             header._rect.sizeDelta = new Vector2(0f, MenuTheme.Metrics.ScreenHeaderPitch);
 
+            bool rtl = LanguageService.IsRightToLeft;
+            float titleEdge = rtl ? 1f : 0f;
             header._title = MenuUi.CreateTrackedText("Title", header._rect, title,
                                                      MenuTheme.Metrics.ScreenTitleSize,
                                                      MenuTheme.Palette.Ink,
                                                      MenuTheme.Metrics.ScreenTitleTracking);
-            header._title.rectTransform.anchorMin = new Vector2(0f, 0f);
-            header._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            header._title.rectTransform.pivot = new Vector2(0f, 0.5f);
+            // Text is a 10-unit overflow rect by design. Anchor it to the reading edge so RTL
+            // alignment extends into the screen rather than off the left side of the header.
+            header._title.rectTransform.anchorMin = new Vector2(titleEdge, 0f);
+            header._title.rectTransform.anchorMax = new Vector2(titleEdge, 1f);
+            header._title.rectTransform.pivot = new Vector2(titleEdge, 0.5f);
             header._title.rectTransform.anchoredPosition = new Vector2(0f, -6f);
             header._title.rectTransform.sizeDelta = new Vector2(10f, 0f);
 
@@ -80,9 +85,10 @@ namespace Aether.Gameplay.Menus.Components
             header._back = MenuButton.Create("Back", header._rect, MenuStrings.Get("common.back"),
                                              MenuButton.Weight.Secondary);
             header._back.Nav = nav;
-            header._back.Rect.anchorMin = new Vector2(1f, 1f);
-            header._back.Rect.anchorMax = new Vector2(1f, 1f);
-            header._back.Rect.pivot = new Vector2(1f, 1f);
+            float backEdge = rtl ? 0f : 1f;
+            header._back.Rect.anchorMin = new Vector2(backEdge, 1f);
+            header._back.Rect.anchorMax = new Vector2(backEdge, 1f);
+            header._back.Rect.pivot = new Vector2(backEdge, 1f);
             header._back.Rect.anchoredPosition = Vector2.zero;
             header._back.Rect.sizeDelta = new Vector2(MenuTheme.Metrics.BackHitWidth,
                                                               MenuTheme.Metrics.ScreenHeaderPitch);
