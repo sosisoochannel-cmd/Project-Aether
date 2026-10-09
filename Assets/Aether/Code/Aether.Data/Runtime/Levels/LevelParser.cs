@@ -69,6 +69,8 @@ namespace Aether.Data.Levels
             var legend = new Dictionary<char, LevelTileKind>();
             var rows = new List<List<LevelTileKind>>();
             var entities = new List<LevelEntity>();
+            var entityIds = new HashSet<string>(StringComparer.Ordinal);
+            var entityLineNumbers = new Dictionary<string, int>(StringComparer.Ordinal);
             var connections = new List<TraversalConnection>();
 
             string section = null;
@@ -191,7 +193,14 @@ namespace Aether.Data.Levels
 
                 if (section == "entities")
                 {
-                    entities.Add(ParseEntity(sourceName, lineNumber, trimmed));
+                    LevelEntity entity = ParseEntity(sourceName, lineNumber, trimmed);
+                    if (!entityIds.Add(entity.Id))
+                    {
+                        throw new LevelParseException(sourceName, lineNumber,
+                            $"duplicate entity id '{entity.Id}'");
+                    }
+                    entities.Add(entity);
+                    entityLineNumbers.Add(entity.Id, lineNumber);
                     continue;
                 }
 
@@ -215,6 +224,26 @@ namespace Aether.Data.Levels
             if (legend.Count == 0) throw new LevelParseException(sourceName, 1, "the [legend] section is empty");
 
             int width = rows[0].Count;
+            for (int i = 0; i < entities.Count; i++)
+            {
+                LevelEntity entity = entities[i];
+                int entityLine = entityLineNumbers[entity.Id];
+                if (entity.Position.x < 0 || entity.Position.x >= width
+                    || entity.Position.y < 0 || entity.Position.y >= rows.Count)
+                {
+                    throw new LevelParseException(sourceName, entityLine,
+                        $"entity '{entity.Id}' is outside the map");
+                }
+
+                if (entity.Kind == LevelEntityKind.Checkpoint
+                    && (entity.RespawnPosition.x < 0 || entity.RespawnPosition.x >= width
+                        || entity.RespawnPosition.y < 0 || entity.RespawnPosition.y >= rows.Count))
+                {
+                    throw new LevelParseException(sourceName, entityLine,
+                        $"checkpoint '{entity.Id}' respawn is outside the map");
+                }
+            }
+
             for (int i = 0; i < rows.Count; i++)
             {
                 if (rows[i].Count != width)
@@ -311,6 +340,21 @@ namespace Aether.Data.Levels
                     throw new LevelParseException(source, line,
                         $"{token} has unknown attribute '{attribute}'");
                 }
+
+                bool allowedForKind = attribute == "id" || attribute == "x"
+                    || attribute == "y" || attribute == "note";
+                if (kind == LevelEntityKind.Checkpoint && attribute == "respawn") allowedForKind = true;
+                if (kind == LevelEntityKind.Enemy
+                    && (attribute == "type" || attribute == "patrol")) allowedForKind = true;
+                if (kind == LevelEntityKind.Discovery
+                    && (attribute == "kind" || attribute == "flag")) allowedForKind = true;
+                if (kind == LevelEntityKind.StoryMarker && attribute == "kind") allowedForKind = true;
+
+                if (!allowedForKind)
+                {
+                    throw new LevelParseException(source, line,
+                        $"{token} does not support attribute '{attribute}'");
+                }
             }
 
             if (!attributes.TryGetValue("id", out string id) || string.IsNullOrEmpty(id))
@@ -338,6 +382,10 @@ namespace Aether.Data.Levels
             if (kind == LevelEntityKind.Discovery && string.IsNullOrEmpty(flag))
             {
                 throw new LevelParseException(source, line, $"discovery '{id}' has no flag");
+            }
+            if (kind == LevelEntityKind.Checkpoint && !attributes.ContainsKey("respawn"))
+            {
+                throw new LevelParseException(source, line, $"checkpoint '{id}' has no respawn");
             }
 
             if (attributes.TryGetValue("patrol", out string patrolText))
