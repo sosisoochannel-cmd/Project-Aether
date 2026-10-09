@@ -1347,6 +1347,65 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void LevelParser_RejectsBlankRowsInsideTheTileMap()
+        {
+            const string malformed =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = blank-row-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n";
+
+            LevelParseException error = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(malformed, "blank-row-test"));
+
+            Assert.That(error.Line, Is.EqualTo(8),
+                "An empty line between tile rows must not silently shift every entity's row coordinate.");
+        }
+
+        [Test]
+        public void LevelParser_RejectsUnknownMetadataAndDuplicateLegendSymbols()
+        {
+            const string unknownMetadata =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = metadata-test\n" +
+                "display_nam = Greenway\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n";
+
+            LevelParseException metadataError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(unknownMetadata, "metadata-test"));
+            Assert.That(metadataError.Line, Is.EqualTo(4));
+
+            const string duplicateLegend =
+                "aether-level 1\n" +
+                "[meta]\n" +
+                "id = duplicate-legend-test\n" +
+                "[legend]\n" +
+                "# = Ground\n" +
+                "# = Empty\n" +
+                "[tiles]\n" +
+                "#\n" +
+                "[entities]\n" +
+                "player_start = id=start, x=0, y=0\n";
+
+            LevelParseException legendError = Assert.Throws<LevelParseException>(
+                () => LevelParser.Parse(duplicateLegend, "duplicate-legend-test"));
+            Assert.That(legendError.Line, Is.EqualTo(6));
+        }
+
+        [Test]
         public void LevelParser_RejectsUnknownEntityAttributesInsteadOfSilentlyIgnoringTypos()
         {
             const string malformed =
