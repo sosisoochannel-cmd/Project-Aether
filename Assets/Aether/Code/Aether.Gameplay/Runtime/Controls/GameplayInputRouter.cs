@@ -80,6 +80,8 @@ namespace Aether.Gameplay.Controls
         {
             get
             {
+                if (!_enabled) return Vector2.zero;
+
                 Vector2 best = Vector2.zero;
                 float bestSqr = 0f;
                 for (int i = 0; i < _sources.Count; i++)
@@ -94,16 +96,16 @@ namespace Aether.Gameplay.Controls
         }
 
         /// <inheritdoc />
-        public bool JumpHeld => Any(source => source.JumpHeld);
+        public bool JumpHeld => _enabled && Any(source => source.JumpHeld);
 
         /// <inheritdoc />
-        public bool JumpPressed => Any(source => source.JumpPressed);
+        public bool JumpPressed => _enabled && Any(source => source.JumpPressed);
 
         /// <inheritdoc />
-        public bool AttackPressed => Any(source => source.AttackPressed);
+        public bool AttackPressed => _enabled && Any(source => source.AttackPressed);
 
         /// <inheritdoc />
-        public bool DodgePressed => Any(source => source.DodgePressed);
+        public bool DodgePressed => _enabled && Any(source => source.DodgePressed);
 
         /// <inheritdoc />
         public void ConsumeJump() => All(source => source.ConsumeJump());
