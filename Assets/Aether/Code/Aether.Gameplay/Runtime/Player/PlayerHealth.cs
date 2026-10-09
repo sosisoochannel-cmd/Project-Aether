@@ -122,7 +122,7 @@ namespace Aether.Gameplay.Player
                 direction.x * damage.KnockbackSpeed,
                 Mathf.Max(_motor.VelocityY, damage.LiftSpeed));
 
-            _controller.EnterHurt(_hurtLockout);
+            if (_controller != null) _controller.EnterHurt(_hurtLockout);
         }
 
         /// <summary>
