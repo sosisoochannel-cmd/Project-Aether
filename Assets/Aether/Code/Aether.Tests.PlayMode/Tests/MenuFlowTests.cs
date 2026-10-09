@@ -1206,19 +1206,19 @@ namespace Aether.Tests.PlayMode
         public IEnumerator PooledEnemy_RestartsItsStateMachineWhenResetAfterReenable()
         {
             EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
-            var root = new GameObject("pooled-enemy-lifecycle-test");
-            root.SetActive(false);
-            root.AddComponent<Rigidbody2D>();
-            root.AddComponent<BoxCollider2D>();
-            root.AddComponent<EnemyMotor2D>();
-            root.AddComponent<EnemyHealth>();
-            EnemyController enemy = root.AddComponent<EnemyController>();
+            var enemyObject = new GameObject("pooled-enemy-lifecycle-test");
+            enemyObject.SetActive(false);
+            enemyObject.AddComponent<Rigidbody2D>();
+            enemyObject.AddComponent<BoxCollider2D>();
+            enemyObject.AddComponent<EnemyMotor2D>();
+            enemyObject.AddComponent<EnemyHealth>();
+            EnemyController enemy = enemyObject.AddComponent<EnemyController>();
 
             try
             {
                 enemy.Initialize(definition, null);
                 enemy.ConfigurePatrol(0f);
-                root.SetActive(true);
+                enemyObject.SetActive(true);
                 yield return null;
 
                 FieldInfo machineField = typeof(EnemyController).GetField(
@@ -1230,8 +1230,8 @@ namespace Aether.Tests.PlayMode
                 Assert.That(runningProperty.GetValue(machine), Is.True,
                     "The initial spawn must have a running state machine.");
 
-                root.SetActive(false);
-                root.SetActive(true);
+                enemyObject.SetActive(false);
+                enemyObject.SetActive(true);
                 enemy.ResetForSpawn(Vector2.zero);
 
                 Assert.That(runningProperty.GetValue(machine), Is.True,
@@ -1241,7 +1241,7 @@ namespace Aether.Tests.PlayMode
             }
             finally
             {
-                UnityEngine.Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(enemyObject);
                 UnityEngine.Object.DestroyImmediate(definition);
             }
         }
@@ -1271,17 +1271,17 @@ namespace Aether.Tests.PlayMode
         [Test]
         public void EnemyGroundProbeUsesOffsetFromBodyCenter()
         {
-            var root = new GameObject("enemy-ground-probe-test");
-            root.AddComponent<Rigidbody2D>();
-            BoxCollider2D collider = root.AddComponent<BoxCollider2D>();
+            var probeObject = new GameObject("enemy-ground-probe-test");
+            probeObject.AddComponent<Rigidbody2D>();
+            BoxCollider2D collider = probeObject.AddComponent<BoxCollider2D>();
             collider.size = new Vector2(0.9f, 1.1f);
-            EnemyMotor2D motor = root.AddComponent<EnemyMotor2D>();
+            EnemyMotor2D motor = probeObject.AddComponent<EnemyMotor2D>();
             EnemyDefinition definition = ScriptableObject.CreateInstance<EnemyDefinition>();
 
             try
             {
                 motor.Initialize(definition);
-                root.transform.position = new Vector3(0f, 0.55f, 0f);
+                probeObject.transform.position = new Vector3(0f, 0.55f, 0f);
                 Physics2D.SyncTransforms();
 
                 Assert.That(motor.GetGroundProbeCenter().y, Is.EqualTo(0.03f).Within(0.02f),
@@ -1289,7 +1289,7 @@ namespace Aether.Tests.PlayMode
             }
             finally
             {
-                UnityEngine.Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(probeObject);
                 UnityEngine.Object.DestroyImmediate(definition);
             }
         }
