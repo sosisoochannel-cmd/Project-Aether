@@ -409,10 +409,10 @@ namespace Aether.Tests.PlayMode
                 Assert.Greater(secondLight.BlackFraction, 0.90f,
                                "the reverse glint spills into the black around the logo");
                 Assert.That(still.MarkAlpha, Is.EqualTo(1f).Within(0.001f),
-                            $"the fade has started by 2.20s (mark a={still.MarkAlpha:0.000}), so the "
+                            $"the fade has started by 2.25s (mark a={still.MarkAlpha:0.000}), so the "
                             + "two frames compared for stillness are not both the hold");
                 Assert.That(leaving.MarkAlpha, Is.LessThan(0.5f),
-                            $"the lockup is still at {leaving.MarkAlpha:0.000} of its weight at 3.35s, "
+                            $"the lockup is still at {leaving.MarkAlpha:0.000} of its weight at 3.40s, "
                             + "so the fade is not under way");
 
                 stage = "done";
