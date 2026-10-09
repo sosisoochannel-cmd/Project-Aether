@@ -1125,6 +1125,36 @@ namespace Aether.Tests.PlayMode
         }
 
         [Test]
+        public void DeathRespawnRestoresPlayerControl()
+        {
+            PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
+            Assert.That(tuning, Is.Not.Null, "The runtime player tuning asset must be available to PlayMode tests.");
+
+            var playerRoot = new GameObject("respawn-player");
+            playerRoot.SetActive(false);
+            PlayerController player = playerRoot.AddComponent<PlayerController>();
+            typeof(PlayerController).GetField("_tuning", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(player, tuning);
+            playerRoot.SetActive(true);
+
+            var levelRoot = new GameObject("respawn-level");
+            var built = new BuiltLevel(levelRoot, null) { PlayerStartFeet = Vector2.zero };
+            var directorRoot = new GameObject("respawn-director");
+            LevelDirector director = directorRoot.AddComponent<LevelDirector>();
+            director.Initialize(null, built, player);
+            player.InputEnabled = false;
+
+            director.PerformRespawn();
+
+            Assert.That(player.InputEnabled, Is.True,
+                "The death flow disables input; the respawn flow must explicitly restore it.");
+
+            UnityEngine.Object.DestroyImmediate(directorRoot);
+            UnityEngine.Object.DestroyImmediate(playerRoot);
+            UnityEngine.Object.DestroyImmediate(levelRoot);
+        }
+
+        [Test]
         public void DisablingAnOpenPauseRestoresThePreviousTimeScale()
         {
             float originalScale = Time.timeScale;
