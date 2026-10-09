@@ -177,7 +177,12 @@ namespace Aether.Core.Settings
         /// </remarks>
         public bool Flush()
         {
-            if (!_dirty || Store == null) return !_dirty;
+            if (!_dirty) return true;
+
+            // No store means this service is intentionally session-only. There is nothing to write,
+            // so a lifecycle flush must not be reported as a save failure. Keep the dirty state until
+            // a store is attached, in case a caller installs persistence later in the same session.
+            if (Store == null) return true;
 
             try
             {
