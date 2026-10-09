@@ -218,6 +218,13 @@ namespace Aether.Gameplay.Enemies
         /// </summary>
         public void Initialize(EnemyDefinition definition, Transform player)
         {
+            // Pool factories configure inactive objects before activation so Awake cannot have run
+            // yet. Resolve required components here as well: otherwise the archetype is stored on
+            // the controller but never reaches EnemyHealth, whose Start then reports a missing
+            // definition and gives the recycled enemy one hit point.
+            if (_health == null) _health = GetComponent<EnemyHealth>();
+            if (_motor == null) _motor = GetComponent<EnemyMotor2D>();
+
             _definition = definition;
             _player = player;
 
