@@ -283,7 +283,7 @@ namespace Aether.Gameplay.Menus.Screens
             Host.GoTo(destination);
         }
 
-        private void OnDialogClosed()
+        protected override void OnDialogClosed()
         {
             Nav.SelectFirst();
         }
