@@ -270,16 +270,15 @@ namespace Aether.Gameplay.Flow
         /// What the player has chosen about the intro.
         /// </summary>
         /// <remarks>
-        /// Nothing writes this yet — there is no settings screen — and it defaults to playing the
-        /// intro, because a studio mark that has never been seen is not yet a signature. It exists
-        /// now so that the day a settings screen arrives, "skip the intro" is a switch over state
-        /// that already persists, not a redesign of this class.
+        /// This persisted setting is retained for compatibility with future settings UI. The current
+        /// studio ident deliberately does not consult it: a stale saved value must never make the
+        /// opening logo or its glint disappear on a normal launch.
         /// </remarks>
         public static class Preference
         {
             private const string Key = "aether.studioIntro.play";
 
-            /// <summary>Whether the intro plays at all. True unless a player has turned it off.</summary>
+            /// <summary>Legacy persisted preference; current startup intentionally always plays the ident.</summary>
             public static bool Enabled
             {
                 get => PlayerPrefs.GetInt(Key, 1) != 0;
