@@ -147,9 +147,9 @@ namespace Aether.Gameplay.Localization
         /// <summary>Whether a language can be chosen right now.</summary>
         /// <remarks>
         /// Three facts have to agree before the row may be offered: the catalogue promises the
-        /// language, the font can draw its script, and its table is in the build. The first is a
-        /// decision, the second is a limit of the bundled font, the third is what the sheet pipeline
-        /// guarantees — and <c>tools/verify/localization.py</c> keeps the third honest.
+        /// language, the current device has a font with a representative glyph, and its table is in
+        /// the build. The runtime probe prevents a configured font-family name from being treated as
+        /// proof that every device has that font; the sheet pipeline guarantees table completeness.
         /// </remarks>
         public static bool CanSelect(string code)
         {
@@ -201,10 +201,8 @@ namespace Aether.Gameplay.Localization
         /// The Latin names of the languages the build never offers, joined for the screen that says so.
         /// </summary>
         /// <remarks>
-        /// Two groups, because they are two different problems: languages whose script this build's
-        /// font cannot draw, and languages whose translation is simply not written yet. Grouping them
-        /// apart is the whole point of the row — one of them needs a font, and the other needs six
-        /// sheets and no code at all.
+        /// Two groups, because they are two different problems: languages whose script has no usable
+        /// runtime font on this device, and languages whose translation is not yet complete.
         /// </remarks>
         public static string DescribeNotOffered(bool fontBlocked)
         {
