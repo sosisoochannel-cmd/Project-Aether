@@ -159,6 +159,35 @@ def sheet(code: str) -> "list[tuple[str, str]]":
     return pairs
 
 
+def check_persian_quality() -> "list[str]":
+    """Guard the known Persian copy and RTL-joining regressions against returning."""
+    problems = []
+    fa = dict(sheet("fa"))
+    expected = {
+        "menu.credits": "دست‌اندرکاران",
+        "credits.title": "دست‌اندرکاران",
+        "about.credits": "دست‌اندرکاران",
+    }
+    for key, wanted in expected.items():
+        if fa.get(key) != wanted:
+            problems.append("fa: %s should use the approved Persian wording %r" % (key, wanted))
+
+    rate_help = fa.get("setting.frameRate.help", "")
+    if "۱۲۰ تا ۱۲۰" in rate_help:
+        problems.append("fa: setting.frameRate.help contains the incorrect phrase '۱۲۰ تا ۱۲۰'")
+    if "\u200c" not in fa.get("credits.title", ""):
+        problems.append("fa: credits.title must preserve the Persian zero-width non-joiner")
+
+    rtl_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "RtlText.cs")
+    rtl_source = read(rtl_path) if os.path.exists(rtl_path) else ""
+    if rtl_source.count("if (IsRtlMark(text[i])) continue;") < 2:
+        problems.append("RtlText.cs must skip combining marks without joining across spaces or ZWNJ")
+    if "Add(m, 'ة', 0xFE93, 0xFE94, 0, 0, false);" not in rtl_source:
+        problems.append("RtlText.cs is missing the Arabic teh-marbuta presentation forms")
+    return problems
+
+
 def check_placeholders(code: str, reference: "list[tuple[str, str]]",
                        translated: "dict[str, str]") -> "list[str]":
     """Finds translations that lost, gained or renumbered a placeholder."""
@@ -291,6 +320,7 @@ def main() -> int:
 
     failures = []
     coverage = []
+    failures.extend(check_persian_quality())
 
     generated = []
     for code in book["offered"]:
