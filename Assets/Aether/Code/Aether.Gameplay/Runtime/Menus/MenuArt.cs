@@ -141,11 +141,52 @@ namespace Aether.Gameplay.Menus
                 Font cached;
                 if (ScriptFonts.TryGetValue(code, out cached) && cached != null) return cached;
 
-                Font resolved = ResolveFontForLanguage(code);
+                Font resolved = GetFontForLanguage(code);
                 if (resolved == null) resolved = LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
-                ScriptFonts[code] = resolved;
                 return resolved;
             }
+        }
+
+        /// <summary>
+        /// Returns whether the current device exposes a font that contains a representative glyph
+        /// for this script. This is a runtime probe, not a guarantee of shaping or visual quality;
+        /// those still require Unity/device QA.
+        /// </summary>
+        public static bool CanRenderLanguage(string code)
+        {
+            EnsureBuilt();
+            Font font = GetFontForLanguage(code);
+            if (font == null) return false;
+
+            char probe;
+            switch (code)
+            {
+                case "ar": probe = 'ع'; break;
+                case "fa": probe = 'پ'; break;
+                case "zh": probe = '汉'; break;
+                case "ja": probe = 'あ'; break;
+                case "ko": probe = '한'; break;
+                case "ru": probe = 'Ж'; break;
+                case "tr": probe = 'İ'; break;
+                case "es": probe = 'ñ'; break;
+                case "fr": probe = 'é'; break;
+                case "de": probe = 'ß'; break;
+                case "it": probe = 'à'; break;
+                case "pt": probe = 'ã'; break;
+                default: probe = 'A'; break;
+            }
+
+            return font.HasCharacter(probe);
+        }
+
+        private static Font GetFontForLanguage(string code)
+        {
+            Font cached;
+            if (ScriptFonts.TryGetValue(code, out cached) && cached != null) return cached;
+
+            Font resolved = ResolveFontForLanguage(code);
+            if (resolved != null) ScriptFonts[code] = resolved;
+            return resolved;
         }
 
         /// <summary>Builds everything, once. Safe to call from anywhere; repeated calls do nothing.</summary>
@@ -239,7 +280,16 @@ namespace Aether.Gameplay.Menus
 
                 case "ru":
                     return Font.CreateDynamicFontFromOSFont(
-                        new[] { "Roboto", "Noto Sans", "Arial", "DejaVu Sans" }, 48);
+                        new[] { "Noto Sans", "Roboto", "Arial", "DejaVu Sans" }, 48);
+
+                case "es":
+                case "fr":
+                case "de":
+                case "it":
+                case "pt":
+                case "tr":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans", "Roboto", "Droid Sans", "DejaVu Sans", "Arial" }, 48);
 
                 default:
                     return _font;
