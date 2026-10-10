@@ -241,6 +241,9 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         public static class Sheen
         {
+            /// <summary>The resting ink tint: soft platinum leaves headroom for the white light pass.</summary>
+            public const float BaseInkLuminance = 0.90f;
+
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
             public const float BandHalfWidth = 0.20f;
 
@@ -568,7 +571,8 @@ namespace Aether.Gameplay.Flow
         private void Draw(Part part, float presence, float scale, float rise, float dim, float revealProgress)
         {
             if (part.Renderer == null) return;
-            part.Renderer.color = new Color(dim, dim, dim, Mathf.Clamp01(presence));
+            float ink = Sheen.BaseInkLuminance * dim;
+            part.Renderer.color = new Color(ink, ink, ink, Mathf.Clamp01(presence));
             if (part.RevealMaterial != null)
                 part.RevealMaterial.SetFloat("_RevealProgress", Mathf.Clamp01(revealProgress));
             Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
