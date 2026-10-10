@@ -22,6 +22,7 @@ namespace Aether.Gameplay.Localization.Tables
                 { "fr", StringsFr.Table },
                 { "it", StringsIt.Table },
                 { "pt", StringsPt.Table },
+                { "ru", StringsRu.Table },
                 { "fa", StringsFa.Table },
             };
         }
