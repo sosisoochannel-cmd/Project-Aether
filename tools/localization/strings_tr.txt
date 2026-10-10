@@ -1,4 +1,4 @@
-menu.title=PROJECT AETHER
+menu.title=AETHER
 menu.subtitle=YEŞİL PATİKA — BİRİNCİ BÖLGE
 menu.playSection=OYNA
 menu.exploreSection=KEŞFET
