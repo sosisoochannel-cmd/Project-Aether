@@ -137,14 +137,21 @@ namespace Aether.Gameplay.Menus
             get
             {
                 EnsureBuilt();
-                string code = LanguageService.Code;
-                Font cached;
-                if (ScriptFonts.TryGetValue(code, out cached) && cached != null) return cached;
-
-                Font resolved = GetFontForLanguage(code);
-                if (resolved == null) resolved = LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
-                return resolved;
+                return FontForLanguage(LanguageService.Code);
             }
+        }
+
+        /// <summary>Gets the best available font for a particular language code.</summary>
+        public static Font FontForLanguage(string code)
+        {
+            EnsureBuilt();
+            Font resolved = GetFontForLanguage(code);
+            if (resolved != null) return resolved;
+
+            LanguageDefinition language = LanguageCatalog.Find(code);
+            return language != null && language.Direction == TextDirection.RightToLeft
+                ? (_rtlFont ?? _font)
+                : _font;
         }
 
         /// <summary>
