@@ -227,7 +227,7 @@ namespace Aether.Gameplay.Menus.Screens
                 }
 
                 MenuAudio.Confirm();
-                if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!MenuFlow.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
                 return;
             }
 
@@ -251,7 +251,7 @@ namespace Aether.Gameplay.Menus.Screens
                     return;
                 }
 
-                if (!Host.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!MenuFlow.PlayRegion(chapter.LevelPath)) _body.text = MenuStrings.Get("slots.transition.failed");
             });
         }
     }
