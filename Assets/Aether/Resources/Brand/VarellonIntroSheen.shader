@@ -6,8 +6,8 @@ Shader "Sprites/VarellonIntroSheen"
         _Color ("Tint", Color) = (1,1,1,1)
         _SweepProgress ("Sweep Progress", Range(0,1)) = 0
         _SweepOpacity ("Sweep Opacity", Range(0,1)) = 0
-        _BandHalfWidth ("Band Half Width", Range(0.15,0.6)) = 0.2
-        _Tilt ("Tilt", Range(0,0.35)) = 0.14
+        _BandHalfWidth ("Band Half Width", Range(0.12,0.22)) = 0.15
+        _Tilt ("Tilt", Range(0,0.2)) = 0.08
     }
 
     SubShader
