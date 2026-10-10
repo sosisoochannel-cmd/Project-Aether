@@ -24,10 +24,9 @@ namespace Aether.Gameplay.Menus
     {
         /// <summary>The colour of the interface, and the one accent it is allowed.</summary>
         /// <remarks>
-        /// Soot-dark greenway tones, warm ivory type, and one restrained sage accent. The accent
-        /// appears only where the interface needs to direct the eye: a selected row, a section mark,
-        /// or an enabled control. Everything else stays quiet, so the menu feels like part of the
-        /// world rather than a separate blue-tinted template.
+        /// Midnight lapis, warm ivory, and antique gold create an ancient royal-fantasy atmosphere.
+        /// Gold is reserved for focus, selected rows, the carved corner frame, and living motes;
+        /// the forest remains visible beneath the interface instead of being replaced by a panel.
         /// </remarks>
         public static class Palette
         {
