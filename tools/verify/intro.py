@@ -248,6 +248,10 @@ def check_timing(values: dict) -> list:
     if values["SheenStartsAt"] < mark_ends:
         problems.append(f"timing: SheenStartsAt is {values['SheenStartsAt']:.2f}s, before the mark "
                         f"has resolved at {mark_ends:.2f}s; there is nothing finished to light")
+    if values["SheenStartsAt"] < wordmark_ends:
+        problems.append(f"timing: the light starts at {values['SheenStartsAt']:.2f}s, before the "
+                        f"wordmark has resolved at {wordmark_ends:.2f}s; the light must cross the "
+                        "finished lockup, not interrupt its arrival")
     if wordmark_ends > sheen_ends:
         problems.append(f"timing: the wordmark resolves at {wordmark_ends:.2f}s, after the light has "
                         f"finished crossing at {sheen_ends:.2f}s; the light has to cross a lockup")
