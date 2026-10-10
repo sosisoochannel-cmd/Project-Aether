@@ -101,6 +101,9 @@ namespace Aether.Gameplay.Presentation
             else
                 logo._scan.enabled = false;
             logo.Apply();
+            // AddComponent invokes OnEnable before the generated sprite exists on an active host.
+            // Start explicitly after the keyed mark is ready so the entrance animation is not lost.
+            logo.BeginPresentation();
             return logo;
         }
 
@@ -241,9 +244,18 @@ namespace Aether.Gameplay.Presentation
 
         private void OnEnable()
         {
-            if (_mark == null) return;
+            BeginPresentation();
+        }
 
-            if (_presentation != null) StopCoroutine(_presentation);
+        private void BeginPresentation()
+        {
+            if (!isActiveAndEnabled || _mark == null) return;
+
+            if (_presentation != null)
+            {
+                StopCoroutine(_presentation);
+                _presentation = null;
+            }
             _presentation = StartCoroutine(PresentRoutine());
         }
 
