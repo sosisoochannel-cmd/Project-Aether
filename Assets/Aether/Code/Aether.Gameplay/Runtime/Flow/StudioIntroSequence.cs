@@ -233,7 +233,7 @@ namespace Aether.Gameplay.Flow
         public static class Sheen
         {
             /// <summary>The resting ink tint: soft platinum leaves a little headroom for the subtle pass.</summary>
-            public const float BaseInkLuminance = 0.86f;
+            public const float BaseInkLuminance = 0.90f;
 
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
             public const float BandHalfWidth = 0.15f;
@@ -242,10 +242,10 @@ namespace Aether.Gameplay.Flow
             public const float Tilt = 0.08f;
 
             /// <summary>Peak alpha of the faint white highlight over the logo's ink.</summary>
-            public const float HighlightPeak = 0.32f;
+            public const float HighlightPeak = 0.48f;
 
             /// <summary>Logo luminance multiplier while the subtle light is crossing it.</summary>
-            public const float DimWhilePassing = 0.98f;
+            public const float DimWhilePassing = 0.99f;
 
             /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
             public const float EdgeFade = 0.18f;
