@@ -242,13 +242,13 @@ namespace Aether.Gameplay.Flow
         public static class Sheen
         {
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
-            public const float BandHalfWidth = 0.42f;
+            public const float BandHalfWidth = 0.20f;
 
             /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
             public const float Tilt = 0.14f;
 
             /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
-            public const float HighlightPeak = 0.85f;
+            public const float HighlightPeak = 0.68f;
 
             /// <summary>How far the logo is taken down while the light is crossing it.</summary>
             public const float DimWhilePassing = 0.93f;
@@ -321,9 +321,7 @@ namespace Aether.Gameplay.Flow
         private Texture2D _sheenTexture;
         private Sprite _sheenSprite;
         private SpriteRenderer _sheenRenderer;
-        private Color32[] _sheenPixels;
-        private byte[] _sheenMask;
-        private float[] _sheenAcross;
+        private Material _sheenMaterial;
 
         /// <summary>Most texels the light's mask may have on its longer side.</summary>
         private const int MaxSheenTexels = 420;
@@ -569,7 +567,7 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         private void DrawSheen(float elapsed)
         {
-            if (_sheenRenderer == null) return;
+            if (_sheenRenderer == null || _sheenMaterial == null) return;
 
             float progress = Mathf.Clamp01((elapsed - Timing.SheenStartsAt) / Timing.SheenDuration);
             if (progress <= 0f || progress >= 1f)
@@ -578,20 +576,14 @@ namespace Aether.Gameplay.Flow
                 return;
             }
 
-            float crest = Mathf.Lerp(-Sheen.BandHalfWidth, 1f + Sheen.BandHalfWidth,
-                                     EaseInOutSine(progress));
             float presence = EaseInOutSine(Mathf.Clamp01(progress / Sheen.EdgeFade)) *
                              EaseInOutSine(Mathf.Clamp01((1f - progress) / Sheen.EdgeFade));
 
-            for (int i = 0; i < _sheenPixels.Length; i++)
-            {
-                float strength = _sheenMask[i] / 255f * SheenBand(_sheenAcross[i] - crest);
-                _sheenPixels[i].a = (byte)(Mathf.Clamp01(strength * presence * Sheen.HighlightPeak) * 255f);
-            }
-
-            _sheenTexture.SetPixels32(_sheenPixels);
-            _sheenTexture.Apply(false, false);
-            _sheenRenderer.color = new Color(1f, 1f, 1f, 1f);
+            // The texture is a static alpha mask. Only two shader parameters change per frame;
+            // the GPU draws the narrow highlight inside the logo without CPU pixel loops or uploads.
+            _sheenMaterial.SetFloat("_SweepProgress", progress);
+            _sheenMaterial.SetFloat("_SweepOpacity", presence * Sheen.HighlightPeak);
+            _sheenRenderer.color = Color.white;
             Place(_sheenRenderer.transform, Vector2.zero, 1f, 0f);
         }
 
@@ -602,6 +594,7 @@ namespace Aether.Gameplay.Flow
         private void HideSheen()
         {
             if (_sheenRenderer != null) _sheenRenderer.color = new Color(1f, 1f, 1f, 0f);
+            if (_sheenMaterial != null) _sheenMaterial.SetFloat("_SweepOpacity", 0f);
         }
 
         /// <summary>The band's own shape: full where it is centred, nothing at its edges.</summary>
@@ -738,16 +731,23 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         private void BuildSheen(byte[] coverage, int width, Bounds lockup)
         {
+            Shader shader = Resources.Load<Shader>("Brand/VarellonIntroSheen");
+            if (shader == null)
+            {
+                Debug.LogWarning(
+                    "[studio intro] VarellonIntroSheen shader is unavailable; the intro will play without its light pass.",
+                    this);
+                return;
+            }
+
             Vector2 size = lockup.Size;
-            float scale = Mathf.Max(0.02f, Mathf.Min(Sheen.Resolution, MaxSheenTexels / Mathf.Max(size.x, size.y)));
+            float scale = Mathf.Max(0.02f, Mathf.Min(Sheen.Resolution,
+                                      MaxSheenTexels / Mathf.Max(size.x, size.y)));
             int maskWidth = Mathf.Max(8, Mathf.RoundToInt(size.x * scale));
             int maskHeight = Mathf.Max(8, Mathf.RoundToInt(size.y * scale));
             int sourceWidth = Mathf.Max(1, Mathf.RoundToInt(size.x));
             int sourceHeight = Mathf.Max(1, Mathf.RoundToInt(size.y));
-
-            _sheenMask = new byte[maskWidth * maskHeight];
-            _sheenAcross = new float[maskWidth * maskHeight];
-            _sheenPixels = new Color32[maskWidth * maskHeight];
+            var maskPixels = new Color32[maskWidth * maskHeight];
 
             for (int my = 0; my < maskHeight; my++)
             {
@@ -757,7 +757,6 @@ namespace Aether.Gameplay.Flow
                 {
                     int xFrom = Mathf.Clamp(mx * sourceWidth / maskWidth, 0, sourceWidth - 1);
                     int xTo = Mathf.Clamp((mx + 1) * sourceWidth / maskWidth, xFrom + 1, sourceWidth);
-
                     int sum = 0;
                     int count = 0;
                     for (int y = yFrom; y < yTo; y++)
@@ -770,41 +769,49 @@ namespace Aether.Gameplay.Flow
                         }
                     }
 
-                    int index = (my * maskWidth) + mx;
-                    _sheenMask[index] = (byte)(count == 0 ? 0 : sum / count);
-
-                    // Where the texel sits along the pass, and how far up the lockup it is: the band
-                    // crosses nearly level, leaning so its leading edge leads at the top.
-                    float across = mx / (float)Mathf.Max(1, maskWidth - 1);
-                    float up = my / (float)Mathf.Max(1, maskHeight - 1);
-                    _sheenAcross[index] = ((1f - Sheen.Tilt) * across) + (Sheen.Tilt * (1f - up));
-                    _sheenPixels[index] = new Color32(255, 255, 255, 0);
+                    byte alpha = (byte)(count == 0 ? 0 : sum / count);
+                    maskPixels[(my * maskWidth) + mx] = new Color32(255, 255, 255, alpha);
                 }
             }
 
             _sheenTexture = new Texture2D(maskWidth, maskHeight, TextureFormat.RGBA32, false)
             {
-                name = _markResourcePath + " (studio intro sheen)",
+                name = _markResourcePath + " (studio intro sheen mask)",
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.HideAndDontSave,
             };
-            _sheenTexture.SetPixels32(_sheenPixels);
-            _sheenTexture.Apply(false, false);
+            _sheenTexture.SetPixels32(maskPixels);
+            _sheenTexture.Apply(false, true);
 
-            // The sprite is the lockup's own box. Its pixels-per-unit is scaled with the mask, so the
-            // same fit that places the mark and the wordmark places the light over them, at the size
-            // the lockup is drawn, and it keeps doing so on every shape of screen.
+            // The sprite is the lockup's own box, so its mask always aligns with the mark and wordmark.
             float texelsPerPixel = maskWidth / size.x;
             _sheenSprite = Sprite.Create(_sheenTexture, new Rect(0f, 0f, maskWidth, maskHeight),
                                          new Vector2(0.5f, 0.5f), _pixelsPerUnit * texelsPerPixel);
-            _sheenSprite.name = _markResourcePath + " (studio intro sheen)";
+            if (_sheenSprite == null)
+            {
+                Destroy(_sheenTexture);
+                _sheenTexture = null;
+                return;
+            }
+
+            _sheenSprite.name = _markResourcePath + " (studio intro sheen mask)";
             _sheenSprite.hideFlags = HideFlags.HideAndDontSave;
+            _sheenMaterial = new Material(shader)
+            {
+                name = _markResourcePath + " (studio intro sheen material)",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _sheenMaterial.SetFloat("_SweepProgress", 0f);
+            _sheenMaterial.SetFloat("_SweepOpacity", 0f);
+            _sheenMaterial.SetFloat("_BandHalfWidth", Sheen.BandHalfWidth);
+            _sheenMaterial.SetFloat("_Tilt", Sheen.Tilt);
 
             var host = new GameObject("StudioSheen");
             host.transform.SetParent(_camera.transform, false);
             _sheenRenderer = host.AddComponent<SpriteRenderer>();
             _sheenRenderer.sprite = _sheenSprite;
+            _sheenRenderer.sharedMaterial = _sheenMaterial;
             _sheenRenderer.sortingOrder = 1001;   // the mark and the wordmark are at 1000
             _sheenRenderer.color = new Color(1f, 1f, 1f, 0f);
             host.hideFlags = HideFlags.HideAndDontSave;
@@ -1063,15 +1070,14 @@ namespace Aether.Gameplay.Flow
             if (_generatedTexture != null) Destroy(_generatedTexture);
             if (_sheenSprite != null) Destroy(_sheenSprite);
             if (_sheenTexture != null) Destroy(_sheenTexture);
+            if (_sheenMaterial != null) Destroy(_sheenMaterial);
             _markSprite = null;
             _wordmarkSprite = null;
             _generatedTexture = null;
             _sheenSprite = null;
             _sheenTexture = null;
             _sheenRenderer = null;
-            _sheenPixels = null;
-            _sheenMask = null;
-            _sheenAcross = null;
+            _sheenMaterial = null;
             _mark = default;
             _wordmark = default;
         }
