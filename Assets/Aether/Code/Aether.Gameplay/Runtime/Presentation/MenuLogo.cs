@@ -20,8 +20,9 @@ namespace Aether.Gameplay.Presentation
     /// </para>
     /// <para>
     /// Processing happens once when the menu is built. The source remains untouched, the generated
-    /// texture is the cropped logo only, and it is released with this component. No new artwork,
-    /// shader, font or per-frame work is introduced.
+    /// texture is the cropped logo only, and it is released with this component. A separate UI shader
+    /// draws one finite metallic glint over the same alpha mask after the entrance; its runtime
+    /// material is released with the component, and Reduced Motion skips the effect.
     /// </para>
     /// </remarks>
     public sealed class MenuLogo : MonoBehaviour
@@ -284,8 +285,8 @@ namespace Aether.Gameplay.Presentation
         }
 
         /// <summary>
-        /// A single restrained entrance: a short fade and a tiny rise into the final position.
-        /// The mark then stays completely still. No glow, sweep, pulse, breathing, or idle motion.
+        /// A short fade-and-rise entrance followed by one finite metallic glint. The logo itself
+        /// stays still; there is no looping glow, pulse, breathing, or idle motion.
         /// </summary>
         private IEnumerator PresentRoutine()
         {
