@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using Aether.Core.Localization;
 using Aether.Gameplay.Localization;
 
 namespace Aether.Gameplay.Menus
@@ -34,6 +36,7 @@ namespace Aether.Gameplay.Menus
         private static Sprite _padlock;
         private static Font _font;
         private static Font _rtlFont;
+        private static readonly Dictionary<string, Font> ScriptFonts = new Dictionary<string, Font>();
         private static bool _built;
 
         /// <summary>The approved forest background loaded from Resources, without modifying the asset.</summary>
@@ -134,7 +137,14 @@ namespace Aether.Gameplay.Menus
             get
             {
                 EnsureBuilt();
-                return LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
+                string code = LanguageService.Code;
+                Font cached;
+                if (ScriptFonts.TryGetValue(code, out cached) && cached != null) return cached;
+
+                Font resolved = ResolveFontForLanguage(code);
+                if (resolved == null) resolved = LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
+                ScriptFonts[code] = resolved;
+                return resolved;
             }
         }
 
@@ -172,6 +182,7 @@ namespace Aether.Gameplay.Menus
             _forest = null;
             _font = null;
             _rtlFont = null;
+            ScriptFonts.Clear();
             _built = false;
         }
 
@@ -192,6 +203,47 @@ namespace Aether.Gameplay.Menus
                 : new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" };
 
             return Font.CreateDynamicFontFromOSFont(names, 48);
+        }
+
+        /// <summary>
+        /// Resolves a script-aware dynamic font. Android devices do not all ship the same font
+        /// family names, so each script has a short ordered fallback list rather than one assumed
+        /// family. The returned font is cached by locale code because UI screens are rebuilt on a
+        /// language change and font creation is comparatively expensive.
+        /// </summary>
+        private static Font ResolveFontForLanguage(string code)
+        {
+            switch (code)
+            {
+                case "ar":
+                case "fa":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans Arabic UI", "Noto Naskh Arabic UI", "Noto Sans Arabic",
+                                "Noto Naskh Arabic", "Noto Sans Persian", "Noto Sans", "Droid Sans",
+                                "DejaVu Sans", "Arial" }, 48);
+
+                case "zh":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC",
+                                "Droid Sans Fallback", "Noto Sans CJK", "Arial Unicode MS" }, 48);
+
+                case "ja":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK JP", "Noto Sans JP", "Source Han Sans JP",
+                                "Yu Gothic", "Meiryo", "Droid Sans Fallback", "Noto Sans CJK" }, 48);
+
+                case "ko":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK KR", "Noto Sans KR", "Source Han Sans K",
+                                "Malgun Gothic", "Droid Sans Fallback", "Noto Sans CJK" }, 48);
+
+                case "ru":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Roboto", "Noto Sans", "Arial", "DejaVu Sans" }, 48);
+
+                default:
+                    return _font;
+            }
         }
 
         private static Texture2D Texture(string name, int width, int height)
