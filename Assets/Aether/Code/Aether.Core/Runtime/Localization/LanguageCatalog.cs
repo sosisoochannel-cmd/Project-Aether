@@ -124,12 +124,10 @@ namespace Aether.Core.Localization
         /// the repository unshipped.
         /// </para>
         /// <para>
-        /// <b>What is not here is not a secret.</b> French, German, Italian, Portuguese, Russian and
-        /// Turkish are named in <see cref="All"/>, are not offered yet, and the settings screen says
-        /// so; each becomes selectable by translating its sheet and adding the code here, which is a
-        /// data-only change. Arabic, Persian, Chinese, Japanese and Korean are a different case
-        /// entirely: the font this build carries cannot draw those scripts at all, so they are marked
-        /// as such and are not offered however complete a sheet might be.
+        /// <b>What is not here is not a secret.</b> A language is offered only when its translation
+        /// sheet is complete and the runtime font resolver finds a font containing a representative
+        /// glyph on this device. Font family names differ across Android versions, so CJK, Arabic and
+        /// Persian support is probed at runtime instead of inferred from the catalogue alone.
         /// </para>
         /// </remarks>
         public static readonly string[] Offered = { "en", "es", "fa" };
