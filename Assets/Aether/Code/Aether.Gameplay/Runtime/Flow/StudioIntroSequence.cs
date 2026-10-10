@@ -322,6 +322,7 @@ namespace Aether.Gameplay.Flow
         private Sprite _sheenSprite;
         private SpriteRenderer _sheenRenderer;
         private Material _sheenMaterial;
+        private Shader _revealShader;
 
         /// <summary>Most texels the light's mask may have on its longer side.</summary>
         private const int MaxSheenTexels = 420;
@@ -402,6 +403,8 @@ namespace Aether.Gameplay.Flow
             bool exitCued = false;
             float markFadeFrom = 1f;
             float wordmarkFadeFrom = 1f;
+            float markRevealFrom = 0f;
+            float wordmarkRevealFrom = 0f;
             // The still hold runs from the moment the light has left the lockup to the moment the fade
             // begins, which is why it is not simply the reveal's end plus a pause: between them are the
             // wordmark's arrival and the pass itself.
@@ -419,6 +422,8 @@ namespace Aether.Gameplay.Flow
                     // Skipping mid-reveal must not jump: each part exits from wherever it currently is.
                     RevealAt(elapsed, false, out markFadeFrom, out _, out _);
                     RevealAt(elapsed, true, out wordmarkFadeFrom, out _, out _);
+                    markRevealFrom = RevealProgress(elapsed, false);
+                    wordmarkRevealFrom = RevealProgress(elapsed, true);
                     skipped = true;
                     exitStartsAt = elapsed;
                     exitLength = Timing.SkipExit;
@@ -441,8 +446,10 @@ namespace Aether.Gameplay.Flow
                     // The exit is a fade and nothing else: the lockup leaves at the size and in the
                     // place the hold gave it, so the last thing seen is the picture that was held.
                     float exit = EaseInOutCubic(Ramp(elapsed, exitStartsAt, exitLength));
-                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
-                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
+                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f,
+                         skipped ? markRevealFrom : 1f);
+                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f,
+                         skipped ? wordmarkRevealFrom : 1f);
                     HideSheen();
                 }
                 else
@@ -450,8 +457,8 @@ namespace Aether.Gameplay.Flow
                     RevealAt(elapsed, false, out float markPresence, out float markScale, out float markRise);
                     RevealAt(elapsed, true, out float wordPresence, out float wordScale, out float wordRise);
                     float dim = SheenDim(elapsed);
-                    Draw(_mark, markPresence, markScale, markRise, dim);
-                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim);
+                    Draw(_mark, markPresence, markScale, markRise, dim, RevealProgress(elapsed, false));
+                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim, RevealProgress(elapsed, true));
                     DrawSheen(elapsed);
                 }
 
@@ -527,14 +534,16 @@ namespace Aether.Gameplay.Flow
         private readonly struct Part
         {
             public readonly SpriteRenderer Renderer;
+            public readonly Material RevealMaterial;
 
             /// <summary>This piece's centre relative to the lockup's centre, in pixels, y up.</summary>
             public readonly Vector2 OffsetPixels;
 
-            public Part(SpriteRenderer renderer, Vector2 offsetPixels)
+            public Part(SpriteRenderer renderer, Vector2 offsetPixels, Material revealMaterial)
             {
                 Renderer = renderer;
                 OffsetPixels = offsetPixels;
+                RevealMaterial = revealMaterial;
             }
 
             public bool Present => Renderer != null;
@@ -546,10 +555,19 @@ namespace Aether.Gameplay.Flow
         /// over the lockup has taken it down. The dip belongs to the light, not to the piece: both are
         /// given the same one, so the lockup dims as one picture.
         /// </summary>
-        private void Draw(Part part, float presence, float scale, float rise, float dim)
+        private static float RevealProgress(float elapsed, bool wordmark)
+        {
+            float startsAt = Timing.BlackHold + (wordmark ? Timing.WordmarkDelay : 0f);
+            float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
+            return EaseInOutSine(Ramp(elapsed, startsAt, duration));
+        }
+
+        private void Draw(Part part, float presence, float scale, float rise, float dim, float revealProgress)
         {
             if (part.Renderer == null) return;
             part.Renderer.color = new Color(dim, dim, dim, Mathf.Clamp01(presence));
+            if (part.RevealMaterial != null)
+                part.RevealMaterial.SetFloat("_RevealProgress", Mathf.Clamp01(revealProgress));
             Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
         }
 
@@ -706,6 +724,9 @@ namespace Aether.Gameplay.Flow
             _generatedTexture = BuildKeyedTexture(coverage, width, height);
             _pixelsPerUnit = source.pixelsPerUnit > 0f ? source.pixelsPerUnit : 100f;
             _markSprite = BuildSprite(_generatedTexture, markBounds, _pixelsPerUnit);
+            _revealShader = Resources.Load<Shader>("Brand/VarellonIntroReveal");
+            if (_revealShader == null)
+                Debug.LogWarning("[studio intro] VarellonIntroReveal shader is unavailable; the mark will use its fade/scale reveal without the matte wipe.", this);
             _mark = BuildPart("StudioMark", _markSprite, markBounds, lockupCentre);
 
             if (wordmarkBounds.Found)
@@ -900,8 +921,21 @@ namespace Aether.Gameplay.Flow
             renderer.sprite = sprite;
             renderer.sortingOrder = 1000;
             renderer.color = new Color(1f, 1f, 1f, 0f);
+            Material revealMaterial = null;
+            if (_revealShader != null)
+            {
+                revealMaterial = new Material(_revealShader)
+                {
+                    name = name + " (intro reveal material)",
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                revealMaterial.SetFloat("_RevealProgress", 0f);
+                revealMaterial.SetFloat("_RevealFeather", 0.12f);
+                revealMaterial.SetFloat("_RevealTilt", 0.10f);
+                renderer.sharedMaterial = revealMaterial;
+            }
             host.hideFlags = HideFlags.HideAndDontSave;
-            return new Part(renderer, bounds.Centre - lockupCentre);
+            return new Part(renderer, bounds.Centre - lockupCentre, revealMaterial);
         }
 
         /// <summary>
@@ -1071,6 +1105,8 @@ namespace Aether.Gameplay.Flow
             if (_sheenSprite != null) Destroy(_sheenSprite);
             if (_sheenTexture != null) Destroy(_sheenTexture);
             if (_sheenMaterial != null) Destroy(_sheenMaterial);
+            if (_mark.RevealMaterial != null) Destroy(_mark.RevealMaterial);
+            if (_wordmark.RevealMaterial != null) Destroy(_wordmark.RevealMaterial);
             _markSprite = null;
             _wordmarkSprite = null;
             _generatedTexture = null;
@@ -1078,6 +1114,7 @@ namespace Aether.Gameplay.Flow
             _sheenTexture = null;
             _sheenRenderer = null;
             _sheenMaterial = null;
+            _revealShader = null;
             _mark = default;
             _wordmark = default;
         }
