@@ -38,11 +38,7 @@ namespace Aether.Gameplay.Presentation
         private Image _scan;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
-        private Texture2D _scanTexture;
-        private Sprite _scanSprite;
-        private Color32[] _scanPixels;
-        private byte[] _scanCoverage;
-        private float[] _scanAcross;
+        private Material _sweepMaterial;
         private float _height = MenuTheme.Metrics.LogoHeight;
         private Vector2 _restPosition;
         private Coroutine _presentation;
@@ -99,7 +95,11 @@ namespace Aether.Gameplay.Presentation
 
             logo._mark.sprite = logo._generatedSprite;
             logo._shadow.sprite = logo._generatedSprite;
-            logo._scan.sprite = logo._scanSprite;
+            logo._scan.sprite = logo._generatedSprite;
+            if (logo._sweepMaterial != null)
+                logo._scan.material = logo._sweepMaterial;
+            else
+                logo._scan.enabled = false;
             logo.Apply();
             return logo;
         }
@@ -224,7 +224,7 @@ namespace Aether.Gameplay.Presentation
 
             _generatedSprite.name = source.name + " (menu cutout)";
             _generatedSprite.hideFlags = HideFlags.HideAndDontSave;
-            BuildSweepOverlay(pixels, width, height, pixelsPerUnit);
+            BuildSweepMaterial();
             return true;
         }
 
@@ -299,18 +299,22 @@ namespace Aether.Gameplay.Presentation
             // alpha instead of drawing a rectangular streak across the surrounding UI.
             const float sweepDuration = 0.86f;
             elapsed = 0f;
+            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
             while (elapsed < sweepDuration)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / sweepDuration);
-                UpdateSweep(t);
-                float edge = Mathf.Sin(t * Mathf.PI);
+                if (_sweepMaterial != null)
+                {
+                    _sweepMaterial.SetFloat("_SweepProgress", t);
+                    _sweepMaterial.SetFloat("_SweepOpacity", Mathf.Sin(t * Mathf.PI) * 0.78f);
+                }
                 if (_scan != null)
-                    _scan.color = new Color(accent.r, accent.g, accent.b, edge * 0.42f);
+                    _scan.color = new Color(accent.r, accent.g, accent.b, 0.42f);
                 yield return null;
             }
 
-            ClearSweep();
+            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
             if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, 0f);
 
             elapsed = 0f;
@@ -336,93 +340,29 @@ namespace Aether.Gameplay.Presentation
         }
 
         /// <summary>
-        /// Builds the menu's specular overlay from the already-keyed logo coverage. The sweep is
-        /// animated by changing only alpha values in a preallocated buffer; no per-frame allocations,
-        /// extra renderers, or visible geometry outside the mark are required.
+        /// Creates one private instance of the UI shader. The logo's coverage stays in the original
+        /// sprite alpha; the GPU moves a single soft highlight across that mask, without uploading
+        /// a new texture or recalculating every pixel on the CPU each frame.
         /// </summary>
-        private void BuildSweepOverlay(Color32[] keyedPixels, int width, int height, float pixelsPerUnit)
+        private void BuildSweepMaterial()
         {
-            // A soft highlight does not need source-art resolution. Cap the animated mask at 320
-            // texels on its long side so texture uploads stay small on Android as well as desktop.
-            const int maxResolution = 320;
-            float scale = Mathf.Min(1f, maxResolution / (float)Mathf.Max(width, height));
-            int maskWidth = Mathf.Max(8, Mathf.RoundToInt(width * scale));
-            int maskHeight = Mathf.Max(8, Mathf.RoundToInt(height * scale));
-            int count = maskWidth * maskHeight;
-            _scanPixels = new Color32[count];
-            _scanCoverage = new byte[count];
-            _scanAcross = new float[count];
-
-            for (int y = 0; y < maskHeight; y++)
+            Shader shader = Resources.Load<Shader>("Brand/VarellonLogoSheen");
+            if (shader == null)
             {
-                int yFrom = Mathf.Clamp(y * height / maskHeight, 0, height - 1);
-                int yTo = Mathf.Clamp((y + 1) * height / maskHeight, yFrom + 1, height);
-                for (int x = 0; x < maskWidth; x++)
-                {
-                    int xFrom = Mathf.Clamp(x * width / maskWidth, 0, width - 1);
-                    int xTo = Mathf.Clamp((x + 1) * width / maskWidth, xFrom + 1, width);
-                    int sum = 0;
-                    int samples = 0;
-                    for (int sourceY = yFrom; sourceY < yTo; sourceY++)
-                    {
-                        int row = sourceY * width;
-                        for (int sourceX = xFrom; sourceX < xTo; sourceX++)
-                        {
-                            sum += keyedPixels[row + sourceX].a;
-                            samples++;
-                        }
-                    }
-
-                    int index = (y * maskWidth) + x;
-                    _scanCoverage[index] = (byte)(samples == 0 ? 0 : sum / samples);
-                    _scanAcross[index] = (x + 0.5f) / maskWidth;
-                    _scanPixels[index] = new Color32(255, 255, 255, 0);
-                }
+                Debug.LogWarning(
+                    "[menu] VarellonLogoSheen shader is unavailable; the logo will render without its sweep.",
+                    this);
+                return;
             }
 
-            _scanTexture = new Texture2D(maskWidth, maskHeight, TextureFormat.RGBA32, false)
+            _sweepMaterial = new Material(shader)
             {
-                name = "VarellonLogo (masked light sweep)",
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
+                name = "Varellon Logo Sheen (runtime)",
                 hideFlags = HideFlags.HideAndDontSave,
             };
-            _scanTexture.SetPixels32(_scanPixels);
-            _scanTexture.Apply(false, false);
-            _scanSprite = Sprite.Create(_scanTexture, new Rect(0f, 0f, maskWidth, maskHeight),
-                                        new Vector2(0.5f, 0.5f), pixelsPerUnit);
-            if (_scanSprite != null)
-            {
-                _scanSprite.name = "VarellonLogo (masked light sweep)";
-                _scanSprite.hideFlags = HideFlags.HideAndDontSave;
-            }
-        }
-
-        private void UpdateSweep(float progress)
-        {
-            if (_scanTexture == null || _scanPixels == null) return;
-
-            float centre = Mathf.Lerp(-0.16f, 1.16f, 1f - Mathf.Pow(1f - progress, 3f));
-            const float halfWidth = 0.135f;
-            float envelope = Mathf.Sin(progress * Mathf.PI);
-            for (int i = 0; i < _scanPixels.Length; i++)
-            {
-                float distance = Mathf.Abs(_scanAcross[i] - centre) / halfWidth;
-                float band = distance >= 1f ? 0f : 0.5f * (1f + Mathf.Cos(Mathf.PI * distance));
-                byte alpha = (byte)(Mathf.Clamp01((_scanCoverage[i] / 255f) * band * envelope * 0.78f) * 255f);
-                _scanPixels[i].a = alpha;
-            }
-
-            _scanTexture.SetPixels32(_scanPixels);
-            _scanTexture.Apply(false, false);
-        }
-
-        private void ClearSweep()
-        {
-            if (_scanTexture == null || _scanPixels == null) return;
-            for (int i = 0; i < _scanPixels.Length; i++) _scanPixels[i].a = 0;
-            _scanTexture.SetPixels32(_scanPixels);
-            _scanTexture.Apply(false, false);
+            _sweepMaterial.SetFloat("_SweepProgress", 0f);
+            _sweepMaterial.SetFloat("_SweepOpacity", 0f);
+            _sweepMaterial.SetFloat("_BandHalfWidth", 0.12f);
         }
 
         private void SetLogoEffectColors(Color mark, Color shadow, float haloAlpha, float coreAlpha, float scanAlpha)
@@ -474,15 +414,10 @@ namespace Aether.Gameplay.Presentation
         {
             if (_generatedSprite != null) Destroy(_generatedSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
-            if (_scanSprite != null) Destroy(_scanSprite);
-            if (_scanTexture != null) Destroy(_scanTexture);
+            if (_sweepMaterial != null) Destroy(_sweepMaterial);
             _generatedSprite = null;
             _generatedTexture = null;
-            _scanSprite = null;
-            _scanTexture = null;
-            _scanPixels = null;
-            _scanCoverage = null;
-            _scanAcross = null;
+            _sweepMaterial = null;
         }
     }
 }
