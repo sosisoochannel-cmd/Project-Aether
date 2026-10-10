@@ -232,7 +232,7 @@ namespace Aether.Gameplay.Localization.Tables
             "collection.locked.notInBuild", "NON PRESENTE IN QUESTA VERSIONE",
             "entry.secret.greenway.overhang", "SEGNO INCISO",
             "entry.secret.greenway.overhang.body", "Un segno inciso nel tronco sopra il sentiero. Chi l’ha fatto pensava di tornare a prenderlo.",
-            "entry.ability.rootbind", "VINCOLORADICE",
+            "entry.ability.rootbind", "VINCOLO DI RADICI",
             "entry.ability.rootbind.body", "Ancora il giocatore a una radice e apre percorsi verticali. È custodita dal guardiano di una regione non inclusa in questa versione.",
             "achievements.title", "OBIETTIVI",
             "achievements.body", "Tutti gli obiettivi elencati si possono ottenere in questa versione. Nessuno è un segnaposto.",
