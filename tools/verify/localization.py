@@ -54,6 +54,7 @@ CLASS_NAMES = {
     "de": "StringsDe",
     "it": "StringsIt",
     "pt": "StringsPt",
+    "pt-BR": "StringsPtBR",
     "ru": "StringsRu",
     "tr": "StringsTr",
     "ar": "StringsAr",
@@ -104,11 +105,11 @@ def catalogue() -> "dict[str, dict]":
     offered = []
     match = re.search(r"Offered\s*=\s*\{([^}]*)\}", source)
     if match:
-        offered = re.findall(r'"([a-z]{2})"', match.group(1))
+        offered = re.findall(r'"([a-z]{2}(?:-[A-Z]{2})?)"', match.group(1))
 
     entries = {}
     for code, name, latin, direction, covers in re.findall(
-            r'new LanguageDefinition\(\s*"([a-z]{2})"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,'
+            r'new LanguageDefinition\(\s*"([a-z]{2}(?:-[A-Z]{2})?)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,'
             r'\s*TextDirection\.(\w+)\s*,\s*(true|false)\s*\)',
             source):
         entries[code] = {
