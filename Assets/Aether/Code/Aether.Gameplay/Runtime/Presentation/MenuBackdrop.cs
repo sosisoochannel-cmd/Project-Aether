@@ -106,7 +106,6 @@ namespace Aether.Gameplay.Presentation
             backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
             backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
             backdrop.BuildFireflies(root);
-            backdrop.BuildFrameOrnaments(root);
 
             // -- foreground: the shade along the bottom edge, and the vignette over everything.
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
@@ -122,6 +121,8 @@ namespace Aether.Gameplay.Presentation
             vignette.sprite = MenuArt.Vignette;
             vignette.color = new Color(0f, 0f, 0f, 0.75f);
 
+            // The corner metalwork sits above the vignette but outside the safe content box.
+            backdrop.BuildFrameOrnaments(root);
             backdrop.ApplySettings();
             return backdrop;
         }
