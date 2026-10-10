@@ -202,6 +202,7 @@ def check_persian_quality() -> "list[str]":
                        "PersianYehUsesItsActualMedialPresentationForm",
                        "ZeroWidthNonJoinerBreaksJoining",
                        "PlaceholderStaysReadableBesideArabicText",
+                       "MixedRtlTextKeepsLatinPhraseInReadingOrder",
                        "ArabicCombiningMarksStayWithTheirBaseAfterReversal",
                        "PureLeftToRightTextIsPreservedExactly"):
         if regression not in test_source:
