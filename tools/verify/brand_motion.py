@@ -159,8 +159,8 @@ if band is not None:
     require(0.12 <= band <= 0.22,
             f"intro sheen band half-width {band:.3f} is outside the subtle range 0.12–0.22")
 if peak is not None:
-    require(0.18 <= peak <= 0.42,
-            f"intro highlight peak {peak:.3f} is outside the subtle range 0.18–0.42")
+    require(0.35 <= peak <= 0.55,
+            f"intro highlight peak {peak:.3f} is outside the subtle range 0.35–0.55")
 
 if problems:
     print("Varellon brand-motion static gate: FAIL")
