@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Aether.Core.Localization;
 using Aether.Core.Settings;
 using Aether.Gameplay.Localization.Tables;
+using Aether.Gameplay.Menus;
 using Aether.Gameplay.Settings;
 
 namespace Aether.Gameplay.Localization
@@ -156,7 +157,8 @@ namespace Aether.Gameplay.Localization
             if (wanted == null) return false;
 
             return LanguageCatalog.IsOffered(wanted.Code)
-                && wanted.BundledFontCovers
+                && wanted.FontResolverConfigured
+                && MenuArt.CanRenderLanguage(wanted.Code)
                 && Tables.ContainsKey(wanted.Code);
         }
 
@@ -211,7 +213,8 @@ namespace Aether.Gameplay.Localization
             {
                 LanguageDefinition language = LanguageCatalog.All[i];
                 if (CanSelect(language.Code)) continue;
-                if (language.BundledFontCovers == fontBlocked) continue;
+                bool canRender = language.FontResolverConfigured && MenuArt.CanRenderLanguage(language.Code);
+                if (canRender == fontBlocked) continue;
 
                 names.Add(language.LatinName.ToUpperInvariant());
             }
@@ -365,7 +368,8 @@ namespace Aether.Gameplay.Localization
             if (wanted == null) return false;
 
             return LanguageCatalog.IsOffered(wanted.Code)
-                && wanted.BundledFontCovers
+                && wanted.FontResolverConfigured
+                && MenuArt.CanRenderLanguage(wanted.Code)
                 && Tables.ContainsKey(wanted.Code);
         }
 
