@@ -10,6 +10,7 @@ Varellon is the studio identity behind Aether. The logo must read as a designed 
 - The mark arrives with a short eased rise and a small settle.
 - A single sage highlight crosses only the existing logo alpha. It is a UI shader, clipped to the logo's own sprite, not a free-standing bar.
 - The highlight uses a private runtime material and two scalar parameters. It does not rebuild or upload a texture every frame.
+- The entrance is explicitly started after the keyed sprite is ready; this avoids Unity's early `OnEnable` call silently skipping the animation during runtime-built UI creation.
 - After the pass, the logo rests with only a very low-amplitude drift and restrained halo.
 - Reduced Motion removes the movement and sweep. The logo itself remains visible and readable.
 
