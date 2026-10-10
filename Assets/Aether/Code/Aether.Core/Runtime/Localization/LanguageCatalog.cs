@@ -18,11 +18,11 @@ namespace Aether.Core.Localization
     /// <c>Aether.Gameplay.Localization</c>, where the screens are.
     /// </para>
     /// <para>
-    /// <b>The font flag is a fact, not a preference.</b> The project bundles one font — Unity's
-    /// Liberation Sans fallback — and it has no Arabic, Persian, Chinese, Japanese or Korean glyphs.
-    /// Offering one of those languages would show a screen of empty boxes, which is worse than not
-    /// offering it; so a language whose script the font cannot draw says so here, and the row that
-    /// offers it is disabled with the reason on it. When a font pack arrives, that is one flag.
+    /// <b>The font flag means a resolver exists, not that every device is guaranteed to draw the script.</b>
+    /// The runtime tries script-appropriate operating-system font families and probes for a
+    /// representative glyph. Family names and glyph coverage vary by Android version, so the picker
+    /// must also consult the runtime probe before enabling a language. This does not replace real
+    /// device QA or prove complete glyph coverage for every string.
     /// </para>
     /// </remarks>
     public sealed class LanguageDefinition
@@ -125,9 +125,10 @@ namespace Aether.Core.Localization
         /// </para>
         /// <para>
         /// <b>What is not here is not a secret.</b> A language is offered only when its translation
-        /// sheet is complete and the runtime font resolver finds a font containing a representative
-        /// glyph on this device. Font family names differ across Android versions, so CJK, Arabic and
-        /// Persian support is probed at runtime instead of inferred from the catalogue alone.
+        /// sheet is complete. The picker separately checks that a suitable runtime font can draw a
+        /// representative character on this device; that probe is a guard, not a substitute for
+        /// full glyph-coverage checks and on-device layout review. Never add a language here merely
+        /// to make the picker look complete.
         /// </para>
         /// </remarks>
         public static readonly string[] Offered = { "en", "es", "fa" };
