@@ -32,7 +32,7 @@ namespace Aether.Gameplay.Menus
             // This is a deterministic fallback for Unity's legacy Text, not a full Unicode
             // Bidirectional Algorithm. Keep contiguous LTR phrases intact, reverse the order of
             // directional runs in an RTL paragraph, and reverse the words inside each RTL run.
-            // Numbers and placeholders remain LTR tokens instead of having their characters flipped.
+            // Whitespace-separated numbers and placeholders remain LTR tokens instead of having their characters flipped.
             string[] tokens = input.Split(new[] { ' ' }, System.StringSplitOptions.None);
             var groups = new List<List<string>>();
             var groupIsRtl = new List<bool>();
@@ -127,7 +127,7 @@ namespace Aether.Gameplay.Menus
 
             // Unity's legacy Text is LTR-oriented. Presentation forms are already shaped,
             // so reversing the visual RTL run gives the correct glyph order without touching
-            // Latin/number runs outside it. ZWNJ stays in the output but, above, blocks joining.
+            // whitespace-separated Latin/number runs. ZWNJ stays in the output and blocks joining.
             return ReverseKeepingMarks(shaped.ToString());
         }
 
