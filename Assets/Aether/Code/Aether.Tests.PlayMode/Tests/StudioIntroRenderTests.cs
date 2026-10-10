@@ -70,11 +70,11 @@ namespace Aether.Tests.PlayMode
 
         /// <summary>
         /// A pixel at or above this luminance is brighter than the standing lockup's own ink, which is
-        /// what a light crossing it puts there. The artwork is drawn at a tint just under white, so
-        /// only something laid over it can reach this: it is how "the light is on the logo" is
-        /// measured rather than eyeballed.
+        /// what a light crossing it puts there. The resting ink is rendered at a restrained platinum
+        /// tint below this threshold; only the white band over the dimmed ink should cross it. That
+        /// makes the test measure the highlight rather than mistaking white source pixels for light.
         /// </summary>
-        private const float BrightLuminance = 0.96f;
+        private const float BrightLuminance = 0.93f;
 
         /// <summary>The key <see cref="StudioIntroSequence.Preference"/> stores its choice under.</summary>
         private const string IntroPreferenceKey = "aether.studioIntro.play";
