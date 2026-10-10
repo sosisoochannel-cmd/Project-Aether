@@ -4,6 +4,7 @@ using System.Globalization;
 using Aether.Core.Localization;
 using Aether.Core.Settings;
 using Aether.Gameplay.Localization;
+using Aether.Gameplay.Menus;
 using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Widgets;
 using Aether.Gameplay.Progression;
@@ -77,7 +78,7 @@ namespace Aether.Gameplay.Menus.Panels
             /// <summary>Languages that are named, catalogued and not translated yet.</summary>
             LanguageMissing = 10,
 
-            /// <summary>Languages whose script the bundled font cannot draw at all.</summary>
+            /// <summary>Languages whose script has no usable runtime font on this device.</summary>
             LanguageFont = 11,
 
             /// <summary>A single language in the visual language hub.</summary>
@@ -295,24 +296,31 @@ namespace Aether.Gameplay.Menus.Panels
                 _rows.Add(row);
             }
 
-            // The language category is a proper hub: every known language gets a row, its native name
-            // is shown exactly as players recognize it, and the right side tells them whether it is
-            // ready, translated but blocked by the bundled font, or still awaiting its translation.
+            // The language category is a proper hub: every known language gets a row, and the right
+            // side tells the player whether it is ready, has no usable script font on this device,
+            // or is still awaiting its translation.
             for (int i = 0; i < LanguageCatalog.Count; i++)
             {
                 LanguageDefinition language = LanguageCatalog.All[i];
                 if (language.Code == LanguageCatalog.DefaultCode) { /* English is still a real row. */ }
 
+                bool fontAvailable = language.FontResolverConfigured
+                    && MenuArt.CanRenderLanguage(language.Code);
+                bool nativeLabelReadable = fontAvailable
+                    && (language.Direction != TextDirection.RightToLeft
+                        || string.Equals(language.Code, LanguageService.Code, StringComparison.OrdinalIgnoreCase));
+
                 Row languageRow;
-                if (language.BundledFontCovers)
+                if (nativeLabelReadable)
                 {
                     languageRow = NewRow(SettingCategory.Language, language.LabelKey, string.Empty);
+                    languageRow.Button.Label.font = MenuArt.FontForLanguage(language.Code);
                 }
                 else
                 {
-                    // Never render an unavailable script with a font that cannot draw it. Unity font
-                    // fallback is asset-dependent, so the hub uses the safe Latin name until the
-                    // proper script font/shaping stack is installed.
+                    // Use a Latin name when the script font is absent or an RTL shaping pass is not
+                    // active for that row. This keeps every language discoverable without displaying
+                    // missing-glyph boxes in the picker.
                     languageRow = new Row { Category = SettingCategory.Language };
                     languageRow.Button = MenuButton.Create("Language " + language.Code, _content,
                                                             language.LatinName.ToUpperInvariant(),
@@ -507,7 +515,7 @@ namespace Aether.Gameplay.Menus.Panels
 
             row.Button.SetAccented(selected);
             row.Button.SetLocked(!selectable && !selected,
-                                 language.BundledFontCovers
+                                 language.FontResolverConfigured && MenuArt.CanRenderLanguage(language.Code)
                                      ? MenuStrings.Get("language.notWritten")
                                      : MenuStrings.Get("language.needsFont"));
 
@@ -519,7 +527,7 @@ namespace Aether.Gameplay.Menus.Panels
             {
                 row.Button.SetMeta(MenuStrings.Format("language.coverage", language.Code.ToUpperInvariant(), present, total));
             }
-            else if (!language.BundledFontCovers)
+            else if (!language.FontResolverConfigured || !MenuArt.CanRenderLanguage(language.Code))
             {
                 row.Button.SetMeta(MenuStrings.Get("language.needsFont"));
             }
