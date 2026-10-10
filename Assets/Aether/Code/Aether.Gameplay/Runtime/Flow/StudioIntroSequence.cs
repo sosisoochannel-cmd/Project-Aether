@@ -482,15 +482,13 @@ namespace Aether.Gameplay.Flow
         /// The mark starts at <see cref="Timing.BlackHold"/> and takes <see cref="Timing.Reveal"/>; the
         /// wordmark starts <see cref="Timing.WordmarkDelay"/> later and takes
         /// <see cref="Timing.WordmarkReveal"/>, so the symbol establishes the identity and the wordmark
-        /// completes it. Both curves are ease-outs: they arrive promptly enough to feel deliberate and
-        /// settle softly enough to feel expensive, and neither overshoots — a bounce is the one thing
-        /// this sequence must not do.
+        /// completes it. Both parts use restrained, monotonic ease-outs: the symbol leads, the name
+        /// follows, and neither part overshoots or bounces.
         /// </para>
         /// <para>
-        /// Presence and movement ride separate curves. The mark's opacity follows a sine ease-out, the
-        /// gentlest of them; the wordmark's arrives on a slightly more decisive cubic. The scale and the
-        /// small rise behind both settle on a curve that is soft at both ends, and the movement is small
-        /// enough to be felt rather than watched.
+        /// Presence and movement ride separate curves. The mark's opacity follows a sine ease-out; the
+        /// wordmark's arrives on a cubic ease-out. Scale and rise use the same monotonic cubic settle,
+        /// so the reveal feels deliberate without a springy or template-like bounce.
         /// </para>
         /// </remarks>
         private static void RevealAt(float elapsed, bool wordmark,
@@ -499,11 +497,10 @@ namespace Aether.Gameplay.Flow
             float startsAt = Timing.BlackHold + (wordmark ? Timing.WordmarkDelay : 0f);
             float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
             float linear = Ramp(elapsed, startsAt, duration);
-            float settle = EaseOutBack(linear);
+            float settle = EaseOutCubic(linear);
             presence = wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
-            // The mark lands with a controlled overshoot, like a carved insignia locking into place;
-            // opacity remains monotonic, so the motion feels weighty rather than flickery.
-            float startScale = wordmark ? 0.86f : Layout.RevealScale;
+            // Both parts settle monotonically. No overshoot or bounce: the silhouette stays confident and crisp.
+            float startScale = wordmark ? 0.94f : Layout.RevealScale;
             scale = Mathf.Lerp(startScale, 1f, settle);
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
