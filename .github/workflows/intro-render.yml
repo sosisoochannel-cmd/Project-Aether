@@ -194,7 +194,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: Library
-          key: Library-Android-${{ github.sha }}
+          key: Library-Linux-${{ github.sha }}
 
       # The verdict: the test framework's own numbers, and whether the frames exist. A run that
       # produced every measured frame with nothing failing has done its job, whatever the CLI's
