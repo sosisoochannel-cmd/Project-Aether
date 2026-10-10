@@ -278,6 +278,9 @@ namespace Aether.Gameplay.Presentation
                 StopCoroutine(_presentation);
                 _presentation = null;
             }
+
+            if (_glintMaterial != null) _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            if (_glint != null) _glint.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -286,6 +289,9 @@ namespace Aether.Gameplay.Presentation
         /// </summary>
         private IEnumerator PresentRoutine()
         {
+            if (_glintMaterial != null) _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            if (_glint != null) _glint.gameObject.SetActive(false);
+
             Color markTarget = _mark.color;
             Color shadowTarget = _shadow != null ? _shadow.color : new Color(0f, 0f, 0f, 0f);
 
