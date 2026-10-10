@@ -39,8 +39,9 @@ permissions:
   contents: read
 
 concurrency:
+  # A newer source revision supersedes an older render; do not queue a known-stale Unity import.
   group: intro-render-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   render:
