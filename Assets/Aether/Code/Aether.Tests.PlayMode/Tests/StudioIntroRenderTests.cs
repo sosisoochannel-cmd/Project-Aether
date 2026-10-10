@@ -332,6 +332,9 @@ namespace Aether.Tests.PlayMode
                 Assert.Greater(hold.InkFraction, 0.002f,
                                "the mark covers almost nothing of the frame; either it is not drawn or it "
                                + "is far smaller than the layout asks for");
+                Assert.Greater(hold.InkFraction, 0.024f,
+                               $"the lockup covers only {hold.InkFraction:P2} of the frame; the larger "
+                               + "cinematic scale must remain visibly assertive in the actual render");
                 Assert.Less(hold.InkFraction, 0.25f,
                             $"the mark covers {hold.InkFraction:P1} of the frame; this is the shape of the "
                             + "bug where the sprite's own pixels-per-unit was left out of its scale and "
