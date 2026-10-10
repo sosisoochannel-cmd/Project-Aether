@@ -21,7 +21,7 @@ Varellon is the studio identity behind Aether. The logo must read as a designed 
 - The wordmark starts 250 ms after the symbol, preserving a deliberate hierarchy instead of animating the entire lockup as one flat image. Its reveal ends at 1.15 s; the light does not start until 1.24 s, leaving a deliberate 90 ms visual breath (about five frames at 60 fps) between arrival and polish.
 - One diagonal, soft highlight then crosses a downsampled static alpha mask. The still hold begins only after the highlight has left the lockup, and remains long enough for the complete signature to register. A dedicated sprite shader animates the band on the GPU; neither the reveal nor the sheen rewrites a texture per frame.
 - The pass is narrower and less intense than the former broad wash. The mark's luminance dip remains subtle, so the logo itself stays the hero.
-- The original PNG remains untouched. In the intro, the ink is rendered in soft platinum (0.90 tint) so the white band has real luminance headroom instead of disappearing into pure-white pixels; `tools/verify/intro.py` checks the combined tint/dim/highlight values against the render test's 0.93 threshold.
+- The original PNG remains untouched. In the intro, the ink is rendered in soft platinum (0.86 tint), held back slightly during the pass (0.91 multiplier), and polished by one white highlight (0.84 peak). This gives the sweep enough luminance contrast to read at normal size without turning the logo into a flare; `tools/verify/intro.py` checks the combined tint/dim/highlight values against the render test's 0.93 threshold.
 - The sequence still respects the existing under-three-second timing budget, skip behavior, safe-area fit, and cleanup before scene handover.
 
 ## Runtime and lifecycle
