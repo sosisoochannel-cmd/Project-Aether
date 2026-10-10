@@ -118,6 +118,8 @@ require("_RevealProgress" in intro and "RevealProgress(elapsed, false)" in intro
         "studio mark must animate the reveal matte")
 require("RevealProgress(elapsed, true)" in intro,
         "studio wordmark must animate its reveal matte after the mark")
+require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro,
+        "intro matte must keep pace with the same ease-out as each part's alpha")
 require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
         "skipping the intro must preserve the current matte instead of snapping it open")
 
