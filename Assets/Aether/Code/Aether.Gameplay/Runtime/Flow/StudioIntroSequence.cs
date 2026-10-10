@@ -62,18 +62,11 @@ namespace Aether.Gameplay.Flow
     /// curves over elapsed time, the exit starts from wherever either part currently is (skipping
     /// mid-reveal fades from the current presence, not from full), and the whole sequence runs under
     /// three seconds because an intro is a signature, not a wait. In order: a short black, the mark
-    /// arriving, the wordmark completing the lockup a beat later, one restrained light pass across
+    /// arriving, the wordmark completing the lockup a beat later, one very subtle light pass across
     /// it, a still hold, and a fade back to black — <see cref="Timing"/> holds the numbers.
     /// </para>
     /// <para>
-    /// <b>The light that crosses the lockup is drawn on the logo's own ink.</b> A sheen is the one
-    /// flourish a studio ident is allowed and the easiest thing to get wrong: a bright band laid over
-    /// the screen is a grey streak across the black, and a glow around the mark is the lens-flare look
-    /// this intro exists not to be. So the band is masked by the artwork's own coverage — the mask the
-    /// mark and the wordmark are built from, sampled down because it carries only a soft gradient —
-    /// and it is invisible everywhere the logo is not. The lockup is taken down a few percent while
-    /// the light crosses it and returns to its exact resting colour afterwards, so the still hold is
-    /// the same picture it would have been without the pass.
+    /// <b>The light that crosses the lockup is drawn on the logo's own ink.</b> A sheen is optional polish, not the subject: a bright band or halo makes the ident feel like an effects demo. The pass is therefore brief and low-contrast, masked by the artwork's own coverage, and invisible everywhere the logo is not. It never blooms beyond the ink, changes the base luminance only slightly, and returns to the exact resting picture before the still hold.
     /// </para>
     /// <para>
     /// <b>Skipping and switching it off are both seams that already exist.</b> A tap, a key or a
@@ -170,7 +163,7 @@ namespace Aether.Gameplay.Flow
         /// <para>
         /// The sequence, in seconds from the first frame of the scene: pure black 0.00-0.30, the mark
         /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, a brief breath, the light
-        /// pass 1.24-1.64, the complete lockup held completely still 1.64-2.25, and the fade to black
+        /// pass 1.24-1.56, the complete lockup held completely still 1.56-2.25, and the fade to black
         /// 2.25-2.85. The hand-over to the next scene comes <see cref="HandOver"/> after the last of
         /// the logo has gone.
         /// </para>
@@ -201,11 +194,11 @@ namespace Aether.Gameplay.Flow
             /// <summary>When the light pass begins, after both mark and wordmark have resolved.</summary>
             public const float SheenStartsAt = 1.24f;
 
-            /// <summary>How long the light takes to cross the finished lockup: 1.24s to 1.64s.</summary>
-            public const float SheenDuration = 0.40f;
+            /// <summary>How long the very subtle light takes to cross the finished lockup.</summary>
+            public const float SheenDuration = 0.32f;
 
-            /// <summary>The complete lockup, completely still after the light: 1.64s to 2.25s.</summary>
-            public const float Hold = 0.61f;
+            /// <summary>The complete lockup, completely still after the light.</summary>
+            public const float Hold = 0.69f;
 
             /// <summary>The fade from the complete lockup to pure black: 2.25s to 2.85s.</summary>
             public const float Exit = 0.60f;
@@ -221,17 +214,15 @@ namespace Aether.Gameplay.Flow
         }
 
         /// <summary>
-        /// The light that crosses the finished lockup: how wide it is, how bright, and how far the
-        /// logo is taken down while it passes.
+        /// The subtle light that crosses the finished lockup: its narrow width, low peak, and minimal
+        /// change to the logo's resting luminance.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// It is a soft band of white, masked by the artwork's own ink, travelling on a diagonal that
-        /// is nearly level. Every number here is deliberately small: this is the one moment in the
-        /// sequence that could turn into a logo sting, and the brief is the opposite — a light an eye
-        /// notices on the second viewing rather than the first. The band is never wider than the
-        /// lockup it crosses, the highlight never reaches solid white, and the logo never dips far
-        /// enough for the dip itself to read as a change.
+        /// It is a faint, narrow band masked by the artwork's own ink, travelling almost level. Low peak
+        /// brightness and a minimal luminance change let the logo remain the hero. There is no bloom
+        /// or screen-space streak; the effect should register as subtle polish on a second viewing,
+        /// never as a bright flash.
         /// </para>
         /// <para>
         /// <c>tools/verify/intro.py</c> holds these numbers in bands — a wider band is a wash, a
@@ -241,23 +232,23 @@ namespace Aether.Gameplay.Flow
         /// </remarks>
         public static class Sheen
         {
-            /// <summary>The resting ink tint: soft platinum leaves headroom for the white light pass.</summary>
-            public const float BaseInkLuminance = 0.86f;
+            /// <summary>The resting ink tint: soft platinum leaves a little headroom for the subtle pass.</summary>
+            public const float BaseInkLuminance = 0.90f;
 
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
-            public const float BandHalfWidth = 0.18f;
+            public const float BandHalfWidth = 0.15f;
 
             /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
-            public const float Tilt = 0.14f;
+            public const float Tilt = 0.08f;
 
-            /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
-            public const float HighlightPeak = 0.84f;
+            /// <summary>Peak alpha of the faint white highlight over the logo's ink.</summary>
+            public const float HighlightPeak = 0.48f;
 
-            /// <summary>How far the logo is taken down while the light is crossing it.</summary>
-            public const float DimWhilePassing = 0.91f;
+            /// <summary>Logo luminance multiplier while the subtle light is crossing it.</summary>
+            public const float DimWhilePassing = 0.99f;
 
             /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
-            public const float EdgeFade = 0.12f;
+            public const float EdgeFade = 0.18f;
 
             /// <summary>Mask texels per artwork pixel. It carries a soft gradient, nothing finer.</summary>
             public const float Resolution = 0.45f;

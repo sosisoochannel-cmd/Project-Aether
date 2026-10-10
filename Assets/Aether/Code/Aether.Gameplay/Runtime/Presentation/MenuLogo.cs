@@ -20,25 +20,25 @@ namespace Aether.Gameplay.Presentation
     /// </para>
     /// <para>
     /// Processing happens once when the menu is built. The source remains untouched, the generated
-    /// texture is the cropped logo only, and it is released with this component. No new artwork,
-    /// shader, font or per-frame work is introduced.
+    /// texture is the cropped logo only, and it is released with this component. A separate UI shader
+    /// draws one finite metallic glint over the same alpha mask after the entrance; its runtime
+    /// material is released with the component, and Reduced Motion skips the effect.
     /// </para>
     /// </remarks>
     public sealed class MenuLogo : MonoBehaviour
     {
         private const string MarkResourcePath = "Brand/VarellonLogo";
+        private const string GlintShaderPath = "Brand/VarellonLogoSheen";
 
         private static bool _missingReported;
 
         private RectTransform _rect;
         private Image _mark;
         private Image _shadow;
-        private Image _halo;
-        private Image _coreGlow;
-        private Image _scan;
+        private Image _glint;
+        private Material _glintMaterial;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
-        private Material _sweepMaterial;
         private float _height = MenuTheme.Metrics.LogoHeight;
         private Vector2 _restPosition;
         private Coroutine _presentation;
@@ -72,11 +72,11 @@ namespace Aether.Gameplay.Presentation
             logo._rect.anchoredPosition = Vector2.zero;
             logo._rect.sizeDelta = new Vector2(MenuTheme.Metrics.LogoMaxWidth, height);
 
-            logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.24f));
-            logo._halo = MenuUi.CreateImage("Halo", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
-            logo._coreGlow = MenuUi.CreateImage("Core Glow", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
-            logo._scan = MenuUi.CreateImage("Light Sweep", logo._rect, MenuArt.Solid, new Color(1f, 1f, 1f, 0f));
+            logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.18f));
             logo._mark = MenuUi.CreateImage("Mark", logo._rect, null, MenuTheme.Palette.Ink);
+            logo._glint = MenuUi.CreateImage("One-time Glint", logo._rect, null, Color.white);
+            logo._glint.raycastTarget = false;
+            logo._glint.gameObject.SetActive(false);
 
             Sprite source = Resources.Load<Sprite>(MarkResourcePath);
             if (source == null)
@@ -95,11 +95,8 @@ namespace Aether.Gameplay.Presentation
 
             logo._mark.sprite = logo._generatedSprite;
             logo._shadow.sprite = logo._generatedSprite;
-            logo._scan.sprite = logo._generatedSprite;
-            if (logo._sweepMaterial != null)
-                logo._scan.material = logo._sweepMaterial;
-            else
-                logo._scan.enabled = false;
+            logo._glint.sprite = logo._generatedSprite;
+            logo.BuildGlintMaterial();
             logo.Apply();
             // AddComponent invokes OnEnable before the generated sprite exists on an active host.
             // Start explicitly after the keyed mark is ready so the entrance animation is not lost.
@@ -123,20 +120,15 @@ namespace Aether.Gameplay.Presentation
             _restPosition = _rect.anchoredPosition;
 
             Place(_mark, width, height, Vector2.zero);
-            Place(_shadow, width, height, new Vector2(2f, -2f));
-            Place(_halo, width * 1.18f, height * 1.18f, Vector2.zero);
-            Place(_coreGlow, width * 1.04f, height * 1.04f, Vector2.zero);
-            // The sweep is the same cropped ink mask as the mark, not a free-standing bar.
-            // That keeps every highlight pixel inside the actual artwork at every logo aspect ratio.
-            Place(_scan, width, height, Vector2.zero);
-            _halo.transform.SetAsFirstSibling();
-            _coreGlow.transform.SetSiblingIndex(1);
-            _shadow.transform.SetSiblingIndex(2);
-            _mark.transform.SetSiblingIndex(3);
-            _scan.transform.SetAsLastSibling();
-            _shadow.color = new Color(0f, 0f, 0f, 0.24f);
+            Place(_shadow, width, height, new Vector2(1f, -1f));
+            Place(_glint, width, height, Vector2.zero);
+            _shadow.transform.SetAsFirstSibling();
+            _mark.transform.SetAsLastSibling();
+            if (_glint != null) _glint.transform.SetAsLastSibling();
+            _shadow.color = new Color(0f, 0f, 0f, 0.18f);
             _mark.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink,
                                                          MenuPreferences.HighContrast);
+            if (_glint != null) _glint.color = Color.white;
         }
 
         private bool BuildKeyedMark(Sprite source)
@@ -227,7 +219,6 @@ namespace Aether.Gameplay.Presentation
 
             _generatedSprite.name = source.name + " (menu cutout)";
             _generatedSprite.hideFlags = HideFlags.HideAndDontSave;
-            BuildSweepMaterial();
             return true;
         }
 
@@ -242,6 +233,28 @@ namespace Aether.Gameplay.Presentation
             return (byte)(Mathf.Clamp01(ink) * 255f);
         }
 
+        private void BuildGlintMaterial()
+        {
+            if (_glint == null) return;
+
+            Shader shader = Resources.Load<Shader>(GlintShaderPath);
+            if (shader == null)
+            {
+                Debug.LogWarning($"[menu] Resources/{GlintShaderPath} was not found; the logo will appear without its one-time glint.", this);
+                return;
+            }
+
+            _glintMaterial = new Material(shader)
+            {
+                name = "Varellon menu one-time glint",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _glintMaterial.SetFloat("_SweepProgress", 0f);
+            _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            _glintMaterial.SetFloat("_BandHalfWidth", 0.095f);
+            _glint.material = _glintMaterial;
+        }
+
         private void OnEnable()
         {
             BeginPresentation();
@@ -249,7 +262,7 @@ namespace Aether.Gameplay.Presentation
 
         private void BeginPresentation()
         {
-            if (!isActiveAndEnabled || _mark == null) return;
+            if (!isActiveAndEnabled || _mark == null || _mark.sprite == null) return;
 
             if (_presentation != null)
             {
@@ -266,126 +279,123 @@ namespace Aether.Gameplay.Presentation
                 StopCoroutine(_presentation);
                 _presentation = null;
             }
+
+            if (_glintMaterial != null) _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            if (_glint != null) _glint.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// A short fade-and-rise entrance followed by one finite metallic glint. The logo itself
+        /// stays still; there is no looping glow, pulse, breathing, or idle motion.
+        /// </summary>
         private IEnumerator PresentRoutine()
         {
-            _rect.anchoredPosition = _restPosition + new Vector2(0f, 14f);
-            _rect.localScale = Vector3.one * 0.94f;
+            if (_glintMaterial != null) _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            if (_glint != null) _glint.gameObject.SetActive(false);
 
             Color markTarget = _mark.color;
             Color shadowTarget = _shadow != null ? _shadow.color : new Color(0f, 0f, 0f, 0f);
-            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
 
             if (MenuPreferences.ReducedMotion)
             {
                 _rect.anchoredPosition = _restPosition;
                 _rect.localScale = Vector3.one;
-                SetLogoEffectColors(markTarget, shadowTarget, 0f, 0f, 0f);
+                _mark.color = markTarget;
+                if (_shadow != null) _shadow.color = shadowTarget;
+                _presentation = null;
                 yield break;
             }
 
-            SetLogoEffectColors(
-                new Color(markTarget.r, markTarget.g, markTarget.b, 0f),
-                new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), 0f, 0f, 0f);
+            const float duration = 0.42f;
+            const float rise = 6f;
+            const float startScale = 0.985f;
+            _rect.anchoredPosition = _restPosition + new Vector2(0f, rise);
+            _rect.localScale = Vector3.one * startScale;
+            _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b, 0f);
+            if (_shadow != null)
+                _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f);
 
             float elapsed = 0f;
-            const float duration = 0.58f;
             while (elapsed < duration)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float ease = 1f - Mathf.Pow(1f - t, 3f);
+
                 _rect.anchoredPosition = Vector2.LerpUnclamped(
-                    _restPosition + new Vector2(0f, 14f), _restPosition, ease);
-                _rect.localScale = Vector3.one * Mathf.Lerp(0.94f, 1f, ease);
-                float glow = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.72f));
-                SetLogoEffectColors(
-                    Color.Lerp(new Color(markTarget.r, markTarget.g, markTarget.b, 0f), markTarget, ease),
-                    Color.Lerp(new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), shadowTarget, ease),
-                    glow * 0.11f, glow * 0.16f, 0f);
-                yield return null;
-            }
-
-            // A single restrained, ink-masked specular pass: it travels through the logo's own
-            // alpha instead of drawing a rectangular streak across the surrounding UI.
-            const float sweepDuration = 0.86f;
-            elapsed = 0f;
-            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
-            while (elapsed < sweepDuration)
-            {
-                elapsed += Time.unscaledDeltaTime;
-                float t = Mathf.Clamp01(elapsed / sweepDuration);
-                if (_sweepMaterial != null)
-                {
-                    _sweepMaterial.SetFloat("_SweepProgress", t);
-                    _sweepMaterial.SetFloat("_SweepOpacity", Mathf.Sin(t * Mathf.PI) * 0.78f);
-                }
-                if (_scan != null)
-                    _scan.color = new Color(accent.r, accent.g, accent.b, 0.42f);
-                yield return null;
-            }
-
-            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
-            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, 0f);
-
-            elapsed = 0f;
-            while (isActiveAndEnabled && !MenuPreferences.ReducedMotion)
-            {
-                elapsed += Time.unscaledDeltaTime;
-                float breathe = Mathf.Sin(elapsed * Mathf.PI * 2f / 11f);
-                _rect.anchoredPosition = _restPosition + new Vector2(0f, breathe * 1.15f);
-                _rect.localScale = Vector3.one * (1f + breathe * 0.0015f);
-
-                float pulse = 0.5f + 0.5f * breathe;
-                if (_halo != null)
-                    _halo.color = new Color(accent.r, accent.g, accent.b, 0.025f + pulse * 0.025f);
-                if (_coreGlow != null)
-                    _coreGlow.color = new Color(accent.r, accent.g, accent.b, 0.045f + pulse * 0.025f);
+                    _restPosition + new Vector2(0f, rise), _restPosition, ease);
+                _rect.localScale = Vector3.one * Mathf.Lerp(startScale, 1f, ease);
+                _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b,
+                                        Mathf.Lerp(0f, markTarget.a, ease));
+                if (_shadow != null)
+                    _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b,
+                                              Mathf.Lerp(0f, shadowTarget.a, ease));
                 yield return null;
             }
 
             _rect.anchoredPosition = _restPosition;
             _rect.localScale = Vector3.one;
-            SetLogoEffectColors(markTarget, shadowTarget, 0.03f, 0.06f, 0f);
-            _presentation = null;
-        }
+            _mark.color = markTarget;
+            if (_shadow != null) _shadow.color = shadowTarget;
 
-        /// <summary>
-        /// Creates one private instance of the UI shader. The logo's coverage stays in the original
-        /// sprite alpha; the GPU moves a single soft highlight across that mask, without uploading
-        /// a new texture or recalculating every pixel on the CPU each frame.
-        /// </summary>
-        private void BuildSweepMaterial()
-        {
-            Shader shader = Resources.Load<Shader>("Brand/VarellonLogoSheen");
-            if (shader == null)
+            if (_glintMaterial != null && _glint != null && !MenuPreferences.ReducedMotion)
             {
-                Debug.LogWarning(
-                    "[menu] VarellonLogoSheen shader is unavailable; the logo will render without its sweep.",
-                    this);
-                return;
+                // One deliberate highlight: a short anticipation, a longer diagonal pass,
+                // a tiny metallic linger, then a clean return to the untouched logo.
+                _glint.gameObject.SetActive(true);
+                _glintMaterial.SetFloat("_SweepProgress", 0f);
+                _glintMaterial.SetFloat("_SweepOpacity", 0f);
+
+                const float anticipation = 0.14f;
+                const float sweepDuration = 0.92f;
+                const float lingerDuration = 0.16f;
+                const float fadeDuration = 0.34f;
+                float wait = 0f;
+                while (wait < anticipation)
+                {
+                    wait += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(wait / anticipation);
+                    _glintMaterial.SetFloat("_SweepOpacity", 0.12f * t);
+                    yield return null;
+                }
+
+                float elapsed = 0f;
+                while (elapsed < sweepDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / sweepDuration);
+                    float eased = 1f - Mathf.Pow(1f - t, 2.2f);
+                    _glintMaterial.SetFloat("_SweepProgress", eased);
+                    float envelope = Mathf.Sin(t * Mathf.PI);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.30f, 0.98f, envelope));
+                    yield return null;
+                }
+
+                _glintMaterial.SetFloat("_SweepProgress", 1f);
+                _glintMaterial.SetFloat("_SweepOpacity", 0.34f);
+                elapsed = 0f;
+                while (elapsed < lingerDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / lingerDuration);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.34f, 0.24f, t));
+                    yield return null;
+                }
+
+                elapsed = 0f;
+                while (elapsed < fadeDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / fadeDuration);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.24f, 0f, t));
+                    yield return null;
+                }
+
+                _glintMaterial.SetFloat("_SweepOpacity", 0f);
+                _glint.gameObject.SetActive(false);
             }
 
-            _sweepMaterial = new Material(shader)
-            {
-                name = "Varellon Logo Sheen (runtime)",
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            _sweepMaterial.SetFloat("_SweepProgress", 0f);
-            _sweepMaterial.SetFloat("_SweepOpacity", 0f);
-            _sweepMaterial.SetFloat("_BandHalfWidth", 0.12f);
-        }
-
-        private void SetLogoEffectColors(Color mark, Color shadow, float haloAlpha, float coreAlpha, float scanAlpha)
-        {
-            _mark.color = mark;
-            if (_shadow != null) _shadow.color = shadow;
-
-            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
-            if (_halo != null) _halo.color = new Color(accent.r, accent.g, accent.b, haloAlpha);
-            if (_coreGlow != null) _coreGlow.color = new Color(accent.r, accent.g, accent.b, coreAlpha);
-            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, scanAlpha);
+            _presentation = null;
         }
 
         private void ReportUnavailable(string reason)
@@ -411,25 +421,20 @@ namespace Aether.Gameplay.Presentation
         private void Remove()
         {
             if (_shadow != null) Destroy(_shadow.gameObject);
-            if (_halo != null) Destroy(_halo.gameObject);
-            if (_coreGlow != null) Destroy(_coreGlow.gameObject);
-            if (_scan != null) Destroy(_scan.gameObject);
             if (_mark != null) Destroy(_mark.gameObject);
             _shadow = null;
-            _halo = null;
-            _coreGlow = null;
-            _scan = null;
             _mark = null;
+            if (_glint != null) Destroy(_glint.gameObject);
+            _glint = null;
         }
 
         private void OnDestroy()
         {
+            if (_glintMaterial != null) Destroy(_glintMaterial);
             if (_generatedSprite != null) Destroy(_generatedSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
-            if (_sweepMaterial != null) Destroy(_sweepMaterial);
             _generatedSprite = null;
             _generatedTexture = null;
-            _sweepMaterial = null;
         }
     }
 }
