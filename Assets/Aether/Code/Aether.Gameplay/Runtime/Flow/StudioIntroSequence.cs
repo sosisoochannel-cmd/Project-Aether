@@ -242,7 +242,7 @@ namespace Aether.Gameplay.Flow
         public static class Sheen
         {
             /// <summary>The resting ink tint: soft platinum leaves headroom for the white light pass.</summary>
-            public const float BaseInkLuminance = 0.90f;
+            public const float BaseInkLuminance = 0.86f;
 
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
             public const float BandHalfWidth = 0.18f;
