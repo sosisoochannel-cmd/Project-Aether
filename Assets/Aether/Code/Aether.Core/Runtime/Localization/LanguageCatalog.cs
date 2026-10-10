@@ -99,6 +99,7 @@ namespace Aether.Core.Localization
         {
             new LanguageDefinition("en", "English", "English", TextDirection.LeftToRight, true),
             new LanguageDefinition("es", "Español", "Spanish", TextDirection.LeftToRight, true),
+            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
             new LanguageDefinition("fr", "Français", "French", TextDirection.LeftToRight, true),
             new LanguageDefinition("de", "Deutsch", "German", TextDirection.LeftToRight, true),
             new LanguageDefinition("it", "Italiano", "Italian", TextDirection.LeftToRight, true),
@@ -106,11 +107,6 @@ namespace Aether.Core.Localization
             new LanguageDefinition("pt-BR", "Português (Brasil)", "Brazilian Portuguese", TextDirection.LeftToRight, true),
             new LanguageDefinition("ru", "Русский", "Russian", TextDirection.LeftToRight, true),
             new LanguageDefinition("tr", "Türkçe", "Turkish", TextDirection.LeftToRight, true),
-            new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, false),
-            new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
-            new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, false),
         };
 
         /// <summary>
@@ -125,12 +121,12 @@ namespace Aether.Core.Localization
         /// the repository unshipped.
         /// </para>
         /// <para>
-        /// <b>What is not here is not a secret.</b> French, German, Italian, Portuguese, Russian and
-        /// Turkish are named in <see cref="All"/>, are not offered yet, and the settings screen says
-        /// so; each becomes selectable by translating its sheet and adding the code here, which is a
-        /// data-only change. Arabic, Persian, Chinese, Japanese and Korean are a different case
-        /// entirely: the font this build carries cannot draw those scripts at all, so they are marked
-        /// as such and are not offered however complete a sheet might be.
+        /// <b>The supported product scope is deliberate.</b> The catalogue contains the ten agreed
+        /// language choices: English, Spanish, Persian, French, German, Italian, European Portuguese,
+        /// Brazilian Portuguese, Russian and Turkish. A language is only selectable when its complete
+        /// translation sheet is generated into a table and its code is listed in <see cref="Offered"/>.
+        /// Regional Portuguese has its own code so its vocabulary and culture never get conflated with
+        /// European Portuguese.
         /// </para>
         /// </remarks>
         public static readonly string[] Offered = { "en", "es", "fa" };
