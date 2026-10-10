@@ -366,7 +366,7 @@ namespace Aether.Gameplay.Menus
             { "language.it", "ITALIANO" },
             { "language.pt", "PORTUGUÊS" },
             { "language.needsFont", "NEEDS A SCRIPT FONT" },
-            { "language.fontNote", "This build bundles one font, and it cannot draw this script. The language is not offered until a font that carries it is added." },
+            { "language.fontNote", "This device has no available font for this script. The language stays unavailable until a compatible font can be resolved." },
             { "language.notWritten", "NOT WRITTEN YET" },
             { "language.notWritten.note", "This language is named, and its sheet is not written. Adding it is a translation and one line in the catalogue, with nothing else to change." },
             { "language.unavailable", "NOT OFFERED" },
