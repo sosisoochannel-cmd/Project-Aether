@@ -175,7 +175,7 @@ jobs:
           # Best two, most informative first, whichever of them the run actually produced: a run
           # that failed early still has one frame, and that frame is the evidence.
           sent=0
-          for f in IntroRender/intro-1.85s-small.png IntroRender/intro-1.25s-small.png \
+          for f in IntroRender/intro-1.85s-small.png IntroRender/intro-1.45s-small.png \
                    IntroRender/intro-0.50s-small.png IntroRender/intro-2.70s-small.png; do
             [ -f "$f" ] || continue
             [ "$sent" -lt 2 ] || break
