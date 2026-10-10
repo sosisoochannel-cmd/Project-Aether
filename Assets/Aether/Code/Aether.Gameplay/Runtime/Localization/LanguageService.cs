@@ -30,11 +30,12 @@ namespace Aether.Gameplay.Localization
     /// only way to be sure every label moved, and it happens once per change rather than per frame.
     /// </para>
     /// <para>
-    /// <b>Right-to-left is reported, not fabricated.</b> Arabic and Persian are catalogued, and
-    /// <see cref="IsRightToLeft"/> answers true for them; but the font this build bundles cannot draw
-    /// those scripts at all, and a Unity <c>Text</c> would draw them as disconnected, unshaped
-    /// letters even with a font that could. Their rows are therefore not selectable, the screen that
-    /// offers languages says why, and no shaping pass is faked here.
+    /// <b>Script rendering is checked at runtime.</b> The menu tries script-appropriate operating-system
+    /// fonts and probes a representative glyph before allowing a language that needs a special script.
+    /// That probe is only a guard: it cannot prove every glyph exists or that shaping and bidirectional
+    /// ordering are correct. Arabic and Persian use the project's lightweight RTL preparation layer;
+    /// complex mixed-direction text still requires real-device review before this can be called full
+    /// Unicode RTL support.
     /// </para>
     /// </remarks>
     public static class LanguageService
