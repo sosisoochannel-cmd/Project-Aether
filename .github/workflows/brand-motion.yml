@@ -1,0 +1,42 @@
+name: Varellon brand motion checks
+
+on:
+  push:
+    branches:
+      - arena/m4-whispering-woods
+    paths:
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Presentation/MenuLogo.cs'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs'
+      - 'Assets/Aether/Resources/Brand/**'
+      - 'Assets/Aether/Scenes/StudioIntro.unity'
+      - 'tools/verify/brand_motion.py'
+      - 'tools/verify/intro.py'
+      - '.github/workflows/brand-motion.yml'
+  pull_request:
+    paths:
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Presentation/MenuLogo.cs'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs'
+      - 'Assets/Aether/Resources/Brand/**'
+      - 'Assets/Aether/Scenes/StudioIntro.unity'
+      - 'tools/verify/brand_motion.py'
+      - 'tools/verify/intro.py'
+      - '.github/workflows/brand-motion.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-brand-checks:
+    name: Static logo and intro regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify studio intro layout and committed artwork
+        run: python3 tools/verify/intro.py
+      - name: Verify logo shader contracts and lifecycle
+        run: python3 tools/verify/brand_motion.py
