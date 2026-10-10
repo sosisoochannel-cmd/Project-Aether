@@ -47,6 +47,14 @@ namespace Aether.Tests
         }
 
         [Test]
+        public void MixedRtlTextKeepsLatinPhraseInReadingOrder()
+        {
+            string output = Visualize("PROJECT AETHER مرحبا");
+            Assert.That(output, Does.EndWith("PROJECT AETHER"));
+            Assert.That(output.IndexOf("PROJECT"), Is.LessThan(output.IndexOf("AETHER")));
+        }
+
+        [Test]
         public void ArabicCombiningMarksStayWithTheirBaseAfterReversal()
         {
             Assert.That(Visualize("بَت"), Is.EqualTo("\uFE96\uFE91َ"));
