@@ -26,6 +26,8 @@ Both shader assets are under `Assets/Aether/Resources/Brand` and are loaded from
 
 ## Verification status
 
+Run `python3 tools/verify/brand_motion.py` for the static regression gate. It checks the shader/resource names, logo-alpha masking, Canvas stencil and clip-rect contracts, absence of per-frame pixel uploads, runtime material cleanup, Reduced Motion retention, and the restrained intro timing/shine constants. This gate is intentionally source-level and does not claim a Unity render test.
+
 Static source checks confirm the shaders are referenced by their Resources paths, the sweep samples logo alpha, the UI shader preserves Canvas stencil and clip-rect behavior, material cleanup exists, and neither animation rewrites its pixel buffer every frame. The intro's light constants remain inside the limits checked by `tools/verify/intro.py`, and its overall timing remains within the 2.8–3.0 second gate.
 
 **Not yet verified:** Unity shader compilation, rendered appearance, frame-time on a physical Android device, and an actual player build. These require running the Unity project; no APK has been built as part of this change.
