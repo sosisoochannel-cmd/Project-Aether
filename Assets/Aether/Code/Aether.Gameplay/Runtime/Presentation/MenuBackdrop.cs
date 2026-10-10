@@ -12,7 +12,7 @@ namespace Aether.Gameplay.Presentation
     /// <para>
     /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the approved forest
     /// image, sized to cover the canvas without stretching. <i>Midground</i> is the horizon — three
-    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted leaf-green washes
+    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted antique-gold washes
     /// that drift slowly. <i>Foreground</i> is the vignette and the darkening along the bottom edge
     /// that the entry rows sit on. Keeping them apart lets the artwork support the interface without
     /// changing the approved mark, typography or composition.
