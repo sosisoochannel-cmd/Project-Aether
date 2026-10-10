@@ -109,17 +109,17 @@ namespace Aether.Gameplay.Flow
         public static class Layout
         {
             /// <summary>Largest fraction of the safe area's width the lockup may occupy.</summary>
-            public const float MaxWidthFraction = 0.60f;
+            public const float MaxWidthFraction = 0.68f;
 
             /// <summary>
             /// Largest fraction of the safe area's height the lockup may occupy.
             /// </summary>
             /// <remarks>
             /// The lockup is taller than it is wide, so on a phone held sideways this is the limit that
-            /// decides its size. It is large enough to be read as a studio card and small enough to
-            /// leave the screen around it empty, which is what "a mark on black" means.
+            /// decides its size. At 46% of the safe height it reads confidently as a studio ident, while
+            /// the black field around it remains an intentional part of the composition.
             /// </remarks>
-            public const float MaxHeightFraction = 0.40f;
+            public const float MaxHeightFraction = 0.46f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
             public const float RevealScale = 0.965f;
