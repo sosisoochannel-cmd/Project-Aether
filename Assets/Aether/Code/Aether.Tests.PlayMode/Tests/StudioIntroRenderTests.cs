@@ -60,7 +60,7 @@ namespace Aether.Tests.PlayMode
         /// arriving alone, the wordmark extending the lockup downwards, the light crossing the
         /// finished lockup, two frames of the still hold, and the end of the fade.
         /// </summary>
-        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.25f, 1.85f, 2.15f, 2.70f };
+        private static readonly float[] CaptureTimes = { 0.15f, 0.50f, 0.90f, 1.45f, 1.85f, 2.15f, 2.70f };
 
         /// <summary>A pixel at or above this luminance is part of the mark.</summary>
         private const float InkLuminance = 0.35f;
@@ -308,7 +308,7 @@ namespace Aether.Tests.PlayMode
                 //    at rest, so it can only be the highlight - and it is on the logo, not around it.
                 stage = "check the light crosses the lockup, and only the lockup";
                 Assert.Greater(light.BrightOfInk, 0.05f,
-                               "no light is crossing the lockup at 1.25s: nothing on the ink is brighter "
+                               "no light is crossing the lockup at 1.45s: nothing on the ink is brighter "
                                + "than the resting logo");
                 Assert.Greater(light.BlackFraction, 0.90f,
                                $"only {light.BlackFraction:P1} of the frame is black while the light is "
@@ -397,7 +397,7 @@ namespace Aether.Tests.PlayMode
                             $"the wordmark is only at {arriving.WordAlpha:0.000} at 0.90s, so it has "
                             + "not arrived after the mark");
                 Assert.That(light.SheenAlpha, Is.GreaterThan(0.05f),
-                            "the light is not switched on at 1.25s, so nothing crosses the lockup");
+                            "the light is not switched on at 1.45s, so nothing crosses the lockup");
                 Assert.That(hold.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
                             $"the light is still switched on ({hold.SheenAlpha:0.000}) at 1.85s");
                 Assert.That(still.SheenAlpha, Is.EqualTo(0f).Within(0.001f),
