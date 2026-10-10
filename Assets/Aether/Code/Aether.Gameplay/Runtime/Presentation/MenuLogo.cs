@@ -38,6 +38,11 @@ namespace Aether.Gameplay.Presentation
         private Image _scan;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
+        private Texture2D _scanTexture;
+        private Sprite _scanSprite;
+        private Color32[] _scanPixels;
+        private byte[] _scanCoverage;
+        private float[] _scanAcross;
         private float _height = MenuTheme.Metrics.LogoHeight;
         private Vector2 _restPosition;
         private Coroutine _presentation;
@@ -94,6 +99,7 @@ namespace Aether.Gameplay.Presentation
 
             logo._mark.sprite = logo._generatedSprite;
             logo._shadow.sprite = logo._generatedSprite;
+            logo._scan.sprite = logo._scanSprite;
             logo.Apply();
             return logo;
         }
@@ -117,7 +123,9 @@ namespace Aether.Gameplay.Presentation
             Place(_shadow, width, height, new Vector2(2f, -2f));
             Place(_halo, width * 1.18f, height * 1.18f, Vector2.zero);
             Place(_coreGlow, width * 1.04f, height * 1.04f, Vector2.zero);
-            Place(_scan, Mathf.Max(4f, width * 0.055f), height * 1.35f, Vector2.zero);
+            // The sweep is the same cropped ink mask as the mark, not a free-standing bar.
+            // That keeps every highlight pixel inside the actual artwork at every logo aspect ratio.
+            Place(_scan, width, height, Vector2.zero);
             _halo.transform.SetAsFirstSibling();
             _coreGlow.transform.SetSiblingIndex(1);
             _shadow.transform.SetSiblingIndex(2);
@@ -216,6 +224,7 @@ namespace Aether.Gameplay.Presentation
 
             _generatedSprite.name = source.name + " (menu cutout)";
             _generatedSprite.hideFlags = HideFlags.HideAndDontSave;
+            BuildSweepOverlay(pixels, width, height, pixelsPerUnit);
             return true;
         }
 
@@ -286,23 +295,22 @@ namespace Aether.Gameplay.Presentation
                 yield return null;
             }
 
-            float sweepDuration = 0.72f;
+            // A single restrained, ink-masked specular pass: it travels through the logo's own
+            // alpha instead of drawing a rectangular streak across the surrounding UI.
+            const float sweepDuration = 0.86f;
             elapsed = 0f;
             while (elapsed < sweepDuration)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / sweepDuration);
-                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                UpdateSweep(t);
+                float edge = Mathf.Sin(t * Mathf.PI);
                 if (_scan != null)
-                {
-                    float x = Mathf.Lerp(-0.62f, 0.62f, eased) * _rect.rect.width;
-                    _scan.rectTransform.anchoredPosition = new Vector2(x, 0f);
-                    float edge = Mathf.Sin(t * Mathf.PI);
-                    _scan.color = new Color(accent.r, accent.g, accent.b, edge * 0.13f);
-                }
+                    _scan.color = new Color(accent.r, accent.g, accent.b, edge * 0.42f);
                 yield return null;
             }
 
+            ClearSweep();
             if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, 0f);
 
             elapsed = 0f;
@@ -325,6 +333,75 @@ namespace Aether.Gameplay.Presentation
             _rect.localScale = Vector3.one;
             SetLogoEffectColors(markTarget, shadowTarget, 0.03f, 0.06f, 0f);
             _presentation = null;
+        }
+
+        /// <summary>
+        /// Builds the menu's specular overlay from the already-keyed logo coverage. The sweep is
+        /// animated by changing only alpha values in a preallocated buffer; no per-frame allocations,
+        /// extra renderers, or visible geometry outside the mark are required.
+        /// </summary>
+        private void BuildSweepOverlay(Color32[] keyedPixels, int width, int height, float pixelsPerUnit)
+        {
+            int count = keyedPixels.Length;
+            _scanPixels = new Color32[count];
+            _scanCoverage = new byte[count];
+            _scanAcross = new float[count];
+
+            for (int y = 0; y < height; y++)
+            {
+                int row = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    int index = row + x;
+                    _scanCoverage[index] = keyedPixels[index].a;
+                    _scanAcross[index] = (x + 0.5f) / width;
+                    _scanPixels[index] = new Color32(255, 255, 255, 0);
+                }
+            }
+
+            _scanTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                name = "VarellonLogo (masked light sweep)",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _scanTexture.SetPixels32(_scanPixels);
+            _scanTexture.Apply(false, false);
+            _scanSprite = Sprite.Create(_scanTexture, new Rect(0f, 0f, width, height),
+                                        new Vector2(0.5f, 0.5f), pixelsPerUnit);
+            if (_scanSprite != null)
+            {
+                _scanSprite.name = "VarellonLogo (masked light sweep)";
+                _scanSprite.hideFlags = HideFlags.HideAndDontSave;
+            }
+        }
+
+        private void UpdateSweep(float progress)
+        {
+            if (_scanTexture == null || _scanPixels == null) return;
+
+            float centre = Mathf.Lerp(-0.16f, 1.16f, 1f - Mathf.Pow(1f - progress, 3f));
+            const float halfWidth = 0.135f;
+            float envelope = Mathf.Sin(progress * Mathf.PI);
+            for (int i = 0; i < _scanPixels.Length; i++)
+            {
+                float distance = Mathf.Abs(_scanAcross[i] - centre) / halfWidth;
+                float band = distance >= 1f ? 0f : 0.5f * (1f + Mathf.Cos(Mathf.PI * distance));
+                byte alpha = (byte)(Mathf.Clamp01((_scanCoverage[i] / 255f) * band * envelope * 0.78f) * 255f);
+                _scanPixels[i].a = alpha;
+            }
+
+            _scanTexture.SetPixels32(_scanPixels);
+            _scanTexture.Apply(false, false);
+        }
+
+        private void ClearSweep()
+        {
+            if (_scanTexture == null || _scanPixels == null) return;
+            for (int i = 0; i < _scanPixels.Length; i++) _scanPixels[i].a = 0;
+            _scanTexture.SetPixels32(_scanPixels);
+            _scanTexture.Apply(false, false);
         }
 
         private void SetLogoEffectColors(Color mark, Color shadow, float haloAlpha, float coreAlpha, float scanAlpha)
@@ -376,8 +453,15 @@ namespace Aether.Gameplay.Presentation
         {
             if (_generatedSprite != null) Destroy(_generatedSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
+            if (_scanSprite != null) Destroy(_scanSprite);
+            if (_scanTexture != null) Destroy(_scanTexture);
             _generatedSprite = null;
             _generatedTexture = null;
+            _scanSprite = null;
+            _scanTexture = null;
+            _scanPixels = null;
+            _scanCoverage = null;
+            _scanAcross = null;
         }
     }
 }
