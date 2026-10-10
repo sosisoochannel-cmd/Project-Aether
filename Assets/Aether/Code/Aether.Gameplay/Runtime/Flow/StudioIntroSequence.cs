@@ -245,13 +245,13 @@ namespace Aether.Gameplay.Flow
             public const float BaseInkLuminance = 0.90f;
 
             /// <summary>Half the width of the band, in the pass's own 0-1 coordinate.</summary>
-            public const float BandHalfWidth = 0.20f;
+            public const float BandHalfWidth = 0.18f;
 
             /// <summary>How much of the pass is vertical: 0 is level, 1 is fully diagonal.</summary>
             public const float Tilt = 0.14f;
 
             /// <summary>How bright the band is where it is centred, as alpha of white on the ink.</summary>
-            public const float HighlightPeak = 0.68f;
+            public const float HighlightPeak = 0.78f;
 
             /// <summary>How far the logo is taken down while the light is crossing it.</summary>
             public const float DimWhilePassing = 0.93f;
