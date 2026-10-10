@@ -67,10 +67,13 @@ menu_shader = read("menu_shader")
 intro_shader = read("intro_shader")
 reveal_shader = read("reveal_shader")
 
-# The menu logo intentionally uses the standard UI Image pipeline now: no custom sweep shader,
-# halo, or animated highlight. The studio intro retains its separate, tightly restrained sheen.
-require('Resources.Load<Shader>("Brand/VarellonLogoSheen")' not in menu,
-        "menu logo must not load the decorative VarellonLogoSheen shader")
+# The menu logo gets one finite, alpha-clipped UI glint after its entrance; it must not loop or glow.
+require('Resources.Load<Shader>(GlintShaderPath)' in menu and
+        'private const string GlintShaderPath = "Brand/VarellonLogoSheen";' in menu,
+        "menu logo must load the dedicated VarellonLogoSheen shader for its one-time glint")
+require('logo._glint.gameObject.SetActive(false);' in menu and
+        '_glint.gameObject.SetActive(false);' in menu,
+        "menu glint must be hidden at rest and after it finishes")
 require('Resources.Load<Shader>("Brand/VarellonIntroSheen")' in intro,
         "studio intro must load Brand/VarellonIntroSheen")
 require('Resources.Load<Shader>("Brand/VarellonIntroReveal")' in intro,
@@ -95,8 +98,14 @@ intro_draw = method_body(intro, r"\bvoid\s+DrawSheen\s*\(")
 for label, body in (("menu PresentRoutine", menu_update), ("intro DrawSheen", intro_draw)):
     require("SetPixels" not in body and ".Apply(" not in body,
             f"{label} must not rewrite/upload texture pixels per frame")
-require("_SweepProgress" not in menu_update and "_SweepOpacity" not in menu_update,
-        "menu logo entrance must not animate a decorative light sweep")
+require("_SweepProgress" in menu_update and "_SweepOpacity" in menu_update,
+        "menu logo must animate one glint pass and its opacity envelope")
+require("const float sweepDuration = 0.92f;" in menu_update and
+        "const float lingerDuration = 0.16f;" in menu_update and
+        "const float fadeDuration = 0.34f;" in menu_update,
+        "menu glint must use the longer sweep, brief linger, and soft fade")
+require("!MenuPreferences.ReducedMotion" in menu_update,
+        "menu glint must respect Reduced Motion")
 require("_SweepProgress" in intro_draw and "_SweepOpacity" in intro_draw,
         "intro DrawSheen must drive the shader's sweep parameters")
 
@@ -116,9 +125,11 @@ require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro
 require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
         "skipping the intro must preserve the current matte instead of snapping it open")
 
-# Runtime-owned materials must have a cleanup path. The menu now has no runtime shader material.
+# Runtime-owned materials must have a cleanup path; the one-time glint owns one UI material.
 require("_sweepMaterial" not in menu and "BuildSweepMaterial" not in menu,
-        "menu logo must not retain runtime sweep-material machinery")
+        "menu logo must not retain the old perpetual sweep-material machinery")
+require("BuildGlintMaterial()" in menu and "Destroy(_glintMaterial)" in menu,
+        "menu one-time glint material must be created and destroyed safely")
 require("_generatedSprite != null) Destroy(_generatedSprite)" in menu and
         "_generatedTexture != null) Destroy(_generatedTexture)" in menu,
         "menu generated sprite and texture must be destroyed during cleanup")
@@ -169,6 +180,6 @@ if problems:
     sys.exit(1)
 
 print("Varellon brand-motion static gate: PASS")
-print("Checked shader/resource contracts, UI clipping, per-frame texture-upload absence, cleanup,")
-print("Reduced Motion retention, and restrained intro timing/shine constants.")
+print("Checked shader/resource contracts, one-time menu glint timing, UI clipping,")
+print("per-frame texture-upload absence, cleanup, Reduced Motion, and restrained intro timing.")
 print("Unity shader compilation, rendered appearance, and Android profiling remain separate checks.")
