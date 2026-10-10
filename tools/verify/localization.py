@@ -21,7 +21,7 @@ What it enforces, all of it from evidence rather than from trust:
 Usage:
     python3 tools/verify/localization.py            # check (this is what CI and the gate run)
     python3 tools/verify/localization.py --write    # regenerate the C# tables from the sheets
-    python3 tools/verify/localization.py --coverage # print per-language coverage and stop
+    python3 tools/verify/localization.py --coverage # report coverage for all ten agreed languages
 """
 
 from __future__ import annotations
@@ -300,6 +300,23 @@ def main() -> int:
     keys = [key for key, _ in reference]
     book = catalogue()
 
+    if args.coverage:
+        reference_keys = set(keys)
+        for code in CLASS_NAMES:
+            if code == "en":
+                done = len(keys)
+            else:
+                path = os.path.join(SHEET_DIR, "strings_%s.txt" % code)
+                if not os.path.exists(path):
+                    done = 0
+                else:
+                    translated = dict(sheet(code))
+                    done = sum(1 for key in reference_keys if key in translated and translated[key].strip())
+            state = "offered" if code in book["offered"] else "not offered"
+            print("%s: %d/%d (%.0f%%) — %s" %
+                  (code, done, len(keys), 100.0 * done / len(keys), state))
+        return 0
+
     failures = []
     coverage = []
 
@@ -342,11 +359,6 @@ def main() -> int:
         done = len(keys) - len(missing)
         coverage.append((code, done, len(keys)))
         generated.append((code, [(key, translated.get(key, "")) for key in keys]))
-
-    if args.coverage:
-        for code, done, total in coverage:
-            print("%s: %d/%d (%.0f%%)" % (code, done, total, 100.0 * done / total))
-        return 0
 
     if args.write:
         if failures:
