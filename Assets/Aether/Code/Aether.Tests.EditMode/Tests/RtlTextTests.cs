@@ -47,6 +47,12 @@ namespace Aether.Tests
         }
 
         [Test]
+        public void ArabicCombiningMarksStayWithTheirBaseAfterReversal()
+        {
+            Assert.That(Visualize("بَت"), Is.EqualTo("\uFE96\uFE91َ"));
+        }
+
+        [Test]
         public void PureLeftToRightTextIsPreservedExactly()
         {
             const string input = "PROJECT AETHER — 120 FPS";
