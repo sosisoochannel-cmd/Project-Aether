@@ -106,7 +106,7 @@ namespace Aether.Gameplay.Menus
                 if (p >= 0)
                 {
                     Forms pf;
-                    previousCanJoinForward = Map.TryGetValue(run[p], out pf) && pf.Initial != '\0';
+                    previousCanJoinForward = Map.TryGetValue(run[p], out pf) && pf.Dual;
                 }
 
                 bool nextCanAcceptJoin = false;
@@ -117,7 +117,7 @@ namespace Aether.Gameplay.Menus
                 }
 
                 bool joinPrev = previousCanJoinForward && f.Final != '\0';
-                bool joinNext = f.Initial != '\0' && nextCanAcceptJoin;
+                bool joinNext = f.Dual && nextCanAcceptJoin;
 
                 if (joinPrev && joinNext && f.Medial != '\0') shaped.Append(f.Medial);
                 else if (joinPrev && f.Final != '\0') shaped.Append(f.Final);
