@@ -67,35 +67,26 @@ menu_shader = read("menu_shader")
 intro_shader = read("intro_shader")
 reveal_shader = read("reveal_shader")
 
-# Resource paths must match both shader assets exactly; Resources.Load keeps them in player builds.
-require('Resources.Load<Shader>("Brand/VarellonLogoSheen")' in menu,
-        "menu logo must load Brand/VarellonLogoSheen")
+# The menu logo intentionally uses the standard UI Image pipeline now: no custom sweep shader,
+# halo, or animated highlight. The studio intro retains its separate, tightly restrained sheen.
+require('Resources.Load<Shader>("Brand/VarellonLogoSheen")' not in menu,
+        "menu logo must not load the decorative VarellonLogoSheen shader")
 require('Resources.Load<Shader>("Brand/VarellonIntroSheen")' in intro,
         "studio intro must load Brand/VarellonIntroSheen")
 require('Resources.Load<Shader>("Brand/VarellonIntroReveal")' in intro,
         "studio intro must load Brand/VarellonIntroReveal")
-require('Shader "UI/VarellonLogoSheen"' in menu_shader,
-        "menu shader name must be UI/VarellonLogoSheen")
 require('Shader "Sprites/VarellonIntroSheen"' in intro_shader,
         "intro shader name must be Sprites/VarellonIntroSheen")
 require('Shader "Sprites/VarellonIntroReveal"' in reveal_shader,
         "intro reveal shader name must be Sprites/VarellonIntroReveal")
 
-# Both sweeps must be driven by shader parameters and clipped to the logo's own alpha coverage.
-for name, shader in (("menu", menu_shader), ("intro", intro_shader)):
-    for prop in ("_SweepProgress", "_SweepOpacity"):
-        require(prop in shader, f"{name} shader is missing {prop}")
-    require("tex2D(_MainTex" in shader and ".a" in shader,
-            f"{name} shader must use the logo mask alpha")
-    require("Blend SrcAlpha OneMinusSrcAlpha" in shader,
-            f"{name} shader must use transparent alpha blending")
-
-for prop in ("_Stencil", "_StencilComp", "_StencilOp", "_ColorMask"):
-    require(prop in menu_shader, f"menu UI shader is missing Canvas property {prop}")
-require("UnityGet2DClipping" in menu_shader and "UNITY_UI_CLIP_RECT" in menu_shader,
-        "menu UI shader must preserve RectMask2D / clip-rect behavior")
-require("UNITY_UI_ALPHACLIP" in menu_shader,
-        "menu UI shader must preserve optional UI alpha clipping")
+# The remaining intro sheen is clipped to the artwork's own alpha coverage.
+for prop in ("_SweepProgress", "_SweepOpacity"):
+    require(prop in intro_shader, f"intro shader is missing {prop}")
+require("tex2D(_MainTex" in intro_shader and ".a" in intro_shader,
+        "intro shader must use the logo mask alpha")
+require("Blend SrcAlpha OneMinusSrcAlpha" in intro_shader,
+        "intro shader must use transparent alpha blending")
 
 # Catch accidental CPU texture uploads in per-frame animation methods while allowing one-time
 # texture construction in setup methods.
@@ -104,8 +95,10 @@ intro_draw = method_body(intro, r"\bvoid\s+DrawSheen\s*\(")
 for label, body in (("menu PresentRoutine", menu_update), ("intro DrawSheen", intro_draw)):
     require("SetPixels" not in body and ".Apply(" not in body,
             f"{label} must not rewrite/upload texture pixels per frame")
-    require("_SweepProgress" in body and "_SweepOpacity" in body,
-            f"{label} must drive the shader's sweep parameters")
+require("_SweepProgress" not in menu_update and "_SweepOpacity" not in menu_update,
+        "menu logo entrance must not animate a decorative light sweep")
+require("_SweepProgress" in intro_draw and "_SweepOpacity" in intro_draw,
+        "intro DrawSheen must drive the shader's sweep parameters")
 
 # The intro reveal is a soft diagonal matte over the source alpha, not a screen-space wipe.
 for prop in ("_RevealProgress", "_RevealFeather", "_RevealTilt"):
@@ -123,9 +116,12 @@ require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro
 require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
         "skipping the intro must preserve the current matte instead of snapping it open")
 
-# Runtime-owned materials must have a cleanup path. The menu must also retain Reduced Motion.
-require("_sweepMaterial" in menu and re.search(r"Destroy\s*\(\s*_sweepMaterial\s*\)", menu) is not None,
-        "menu runtime sweep material must be destroyed during cleanup")
+# Runtime-owned materials must have a cleanup path. The menu now has no runtime shader material.
+require("_sweepMaterial" not in menu and "BuildSweepMaterial" not in menu,
+        "menu logo must not retain runtime sweep-material machinery")
+require("_generatedSprite != null) Destroy(_generatedSprite)" in menu and
+        "_generatedTexture != null) Destroy(_generatedTexture)" in menu,
+        "menu generated sprite and texture must be destroyed during cleanup")
 require("_sheenMaterial" in intro and re.search(r"Destroy\s*\(\s*_sheenMaterial\s*\)", intro) is not None,
         "intro runtime sheen material must be destroyed during cleanup")
 require("Destroy(_mark.RevealMaterial)" in intro and "Destroy(_wordmark.RevealMaterial)" in intro,
@@ -134,10 +130,12 @@ require("ReducedMotion" in menu or "reducedMotion" in menu,
         "menu logo must retain Reduced Motion handling")
 require("logo.BeginPresentation();" in menu and "private void BeginPresentation()" in menu,
         "menu logo entrance motion must start after the generated mark is ready")
-require("if (!isActiveAndEnabled || _mark == null) return;" in menu,
+require("if (!isActiveAndEnabled || _mark == null || _mark.sprite == null) return;" in menu,
         "menu logo presentation start must respect active/enabled lifecycle state")
+require("const float duration = 0.42f;" in menu and "const float rise = 6f;" in menu,
+        "menu logo must keep its brief restrained entrance")
 
-# The intro's signature remains brief and the sheen remains restrained.
+# The intro's signature remains brief and its sheen is intentionally subtle.
 def number(name: str) -> float | None:
     match = re.search(rf"public const float {re.escape(name)}\s*=\s*([0-9.]+)f?\s*;", intro)
     if not match:
@@ -158,11 +156,11 @@ if None not in (starts, duration, hold, exit_time, handover):
     require(2.80 <= total <= 3.00,
             f"intro total is {total:.2f}s; required range is 2.80–3.00s")
 if band is not None:
-    require(0.12 <= band <= 0.28,
-            f"intro sheen band half-width {band:.3f} is outside the restrained range 0.12–0.28")
+    require(0.12 <= band <= 0.22,
+            f"intro sheen band half-width {band:.3f} is outside the subtle range 0.12–0.22")
 if peak is not None:
-    require(0.45 <= peak <= 0.85,
-            f"intro highlight peak {peak:.3f} is outside the restrained, visible range 0.45–0.85")
+    require(0.18 <= peak <= 0.42,
+            f"intro highlight peak {peak:.3f} is outside the subtle range 0.18–0.42")
 
 if problems:
     print("Varellon brand-motion static gate: FAIL")
