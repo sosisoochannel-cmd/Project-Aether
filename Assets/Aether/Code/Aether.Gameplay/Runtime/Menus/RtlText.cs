@@ -128,9 +128,25 @@ namespace Aether.Gameplay.Menus
             // Unity's legacy Text is LTR-oriented. Presentation forms are already shaped,
             // so reversing the visual RTL run gives the correct glyph order without touching
             // Latin/number runs outside it. ZWNJ stays in the output but, above, blocks joining.
-            char[] chars = shaped.ToString().ToCharArray();
-            System.Array.Reverse(chars);
-            return new string(chars);
+            return ReverseKeepingMarks(shaped.ToString());
+        }
+
+        private static string ReverseKeepingMarks(string text)
+        {
+            // Combining marks belong to the preceding base character. Reverse grapheme-like
+            // base+mark clusters, not UTF-16 code units, or vowel marks move onto the wrong glyph.
+            var clusters = new List<string>();
+            for (int i = 0; i < text.Length;)
+            {
+                int start = i++;
+                while (i < text.Length && IsRtlMark(text[i])) i++;
+                clusters.Add(text.Substring(start, i - start));
+            }
+
+            var output = new StringBuilder(text.Length);
+            for (int i = clusters.Count - 1; i >= 0; i--)
+                output.Append(clusters[i]);
+            return output.ToString();
         }
 
         private static int PreviousLetter(string text, int index)
