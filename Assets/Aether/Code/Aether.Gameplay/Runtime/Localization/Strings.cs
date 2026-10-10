@@ -14,9 +14,11 @@ namespace Aether.Gameplay.Localization
     /// refuses to be quietly wrong about its own contents.
     /// </para>
     /// <para>
-    /// The Arabic and Persian tables carry one extra duty: their text has to be reshaped and
-    /// reordered before a Unity <c>Text</c> will draw it correctly, so their constructor marks the
-    /// table as right-to-left and the renderer asks. See <c>Localization.Direction</c>.
+    /// Persian is the only right-to-left language currently offered. Its menu labels are prepared
+    /// by <c>MenuUi.PrepareText</c> and <c>RtlText</c> before Unity's legacy <c>Text</c> draws them.
+    /// A table is direction-neutral: direction belongs to the language definition, not to the
+    /// dictionary of strings. Another RTL language must not be offered until font coverage, shaping,
+    /// bidirectional layout and regression tests are complete.
     /// </para>
     /// </remarks>
     public sealed class Strings
