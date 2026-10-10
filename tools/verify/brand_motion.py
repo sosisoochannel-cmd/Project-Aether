@@ -93,9 +93,9 @@ require("UNITY_UI_ALPHACLIP" in menu_shader,
 
 # Catch accidental CPU texture uploads in per-frame animation methods while allowing one-time
 # texture construction in setup methods.
-menu_update = method_body(menu, r"\bvoid\s+Update\s*\(")
+menu_update = method_body(menu, r"\bIEnumerator\s+PresentRoutine\s*\(")
 intro_draw = method_body(intro, r"\bvoid\s+DrawSheen\s*\(")
-for label, body in (("menu Update", menu_update), ("intro DrawSheen", intro_draw)):
+for label, body in (("menu PresentRoutine", menu_update), ("intro DrawSheen", intro_draw)):
     require("SetPixels" not in body and ".Apply(" not in body,
             f"{label} must not rewrite/upload texture pixels per frame")
     require("_SweepProgress" in body and "_SweepOpacity" in body,
