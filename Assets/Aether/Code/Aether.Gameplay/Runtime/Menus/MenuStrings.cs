@@ -39,7 +39,7 @@ namespace Aether.Gameplay.Menus
         private static readonly Dictionary<string, string> English = new Dictionary<string, string>
         {
             // -- the menu itself
-            { "menu.title", "PROJECT AETHER" },
+            { "menu.title", "AETHER" },
             { "menu.subtitle", "THE GREENWAY — REGION ONE" },
             { "menu.playSection", "PLAY" },
             { "menu.exploreSection", "EXPLORE" },
