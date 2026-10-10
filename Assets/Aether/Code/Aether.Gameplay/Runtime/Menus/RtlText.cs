@@ -190,7 +190,7 @@ namespace Aether.Gameplay.Menus
             Add(m, 'ن', 0xFEE5, 0xFEE6, 0xFEE7, 0xFEE8, true);
             Add(m, 'و', 0xFEED, 0xFEEE, 0, 0, false);
             Add(m, 'ه', 0xFEE9, 0xFEEA, 0xFEEB, 0xFEEC, true);
-            Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFEFF, true);
+            Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);
             Add(m, 'ي', 0xFEF1, 0xFEF2, 0xFEF3, 0xFEF4, true);
             Add(m, 'ء', 0xFE80, 0, 0, 0, false);
 
