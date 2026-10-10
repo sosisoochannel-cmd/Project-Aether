@@ -122,7 +122,7 @@ namespace Aether.Gameplay.Presentation
             vignette.color = new Color(0f, 0f, 0f, 0.75f);
 
             // The corner metalwork sits above the vignette but outside the safe content box.
-            backdrop.BuildFrameOrnaments(root);
+            BuildFrameOrnaments(root);
             backdrop.ApplySettings();
             return backdrop;
         }
