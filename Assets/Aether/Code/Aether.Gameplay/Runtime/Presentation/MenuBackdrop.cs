@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Presentation
         private Vector2 _backgroundRestPosition;
         private Vector3 _backgroundRestScale = Vector3.one;
         private RectTransform[] _fireflies;
+        private Image[] _fireflyImages;
         private Vector2[] _fireflyOrigins;
         private float[] _fireflyPhases;
 
@@ -234,7 +235,9 @@ namespace Aether.Gameplay.Presentation
                     mote.anchoredPosition = origin + new Vector2(Mathf.Sin(phase) * 18f,
                                                                  Mathf.Cos(phase * 0.73f) * 10f);
                     float pulse = 0.5f + (0.5f * Mathf.Sin(phase * 1.7f));
-                    Image image = mote.GetComponent<Image>();
+                    Image image = _fireflyImages != null && i < _fireflyImages.Length
+                        ? _fireflyImages[i]
+                        : null;
                     if (image != null)
                     {
                         Color gold = MenuTheme.Palette.Accent;
@@ -271,6 +274,7 @@ namespace Aether.Gameplay.Presentation
             // over the text. They remain static on low quality and under Reduced Motion.
             const int count = 11;
             _fireflies = new RectTransform[count];
+            _fireflyImages = new Image[count];
             _fireflyOrigins = new Vector2[count];
             _fireflyPhases = new float[count];
             Vector2[] normalized =
@@ -293,6 +297,7 @@ namespace Aether.Gameplay.Presentation
                 rect.sizeDelta = new Vector2(size, size);
                 rect.anchoredPosition = Vector2.zero;
                 _fireflies[i] = rect;
+                _fireflyImages[i] = mote;
                 _fireflyOrigins[i] = Vector2.zero;
                 _fireflyPhases[i] = i * 1.83f;
             }
