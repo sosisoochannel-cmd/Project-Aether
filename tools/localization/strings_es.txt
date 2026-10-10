@@ -2,7 +2,7 @@
 # House style: menu labels in capitals, the second person singular throughout, and the region's
 # proper name kept as a name ("el Sendero Verde") rather than translated word for word.
 
-menu.title=PROJECT AETHER
+menu.title=AETHER
 menu.subtitle=EL SENDERO VERDE — REGIÓN UNO
 menu.playSection=JUGAR
 menu.exploreSection=EXPLORAR
