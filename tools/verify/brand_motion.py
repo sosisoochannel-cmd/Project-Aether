@@ -19,6 +19,7 @@ FILES = {
     "intro": "Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.cs",
     "menu_shader": "Assets/Aether/Resources/Brand/VarellonLogoSheen.shader",
     "intro_shader": "Assets/Aether/Resources/Brand/VarellonIntroSheen.shader",
+    "reveal_shader": "Assets/Aether/Resources/Brand/VarellonIntroReveal.shader",
 }
 problems: list[str] = []
 
@@ -64,16 +65,21 @@ menu = read("menu")
 intro = read("intro")
 menu_shader = read("menu_shader")
 intro_shader = read("intro_shader")
+reveal_shader = read("reveal_shader")
 
 # Resource paths must match both shader assets exactly; Resources.Load keeps them in player builds.
 require('Resources.Load<Shader>("Brand/VarellonLogoSheen")' in menu,
         "menu logo must load Brand/VarellonLogoSheen")
 require('Resources.Load<Shader>("Brand/VarellonIntroSheen")' in intro,
         "studio intro must load Brand/VarellonIntroSheen")
+require('Resources.Load<Shader>("Brand/VarellonIntroReveal")' in intro,
+        "studio intro must load Brand/VarellonIntroReveal")
 require('Shader "UI/VarellonLogoSheen"' in menu_shader,
         "menu shader name must be UI/VarellonLogoSheen")
 require('Shader "Sprites/VarellonIntroSheen"' in intro_shader,
         "intro shader name must be Sprites/VarellonIntroSheen")
+require('Shader "Sprites/VarellonIntroReveal"' in reveal_shader,
+        "intro reveal shader name must be Sprites/VarellonIntroReveal")
 
 # Both sweeps must be driven by shader parameters and clipped to the logo's own alpha coverage.
 for name, shader in (("menu", menu_shader), ("intro", intro_shader)):
@@ -101,11 +107,27 @@ for label, body in (("menu PresentRoutine", menu_update), ("intro DrawSheen", in
     require("_SweepProgress" in body and "_SweepOpacity" in body,
             f"{label} must drive the shader's sweep parameters")
 
+# The intro reveal is a soft diagonal matte over the source alpha, not a screen-space wipe.
+for prop in ("_RevealProgress", "_RevealFeather", "_RevealTilt"):
+    require(prop in reveal_shader, f"intro reveal shader is missing {prop}")
+require("tex2D(_MainTex" in reveal_shader and ".a" in reveal_shader,
+        "intro reveal shader must preserve the logo alpha coverage")
+require("smoothstep" in reveal_shader and "Blend SrcAlpha OneMinusSrcAlpha" in reveal_shader,
+        "intro reveal shader must use a soft edge and transparent blending")
+require("_RevealProgress" in intro and "RevealProgress(elapsed, false)" in intro,
+        "studio mark must animate the reveal matte")
+require("RevealProgress(elapsed, true)" in intro,
+        "studio wordmark must animate its reveal matte after the mark")
+require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
+        "skipping the intro must preserve the current matte instead of snapping it open")
+
 # Runtime-owned materials must have a cleanup path. The menu must also retain Reduced Motion.
 require("_sweepMaterial" in menu and re.search(r"Destroy\s*\(\s*_sweepMaterial\s*\)", menu) is not None,
         "menu runtime sweep material must be destroyed during cleanup")
 require("_sheenMaterial" in intro and re.search(r"Destroy\s*\(\s*_sheenMaterial\s*\)", intro) is not None,
         "intro runtime sheen material must be destroyed during cleanup")
+require("Destroy(_mark.RevealMaterial)" in intro and "Destroy(_wordmark.RevealMaterial)" in intro,
+        "per-part intro reveal materials must be destroyed during cleanup")
 require("ReducedMotion" in menu or "reducedMotion" in menu,
         "menu logo must retain Reduced Motion handling")
 
