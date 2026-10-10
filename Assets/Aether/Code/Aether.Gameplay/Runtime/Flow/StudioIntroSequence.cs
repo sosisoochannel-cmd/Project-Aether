@@ -1080,8 +1080,8 @@ namespace Aether.Gameplay.Flow
         /// <summary>Draws nothing, which is how the intro starts and how it ends.</summary>
         private void HideAll()
         {
-            Draw(_mark, 0f, 1f, 0f, 1f);
-            Draw(_wordmark, 0f, 1f, 0f, 1f);
+            Draw(_mark, 0f, 1f, 0f, 1f, 1f);
+            Draw(_wordmark, 0f, 1f, 0f, 1f, 1f);
             HideSheen();
         }
 
