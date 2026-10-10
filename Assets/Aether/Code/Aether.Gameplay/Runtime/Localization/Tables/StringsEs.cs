@@ -305,7 +305,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.it", "ITALIANO",
             "language.pt", "PORTUGUÊS",
             "language.needsFont", "NECESITA UNA FUENTE PARA ESTE ALFABETO",
-            "language.fontNote", "Esta versión incluye una sola fuente y no puede dibujar este alfabeto. El idioma no se ofrece hasta que se añada una fuente que lo cubra.",
+            "language.fontNote", "Este dispositivo no tiene una fuente disponible para este sistema de escritura. El idioma seguirá sin estar disponible hasta que se encuentre una fuente compatible.",
             "language.notWritten", "AÚN SIN TRADUCIR",
             "language.notWritten.note", "Este idioma está nombrado y su hoja no está escrita. Añadirlo es una traducción y una línea en el catálogo, sin nada más que cambiar.",
             "language.unavailable", "NO OFRECIDO",
