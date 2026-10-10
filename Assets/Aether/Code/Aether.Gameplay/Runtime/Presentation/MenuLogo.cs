@@ -33,8 +33,12 @@ namespace Aether.Gameplay.Presentation
         private RectTransform _rect;
         private Image _mark;
         private Image _shadow;
+        private Image _halo;
+        private Image _coreGlow;
+        private Image _scan;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
+        private Material _sweepMaterial;
         private float _height = MenuTheme.Metrics.LogoHeight;
         private Vector2 _restPosition;
         private Coroutine _presentation;
@@ -68,7 +72,10 @@ namespace Aether.Gameplay.Presentation
             logo._rect.anchoredPosition = Vector2.zero;
             logo._rect.sizeDelta = new Vector2(MenuTheme.Metrics.LogoMaxWidth, height);
 
-            logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.18f));
+            logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.24f));
+            logo._halo = MenuUi.CreateImage("Halo", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
+            logo._coreGlow = MenuUi.CreateImage("Core Glow", logo._rect, MenuArt.Circle, new Color(1f, 1f, 1f, 0f));
+            logo._scan = MenuUi.CreateImage("Light Sweep", logo._rect, MenuArt.Solid, new Color(1f, 1f, 1f, 0f));
             logo._mark = MenuUi.CreateImage("Mark", logo._rect, null, MenuTheme.Palette.Ink);
 
             Sprite source = Resources.Load<Sprite>(MarkResourcePath);
@@ -88,6 +95,11 @@ namespace Aether.Gameplay.Presentation
 
             logo._mark.sprite = logo._generatedSprite;
             logo._shadow.sprite = logo._generatedSprite;
+            logo._scan.sprite = logo._generatedSprite;
+            if (logo._sweepMaterial != null)
+                logo._scan.material = logo._sweepMaterial;
+            else
+                logo._scan.enabled = false;
             logo.Apply();
             // AddComponent invokes OnEnable before the generated sprite exists on an active host.
             // Start explicitly after the keyed mark is ready so the entrance animation is not lost.
@@ -111,10 +123,18 @@ namespace Aether.Gameplay.Presentation
             _restPosition = _rect.anchoredPosition;
 
             Place(_mark, width, height, Vector2.zero);
-            Place(_shadow, width, height, new Vector2(1f, -1f));
-            _shadow.transform.SetAsFirstSibling();
-            _mark.transform.SetAsLastSibling();
-            _shadow.color = new Color(0f, 0f, 0f, 0.18f);
+            Place(_shadow, width, height, new Vector2(2f, -2f));
+            Place(_halo, width * 1.18f, height * 1.18f, Vector2.zero);
+            Place(_coreGlow, width * 1.04f, height * 1.04f, Vector2.zero);
+            // The sweep is the same cropped ink mask as the mark, not a free-standing bar.
+            // That keeps every highlight pixel inside the actual artwork at every logo aspect ratio.
+            Place(_scan, width, height, Vector2.zero);
+            _halo.transform.SetAsFirstSibling();
+            _coreGlow.transform.SetSiblingIndex(1);
+            _shadow.transform.SetSiblingIndex(2);
+            _mark.transform.SetSiblingIndex(3);
+            _scan.transform.SetAsLastSibling();
+            _shadow.color = new Color(0f, 0f, 0f, 0.24f);
             _mark.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink,
                                                          MenuPreferences.HighContrast);
         }
@@ -207,6 +227,7 @@ namespace Aether.Gameplay.Presentation
 
             _generatedSprite.name = source.name + " (menu cutout)";
             _generatedSprite.hideFlags = HideFlags.HideAndDontSave;
+            BuildSweepMaterial();
             return true;
         }
 
@@ -228,7 +249,7 @@ namespace Aether.Gameplay.Presentation
 
         private void BeginPresentation()
         {
-            if (!isActiveAndEnabled || _mark == null || _mark.sprite == null) return;
+            if (!isActiveAndEnabled || _mark == null) return;
 
             if (_presentation != null)
             {
@@ -247,57 +268,124 @@ namespace Aether.Gameplay.Presentation
             }
         }
 
-        /// <summary>
-        /// A single restrained entrance: a short fade and a tiny rise into the final position.
-        /// The mark then stays completely still. No glow, sweep, pulse, breathing, or idle motion.
-        /// </summary>
         private IEnumerator PresentRoutine()
         {
+            _rect.anchoredPosition = _restPosition + new Vector2(0f, 14f);
+            _rect.localScale = Vector3.one * 0.94f;
+
             Color markTarget = _mark.color;
             Color shadowTarget = _shadow != null ? _shadow.color : new Color(0f, 0f, 0f, 0f);
+            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
 
             if (MenuPreferences.ReducedMotion)
             {
                 _rect.anchoredPosition = _restPosition;
                 _rect.localScale = Vector3.one;
-                _mark.color = markTarget;
-                if (_shadow != null) _shadow.color = shadowTarget;
-                _presentation = null;
+                SetLogoEffectColors(markTarget, shadowTarget, 0f, 0f, 0f);
                 yield break;
             }
 
-            const float duration = 0.42f;
-            const float rise = 6f;
-            const float startScale = 0.985f;
-            _rect.anchoredPosition = _restPosition + new Vector2(0f, rise);
-            _rect.localScale = Vector3.one * startScale;
-            _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b, 0f);
-            if (_shadow != null)
-                _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f);
+            SetLogoEffectColors(
+                new Color(markTarget.r, markTarget.g, markTarget.b, 0f),
+                new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), 0f, 0f, 0f);
 
             float elapsed = 0f;
+            const float duration = 0.58f;
             while (elapsed < duration)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float ease = 1f - Mathf.Pow(1f - t, 3f);
-
                 _rect.anchoredPosition = Vector2.LerpUnclamped(
-                    _restPosition + new Vector2(0f, rise), _restPosition, ease);
-                _rect.localScale = Vector3.one * Mathf.Lerp(startScale, 1f, ease);
-                _mark.color = new Color(markTarget.r, markTarget.g, markTarget.b,
-                                        Mathf.Lerp(0f, markTarget.a, ease));
-                if (_shadow != null)
-                    _shadow.color = new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b,
-                                              Mathf.Lerp(0f, shadowTarget.a, ease));
+                    _restPosition + new Vector2(0f, 14f), _restPosition, ease);
+                _rect.localScale = Vector3.one * Mathf.Lerp(0.94f, 1f, ease);
+                float glow = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.72f));
+                SetLogoEffectColors(
+                    Color.Lerp(new Color(markTarget.r, markTarget.g, markTarget.b, 0f), markTarget, ease),
+                    Color.Lerp(new Color(shadowTarget.r, shadowTarget.g, shadowTarget.b, 0f), shadowTarget, ease),
+                    glow * 0.11f, glow * 0.16f, 0f);
+                yield return null;
+            }
+
+            // A single restrained, ink-masked specular pass: it travels through the logo's own
+            // alpha instead of drawing a rectangular streak across the surrounding UI.
+            const float sweepDuration = 0.86f;
+            elapsed = 0f;
+            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
+            while (elapsed < sweepDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / sweepDuration);
+                if (_sweepMaterial != null)
+                {
+                    _sweepMaterial.SetFloat("_SweepProgress", t);
+                    _sweepMaterial.SetFloat("_SweepOpacity", Mathf.Sin(t * Mathf.PI) * 0.78f);
+                }
+                if (_scan != null)
+                    _scan.color = new Color(accent.r, accent.g, accent.b, 0.42f);
+                yield return null;
+            }
+
+            if (_sweepMaterial != null) _sweepMaterial.SetFloat("_SweepOpacity", 0f);
+            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, 0f);
+
+            elapsed = 0f;
+            while (isActiveAndEnabled && !MenuPreferences.ReducedMotion)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float breathe = Mathf.Sin(elapsed * Mathf.PI * 2f / 11f);
+                _rect.anchoredPosition = _restPosition + new Vector2(0f, breathe * 1.15f);
+                _rect.localScale = Vector3.one * (1f + breathe * 0.0015f);
+
+                float pulse = 0.5f + 0.5f * breathe;
+                if (_halo != null)
+                    _halo.color = new Color(accent.r, accent.g, accent.b, 0.025f + pulse * 0.025f);
+                if (_coreGlow != null)
+                    _coreGlow.color = new Color(accent.r, accent.g, accent.b, 0.045f + pulse * 0.025f);
                 yield return null;
             }
 
             _rect.anchoredPosition = _restPosition;
             _rect.localScale = Vector3.one;
-            _mark.color = markTarget;
-            if (_shadow != null) _shadow.color = shadowTarget;
+            SetLogoEffectColors(markTarget, shadowTarget, 0.03f, 0.06f, 0f);
             _presentation = null;
+        }
+
+        /// <summary>
+        /// Creates one private instance of the UI shader. The logo's coverage stays in the original
+        /// sprite alpha; the GPU moves a single soft highlight across that mask, without uploading
+        /// a new texture or recalculating every pixel on the CPU each frame.
+        /// </summary>
+        private void BuildSweepMaterial()
+        {
+            Shader shader = Resources.Load<Shader>("Brand/VarellonLogoSheen");
+            if (shader == null)
+            {
+                Debug.LogWarning(
+                    "[menu] VarellonLogoSheen shader is unavailable; the logo will render without its sweep.",
+                    this);
+                return;
+            }
+
+            _sweepMaterial = new Material(shader)
+            {
+                name = "Varellon Logo Sheen (runtime)",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _sweepMaterial.SetFloat("_SweepProgress", 0f);
+            _sweepMaterial.SetFloat("_SweepOpacity", 0f);
+            _sweepMaterial.SetFloat("_BandHalfWidth", 0.12f);
+        }
+
+        private void SetLogoEffectColors(Color mark, Color shadow, float haloAlpha, float coreAlpha, float scanAlpha)
+        {
+            _mark.color = mark;
+            if (_shadow != null) _shadow.color = shadow;
+
+            Color accent = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent, MenuPreferences.HighContrast);
+            if (_halo != null) _halo.color = new Color(accent.r, accent.g, accent.b, haloAlpha);
+            if (_coreGlow != null) _coreGlow.color = new Color(accent.r, accent.g, accent.b, coreAlpha);
+            if (_scan != null) _scan.color = new Color(accent.r, accent.g, accent.b, scanAlpha);
         }
 
         private void ReportUnavailable(string reason)
@@ -323,8 +411,14 @@ namespace Aether.Gameplay.Presentation
         private void Remove()
         {
             if (_shadow != null) Destroy(_shadow.gameObject);
+            if (_halo != null) Destroy(_halo.gameObject);
+            if (_coreGlow != null) Destroy(_coreGlow.gameObject);
+            if (_scan != null) Destroy(_scan.gameObject);
             if (_mark != null) Destroy(_mark.gameObject);
             _shadow = null;
+            _halo = null;
+            _coreGlow = null;
+            _scan = null;
             _mark = null;
         }
 
@@ -332,8 +426,10 @@ namespace Aether.Gameplay.Presentation
         {
             if (_generatedSprite != null) Destroy(_generatedSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
+            if (_sweepMaterial != null) Destroy(_sweepMaterial);
             _generatedSprite = null;
             _generatedTexture = null;
+            _sweepMaterial = null;
         }
     }
 }
