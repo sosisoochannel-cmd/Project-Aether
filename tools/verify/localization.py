@@ -188,6 +188,37 @@ def check_persian_quality() -> "list[str]":
     return problems
 
 
+def check_runtime_script_fonts() -> "list[str]":
+    """Guard the script-aware runtime font resolver and selection gate against regressions."""
+    problems = []
+    menu_art_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuArt.cs")
+    service_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Localization", "LanguageService.cs")
+    menu_art = read(menu_art_path) if os.path.exists(menu_art_path) else ""
+    service = read(service_path) if os.path.exists(service_path) else ""
+
+    required_families = {
+        "Arabic": "Noto Sans Arabic",
+        "Chinese": "Noto Sans CJK SC",
+        "Japanese": "Noto Sans CJK JP",
+        "Korean": "Noto Sans CJK KR",
+    }
+    for script, family in required_families.items():
+        if family not in menu_art:
+            problems.append("MenuArt.cs has no configured runtime font candidate for %s" % script)
+
+    if "public static bool CanRenderLanguage(string code)" not in menu_art:
+        problems.append("MenuArt.cs must probe script glyph coverage on the current device")
+    if "font.HasCharacter(probe)" not in menu_art:
+        problems.append("MenuArt.cs must verify a representative glyph, not just a font name")
+    if "MenuArt.CanRenderLanguage(wanted.Code)" not in service:
+        problems.append("LanguageService.cs must gate selection on runtime glyph coverage")
+
+    return problems
+
+
 def check_placeholders(code: str, reference: "list[tuple[str, str]]",
                        translated: "dict[str, str]") -> "list[str]":
     """Finds translations that lost, gained or renumbered a placeholder."""
@@ -321,6 +352,7 @@ def main() -> int:
     failures = []
     coverage = []
     failures.extend(check_persian_quality())
+    failures.extend(check_runtime_script_fonts())
 
     generated = []
     for code in book["offered"]:
