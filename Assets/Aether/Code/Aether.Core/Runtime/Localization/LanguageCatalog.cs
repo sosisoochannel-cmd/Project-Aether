@@ -131,7 +131,7 @@ namespace Aether.Core.Localization
         /// to make the picker look complete.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es", "de", "fr", "it", "pt", "ru", "tr", "zh", "ja", "ko", "fa" };
+        public static readonly string[] Offered = { "en", "es", "de", "fr", "it", "pt", "ru", "tr", "zh", "ja", "ko", "ar", "fa" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)
