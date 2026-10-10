@@ -1,4 +1,4 @@
-menu.title=PROJECT AETHER
+menu.title=AETHER
 menu.subtitle=الممر الأخضر — المنطقة الأولى
 menu.playSection=العب
 menu.exploreSection=استكشف
