@@ -18,11 +18,11 @@ namespace Aether.Core.Localization
     /// <c>Aether.Gameplay.Localization</c>, where the screens are.
     /// </para>
     /// <para>
-    /// <b>The font flag is a fact, not a preference.</b> The project bundles one font — Unity's
-    /// Liberation Sans fallback — and it has no Arabic, Persian, Chinese, Japanese or Korean glyphs.
-    /// Offering one of those languages would show a screen of empty boxes, which is worse than not
-    /// offering it; so a language whose script the font cannot draw says so here, and the row that
-    /// offers it is disabled with the reason on it. When a font pack arrives, that is one flag.
+    /// <b>The font flag means a resolver exists, not that every device is guaranteed to draw the script.</b>
+    /// The runtime tries script-appropriate operating-system font families and probes for a
+    /// representative glyph. Family names and glyph coverage vary by Android version, so the picker
+    /// must also consult the runtime probe before enabling a language. This does not replace real
+    /// device QA or prove complete glyph coverage for every string.
     /// </para>
     /// </remarks>
     public sealed class LanguageDefinition
@@ -53,17 +53,17 @@ namespace Aether.Core.Localization
         /// <summary>Which way the language reads.</summary>
         public readonly TextDirection Direction;
 
-        /// <summary>Whether the font this build bundles can draw the script.</summary>
-        public readonly bool BundledFontCovers;
+        /// <summary>Whether a runtime font resolver is configured for this script; actual glyph coverage is probed on the device.</summary>
+        public readonly bool FontResolverConfigured;
 
         public LanguageDefinition(string code, string nativeName, string latinName,
-                                  TextDirection direction, bool bundledFontCovers)
+                                  TextDirection direction, bool fontResolverConfigured)
         {
             Code = code;
             NativeName = nativeName;
             LatinName = latinName;
             Direction = direction;
-            BundledFontCovers = bundledFontCovers;
+            FontResolverConfigured = fontResolverConfigured;
         }
 
         /// <summary>The localisation key for the row that offers this language.</summary>
@@ -105,11 +105,11 @@ namespace Aether.Core.Localization
             new LanguageDefinition("pt", "Português", "Portuguese", TextDirection.LeftToRight, true),
             new LanguageDefinition("ru", "Русский", "Russian", TextDirection.LeftToRight, true),
             new LanguageDefinition("tr", "Türkçe", "Turkish", TextDirection.LeftToRight, true),
-            new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, false),
+            new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, true),
             new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
-            new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, false),
+            new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, true),
+            new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, true),
+            new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, true),
         };
 
         /// <summary>
@@ -124,15 +124,14 @@ namespace Aether.Core.Localization
         /// the repository unshipped.
         /// </para>
         /// <para>
-        /// <b>What is not here is not a secret.</b> French, German, Italian, Portuguese, Russian and
-        /// Turkish are named in <see cref="All"/>, are not offered yet, and the settings screen says
-        /// so; each becomes selectable by translating its sheet and adding the code here, which is a
-        /// data-only change. Arabic, Persian, Chinese, Japanese and Korean are a different case
-        /// entirely: the font this build carries cannot draw those scripts at all, so they are marked
-        /// as such and are not offered however complete a sheet might be.
+        /// <b>What is not here is not a secret.</b> A language is offered only when its translation
+        /// sheet is complete. The picker separately checks that a suitable runtime font can draw a
+        /// representative character on this device; that probe is a guard, not a substitute for
+        /// full glyph-coverage checks and on-device layout review. Never add a language here merely
+        /// to make the picker look complete.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es", "fa" };
+        public static readonly string[] Offered = { "en", "es", "de", "fr", "it", "pt", "ru", "tr", "zh", "ja", "ko", "ar", "fa" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)

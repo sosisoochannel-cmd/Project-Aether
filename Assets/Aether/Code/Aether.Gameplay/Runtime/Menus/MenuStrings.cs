@@ -8,12 +8,11 @@ namespace Aether.Gameplay.Menus
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>This is not a translation system and does not pretend to be one.</b> There is one language
-    /// in the project, English, and shipping invented translations nobody can review would be worse
-    /// than shipping none. What exists is the part that is expensive to add later: no screen ever
-    /// holds a sentence, every label is a key, missing keys are visible rather than silent, and the
-    /// selected language is stored in the settings like any other preference. Adding a language is a
-    /// table and one line in the catalog.
+    /// English is the reference table; reviewed translations live in sheets under
+    /// <c>tools/localization</c> and are compiled into language tables by the verification tool.
+    /// Screens use keys rather than holding sentences, the selected language is stored in settings,
+    /// and missing translations fall back to English while the gate reports incomplete sheets.
+    /// A language is not considered complete merely because a table or picker row exists.
     /// </para>
     /// <para>
     /// A missing key returns the key itself. That is deliberate: a screen that shows
@@ -40,7 +39,7 @@ namespace Aether.Gameplay.Menus
         private static readonly Dictionary<string, string> English = new Dictionary<string, string>
         {
             // -- the menu itself
-            { "menu.title", "PROJECT AETHER" },
+            { "menu.title", "AETHER" },
             { "menu.subtitle", "THE GREENWAY — REGION ONE" },
             { "menu.playSection", "PLAY" },
             { "menu.exploreSection", "EXPLORE" },
@@ -366,7 +365,7 @@ namespace Aether.Gameplay.Menus
             { "language.it", "ITALIANO" },
             { "language.pt", "PORTUGUÊS" },
             { "language.needsFont", "NEEDS A SCRIPT FONT" },
-            { "language.fontNote", "This build bundles one font, and it cannot draw this script. The language is not offered until a font that carries it is added." },
+            { "language.fontNote", "This device has no available font for this script. The language stays unavailable until a compatible font can be resolved." },
             { "language.notWritten", "NOT WRITTEN YET" },
             { "language.notWritten.note", "This language is named, and its sheet is not written. Adding it is a translation and one line in the catalogue, with nothing else to change." },
             { "language.unavailable", "NOT OFFERED" },

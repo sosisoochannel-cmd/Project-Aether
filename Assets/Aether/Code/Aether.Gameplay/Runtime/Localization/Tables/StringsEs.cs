@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsEs
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "PROJECT AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "EL SENDERO VERDE — REGIÓN UNO",
             "menu.playSection", "JUGAR",
             "menu.exploreSection", "EXPLORAR",
@@ -153,6 +153,9 @@ namespace Aether.Gameplay.Localization.Tables
             "chapter.greenway.title", "EL SENDERO VERDE",
             "chapter.greenway.subtitle", "REGIÓN UNO",
             "chapter.greenway.body", "Un sendero abierto a través de un dosel viejo. Alguien pasó por aquí antes que tú, y la región lleva desde entonces conteniendo el aliento.",
+            "chapter.whisperingWoods.title", "BOSQUE SUSURRANTE",
+            "chapter.whisperingWoods.subtitle", "REGIÓN DOS",
+            "chapter.whisperingWoods.body", "Un sendero más estrecho bajo árboles antiguos. Aquí el bosque enmudece y cuesta más interpretar las marcas que quedaron atrás.",
             "chapter.hollow.title", "LA HOQUEDAD",
             "chapter.hollow.subtitle", "REGIÓN DOS",
             "chapter.hollow.body", "Bajo el sendero, una veta agotada que recuerda quién la rellenó.",
@@ -249,6 +252,8 @@ namespace Aether.Gameplay.Localization.Tables
             "ach.unbroken.body", "Llega a la salida norte sin morir ni una vez.",
             "objective.greenway.exit", "LLEGA A LA SALIDA NORTE",
             "objective.greenway.exit.body", "Sigue el sendero abierto hacia el norte. Los puntos de control guardan tu sitio.",
+            "objective.whisperingWoods.exit", "LLEGA A LA SALIDA DE LAS PROFUNDIDADES",
+            "objective.whisperingWoods.exit.body", "Avanza por el bosque silencioso, descubre lo que quedó atrás y alcanza la salida de las profundidades.",
             "hud.findings", "{0} DE {1} ENCONTRADOS",
             "hud.deaths", "{0} CAÍDAS",
             "hud.pause", "PAUSA",
@@ -300,7 +305,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.it", "ITALIANO",
             "language.pt", "PORTUGUÊS",
             "language.needsFont", "NECESITA UNA FUENTE PARA ESTE ALFABETO",
-            "language.fontNote", "Esta versión incluye una sola fuente y no puede dibujar este alfabeto. El idioma no se ofrece hasta que se añada una fuente que lo cubra.",
+            "language.fontNote", "Este dispositivo no tiene una fuente disponible para este sistema de escritura. El idioma seguirá sin estar disponible hasta que se encuentre una fuente compatible.",
             "language.notWritten", "AÚN SIN TRADUCIR",
             "language.notWritten.note", "Este idioma está nombrado y su hoja no está escrita. Añadirlo es una traducción y una línea en el catálogo, sin nada más que cambiar.",
             "language.unavailable", "NO OFRECIDO",

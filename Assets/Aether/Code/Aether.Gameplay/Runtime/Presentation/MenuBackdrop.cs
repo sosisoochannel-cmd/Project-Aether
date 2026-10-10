@@ -12,7 +12,7 @@ namespace Aether.Gameplay.Presentation
     /// <para>
     /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the approved forest
     /// image, sized to cover the canvas without stretching. <i>Midground</i> is the horizon — three
-    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted leaf-green washes
+    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted antique-gold washes
     /// that drift slowly. <i>Foreground</i> is the vignette and the darkening along the bottom edge
     /// that the entry rows sit on. Keeping them apart lets the artwork support the interface without
     /// changing the approved mark, typography or composition.
@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Presentation
         private Vector2 _backgroundRestPosition;
         private Vector3 _backgroundRestScale = Vector3.one;
         private RectTransform[] _fireflies;
+        private Image[] _fireflyImages;
         private Vector2[] _fireflyOrigins;
         private float[] _fireflyPhases;
 
@@ -121,6 +122,8 @@ namespace Aether.Gameplay.Presentation
             vignette.sprite = MenuArt.Vignette;
             vignette.color = new Color(0f, 0f, 0f, 0.75f);
 
+            // The corner metalwork sits above the vignette but outside the safe content box.
+            BuildFrameOrnaments(root);
             backdrop.ApplySettings();
             return backdrop;
         }
@@ -232,9 +235,14 @@ namespace Aether.Gameplay.Presentation
                     mote.anchoredPosition = origin + new Vector2(Mathf.Sin(phase) * 18f,
                                                                  Mathf.Cos(phase * 0.73f) * 10f);
                     float pulse = 0.5f + (0.5f * Mathf.Sin(phase * 1.7f));
-                    Image image = mote.GetComponent<Image>();
-                    if (image != null) image.color = new Color(0.78f, 0.88f, 0.62f,
-                                                               Mathf.Lerp(0.08f, 0.28f, pulse));
+                    Image image = _fireflyImages != null && i < _fireflyImages.Length
+                        ? _fireflyImages[i]
+                        : null;
+                    if (image != null)
+                    {
+                        Color gold = MenuTheme.Palette.Accent;
+                        image.color = new Color(gold.r, gold.g, gold.b, Mathf.Lerp(0.10f, 0.42f, pulse));
+                    }
                 }
             }
         }
@@ -262,31 +270,82 @@ namespace Aether.Gameplay.Presentation
 
         private void BuildFireflies(RectTransform parent)
         {
-            const int count = 7;
+            // A few more distant motes add a living, gilded atmosphere without becoming particles
+            // over the text. They remain static on low quality and under Reduced Motion.
+            const int count = 11;
             _fireflies = new RectTransform[count];
+            _fireflyImages = new Image[count];
             _fireflyOrigins = new Vector2[count];
             _fireflyPhases = new float[count];
             Vector2[] normalized =
             {
-                new Vector2(0.18f, 0.68f), new Vector2(0.31f, 0.34f), new Vector2(0.47f, 0.77f),
-                new Vector2(0.62f, 0.43f), new Vector2(0.74f, 0.72f), new Vector2(0.86f, 0.53f),
-                new Vector2(0.92f, 0.27f)
+                new Vector2(0.13f, 0.68f), new Vector2(0.22f, 0.35f), new Vector2(0.31f, 0.81f),
+                new Vector2(0.39f, 0.23f), new Vector2(0.48f, 0.73f), new Vector2(0.57f, 0.39f),
+                new Vector2(0.66f, 0.84f), new Vector2(0.73f, 0.26f), new Vector2(0.81f, 0.65f),
+                new Vector2(0.88f, 0.46f), new Vector2(0.93f, 0.22f)
             };
+            Color gold = MenuTheme.Palette.Accent;
             for (int i = 0; i < count; i++)
             {
-                Image mote = MenuUi.CreateImage("Firefly " + i, parent, MenuArt.Circle,
-                                                new Color(0.78f, 0.88f, 0.62f, 0.16f));
+                Image mote = MenuUi.CreateImage("Gold Mote " + i, parent, MenuArt.Circle,
+                                                new Color(gold.r, gold.g, gold.b, 0.18f));
                 RectTransform rect = mote.rectTransform;
                 rect.anchorMin = normalized[i];
                 rect.anchorMax = normalized[i];
                 rect.pivot = new Vector2(0.5f, 0.5f);
-                float size = 5f + ((i % 3) * 2f);
+                float size = 4f + ((i % 3) * 2f);
                 rect.sizeDelta = new Vector2(size, size);
                 rect.anchoredPosition = Vector2.zero;
                 _fireflies[i] = rect;
+                _fireflyImages[i] = mote;
                 _fireflyOrigins[i] = Vector2.zero;
                 _fireflyPhases[i] = i * 1.83f;
             }
+        }
+
+        /// <summary>
+        /// Adds a delicate corner frame, inspired by carved metalwork rather than a full UI panel.
+        /// It stays at the canvas edge so it never competes with menu choices or touch targets.
+        /// </summary>
+        private static void BuildFrameOrnaments(RectTransform parent)
+        {
+            Color accent = MenuTheme.Palette.Accent;
+            Color colour = new Color(accent.r, accent.g, accent.b, 0.24f);
+            const float insetX = 0.035f;
+            const float insetY = 0.055f;
+            const float armX = 0.055f;
+            const float armY = 0.055f;
+            const float thickness = 2f;
+
+            FrameLine(parent, "Frame TL horizontal", colour,
+                      new Vector2(insetX, 1f - insetY), new Vector2(insetX + armX, 1f - insetY), thickness);
+            FrameLine(parent, "Frame TL vertical", colour,
+                      new Vector2(insetX, 1f - insetY - armY), new Vector2(insetX, 1f - insetY), thickness);
+            FrameLine(parent, "Frame TR horizontal", colour,
+                      new Vector2(1f - insetX - armX, 1f - insetY), new Vector2(1f - insetX, 1f - insetY), thickness);
+            FrameLine(parent, "Frame TR vertical", colour,
+                      new Vector2(1f - insetX, 1f - insetY - armY), new Vector2(1f - insetX, 1f - insetY), thickness);
+            FrameLine(parent, "Frame BL horizontal", colour,
+                      new Vector2(insetX, insetY), new Vector2(insetX + armX, insetY), thickness);
+            FrameLine(parent, "Frame BL vertical", colour,
+                      new Vector2(insetX, insetY), new Vector2(insetX, insetY + armY), thickness);
+            FrameLine(parent, "Frame BR horizontal", colour,
+                      new Vector2(1f - insetX - armX, insetY), new Vector2(1f - insetX, insetY), thickness);
+            FrameLine(parent, "Frame BR vertical", colour,
+                      new Vector2(1f - insetX, insetY), new Vector2(1f - insetX, insetY + armY), thickness);
+        }
+
+        private static void FrameLine(RectTransform parent, string name, Color colour,
+                                      Vector2 from, Vector2 to, float thickness)
+        {
+            Image line = MenuUi.CreateImage(name, parent, MenuArt.Solid, colour);
+            RectTransform rect = line.rectTransform;
+            rect.anchorMin = Vector2.Min(from, to);
+            rect.anchorMax = Vector2.Max(from, to);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(from.x == to.x ? thickness : 0f,
+                                         from.y == to.y ? thickness : 0f);
+            rect.anchoredPosition = Vector2.zero;
         }
 
         /// <summary>

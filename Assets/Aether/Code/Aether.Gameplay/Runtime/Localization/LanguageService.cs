@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Aether.Core.Localization;
 using Aether.Core.Settings;
 using Aether.Gameplay.Localization.Tables;
+using Aether.Gameplay.Menus;
 using Aether.Gameplay.Settings;
 
 namespace Aether.Gameplay.Localization
@@ -29,11 +30,12 @@ namespace Aether.Gameplay.Localization
     /// only way to be sure every label moved, and it happens once per change rather than per frame.
     /// </para>
     /// <para>
-    /// <b>Right-to-left is reported, not fabricated.</b> Arabic and Persian are catalogued, and
-    /// <see cref="IsRightToLeft"/> answers true for them; but the font this build bundles cannot draw
-    /// those scripts at all, and a Unity <c>Text</c> would draw them as disconnected, unshaped
-    /// letters even with a font that could. Their rows are therefore not selectable, the screen that
-    /// offers languages says why, and no shaping pass is faked here.
+    /// <b>Script rendering is checked at runtime.</b> The menu tries script-appropriate operating-system
+    /// fonts and probes a representative glyph before allowing a language that needs a special script.
+    /// That probe is only a guard: it cannot prove every glyph exists or that shaping and bidirectional
+    /// ordering are correct. Arabic and Persian use the project's lightweight RTL preparation layer;
+    /// complex mixed-direction text still requires real-device review before this can be called full
+    /// Unicode RTL support.
     /// </para>
     /// </remarks>
     public static class LanguageService
@@ -146,9 +148,9 @@ namespace Aether.Gameplay.Localization
         /// <summary>Whether a language can be chosen right now.</summary>
         /// <remarks>
         /// Three facts have to agree before the row may be offered: the catalogue promises the
-        /// language, the font can draw its script, and its table is in the build. The first is a
-        /// decision, the second is a limit of the bundled font, the third is what the sheet pipeline
-        /// guarantees — and <c>tools/verify/localization.py</c> keeps the third honest.
+        /// language, the current device has a font with a representative glyph, and its table is in
+        /// the build. The runtime probe prevents a configured font-family name from being treated as
+        /// proof that every device has that font; the sheet pipeline guarantees table completeness.
         /// </remarks>
         public static bool CanSelect(string code)
         {
@@ -156,7 +158,8 @@ namespace Aether.Gameplay.Localization
             if (wanted == null) return false;
 
             return LanguageCatalog.IsOffered(wanted.Code)
-                && wanted.BundledFontCovers
+                && wanted.FontResolverConfigured
+                && MenuArt.CanRenderLanguage(wanted.Code)
                 && Tables.ContainsKey(wanted.Code);
         }
 
@@ -199,10 +202,8 @@ namespace Aether.Gameplay.Localization
         /// The Latin names of the languages the build never offers, joined for the screen that says so.
         /// </summary>
         /// <remarks>
-        /// Two groups, because they are two different problems: languages whose script this build's
-        /// font cannot draw, and languages whose translation is simply not written yet. Grouping them
-        /// apart is the whole point of the row — one of them needs a font, and the other needs six
-        /// sheets and no code at all.
+        /// Two groups, because they are two different problems: languages whose script has no usable
+        /// runtime font on this device, and languages whose translation is not yet complete.
         /// </remarks>
         public static string DescribeNotOffered(bool fontBlocked)
         {
@@ -211,7 +212,8 @@ namespace Aether.Gameplay.Localization
             {
                 LanguageDefinition language = LanguageCatalog.All[i];
                 if (CanSelect(language.Code)) continue;
-                if (language.BundledFontCovers == fontBlocked) continue;
+                bool canRender = language.FontResolverConfigured && MenuArt.CanRenderLanguage(language.Code);
+                if (canRender == fontBlocked) continue;
 
                 names.Add(language.LatinName.ToUpperInvariant());
             }
@@ -365,7 +367,8 @@ namespace Aether.Gameplay.Localization
             if (wanted == null) return false;
 
             return LanguageCatalog.IsOffered(wanted.Code)
-                && wanted.BundledFontCovers
+                && wanted.FontResolverConfigured
+                && MenuArt.CanRenderLanguage(wanted.Code)
                 && Tables.ContainsKey(wanted.Code);
         }
 

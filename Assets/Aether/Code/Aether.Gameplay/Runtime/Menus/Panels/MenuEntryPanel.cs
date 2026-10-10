@@ -98,7 +98,8 @@ namespace Aether.Gameplay.Menus.Panels
         public void SetSection(string text)
         {
             if (_labelText == null) return;
-            _labelText.text = MenuUi.Track(text, MenuTheme.Metrics.SectionLabelTracking);
+            _labelText.text = MenuUi.PrepareText(
+                MenuUi.Track(text, MenuTheme.Metrics.SectionLabelTracking));
         }
 
         /// <inheritdoc />
