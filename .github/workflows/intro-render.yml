@@ -19,8 +19,10 @@ on:
   push:
     branches:
       - arena/01a10203-project-aether
+      - arena/m4-whispering-woods
     paths:
       - '.github/workflows/intro-render.yml'
+      - 'Assets/Aether/Resources/Brand/**'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
       # While the menu is being verified, the game's own code belongs in this list: a change to the
       # game is precisely the change the play-mode tests have to answer for, and this workflow is
@@ -29,6 +31,8 @@ on:
       - 'Assets/Aether/Code/Aether.Gameplay/**'
       - 'Assets/Aether/Code/Aether.Core/**'
       - 'Assets/Aether/Code/Aether.Data/**'
+      - 'tools/verify/brand_motion.py'
+      - 'tools/verify/intro.py'
   workflow_dispatch:
 
 permissions:
