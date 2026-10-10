@@ -53,17 +53,17 @@ namespace Aether.Core.Localization
         /// <summary>Which way the language reads.</summary>
         public readonly TextDirection Direction;
 
-        /// <summary>Whether the font this build bundles can draw the script.</summary>
-        public readonly bool BundledFontCovers;
+        /// <summary>Whether a runtime font resolver is configured for this script; actual glyph coverage is probed on the device.</summary>
+        public readonly bool FontResolverConfigured;
 
         public LanguageDefinition(string code, string nativeName, string latinName,
-                                  TextDirection direction, bool bundledFontCovers)
+                                  TextDirection direction, bool fontResolverConfigured)
         {
             Code = code;
             NativeName = nativeName;
             LatinName = latinName;
             Direction = direction;
-            BundledFontCovers = bundledFontCovers;
+            FontResolverConfigured = fontResolverConfigured;
         }
 
         /// <summary>The localisation key for the row that offers this language.</summary>
@@ -105,11 +105,11 @@ namespace Aether.Core.Localization
             new LanguageDefinition("pt", "Português", "Portuguese", TextDirection.LeftToRight, true),
             new LanguageDefinition("ru", "Русский", "Russian", TextDirection.LeftToRight, true),
             new LanguageDefinition("tr", "Türkçe", "Turkish", TextDirection.LeftToRight, true),
-            new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, false),
+            new LanguageDefinition("ar", "العربية", "Arabic", TextDirection.RightToLeft, true),
             new LanguageDefinition("fa", "فارسی", "Persian", TextDirection.RightToLeft, true),
-            new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, false),
-            new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, false),
+            new LanguageDefinition("zh", "中文", "Chinese", TextDirection.LeftToRight, true),
+            new LanguageDefinition("ja", "日本語", "Japanese", TextDirection.LeftToRight, true),
+            new LanguageDefinition("ko", "한국어", "Korean", TextDirection.LeftToRight, true),
         };
 
         /// <summary>
