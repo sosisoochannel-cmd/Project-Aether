@@ -130,6 +130,10 @@ require("Destroy(_mark.RevealMaterial)" in intro and "Destroy(_wordmark.RevealMa
         "per-part intro reveal materials must be destroyed during cleanup")
 require("ReducedMotion" in menu or "reducedMotion" in menu,
         "menu logo must retain Reduced Motion handling")
+require("logo.BeginPresentation();" in menu and "private void BeginPresentation()" in menu,
+        "menu logo entrance motion must start after the generated mark is ready")
+require("if (!isActiveAndEnabled || _mark == null) return;" in menu,
+        "menu logo presentation start must respect active/enabled lifecycle state")
 
 # The intro's signature remains brief and the sheen remains restrained.
 def number(name: str) -> float | None:
