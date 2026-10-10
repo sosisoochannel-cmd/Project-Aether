@@ -1,4 +1,4 @@
-menu.title=PROJECT AETHER
+menu.title=AETHER
 menu.subtitle=DER GRÜNE PFAD — REGION EINS
 menu.playSection=SPIELEN
 menu.exploreSection=ERKUNDEN
