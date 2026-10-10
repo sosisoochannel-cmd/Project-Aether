@@ -1,0 +1,45 @@
+name: Localization checks
+
+on:
+  push:
+    paths:
+      - "Assets/Aether/Code/Aether.Core/Runtime/Localization/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
+      - "tools/localization/**"
+      - "tools/verify/localization.py"
+      - ".github/workflows/localization-check.yml"
+  pull_request:
+    paths:
+      - "Assets/Aether/Code/Aether.Core/Runtime/Localization/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
+      - "tools/localization/**"
+      - "tools/verify/localization.py"
+      - ".github/workflows/localization-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: localization-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-localization:
+    name: Verify localization tables and placeholders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate verifier syntax
+        run: python -m py_compile tools/verify/localization.py
+      - name: Validate all offered translation sheets and generated tables
+        run: python tools/verify/localization.py
+      - name: Report coverage for all ten agreed languages
+        run: python tools/verify/localization.py --coverage
