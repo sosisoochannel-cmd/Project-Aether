@@ -1,5 +1,5 @@
 # Persian (fa). RTL-ready translation sheet. One key=text pair per line.
-menu.title=پروژه AETHER
+menu.title=AETHER
 menu.subtitle=مسیر سبز — منطقه یک
 menu.playSection=بازی
 menu.exploreSection=کاوش
