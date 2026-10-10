@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsRu
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "PROJECT AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "ЗЕЛЁНАЯ ТРОПА — РЕГИОН I",
             "menu.playSection", "ИГРАТЬ",
             "menu.exploreSection", "ИССЛЕДОВАТЬ",
