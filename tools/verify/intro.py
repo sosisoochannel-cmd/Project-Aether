@@ -136,7 +136,7 @@ CONSTANTS = (
     "BackgroundLuminance", "InkLuminance",
     "BlackHold", "Reveal", "WordmarkDelay", "WordmarkReveal", "SheenStartsAt", "SheenDuration",
     "Hold", "Exit", "HandOver", "SkipGrace", "SkipExit",
-    "BandHalfWidth", "Tilt", "HighlightPeak", "DimWhilePassing", "EdgeFade", "Resolution",
+    "BaseInkLuminance", "BandHalfWidth", "Tilt", "HighlightPeak", "DimWhilePassing", "EdgeFade", "Resolution",
 )
 
 
@@ -177,6 +177,12 @@ def check_constants(values: dict) -> list:
         problems.append(f"constants: WordmarkSplit is {values['WordmarkSplit']:.3f}, outside "
                         f"{MIN_SPLIT}-{MAX_SPLIT} of the artwork's height; one half of the lockup "
                         "would have nowhere to come from")
+    if not 0.84 <= values["BaseInkLuminance"] <= 0.92:
+        problems.append(f"constants: BaseInkLuminance is {values['BaseInkLuminance']:.3f}; the resting "
+                        "platinum mark must leave headroom for a visible white light pass")
+    if values["BaseInkLuminance"] >= 0.93:
+        problems.append("constants: the resting logo tint reaches the highlight detector threshold; "
+                        "the light could not be distinguished from the standing ink")
     if not MIN_BAND_HALF_WIDTH <= values["BandHalfWidth"] <= MAX_BAND_HALF_WIDTH:
         problems.append(f"constants: BandHalfWidth is {values['BandHalfWidth']:.3f}, outside "
                         f"{MIN_BAND_HALF_WIDTH}-{MAX_BAND_HALF_WIDTH}; the light would be a pinprick "
@@ -188,6 +194,9 @@ def check_constants(values: dict) -> list:
         problems.append(f"constants: HighlightPeak is {values['HighlightPeak']:.3f}, outside "
                         f"{MIN_HIGHLIGHT_PEAK}-{MAX_HIGHLIGHT_PEAK}; the light is either invisible "
                         "or a flare")
+    if values["BaseInkLuminance"] * values["DimWhilePassing"] * (1.0 - values["HighlightPeak"]) + values["HighlightPeak"] <= 0.93:
+        problems.append("constants: the combined dim and white highlight cannot clear the render "
+                        "test's 0.93 luminance threshold")
     if not MIN_DIM_WHILE_PASSING <= values["DimWhilePassing"] <= 1.0:
         problems.append(f"constants: DimWhilePassing is {values['DimWhilePassing']:.3f}; a logo taken "
                         f"down past {MIN_DIM_WHILE_PASSING} reads as a flicker, not a light")
