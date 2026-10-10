@@ -418,6 +418,20 @@ def main() -> int:
     if "StringsTables.Build()" not in source:
         failures.append("LanguageService.cs does not take its tables from StringsTables.Build()")
 
+    # RTL shaping is hand-written because the shipped UI uses Unity's legacy Text component.
+    # Guard the two subtle regressions that otherwise look like a complete translation but render
+    # Persian incorrectly: directional joining around right-joining letters, and Persian Yeh's
+    # dedicated medial presentation form.
+    rtl_path = os.path.join(ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+                            "Menus", "RtlText.cs")
+    rtl_source = read(rtl_path) if os.path.exists(rtl_path) else ""
+    if "pf.Dual && f.Final != '\\0'" not in rtl_source:
+        failures.append("RtlText.cs does not correctly join a right-joining current letter")
+    if "f.Dual && Map.TryGetValue(run[n], out nf)" not in rtl_source:
+        failures.append("RtlText.cs does not check directional joining to the next letter")
+    if "Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);" not in rtl_source:
+        failures.append("RtlText.cs has an incorrect Persian Yeh medial presentation form")
+
     if failures:
         for failure in failures:
             print("FAIL " + failure)
