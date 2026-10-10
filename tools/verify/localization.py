@@ -191,6 +191,8 @@ def check_persian_quality() -> "list[str]":
         problems.append("RtlText.cs must allow right-joining letters to accept a connection from the previous letter")
     if "for (int g = groups.Count - 1; g >= 0; g--)" not in rtl_source:
         problems.append("RtlText.cs must preserve LTR phrases while ordering mixed RTL runs")
+    if "\x00" in rtl_source:
+        problems.append("RtlText.cs contains a literal NUL byte; use the C# \\0 escape")
     test_path = os.path.join(
         ROOT, "Assets", "Aether", "Code", "Aether.Tests.EditMode", "Tests", "RtlTextTests.cs")
     test_source = read(test_path) if os.path.exists(test_path) else ""
