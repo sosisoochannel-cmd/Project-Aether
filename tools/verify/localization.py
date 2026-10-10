@@ -50,6 +50,7 @@ PLACEHOLDER_RE = re.compile(r"\{(\d+)\}")
 CLASS_NAMES = {
     "en": "StringsEn",
     "es": "StringsEs",
+    "fa": "StringsFa",
     "fr": "StringsFr",
     "de": "StringsDe",
     "it": "StringsIt",
@@ -57,11 +58,6 @@ CLASS_NAMES = {
     "pt-BR": "StringsPtBR",
     "ru": "StringsRu",
     "tr": "StringsTr",
-    "ar": "StringsAr",
-    "fa": "StringsFa",
-    "zh": "StringsZh",
-    "ja": "StringsJa",
-    "ko": "StringsKo",
 }
 
 
@@ -122,6 +118,20 @@ def catalogue() -> "dict[str, dict]":
 
     if not entries:
         raise SystemExit("localization: the language catalogue could not be read")
+
+    # The product scope is intentionally fixed to the ten agreed choices. This also guards
+    # against silently dropping Brazilian Portuguese by accidentally parsing only two-letter codes.
+    expected_codes = set(CLASS_NAMES)
+    actual_codes = set(entries)
+    if actual_codes != expected_codes:
+        missing = sorted(expected_codes - actual_codes)
+        unexpected = sorted(actual_codes - expected_codes)
+        details = []
+        if missing:
+            details.append("missing definitions: " + ", ".join(missing))
+        if unexpected:
+            details.append("unexpected definitions: " + ", ".join(unexpected))
+        raise SystemExit("localization: catalogue scope mismatch (" + "; ".join(details) + ")")
 
     for code in offered:
         if code not in entries:
