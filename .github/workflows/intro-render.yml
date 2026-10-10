@@ -74,14 +74,14 @@ jobs:
           df -h /
           echo "::notice title=Disk::$(df -Ph / | awk 'NR==2 {print $4}') free on /"
 
-      # The import is the slow part and the build job already paid for it once.
+      # The import is the slow part; cache the editor library for this target platform.
       - name: Restore Library cache
         uses: actions/cache/restore@v4
         with:
           path: Library
-          key: Library-Android-${{ github.sha }}
+          key: Library-Linux-${{ github.sha }}
           restore-keys: |
-            Library-Android-
+            Library-Linux-
 
       - name: Install the GameCI CLI
         id: cli
@@ -102,10 +102,9 @@ jobs:
           echo "bin=$bin" >> "$GITHUB_OUTPUT"
           echo "::notice title=game-ci CLI::installed $version -> $bin"
 
-      # The CLI's own exit code is recorded, not obeyed: it crashes after the run with
-      # "InvalidCharacterError: The string contains invalid characters" from its Android keystore
-      # setup (setupAndroidRun), which has nothing to do with the test. What actually happened is
-      # judged below, from the test framework's own results and from whether frames were written.
+      # Run the editor's PlayMode test on the Linux target: the test measures the editor's camera output,
+      # not an Android player. This avoids invoking the CLI's Android keystore setup for a job that
+      # is explicitly not an APK build.
       - name: Run the intro render test
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -114,7 +113,7 @@ jobs:
           set -uo pipefail
           status=0
           "${{ steps.cli.outputs.bin }}" test --docker \
-            --targetPlatform=Android \
+            --targetPlatform=StandaloneLinux64 \
             --testPlatforms=playmode \
             --artifactsPath=artifacts \
             --coverageEnabled=false \
