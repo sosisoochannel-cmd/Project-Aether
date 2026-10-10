@@ -210,6 +210,21 @@ def check_persian_quality() -> "list[str]":
     return problems
 
 
+def check_known_translation_quality() -> "list[str]":
+    """Pin reviewed fixes for obvious untranslated or malformed ability names."""
+    problems = []
+    expected = {
+        ("fa", "entry.ability.rootbind"): "مهار ریشه",
+        ("it", "entry.ability.rootbind"): "VINCOLO DI RADICI",
+    }
+    for (code, key), wanted in expected.items():
+        actual = dict(sheet(code)).get(key)
+        if actual != wanted:
+            problems.append("%s: %s should use the reviewed wording %r"
+                            % (code, key, wanted))
+    return problems
+
+
 def check_runtime_script_fonts() -> "list[str]":
     """Guard the script-aware runtime font resolver and selection gate against regressions."""
     problems = []
@@ -374,6 +389,7 @@ def main() -> int:
     failures = []
     coverage = []
     failures.extend(check_persian_quality())
+    failures.extend(check_known_translation_quality())
     failures.extend(check_runtime_script_fonts())
 
     generated = []
