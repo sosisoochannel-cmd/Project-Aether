@@ -27,12 +27,15 @@ namespace Aether.Gameplay.Presentation
     public sealed class MenuLogo : MonoBehaviour
     {
         private const string MarkResourcePath = "Brand/VarellonLogo";
+        private const string GlintShaderPath = "Brand/VarellonLogoSheen";
 
         private static bool _missingReported;
 
         private RectTransform _rect;
         private Image _mark;
         private Image _shadow;
+        private Image _glint;
+        private Material _glintMaterial;
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
         private float _height = MenuTheme.Metrics.LogoHeight;
@@ -70,6 +73,9 @@ namespace Aether.Gameplay.Presentation
 
             logo._shadow = MenuUi.CreateImage("Shadow", logo._rect, null, new Color(0f, 0f, 0f, 0.18f));
             logo._mark = MenuUi.CreateImage("Mark", logo._rect, null, MenuTheme.Palette.Ink);
+            logo._glint = MenuUi.CreateImage("One-time Glint", logo._rect, null, Color.white);
+            logo._glint.raycastTarget = false;
+            logo._glint.gameObject.SetActive(false);
 
             Sprite source = Resources.Load<Sprite>(MarkResourcePath);
             if (source == null)
@@ -88,6 +94,8 @@ namespace Aether.Gameplay.Presentation
 
             logo._mark.sprite = logo._generatedSprite;
             logo._shadow.sprite = logo._generatedSprite;
+            logo._glint.sprite = logo._generatedSprite;
+            logo.BuildGlintMaterial();
             logo.Apply();
             // AddComponent invokes OnEnable before the generated sprite exists on an active host.
             // Start explicitly after the keyed mark is ready so the entrance animation is not lost.
@@ -112,11 +120,14 @@ namespace Aether.Gameplay.Presentation
 
             Place(_mark, width, height, Vector2.zero);
             Place(_shadow, width, height, new Vector2(1f, -1f));
+            Place(_glint, width, height, Vector2.zero);
             _shadow.transform.SetAsFirstSibling();
             _mark.transform.SetAsLastSibling();
+            if (_glint != null) _glint.transform.SetAsLastSibling();
             _shadow.color = new Color(0f, 0f, 0f, 0.18f);
             _mark.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink,
                                                          MenuPreferences.HighContrast);
+            if (_glint != null) _glint.color = Color.white;
         }
 
         private bool BuildKeyedMark(Sprite source)
@@ -221,6 +232,28 @@ namespace Aether.Gameplay.Presentation
             return (byte)(Mathf.Clamp01(ink) * 255f);
         }
 
+        private void BuildGlintMaterial()
+        {
+            if (_glint == null) return;
+
+            Shader shader = Resources.Load<Shader>(GlintShaderPath);
+            if (shader == null)
+            {
+                Debug.LogWarning($"[menu] Resources/{GlintShaderPath} was not found; the logo will appear without its one-time glint.", this);
+                return;
+            }
+
+            _glintMaterial = new Material(shader)
+            {
+                name = "Varellon menu one-time glint",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _glintMaterial.SetFloat("_SweepProgress", 0f);
+            _glintMaterial.SetFloat("_SweepOpacity", 0f);
+            _glintMaterial.SetFloat("_BandHalfWidth", 0.095f);
+            _glint.material = _glintMaterial;
+        }
+
         private void OnEnable()
         {
             BeginPresentation();
@@ -297,6 +330,64 @@ namespace Aether.Gameplay.Presentation
             _rect.localScale = Vector3.one;
             _mark.color = markTarget;
             if (_shadow != null) _shadow.color = shadowTarget;
+
+            if (_glintMaterial != null && _glint != null && !MenuPreferences.ReducedMotion)
+            {
+                // One deliberate highlight: a short anticipation, a longer diagonal pass,
+                // a tiny metallic linger, then a clean return to the untouched logo.
+                _glint.gameObject.SetActive(true);
+                _glintMaterial.SetFloat("_SweepProgress", 0f);
+                _glintMaterial.SetFloat("_SweepOpacity", 0f);
+
+                const float anticipation = 0.14f;
+                const float sweepDuration = 0.92f;
+                const float lingerDuration = 0.16f;
+                const float fadeDuration = 0.34f;
+                float wait = 0f;
+                while (wait < anticipation)
+                {
+                    wait += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(wait / anticipation);
+                    _glintMaterial.SetFloat("_SweepOpacity", 0.12f * t);
+                    yield return null;
+                }
+
+                float elapsed = 0f;
+                while (elapsed < sweepDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / sweepDuration);
+                    float eased = 1f - Mathf.Pow(1f - t, 2.2f);
+                    _glintMaterial.SetFloat("_SweepProgress", eased);
+                    float envelope = Mathf.Sin(t * Mathf.PI);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.30f, 0.98f, envelope));
+                    yield return null;
+                }
+
+                _glintMaterial.SetFloat("_SweepProgress", 1f);
+                _glintMaterial.SetFloat("_SweepOpacity", 0.34f);
+                elapsed = 0f;
+                while (elapsed < lingerDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / lingerDuration);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.34f, 0.24f, t));
+                    yield return null;
+                }
+
+                elapsed = 0f;
+                while (elapsed < fadeDuration)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / fadeDuration);
+                    _glintMaterial.SetFloat("_SweepOpacity", Mathf.Lerp(0.24f, 0f, t));
+                    yield return null;
+                }
+
+                _glintMaterial.SetFloat("_SweepOpacity", 0f);
+                _glint.gameObject.SetActive(false);
+            }
+
             _presentation = null;
         }
 
@@ -326,10 +417,13 @@ namespace Aether.Gameplay.Presentation
             if (_mark != null) Destroy(_mark.gameObject);
             _shadow = null;
             _mark = null;
+            if (_glint != null) Destroy(_glint.gameObject);
+            _glint = null;
         }
 
         private void OnDestroy()
         {
+            if (_glintMaterial != null) Destroy(_glintMaterial);
             if (_generatedSprite != null) Destroy(_generatedSprite);
             if (_generatedTexture != null) Destroy(_generatedTexture);
             _generatedSprite = null;
