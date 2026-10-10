@@ -18,8 +18,8 @@ Varellon is the studio identity behind Aether. The logo must read as a designed 
 
 - The mark leads; the wordmark completes the lockup a beat later.
 - Each part is uncovered by a soft diagonal matte that follows the same eased progress as its fade, rise, and scale settle. The matte is clipped by the source alpha, so it reveals the logo's own silhouette rather than drawing a wipe across the black screen.
-- The wordmark starts 250 ms after the symbol, preserving a deliberate hierarchy instead of animating the entire lockup as one flat image. Its reveal ends at 1.15 s; the light does not start until 1.18 s, leaving a small 30 ms visual breath between arrival and polish.
-- One diagonal, soft highlight then crosses a downsampled static alpha mask. The still hold begins only after the highlight has left the lockup. A dedicated sprite shader animates the band on the GPU; neither the reveal nor the sheen rewrites a texture per frame.
+- The wordmark starts 250 ms after the symbol, preserving a deliberate hierarchy instead of animating the entire lockup as one flat image. Its reveal ends at 1.15 s; the light does not start until 1.24 s, leaving a deliberate 90 ms visual breath (about five frames at 60 fps) between arrival and polish.
+- One diagonal, soft highlight then crosses a downsampled static alpha mask. The still hold begins only after the highlight has left the lockup, and remains long enough for the complete signature to register. A dedicated sprite shader animates the band on the GPU; neither the reveal nor the sheen rewrites a texture per frame.
 - The pass is narrower and less intense than the former broad wash. The mark's luminance dip remains subtle, so the logo itself stays the hero.
 - The sequence still respects the existing under-three-second timing budget, skip behavior, safe-area fit, and cleanup before scene handover.
 
