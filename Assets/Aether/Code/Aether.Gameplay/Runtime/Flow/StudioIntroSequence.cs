@@ -254,7 +254,7 @@ namespace Aether.Gameplay.Flow
             public const float HighlightPeak = 0.84f;
 
             /// <summary>How far the logo is taken down while the light is crossing it.</summary>
-            public const float DimWhilePassing = 0.93f;
+            public const float DimWhilePassing = 0.91f;
 
             /// <summary>Fraction of the pass at each end over which the light comes and goes.</summary>
             public const float EdgeFade = 0.12f;
