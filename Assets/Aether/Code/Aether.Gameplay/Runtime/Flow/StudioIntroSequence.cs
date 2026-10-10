@@ -169,14 +169,14 @@ namespace Aether.Gameplay.Flow
         /// <remarks>
         /// <para>
         /// The sequence, in seconds from the first frame of the scene: pure black 0.00-0.30, the mark
-        /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, the light pass
-        /// 1.05-1.45, the complete lockup held completely still 1.45-2.25, and the fade to black
+        /// arriving 0.30-0.95, the wordmark completing the lockup 0.55-1.15, a brief breath, the light
+        /// pass 1.24-1.64, the complete lockup held completely still 1.64-2.25, and the fade to black
         /// 2.25-2.85. The hand-over to the next scene comes <see cref="HandOver"/> after the last of
         /// the logo has gone.
         /// </para>
         /// <para>
-        /// The light starts before the wordmark has quite finished, deliberately: that overlap is what
-        /// makes the pass read as one continuous arrival instead of a separate beat bolted onto it.
+        /// The light starts 90 ms after the wordmark has finished. That small breath lets the complete
+        /// signature register before the highlight polishes it, instead of interrupting its arrival.
         /// </para>
         /// <para>
         /// That budget is a requirement, not a taste — an intro of this kind is two to three seconds —
@@ -559,7 +559,10 @@ namespace Aether.Gameplay.Flow
         {
             float startsAt = Timing.BlackHold + (wordmark ? Timing.WordmarkDelay : 0f);
             float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
-            return EaseInOutSine(Ramp(elapsed, startsAt, duration));
+            float linear = Ramp(elapsed, startsAt, duration);
+            // The matte must keep pace with the same ease-out as its alpha. A slower matte left the
+            // symbol almost invisible at 0.50s even though its presence curve had already arrived.
+            return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
         }
 
         private void Draw(Part part, float presence, float scale, float rise, float dim, float revealProgress)
