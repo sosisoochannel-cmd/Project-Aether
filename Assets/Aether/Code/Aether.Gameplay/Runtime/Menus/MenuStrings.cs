@@ -8,12 +8,11 @@ namespace Aether.Gameplay.Menus
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>This is not a translation system and does not pretend to be one.</b> There is one language
-    /// in the project, English, and shipping invented translations nobody can review would be worse
-    /// than shipping none. What exists is the part that is expensive to add later: no screen ever
-    /// holds a sentence, every label is a key, missing keys are visible rather than silent, and the
-    /// selected language is stored in the settings like any other preference. Adding a language is a
-    /// table and one line in the catalog.
+    /// English is the reference table; reviewed translations live in sheets under
+    /// <c>tools/localization</c> and are compiled into language tables by the verification tool.
+    /// Screens use keys rather than holding sentences, the selected language is stored in settings,
+    /// and missing translations fall back to English while the gate reports incomplete sheets.
+    /// A language is not considered complete merely because a table or picker row exists.
     /// </para>
     /// <para>
     /// A missing key returns the key itself. That is deliberate: a screen that shows
