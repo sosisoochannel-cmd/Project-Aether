@@ -198,14 +198,14 @@ namespace Aether.Gameplay.Flow
             /// <summary>The wordmark's arrival: 0.55s to 1.15s.</summary>
             public const float WordmarkReveal = 0.60f;
 
-            /// <summary>When the light pass begins, in seconds from the first frame.</summary>
-            public const float SheenStartsAt = 1.05f;
+            /// <summary>When the light pass begins, after both mark and wordmark have resolved.</summary>
+            public const float SheenStartsAt = 1.18f;
 
-            /// <summary>How long the light takes to cross the lockup: 1.05s to 1.45s.</summary>
+            /// <summary>How long the light takes to cross the finished lockup: 1.18s to 1.58s.</summary>
             public const float SheenDuration = 0.40f;
 
-            /// <summary>The complete lockup, completely still: 1.45s to 2.25s.</summary>
-            public const float Hold = 0.80f;
+            /// <summary>The complete lockup, completely still after the light: 1.58s to 2.25s.</summary>
+            public const float Hold = 0.67f;
 
             /// <summary>The fade from the complete lockup to pure black: 2.25s to 2.85s.</summary>
             public const float Exit = 0.60f;
