@@ -342,24 +342,45 @@ namespace Aether.Gameplay.Presentation
         /// </summary>
         private void BuildSweepOverlay(Color32[] keyedPixels, int width, int height, float pixelsPerUnit)
         {
-            int count = keyedPixels.Length;
+            // A soft highlight does not need source-art resolution. Cap the animated mask at 320
+            // texels on its long side so texture uploads stay small on Android as well as desktop.
+            const int maxResolution = 320;
+            float scale = Mathf.Min(1f, maxResolution / (float)Mathf.Max(width, height));
+            int maskWidth = Mathf.Max(8, Mathf.RoundToInt(width * scale));
+            int maskHeight = Mathf.Max(8, Mathf.RoundToInt(height * scale));
+            int count = maskWidth * maskHeight;
             _scanPixels = new Color32[count];
             _scanCoverage = new byte[count];
             _scanAcross = new float[count];
 
-            for (int y = 0; y < height; y++)
+            for (int y = 0; y < maskHeight; y++)
             {
-                int row = y * width;
-                for (int x = 0; x < width; x++)
+                int yFrom = Mathf.Clamp(y * height / maskHeight, 0, height - 1);
+                int yTo = Mathf.Clamp((y + 1) * height / maskHeight, yFrom + 1, height);
+                for (int x = 0; x < maskWidth; x++)
                 {
-                    int index = row + x;
-                    _scanCoverage[index] = keyedPixels[index].a;
-                    _scanAcross[index] = (x + 0.5f) / width;
+                    int xFrom = Mathf.Clamp(x * width / maskWidth, 0, width - 1);
+                    int xTo = Mathf.Clamp((x + 1) * width / maskWidth, xFrom + 1, width);
+                    int sum = 0;
+                    int samples = 0;
+                    for (int sourceY = yFrom; sourceY < yTo; sourceY++)
+                    {
+                        int row = sourceY * width;
+                        for (int sourceX = xFrom; sourceX < xTo; sourceX++)
+                        {
+                            sum += keyedPixels[row + sourceX].a;
+                            samples++;
+                        }
+                    }
+
+                    int index = (y * maskWidth) + x;
+                    _scanCoverage[index] = (byte)(samples == 0 ? 0 : sum / samples);
+                    _scanAcross[index] = (x + 0.5f) / maskWidth;
                     _scanPixels[index] = new Color32(255, 255, 255, 0);
                 }
             }
 
-            _scanTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            _scanTexture = new Texture2D(maskWidth, maskHeight, TextureFormat.RGBA32, false)
             {
                 name = "VarellonLogo (masked light sweep)",
                 filterMode = FilterMode.Bilinear,
@@ -368,7 +389,7 @@ namespace Aether.Gameplay.Presentation
             };
             _scanTexture.SetPixels32(_scanPixels);
             _scanTexture.Apply(false, false);
-            _scanSprite = Sprite.Create(_scanTexture, new Rect(0f, 0f, width, height),
+            _scanSprite = Sprite.Create(_scanTexture, new Rect(0f, 0f, maskWidth, maskHeight),
                                         new Vector2(0.5f, 0.5f), pixelsPerUnit);
             if (_scanSprite != null)
             {
