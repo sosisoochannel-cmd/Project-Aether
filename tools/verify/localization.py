@@ -104,10 +104,13 @@ def catalogue() -> "dict[str, dict]":
         offered = re.findall(r'"([a-z]{2}(?:-[A-Z]{2})?)"', match.group(1))
 
     entries = {}
-    for code, name, latin, direction, covers in re.findall(
-            r'new LanguageDefinition\(\s*"([a-z]{2}(?:-[A-Z]{2})?)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,'
-            r'\s*TextDirection\.(\w+)\s*,\s*(true|false)\s*\)',
-            source):
+    definitions = re.findall(
+        r'new LanguageDefinition\(\s*"([a-z]{2}(?:-[A-Z]{2})?)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,'
+        r'\s*TextDirection\.(\w+)\s*,\s*(true|false)\s*\)',
+        source)
+    for code, name, latin, direction, covers in definitions:
+        if code in entries:
+            raise SystemExit("localization: the catalogue defines '%s' more than once" % code)
         entries[code] = {
             "code": code,
             "native": name,
@@ -319,6 +322,26 @@ def main() -> int:
 
     failures = []
     coverage = []
+
+    # The language picker uses these keys to name each language in the language currently shown.
+    # Keep the entire catalogue label set present in the English reference, and call out a missing
+    # label explicitly instead of leaving it buried among hundreds of ordinary translation keys.
+    english_map = dict(reference)
+    language_label_keys = ["language." + code for code in book["entries"]]
+    for key in language_label_keys:
+        if key not in english_map or not english_map[key].strip():
+            failures.append("English reference is missing the language-picker label '%s'" % key)
+
+    # Every offered translation must be able to name every catalogue entry, including languages
+    # that are listed but not yet selectable. This matters because the picker explains unavailable
+    # languages in the player's current interface language.
+    for code in book["offered"]:
+        if code == "en":
+            continue
+        translated_labels = dict(sheet(code))
+        for key in language_label_keys:
+            if key not in translated_labels or not translated_labels[key].strip():
+                failures.append("%s is missing language-picker label '%s'" % (code, key))
 
     generated = []
     for code in book["offered"]:
