@@ -305,7 +305,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.it", "Italiano",
             "language.pt", "Português",
             "language.needsFont", "نیازمند فونت نوشتار",
-            "language.fontNote", "این نسخه باید فونت مناسب این خط نوشتاری را داشته باشد. تا آن زمان این زبان ارائه نمی‌شود.",
+            "language.fontNote", "این دستگاه فونت در دسترس برای این خط نوشتاری ندارد. تا زمانی که فونت سازگار پیدا نشود، این زبان در دسترس نخواهد بود.",
             "language.notWritten", "هنوز ترجمه نشده",
             "language.notWritten.note", "این زبان نام‌گذاری شده اما جدول آن نوشته نشده است.",
             "language.unavailable", "ارائه نمی‌شود",
