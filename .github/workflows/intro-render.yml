@@ -20,6 +20,7 @@ on:
     branches:
       - arena/01a10203-project-aether
       - arena/m4-whispering-woods
+      - arena/varellon-rift-lock
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Resources/Brand/**'
