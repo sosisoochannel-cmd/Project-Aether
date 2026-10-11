@@ -179,8 +179,8 @@ if peak is not None:
 reveal = number("Reveal")
 wordmark_delay = number("WordmarkDelay")
 wordmark_reveal = number("WordmarkReveal")
-first_impact = re.search(r"firstImpactAge\\s*=\\s*t\\s*-\\s*([0-9.]+)f", intro)
-second_impact = re.search(r"secondImpactAge\\s*=\\s*t\\s*-\\s*([0-9.]+)f", intro)
+first_impact = re.search(r"firstImpactAge\s*=\s*t\s*-\s*([0-9.]+)f", intro)
+second_impact = re.search(r"secondImpactAge\s*=\s*t\s*-\s*([0-9.]+)f", intro)
 require(first_impact is not None, "intro audio is missing the mark-lock impact timing")
 require(second_impact is not None, "intro audio is missing the wordmark-lock impact timing")
 if None not in (reveal, wordmark_delay, wordmark_reveal) and first_impact and second_impact:
