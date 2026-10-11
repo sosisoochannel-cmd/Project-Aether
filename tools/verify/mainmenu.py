@@ -1057,6 +1057,13 @@ def check_discipline(gate: Gate) -> None:
     # selectable — the two halves of "no dead rows".
     button = read(f"{MENUS}/Components/MenuButton.cs")
     art = read(f"{MENUS}/MenuArt.cs")
+    title_panel = read(TITLE_PANEL)
+    entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
+    gate.check("_ruleGem" in title_panel and "Quaternion.Euler(0f, 0f, 45f)" in title_panel
+               and "TitleRuleWidth * 0.5f" in title_panel,
+               "the title divider has no centered carved-gold focal detail")
+    gate.check("_sectionRule" in entry_panel and '"SectionRule"' in entry_panel,
+               "menu sections have no visual divider")
     gate.check("_selectionFrame" in button and "MenuArt.SelectionFrame" in button
                and "Image.Type.Sliced" in button,
                "the selected row has no nine-sliced angular selection frame")
