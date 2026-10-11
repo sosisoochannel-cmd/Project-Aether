@@ -59,6 +59,12 @@ namespace Aether.Gameplay.Menus.Panels
                                                             MenuTheme.Palette.Accent,
                                                             MenuTheme.Metrics.SectionLabelTracking);
                 MenuUi.Stretch(panel._labelText.rectTransform);
+                if (Aether.Gameplay.Localization.LanguageService.IsRightToLeft)
+                {
+                    panel._label.anchorMin = panel._label.anchorMax = new Vector2(1f, 1f);
+                    panel._label.pivot = new Vector2(1f, 1f);
+                    panel._labelText.alignment = TextAnchor.MiddleRight;
+                }
 
                 panel._sectionRule = MenuUi.CreateHairline("SectionRule", panel.Rect,
                                                            MenuTheme.Palette.Line,
@@ -118,10 +124,21 @@ namespace Aether.Gameplay.Menus.Panels
             Remember(width, height);
 
             float top = _label != null ? MenuTheme.Metrics.SectionLabelHeight + MenuTheme.Metrics.SectionLabelGap : 0f;
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            if (_label != null)
+            {
+                _label.sizeDelta = new Vector2(width, MenuTheme.Metrics.SectionLabelHeight);
+                _label.anchoredPosition = Vector2.zero;
+            }
+
             if (_sectionRule != null)
             {
-                _sectionRule.rectTransform.sizeDelta = new Vector2(width,
-                    MenuTheme.Metrics.TitleRuleHeight);
+                RectTransform rule = _sectionRule.rectTransform;
+                rule.anchorMin = rule.anchorMax = new Vector2(rtl ? 1f : 0f, 1f);
+                rule.pivot = new Vector2(rtl ? 1f : 0f, 1f);
+                rule.anchoredPosition = new Vector2(0f,
+                    -(MenuTheme.Metrics.SectionLabelHeight + 4f));
+                rule.sizeDelta = new Vector2(width, MenuTheme.Metrics.TitleRuleHeight);
             }
             float cell = width / _columns;
             int bands = Mathf.CeilToInt(_rows.Count / (float)_columns);
@@ -136,7 +153,8 @@ namespace Aether.Gameplay.Menus.Panels
                 rect.anchorMax = new Vector2(0f, 1f);
                 rect.pivot = new Vector2(0f, 1f);
                 rect.sizeDelta = new Vector2(cell, _pitch);
-                rect.anchoredPosition = new Vector2(column * cell, -(top + (band * _pitch)));
+                float columnX = rtl ? width - ((column + 1) * cell) : column * cell;
+                rect.anchoredPosition = new Vector2(columnX, -(top + (band * _pitch)));
 
                 _rows[i].ApplyLayout(MenuTheme.Metrics.CaretOutdent, MenuTheme.Metrics.CaretOutdent);
                 _rows[i].SetRuleWidth(cell - MenuTheme.Metrics.CaretOutdent);
