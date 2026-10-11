@@ -1098,7 +1098,7 @@ def check_discipline(gate: Gate) -> None:
                and "accent.anchoredPosition = new Vector2(-8f, 0f)" in button,
                "menu row affordances are not mirrored safely for RTL")
     gate.check("RefreshTextGeometry();" in button
-               and "rowWidth - (inset * 2)" in button
+               and "rowWidth - (inset * 2f)" in button
                and "_meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f)" in button
                and "- controlReserve - metaReserve" in button,
                "translated menu labels do not reserve measured lanes for metadata and setting controls")
