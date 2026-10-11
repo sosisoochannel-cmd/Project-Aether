@@ -707,7 +707,7 @@ def main() -> int:
                       "edgeDistance", "coverage * input.color.a * matte"):
             if token not in reveal_shader:
                 problems.append(f"brand: Varellon reveal shader is missing its logo-masked crest-light feature ({token})")
-    if "crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.025f" not in script_text:
+    if "crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.035f" not in script_text:
         problems.append("brand: Varellon emblem has lost its single, non-looping cinematic settle")
     else:
         print("  ok   logo animation: matte reveal with ink-masked antique-gold crest light and a single controlled settle")
