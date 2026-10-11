@@ -288,13 +288,78 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_label == null) return;
 
-            if (_caret != null) _caret.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
-            if (_icon != null) _icon.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
+            bool rtl = LanguageService.IsRightToLeft;
+            float edge = rtl ? 1f : 0f;
+            float signedInset = rtl ? -textInset : textInset;
+            float signedOutdent = rtl ? caretOutdent : -caretOutdent;
 
-            _textBaseX = textInset;
-            _label.rectTransform.anchoredPosition = new Vector2(_textBaseX, _labelY);
-            if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(textInset, -18f);
-            if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(-textInset, 0f);
+            // Mirror the row's internal reading order as well as its text alignment. The caret,
+            // lock, accent and underline all move to the reading edge; the metadata moves to the
+            // opposite edge so it never competes with the translated label.
+            if (_caret != null)
+            {
+                RectTransform caret = _caret.rectTransform;
+                caret.anchorMin = caret.anchorMax = new Vector2(edge, 0.5f);
+                caret.pivot = new Vector2(edge, 0.5f);
+                caret.anchoredPosition = new Vector2(signedOutdent, 0f);
+                caret.localScale = new Vector3(rtl ? -1f : 1f, 1f, 1f);
+            }
+
+            if (_icon != null)
+            {
+                RectTransform icon = _icon.rectTransform;
+                icon.anchorMin = icon.anchorMax = new Vector2(edge, 0.5f);
+                icon.pivot = new Vector2(edge, 0.5f);
+                icon.anchoredPosition = new Vector2(signedOutdent, 0f);
+            }
+
+            _textBaseX = signedInset;
+            _label.rectTransform.anchorMin = new Vector2(edge, 0f);
+            _label.rectTransform.anchorMax = new Vector2(edge, 1f);
+            _label.rectTransform.pivot = new Vector2(edge, 0.5f);
+            _label.rectTransform.anchoredPosition = new Vector2(signedInset, _labelY);
+
+            if (_help != null)
+            {
+                _help.rectTransform.anchorMin = _help.rectTransform.anchorMax = new Vector2(edge, 0.5f);
+                _help.rectTransform.pivot = new Vector2(edge, 0.5f);
+                _help.rectTransform.anchoredPosition = new Vector2(signedInset, -18f);
+                _help.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            }
+
+            if (_meta != null)
+            {
+                float opposite = rtl ? 0f : 1f;
+                _meta.rectTransform.anchorMin = _meta.rectTransform.anchorMax = new Vector2(opposite, 0.5f);
+                _meta.rectTransform.pivot = new Vector2(opposite, 0.5f);
+                _meta.rectTransform.anchoredPosition = new Vector2(rtl ? textInset : -textInset, 0f);
+                _meta.alignment = rtl ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+            }
+
+            if (_accent != null)
+            {
+                RectTransform accent = _accent.rectTransform;
+                accent.anchorMin = new Vector2(edge, 0f);
+                accent.anchorMax = new Vector2(edge, 1f);
+                accent.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
+                accent.anchoredPosition = new Vector2(rtl ? 8f : -8f, 0f);
+            }
+
+            if (_rule != null)
+            {
+                RectTransform rule = _rule.rectTransform;
+                rule.anchorMin = rule.anchorMax = new Vector2(edge, 0f);
+                rule.pivot = new Vector2(edge, 0f);
+                rule.anchoredPosition = new Vector2(rtl ? 0f : 0f, 0f);
+            }
+
+            if (_selectionGlow != null)
+            {
+                RectTransform glow = _selectionGlow.rectTransform;
+                glow.anchorMin = glow.anchorMax = new Vector2(edge, 0.5f);
+                glow.pivot = new Vector2(rtl ? 0.92f : 0.08f, 0.5f);
+                glow.anchoredPosition = new Vector2(rtl ? -42f : 42f, 0f);
+            }
         }
 
         // -- construction ----------------------------------------------------------------------
