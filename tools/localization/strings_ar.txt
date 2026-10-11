@@ -1,4 +1,5 @@
 menu.title=AETHER
+title.touchToStart=المس الشاشة في أي مكان للبدء
 menu.subtitle=الممر الأخضر — المنطقة الأولى
 menu.playSection=العب
 menu.exploreSection=استكشف
