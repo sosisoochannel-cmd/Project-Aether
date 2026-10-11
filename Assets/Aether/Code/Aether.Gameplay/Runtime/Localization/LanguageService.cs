@@ -84,9 +84,18 @@ namespace Aether.Gameplay.Localization
         {
             if (string.IsNullOrEmpty(code)) return System.Globalization.CultureInfo.InvariantCulture;
 
+            // The menu offers Simplified Chinese and Brazilian Portuguese specifically, not the
+            // ambiguous neutral cultures. Keep dates, decimal separators and other formatted values
+            // consistent with the variant named by the language picker.
+            string cultureCode = code;
+            if (string.Equals(code, "pt", System.StringComparison.OrdinalIgnoreCase))
+                cultureCode = "pt-BR";
+            else if (string.Equals(code, "zh", System.StringComparison.OrdinalIgnoreCase))
+                cultureCode = "zh-CN";
+
             try
             {
-                return System.Globalization.CultureInfo.GetCultureInfo(code);
+                return System.Globalization.CultureInfo.GetCultureInfo(cultureCode);
             }
             catch (System.ArgumentException)
             {
