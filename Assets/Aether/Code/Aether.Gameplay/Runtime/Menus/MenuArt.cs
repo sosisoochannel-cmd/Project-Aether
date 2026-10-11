@@ -341,14 +341,13 @@ namespace Aether.Gameplay.Menus
             // Short inset cuts give the corners a carved, layered finish without adding visual noise.
             Vector2[][] details =
             {
-                new[] { new Vector2(6f, 27f), new Vector2(27f, 6f), new Vector2(39f, 6f) },
-                new[] { new Vector2(57f, 6f), new Vector2(69f, 6f), new Vector2(90f, 27f) },
-                new[] { new Vector2(90f, 69f), new Vector2(69f, 90f), new Vector2(57f, 90f) },
-                new[] { new Vector2(39f, 90f), new Vector2(27f, 90f), new Vector2(6f, 69f) },
+                new[] { new Vector2(6f, 27f), new Vector2(27f, 6f) },
+                new[] { new Vector2(69f, 6f), new Vector2(90f, 27f) },
+                new[] { new Vector2(90f, 69f), new Vector2(69f, 90f) },
+                new[] { new Vector2(27f, 90f), new Vector2(6f, 69f) },
             };
             for (int i = 0; i < details.Length; i++)
-                for (int j = 0; j < details[i].Length - 1; j++)
-                    DrawFrameLine(pixels, size, details[i][j], details[i][j + 1], 1.25f);
+                DrawFrameLine(pixels, size, details[i][0], details[i][1], 1.25f);
 
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
