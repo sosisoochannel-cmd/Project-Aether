@@ -30,6 +30,7 @@ namespace Aether.Gameplay.Menus
         private static Sprite _solid;
         private static Sprite _circle;
         private static Sprite _glow;
+        private static Sprite _selectionFrame;
         private static Sprite _band;
         private static Sprite _vignette;
         private static Sprite _triangle;
@@ -76,6 +77,16 @@ namespace Aether.Gameplay.Menus
             {
                 EnsureBuilt();
                 return _glow;
+            }
+        }
+
+        /// <summary>An antique-gold, chamfered frame for the active menu row.</summary>
+        public static Sprite SelectionFrame
+        {
+            get
+            {
+                EnsureBuilt();
+                return _selectionFrame;
             }
         }
 
@@ -207,6 +218,7 @@ namespace Aether.Gameplay.Menus
             _circle = MakeSprite(Radial("circle", 64, 0.5f, 1f, 1f), "circle",
                                  new Rect(0f, 0f, 64f, 64f));
             _glow = MakeSprite(Radial("glow", 128, 0f, 1f, 1.9f), "glow", new Rect(0f, 0f, 128f, 128f));
+            _selectionFrame = MakeSelectionFrame();
             _band = MakeSprite(BandTexture(8, 128), "band", new Rect(0f, 0f, 8f, 128f));
             _vignette = MakeSprite(VignetteTexture(160), "vignette", new Rect(0f, 0f, 160f, 160f));
             _triangle = MakeSprite(TriangleTexture(32), "triangle", new Rect(0f, 0f, 32f, 32f));
@@ -222,11 +234,13 @@ namespace Aether.Gameplay.Menus
             Destroy(_solid);
             Destroy(_circle);
             Destroy(_glow);
+            Destroy(_selectionFrame);
             Destroy(_band);
             Destroy(_vignette);
             Destroy(_triangle);
             Destroy(_padlock);
             _solid = _circle = _glow = _band = _vignette = _triangle = _padlock = null;
+            _selectionFrame = null;
             _forest = null;
             _font = null;
             _rtlFont = null;
@@ -300,6 +314,76 @@ namespace Aether.Gameplay.Menus
 
                 default:
                     return _font;
+            }
+        }
+
+        /// <summary>
+        /// Creates a nine-sliced, chamfered frame. The corners stay crisp at every row width while
+        /// the straight edges stretch, so the selection is a designed frame rather than a rectangle.
+        /// </summary>
+        private static Sprite MakeSelectionFrame()
+        {
+            const int size = 96;
+            Texture2D texture = Texture("selection frame", size, size);
+            var pixels = new Color32[size * size];
+
+            // Outer eight-sided path. White pixels are tinted with the menu's antique gold at draw time.
+            Vector2[] outer =
+            {
+                new Vector2(2f, 26f), new Vector2(26f, 2f),
+                new Vector2(70f, 2f), new Vector2(94f, 26f),
+                new Vector2(94f, 70f), new Vector2(70f, 94f),
+                new Vector2(26f, 94f), new Vector2(2f, 70f),
+            };
+            for (int i = 0; i < outer.Length; i++)
+                DrawFrameLine(pixels, size, outer[i], outer[(i + 1) % outer.Length], 2.5f);
+
+            // Short inset cuts give the corners a carved, layered finish without adding visual noise.
+            Vector2[][] details =
+            {
+                new[] { new Vector2(6f, 27f), new Vector2(27f, 6f), new Vector2(39f, 6f) },
+                new[] { new Vector2(57f, 6f), new Vector2(69f, 6f), new Vector2(90f, 27f) },
+                new[] { new Vector2(90f, 69f), new Vector2(69f, 90f), new Vector2(57f, 90f) },
+                new[] { new Vector2(39f, 90f), new Vector2(27f, 90f), new Vector2(6f, 69f) },
+            };
+            for (int i = 0; i < details.Length; i++)
+                for (int j = 0; j < details[i].Length - 1; j++)
+                    DrawFrameLine(pixels, size, details[i][j], details[i][j + 1], 1.25f);
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect,
+                new Vector4(28f, 28f, 28f, 28f));
+            sprite.name = "Aether menu selection frame";
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        private static void DrawFrameLine(Color32[] pixels, int size, Vector2 start, Vector2 end,
+                                          float thickness)
+        {
+            int minX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(start.x, end.x) - thickness - 1f));
+            int maxX = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(start.x, end.x) + thickness + 1f));
+            int minY = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(start.y, end.y) - thickness - 1f));
+            int maxY = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(start.y, end.y) + thickness + 1f));
+            Vector2 delta = end - start;
+            float lengthSquared = delta.sqrMagnitude;
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    Vector2 point = new Vector2(x + 0.5f, y + 0.5f);
+                    float t = lengthSquared > 0f
+                        ? Mathf.Clamp01(Vector2.Dot(point - start, delta) / lengthSquared)
+                        : 0f;
+                    float distance = Vector2.Distance(point, start + (delta * t));
+                    byte alpha = (byte)Mathf.RoundToInt(
+                        Mathf.Clamp01((thickness * 0.5f) + 0.75f - distance) * 255f);
+                    int index = (y * size) + x;
+                    if (alpha > pixels[index].a) pixels[index] = new Color32(255, 255, 255, alpha);
+                }
             }
         }
 
