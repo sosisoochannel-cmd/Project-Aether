@@ -240,6 +240,15 @@ namespace Aether.Tests.PlayMode
                         }
 
                         yield return null;
+
+                        // Record each advancing animation frame for a real continuous preview.
+                        if (_clocked > 0f && _clocked < 2.75f)
+                        {
+                            string motionFolder = Path.Combine(OutputFolderPath(), "motion-frames");
+                            Directory.CreateDirectory(motionFolder);
+                            byte[] motionPng = Frame.CapturePng();
+                            File.WriteAllBytes(Path.Combine(motionFolder, $"frame-{_stepped:0000}.png"), motionPng);
+                        }
                     }
 
                     // End of frame is a windowed-player thing: a batch-mode editor refuses it outright
@@ -704,6 +713,11 @@ namespace Aether.Tests.PlayMode
                 }
 
                 return worst;
+            }
+
+            public static byte[] CapturePng()
+            {
+                return Take().Png;
             }
 
             public static Frame Capture(float beat, float at, int steps, StudioIntroSequence intro)
