@@ -1149,6 +1149,11 @@ def check_discipline(gate: Gate) -> None:
                and "_help.horizontalOverflow = HorizontalWrapMode.Wrap" in button
                and "_help.verticalOverflow = VerticalWrapMode.Truncate" in button,
                "long translated labels and help text can paint outside their row instead of wrapping safely")
+    gate.check("bool hasHelp = _help != null && _help.gameObject.activeSelf" in button
+               and "hasHelp ? 0.5f : 0f" in button
+               and "wanted ? -44f : -18f" in button
+               and "hasHelp ? -44f : -18f" in button,
+               "setting labels and their help paragraph do not receive separate vertical lanes, risking overlap in long translations")
     gate.check("SetRightToLeft(rtl)" in title_panel
                and "width - MenuTheme.Metrics.TitleRuleWidth" in title_panel,
                "the title mark and rule do not align to the RTL reading edge")
