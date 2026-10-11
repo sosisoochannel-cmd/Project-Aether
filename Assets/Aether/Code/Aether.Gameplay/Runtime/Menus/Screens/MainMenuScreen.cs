@@ -127,9 +127,11 @@ namespace Aether.Gameplay.Menus.Screens
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
             _version.text = MenuUi.Track(MenuUi.PrepareText(MenuStrings.Format("about.version", Application.version)),
                                          MenuTheme.Metrics.VersionTracking);
-            _version.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _version.rectTransform.anchorMax = new Vector2(1f, 0f);
-            _version.rectTransform.pivot = new Vector2(1f, 0f);
+            bool rtlVersion = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            _version.alignment = rtlVersion ? TextAnchor.LowerLeft : TextAnchor.LowerRight;
+            _version.rectTransform.anchorMin = new Vector2(rtlVersion ? 0f : 1f, 0f);
+            _version.rectTransform.anchorMax = new Vector2(rtlVersion ? 0f : 1f, 0f);
+            _version.rectTransform.pivot = new Vector2(rtlVersion ? 0f : 1f, 0f);
             _version.rectTransform.anchoredPosition = new Vector2(0f, MenuTheme.Metrics.ScreenMarginBottom * 0.25f);
             _version.rectTransform.sizeDelta = new Vector2(600f, FooterHeight);
 
@@ -170,15 +172,16 @@ namespace Aether.Gameplay.Menus.Screens
             _explore.SetColumns(columns);
             _system.SetColumns(columns);
 
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             _play.Layout(leftWidth, box);
-            _play.Rect.anchoredPosition = new Vector2(0f, -top);
+            _play.Rect.anchoredPosition = new Vector2(rtl ? width - leftWidth : 0f, -top);
 
             _explore.Layout(rightWidth, box);
-            _explore.Rect.anchoredPosition = new Vector2(width - rightWidth, -top);
+            _explore.Rect.anchoredPosition = new Vector2(rtl ? 0f : width - rightWidth, -top);
 
             float systemTop = top + _explore.Height + MenuTheme.Metrics.ClusterGap;
             _system.Layout(rightWidth, box);
-            _system.Rect.anchoredPosition = new Vector2(width - rightWidth, -systemTop);
+            _system.Rect.anchoredPosition = new Vector2(rtl ? 0f : width - rightWidth, -systemTop);
 
             float bottom = Mathf.Max(top + _play.Height, systemTop + _system.Height);
 
@@ -187,6 +190,7 @@ namespace Aether.Gameplay.Menus.Screens
             float dividerX = width * (MenuTheme.Metrics.LeftColumnFraction
                                       + ((1f - MenuTheme.Metrics.LeftColumnFraction
                                           - MenuTheme.Metrics.RightBlockFraction) * 0.5f));
+            if (rtl) dividerX = width - dividerX;
             float dividerTop = top + 10f;
             float dividerBottom = bottom - 10f;
             float dividerHeight = Mathf.Max(0f, dividerBottom - dividerTop);
