@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Menus.Components
 
         private Image _plate;
         private Image _selectionGlow;
+        private Image _selectionFrame;
         private Text _label;
         private Text _help;
         private Text _meta;
@@ -316,6 +317,22 @@ namespace Aether.Gameplay.Menus.Components
             _selectionGlow.gameObject.SetActive(false);
             _selectionGlow.transform.SetAsFirstSibling();
 
+            // A sliced, chamfered frame is the primary selected-state cue. Its corners are authored
+            // once by MenuArt and remain crisp as the row stretches to fit a column or translation.
+            _selectionFrame = MenuUi.CreateImage("SelectionFrame", transform, MenuArt.SelectionFrame,
+                                                 new Color(MenuTheme.Palette.Accent.r,
+                                                           MenuTheme.Palette.Accent.g,
+                                                           MenuTheme.Palette.Accent.b, 0f));
+            _selectionFrame.type = Image.Type.Sliced;
+            RectTransform frameRect = _selectionFrame.rectTransform;
+            frameRect.anchorMin = new Vector2(0f, 0.5f);
+            frameRect.anchorMax = new Vector2(1f, 0.5f);
+            frameRect.pivot = new Vector2(0.5f, 0.5f);
+            frameRect.anchoredPosition = Vector2.zero;
+            frameRect.sizeDelta = new Vector2(-22f, _weight == Weight.Primary ? 116f : 92f);
+            _selectionFrame.raycastTarget = false;
+            _selectionFrame.gameObject.SetActive(false);
+
             // This component owns every pixel of its own transition — the plate, the label, the caret
             // and the rule each answer the state on their own schedule — so Selectable's built-in
             // tinting is switched off rather than fought with. Navigation is solved by
@@ -505,15 +522,22 @@ namespace Aether.Gameplay.Menus.Components
             }
 
             CrossFade(_plate, plate, fade);
+            bool selectionVisible = !_locked && !_informational &&
+                                    (state == SelectionState.Highlighted || state == SelectionState.Selected ||
+                                     state == SelectionState.Pressed);
             if (_selectionGlow != null)
             {
-                bool glowVisible = !_locked && !_informational &&
-                                   (state == SelectionState.Highlighted || state == SelectionState.Selected ||
-                                    state == SelectionState.Pressed);
                 Color glow = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
-                                       MenuTheme.Palette.Accent.b, glowVisible ? 0.10f : 0f);
-                _selectionGlow.gameObject.SetActive(glowVisible || !instant);
+                                       MenuTheme.Palette.Accent.b, selectionVisible ? 0.10f : 0f);
+                _selectionGlow.gameObject.SetActive(selectionVisible || !instant);
                 CrossFade(_selectionGlow, glow, fade);
+            }
+            if (_selectionFrame != null)
+            {
+                Color frame = MenuTheme.Palette.Accent;
+                frame.a = selectionVisible ? (state == SelectionState.Pressed ? 1f : 0.88f) : 0f;
+                _selectionFrame.gameObject.SetActive(selectionVisible || !instant);
+                CrossFade(_selectionFrame, frame, fade);
             }
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
