@@ -1098,10 +1098,39 @@ def check_discipline(gate: Gate) -> None:
                and "accent.anchoredPosition = new Vector2(-8f, 0f)" in button,
                "menu row affordances are not mirrored safely for RTL")
     gate.check("RefreshTextGeometry();" in button
-               and "rowWidth - (inset * 2f)" in button
+               and "innerWidth = Mathf.Max(0f, rowWidth - (inset * 2f))" in button
                and "_meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f)" in button
-               and "- controlReserve - metaReserve" in button,
-               "translated menu labels do not reserve measured lanes for metadata and setting controls")
+               and "metaCapacity = Mathf.Max(0f, remainingAfterControl - labelFloor - inset)" in button
+               and "float labelWidth = Mathf.Max(0f, remainingAfterControl - metaReserve)" in button,
+               "translated menu labels do not keep metadata and setting-control lanes within narrow rows")
+
+    # Exercise the same lane-budget rules against narrow category cells and wider setting rows.
+    # This is a geometry stress check, not a substitute for a Unity render: it catches impossible
+    # negative budgets and lane sums that exceed the row before device QA.
+    lane_cases = 0
+    for row_width in (176.0, 220.0, 320.0, 480.0, 720.0, 1080.0):
+        inset = 24.0
+        inner_width = max(0.0, row_width - (inset * 2.0))
+        for requested_control in (0.0, 72.0, 128.0, 200.0):
+            has_control = requested_control > 0.0
+            control_width = min(requested_control, inner_width) if has_control else 0.0
+            control_reserve = min(inner_width, control_width + inset) if has_control else 0.0
+            remaining = max(0.0, inner_width - control_reserve)
+            label_floor = min(48.0, remaining)
+            meta_capacity = max(0.0, remaining - label_floor - inset)
+            wanted_meta = max(72.0, row_width * 0.36)
+            meta_width = min(wanted_meta, min(row_width * 0.46, meta_capacity))
+            meta_reserve = meta_width + inset if meta_width > 0.0 else 0.0
+            label_width = max(0.0, remaining - meta_reserve)
+            gate.check(min(inner_width, control_reserve + meta_reserve + label_width)
+                       <= inner_width + 0.001,
+                       f"{row_width:.0f}-unit row with {requested_control:.0f}-unit control "
+                       "allocates more text/control lanes than its available width")
+            gate.check(min(control_reserve, inner_width) >= 0.0 and meta_width >= 0.0
+                       and label_width >= 0.0,
+                       f"{row_width:.0f}-unit row produces a negative responsive lane")
+            lane_cases += 1
+    gate.check(lane_cases == 24, "responsive text-lane stress matrix did not run all cases")
     gate.check("_label.horizontalOverflow = HorizontalWrapMode.Wrap" in button
                and "_label.verticalOverflow = VerticalWrapMode.Truncate" in button
                and "_help.horizontalOverflow = HorizontalWrapMode.Wrap" in button
