@@ -1,4 +1,5 @@
 menu.title=AETHER
+title.touchToStart=TOUCHEZ N’IMPORTE OÙ POUR COMMENCER
 menu.subtitle=LE SENTIER VERT — RÉGION UN
 menu.playSection=JOUER
 menu.exploreSection=EXPLORER
