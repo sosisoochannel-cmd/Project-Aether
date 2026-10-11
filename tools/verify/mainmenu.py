@@ -16,6 +16,8 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MAIN_SCENE = "Assets/Aether/Scenes/MainMenu.unity"
+TITLE_START_SCREEN = "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/TitleStartScreen.cs"
+MENU_ROOT = "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuRoot.cs"
 BUILD_SETTINGS = "ProjectSettings/EditorBuildSettings.asset"
 INTRO_SCENE = "Assets/Aether/Scenes/StudioIntro.unity"
 BOOT_SCENE = "Assets/Aether/Scenes/Boot.unity"
@@ -51,6 +53,10 @@ def main() -> int:
           "The old MenuRoot component is still attached to the scene.")
     check("Title Start Screen" not in scene and "Touch To Start" not in scene,
           "The tap-anywhere title overlay is still authored in the scene.")
+    check(not os.path.exists(os.path.join(ROOT, TITLE_START_SCREEN)),
+          "The obsolete tap-anywhere title-screen implementation still exists.")
+    check("TitleStartScreen" not in read(MENU_ROOT),
+          "The old menu root still references the removed tap-anywhere screen.")
     check("EventSystem" not in scene and "Button:" not in scene,
           "The reset scene still contains an interactive UI component.")
 
