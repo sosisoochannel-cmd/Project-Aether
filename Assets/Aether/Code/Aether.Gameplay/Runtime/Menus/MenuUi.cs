@@ -102,10 +102,16 @@ namespace Aether.Gameplay.Menus
             return CreateText(name, parent, Track(content, tracking), size, colour, alignment, style);
         }
 
-        /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
+        /// <summary>
+        /// Opens deliberately uppercase Latin display labels with hair spaces. Other scripts and
+        /// mixed-case translations keep their native typography: tracking Cyrillic, kana, Hangul,
+        /// Han characters, or accented words as though they were English capitals makes translated
+        /// menus look artificially stretched and can push short labels outside their hit targets.
+        /// </summary>
         public static string Track(string content, float spacing)
         {
-            if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft) return content;
+            if (string.IsNullOrEmpty(content) || spacing <= 0 || LanguageService.IsRightToLeft
+                || !IsTrackableLatinLabel(content)) return content;
 
             int gap = Mathf.RoundToInt(spacing);
             if (gap <= 0) return content;
@@ -121,6 +127,30 @@ namespace Aether.Gameplay.Menus
             }
 
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Returns true only for uppercase ASCII Latin display labels. Punctuation, digits and
+        /// spaces are allowed, but a single non-ASCII or lowercase letter opts the whole string out.
+        /// That all-or-nothing rule avoids partially tracked Portuguese/French words and keeps
+        /// Cyrillic and other scripts at their intended natural spacing.
+        /// </summary>
+        private static bool IsTrackableLatinLabel(string content)
+        {
+            bool hasLatinLetter = false;
+            for (int i = 0; i < content.Length; i++)
+            {
+                char c = content[i];
+                if (c >= 'A' && c <= 'Z')
+                {
+                    hasLatinLetter = true;
+                    continue;
+                }
+
+                if ((c >= 'a' && c <= 'z') || char.IsLetter(c)) return false;
+            }
+
+            return hasLatinLetter;
         }
 
         /// <summary>Prepares a string for the current script, including Persian/Arabic shaping.</summary>
