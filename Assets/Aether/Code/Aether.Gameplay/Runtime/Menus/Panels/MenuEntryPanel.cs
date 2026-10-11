@@ -181,11 +181,15 @@ namespace Aether.Gameplay.Menus.Panels
         /// <inheritdoc />
         public override void Register()
         {
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             for (int i = 0; i < _rows.Count; i++)
             {
-                // Band and column, not the flat index: a grid's row numbers have to agree with what
-                // the player sees, or a downward press on the left cell lands on the cell beside it.
-                Nav.Add(_rows[i], i % _columns, i / _columns);
+                // Navigation coordinates describe the cells as placed, not just the translation's
+                // source order. In RTL the first entry is physically rightmost, so left/right input
+                // must follow that mirrored geometry rather than jumping to the opposite cell.
+                int column = i % _columns;
+                int navigationColumn = rtl ? _columns - 1 - column : column;
+                Nav.Add(_rows[i], navigationColumn, i / _columns);
             }
         }
     }
