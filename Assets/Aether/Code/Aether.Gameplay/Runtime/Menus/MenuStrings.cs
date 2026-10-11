@@ -40,6 +40,7 @@ namespace Aether.Gameplay.Menus
         {
             // -- the menu itself
             { "menu.title", "AETHER" },
+            { "title.touchToStart", "TOUCH ANYWHERE TO START" },
             { "menu.subtitle", "THE GREENWAY — REGION ONE" },
             { "menu.playSection", "PLAY" },
             { "menu.exploreSection", "EXPLORE" },
