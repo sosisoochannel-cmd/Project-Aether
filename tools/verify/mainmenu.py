@@ -871,6 +871,16 @@ def check_composition(gate: Gate) -> None:
     minimum_cell = number(main, r"MinimumSecondaryCell\s*=\s*([0-9.]+)f",
                           "MainMenuScreen.MinimumSecondaryCell")
     title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
+    logo_source = read(f"{PRESENTATION}/MenuLogo.cs")
+    gate.check(m["LogoHeight"] == 100 and m["TitleSize"] == 64
+               and m["LogoGap"] == 14 and m["TitleGapRule"] == 14,
+               "the main-menu brand hierarchy drifted from its compact logo and stronger title")
+    gate.check(abs(m["LeftColumnFraction"] - 0.42) < 0.001
+               and abs(m["RightBlockFraction"] - 0.52) < 0.001,
+               "the primary and destination columns no longer use the intended balanced proportions")
+    gate.check("BuildGlintMaterial" not in logo_source and "PresentRoutine" not in logo_source
+               and "_glint" not in logo_source and "Coroutine" not in logo_source,
+               "the Varellon menu logo must stay static, without animated glints or scale effects")
     subtitle_factor = number(title_source, r"SubtitleSize \* ([0-9.]+)f",
                              "the subtitle's line height")
     columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
