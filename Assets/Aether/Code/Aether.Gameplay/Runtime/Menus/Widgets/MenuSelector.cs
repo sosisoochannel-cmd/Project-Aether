@@ -59,6 +59,24 @@ namespace Aether.Gameplay.Menus.Widgets
         }
 
         /// <summary>
+        /// Keeps both arrows and the translated value inside the control lane.
+        /// </summary>
+        public void SetWidth(float width)
+        {
+            RectTransform host = (RectTransform)transform;
+            float available = Mathf.Max(0f, width);
+            host.sizeDelta = new Vector2(available, host.sizeDelta.y);
+
+            float arrow = MenuTheme.Metrics.SelectorArrowSize;
+            float inset = Mathf.Min(30f, available * 0.12f);
+            float readoutWidth = Mathf.Max(0f, available - (inset * 2f) - (arrow * 2f));
+            _left.rectTransform.anchoredPosition = new Vector2(0f, 0f);
+            _readout.rectTransform.anchoredPosition = new Vector2(inset + arrow, 0f);
+            _readout.rectTransform.sizeDelta = new Vector2(readoutWidth, _readout.rectTransform.sizeDelta.y);
+            _right.rectTransform.anchoredPosition = new Vector2(Mathf.Max(arrow + inset, available - arrow), 0f);
+        }
+
+        /// <summary>
         /// Lights the arrows. A selector on the first or last option greys the arrow that would do
         /// nothing, so a row that cannot be stepped further says so instead of silently ignoring a
         /// press.
