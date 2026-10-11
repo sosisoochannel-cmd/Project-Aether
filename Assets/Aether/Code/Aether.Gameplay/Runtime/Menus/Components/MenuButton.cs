@@ -190,6 +190,7 @@ namespace Aether.Gameplay.Menus.Components
         {
             _metaText = text;
             RefreshMeta();
+            RefreshTextGeometry();
         }
 
         /// <summary>
@@ -271,6 +272,7 @@ namespace Aether.Gameplay.Menus.Components
             // With a second line the label moves up to make room for it; without one it is centred.
             _labelY = wanted ? 15f : 0f;
             _label.rectTransform.anchoredPosition = new Vector2(_label.rectTransform.anchoredPosition.x, _labelY);
+            RefreshTextGeometry();
         }
 
         /// <summary>
@@ -281,6 +283,7 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_control == null) return;
             _control.sizeDelta = new Vector2(Mathf.Max(0f, width), 0f);
+            RefreshTextGeometry();
         }
 
         /// <summary>Lays the row out for the track it was given. Called by the panel that owns it.</summary>
@@ -366,6 +369,40 @@ namespace Aether.Gameplay.Menus.Components
                 glow.anchorMin = glow.anchorMax = new Vector2(edge, 0.5f);
                 glow.pivot = new Vector2(rtl ? 0.92f : 0.08f, 0.5f);
                 glow.anchoredPosition = new Vector2(rtl ? -42f : 42f, 0f);
+            }
+
+            RefreshTextGeometry();
+        }
+
+        /// <summary>
+        /// Reserves a separate lane for translated labels, metadata, and setting controls.
+        /// The label's rect is the available space, not an arbitrary ten-unit placeholder: long
+        /// translations can wrap inside the row instead of painting over the value or slider.
+        /// </summary>
+        private void RefreshTextGeometry()
+        {
+            if (_label == null || _meta == null || _control == null) return;
+
+            float rowWidth = Mathf.Max(Rect.rect.width, Rect.sizeDelta.x);
+            if (rowWidth <= 0f) return;
+
+            float inset = Mathf.Max(MenuTheme.Metrics.CaretOutdent, 12f);
+            bool hasControl = _control.sizeDelta.x > 0f;
+            float metaWidth = _meta.gameObject.activeSelf && !hasControl
+                ? Mathf.Clamp(rowWidth * 0.36f, 112f, rowWidth * 0.46f)
+                : 0f;
+            float controlReserve = hasControl ? _control.sizeDelta.x + inset : 0f;
+            float metaReserve = metaWidth > 0f ? metaWidth + inset : 0f;
+            float labelWidth = Mathf.Max(24f, rowWidth - (inset * 2f)
+                                         - Mathf.Max(controlReserve, metaReserve));
+
+            _label.rectTransform.sizeDelta = new Vector2(labelWidth, 0f);
+            _meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f);
+            if (_help != null)
+            {
+                float helpWidth = Mathf.Max(24f, rowWidth - (inset * 2f) - controlReserve);
+                _help.rectTransform.sizeDelta = new Vector2(helpWidth,
+                    MenuTheme.Metrics.SettingHelpSize * 2f);
             }
         }
 
@@ -467,6 +504,8 @@ namespace Aether.Gameplay.Menus.Components
             _label.rectTransform.pivot = new Vector2(0f, 0.5f);
             _label.rectTransform.anchoredPosition = Vector2.zero;
             _label.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            _label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _label.verticalOverflow = VerticalWrapMode.Truncate;
 
             _meta = MenuUi.CreateText("Meta", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
@@ -476,6 +515,8 @@ namespace Aether.Gameplay.Menus.Components
             _meta.rectTransform.pivot = new Vector2(1f, 0.5f);
             _meta.rectTransform.anchoredPosition = Vector2.zero;
             _meta.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            _meta.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _meta.verticalOverflow = VerticalWrapMode.Truncate;
             _meta.gameObject.SetActive(false);
 
             _help = MenuUi.CreateText("Help", _textBlock, string.Empty,
@@ -485,6 +526,8 @@ namespace Aether.Gameplay.Menus.Components
             _help.rectTransform.anchorMax = new Vector2(0f, 0.5f);
             _help.rectTransform.pivot = new Vector2(0f, 0.5f);
             _help.rectTransform.sizeDelta = new Vector2(10f, MenuTheme.Metrics.SettingHelpSize * 2f);
+            _help.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _help.verticalOverflow = VerticalWrapMode.Truncate;
             _help.rectTransform.anchoredPosition = new Vector2(0f, -18f);
             _help.gameObject.SetActive(false);
 
