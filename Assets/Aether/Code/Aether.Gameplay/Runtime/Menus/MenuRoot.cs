@@ -115,10 +115,8 @@ namespace Aether.Gameplay.Menus
                 : MenuScreenId.MainMenu;
             _system.Show(initialScreen, true);
 
-            // Normal launches stop on the game's own title screen. An explicit settings deep-link
-            // remains direct, so support and QA can still open the requested screen without a tap.
-            if (!openSettingsRequest)
-                TitleStartScreen.Create(_canvas.Root);
+            // The former tap-anywhere title overlay has been removed. This legacy root is not
+            // attached to MainMenu.unity while the replacement menu is being designed.
 
             _box = _canvas.ContentRoot.rect.size;
         }
