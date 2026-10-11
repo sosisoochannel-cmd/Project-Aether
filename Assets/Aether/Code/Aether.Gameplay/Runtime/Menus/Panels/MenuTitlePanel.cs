@@ -78,8 +78,10 @@ namespace Aether.Gameplay.Menus.Panels
 
             float y = 0f;
 
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             if (_logo != null && _logo.HasMark)
             {
+                _logo.SetRightToLeft(rtl);
                 _logo.Rect.anchoredPosition = new Vector2(0f, -y);
                 y += _logo.Rect.sizeDelta.y + MenuTheme.Metrics.LogoGap;
             }
@@ -93,7 +95,6 @@ namespace Aether.Gameplay.Menus.Panels
             _subtitle.rectTransform.anchoredPosition = new Vector2(0f, -y);
             y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
 
-            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             float ruleX = rtl ? width - MenuTheme.Metrics.TitleRuleWidth : 0f;
             _rule.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.TitleRuleWidth,
                                                        MenuTheme.Metrics.TitleRuleHeight);
