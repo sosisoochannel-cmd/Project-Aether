@@ -115,7 +115,7 @@ namespace Aether.Gameplay.Flow
             public const float MaxHeightFraction = 0.46f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
-            public const float RevealScale = 0.965f;
+            public const float RevealScale = 0.945f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
             public const float RevealRise = 0.018f;
@@ -498,7 +498,7 @@ namespace Aether.Gameplay.Flow
             // One restrained overshoot gives the emblem a confident, physical arrival, then resolves
             // cleanly to 1.0. This is logo motion itself (not the scene fade), with no looping pulse
             // and no bounce after the mark has settled.
-            float crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.025f;
+            float crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.035f;
             scale = Mathf.Lerp(Layout.RevealScale, 1f, settle) + crestSettle;
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
@@ -573,10 +573,10 @@ namespace Aether.Gameplay.Flow
                 part.RevealMaterial.SetFloat("_RevealProgress", Mathf.Clamp01(revealProgress));
             float settle = EaseInOutSine(Mathf.Clamp01(revealProgress));
             float yaw = part.Renderer == _mark.Renderer
-                ? Mathf.Lerp(-12f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.1f
+                ? Mathf.Lerp(-20f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.8f
                 : 0f;
             float roll = part.Renderer == _mark.Renderer
-                ? Mathf.Lerp(2.2f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.35f
+                ? Mathf.Lerp(3.6f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.8f
                 : 0f;
             Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
             part.Renderer.transform.localRotation = Quaternion.Euler(0f, yaw, roll);
@@ -942,10 +942,10 @@ namespace Aether.Gameplay.Flow
                 };
                 revealMaterial.SetFloat("_RevealProgress", 0f);
                 revealMaterial.SetFloat("_RevealFeather", 0.12f);
-                revealMaterial.SetFloat("_RevealTilt", 0.10f);
+                revealMaterial.SetFloat("_RevealTilt", 0.13f);
                 revealMaterial.SetColor("_RevealEdgeColor", new Color(1f, 0.76f, 0.40f, 1f));
-                revealMaterial.SetFloat("_RevealEdgeStrength", 0.92f);
-                revealMaterial.SetFloat("_RevealEdgeWidth", 0.075f);
+                revealMaterial.SetFloat("_RevealEdgeStrength", 0.96f);
+                revealMaterial.SetFloat("_RevealEdgeWidth", 0.060f);
                 renderer.sharedMaterial = revealMaterial;
             }
             host.hideFlags = HideFlags.HideAndDontSave;
