@@ -1066,10 +1066,19 @@ def check_discipline(gate: Gate) -> None:
     # Every row is a target the size of its pitch, and every row that is drawn as a fact is not
     # selectable — the two halves of "no dead rows".
     button = read(f"{MENUS}/Components/MenuButton.cs")
+    menu_ui = read(f"{MENUS}/MenuUi.cs")
     art = read(f"{MENUS}/MenuArt.cs")
     title_panel = read(TITLE_PANEL)
     entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
     main_screen = read(MAIN_SCREEN)
+    gate.check("IsTrackableLatinLabel(content)" in menu_ui
+               and "c >= 'A' && c <= 'Z'" in menu_ui
+               and "char.IsLetter(c)" in menu_ui,
+               "display tracking is not restricted to uppercase ASCII Latin, risking stretched "
+               "Cyrillic, CJK, accented or mixed-case translated labels")
+    gate.check("LanguageService.IsRightToLeft" in menu_ui
+               and "!IsTrackableLatinLabel(content)" in menu_ui,
+               "text tracking does not explicitly preserve RTL and non-Latin script spacing")
     gate.check("_columnDivider" in main_screen and "_columnDividerTop" in main_screen
                and "_columnDividerBottom" in main_screen and "dividerHeight" in main_screen,
                "the main menu's asymmetric columns have no responsive ornamental spine")
