@@ -1070,6 +1070,7 @@ def check_discipline(gate: Gate) -> None:
     art = read(f"{MENUS}/MenuArt.cs")
     title_panel = read(TITLE_PANEL)
     entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
+    settings_panel = read(f"{MENUS}/Panels/MenuSettingsPanel.cs")
     main_screen = read(MAIN_SCREEN)
     menu_logo = read(f"{PRESENTATION}/MenuLogo.cs")
     gate.check("IsTrackableLatinLabel(content)" in menu_ui
@@ -1088,6 +1089,10 @@ def check_discipline(gate: Gate) -> None:
     gate.check("LanguageService.IsRightToLeft" in entry_panel
                and "width - ((column + 1) * cell)" in entry_panel,
                "section headings and grid order are not mirrored for RTL")
+    gate.check("navigationColumn = rtl ? _columns - 1 - column : column" in entry_panel
+               and "navigationColumn = rtl ? _columns - 1 - column : column" in settings_panel
+               and "width - ((column + 1) * cell)" in settings_panel,
+               "RTL visual grid placement and directional navigation coordinates disagree")
     gate.check("LanguageService.IsRightToLeft" in button
                and "caret.anchorMin = caret.anchorMax = new Vector2(edge, 0.5f)" in button
                and "accent.anchoredPosition = new Vector2(-8f, 0f)" in button,
