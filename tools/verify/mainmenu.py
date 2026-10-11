@@ -1071,6 +1071,7 @@ def check_discipline(gate: Gate) -> None:
     title_panel = read(TITLE_PANEL)
     entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
     main_screen = read(MAIN_SCREEN)
+    menu_logo = read(f"{PRESENTATION}/MenuLogo.cs")
     gate.check("IsTrackableLatinLabel(content)" in menu_ui
                and "c >= 'A' && c <= 'Z'" in menu_ui
                and "char.IsLetter(c)" in menu_ui,
@@ -1079,6 +1080,24 @@ def check_discipline(gate: Gate) -> None:
     gate.check("LanguageService.IsRightToLeft" in menu_ui
                and "!IsTrackableLatinLabel(content)" in menu_ui,
                "text tracking does not explicitly preserve RTL and non-Latin script spacing")
+    gate.check("LanguageService.IsRightToLeft" in main_screen
+               and "width - leftWidth" in main_screen
+               and "width - rightWidth" in main_screen
+               and "rtlVersion ? TextAnchor.LowerLeft : TextAnchor.LowerRight" in main_screen,
+               "the main menu columns and footer do not mirror for RTL reading order")
+    gate.check("LanguageService.IsRightToLeft" in entry_panel
+               and "width - ((column + 1) * cell)" in entry_panel,
+               "section headings and grid order are not mirrored for RTL")
+    gate.check("LanguageService.IsRightToLeft" in button
+               and "caret.anchorMin = caret.anchorMax = new Vector2(edge, 0.5f)" in button
+               and "accent.anchoredPosition = new Vector2(-8f, 0f)" in button,
+               "menu row affordances are not mirrored safely for RTL")
+    gate.check("SetRightToLeft(rtl)" in title_panel
+               and "width - MenuTheme.Metrics.TitleRuleWidth" in title_panel,
+               "the title mark and rule do not align to the RTL reading edge")
+    gate.check("SetRightToLeft(bool rightToLeft)" in menu_logo
+               and "Place(_mark, width, height, Vector2.zero, _rightToLeft)" in menu_logo,
+               "the studio logo cannot align to the RTL edge without mirroring its artwork")
     gate.check("_columnDivider" in main_screen and "_columnDividerTop" in main_screen
                and "_columnDividerBottom" in main_screen and "dividerHeight" in main_screen,
                "the main menu's asymmetric columns have no responsive ornamental spine")
