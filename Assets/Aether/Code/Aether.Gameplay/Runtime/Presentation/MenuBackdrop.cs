@@ -104,8 +104,12 @@ namespace Aether.Gameplay.Presentation
             Ridge(midground, "Ridge Near", 0.252f, 0.62f, 8f, 0.030f);
 
             // -- atmosphere: two blooms, far apart, moving at different speeds.
-            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
-            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
+            // Cool lapis light and warm gold sit on opposing diagonals, giving the forest a
+            // cinematic colour contrast without a flare behind the title or a glow on the logo.
+            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.72f, 0.84f),
+                                        1500f, MenuTheme.Palette.AtmosphereCool);
+            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.18f, 0.20f),
+                                         1900f, MenuTheme.Palette.Atmosphere);
             backdrop.BuildFireflies(root);
 
             // -- foreground: the shade along the bottom edge, and the vignette over everything.
@@ -120,7 +124,7 @@ namespace Aether.Gameplay.Presentation
 
             Image vignette = MenuUi.Fill("Vignette", root, MenuTheme.Palette.Scrim);
             vignette.sprite = MenuArt.Vignette;
-            vignette.color = new Color(0f, 0f, 0f, 0.75f);
+            vignette.color = new Color(0f, 0f, 0f, 0.64f);
 
             // The corner metalwork sits above the vignette but outside the safe content box.
             BuildFrameOrnaments(root);
@@ -241,7 +245,7 @@ namespace Aether.Gameplay.Presentation
                     if (image != null)
                     {
                         Color gold = MenuTheme.Palette.Accent;
-                        image.color = new Color(gold.r, gold.g, gold.b, Mathf.Lerp(0.10f, 0.42f, pulse));
+                        image.color = new Color(gold.r, gold.g, gold.b, Mathf.Lerp(0.07f, 0.25f, pulse));
                     }
                 }
             }
@@ -272,17 +276,16 @@ namespace Aether.Gameplay.Presentation
         {
             // A few more distant motes add a living, gilded atmosphere without becoming particles
             // over the text. They remain static on low quality and under Reduced Motion.
-            const int count = 11;
+            const int count = 7;
             _fireflies = new RectTransform[count];
             _fireflyImages = new Image[count];
             _fireflyOrigins = new Vector2[count];
             _fireflyPhases = new float[count];
             Vector2[] normalized =
             {
-                new Vector2(0.13f, 0.68f), new Vector2(0.22f, 0.35f), new Vector2(0.31f, 0.81f),
-                new Vector2(0.39f, 0.23f), new Vector2(0.48f, 0.73f), new Vector2(0.57f, 0.39f),
-                new Vector2(0.66f, 0.84f), new Vector2(0.73f, 0.26f), new Vector2(0.81f, 0.65f),
-                new Vector2(0.88f, 0.46f), new Vector2(0.93f, 0.22f)
+                new Vector2(0.10f, 0.72f), new Vector2(0.22f, 0.32f), new Vector2(0.34f, 0.86f),
+                new Vector2(0.67f, 0.88f), new Vector2(0.88f, 0.66f), new Vector2(0.92f, 0.38f),
+                new Vector2(0.76f, 0.17f)
             };
             Color gold = MenuTheme.Palette.Accent;
             for (int i = 0; i < count; i++)
@@ -417,9 +420,10 @@ namespace Aether.Gameplay.Presentation
             else if (bloom == _bloomFar) _bloomFarRest = Vector2.zero;
         }
 
-        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size)
+        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size,
+                                             Color colour)
         {
-            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, MenuTheme.Palette.Atmosphere);
+            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, colour);
             RectTransform rect = bloom.rectTransform;
             rect.anchorMin = at;
             rect.anchorMax = at;
