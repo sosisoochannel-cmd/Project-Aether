@@ -3,6 +3,7 @@
 # proper name kept as a name ("el Sendero Verde") rather than translated word for word.
 
 menu.title=AETHER
+title.touchToStart=TOCA EN CUALQUIER LUGAR PARA EMPEZAR
 menu.subtitle=EL SENDERO VERDE — REGIÓN UNO
 menu.playSection=JUGAR
 menu.exploreSection=EXPLORAR
