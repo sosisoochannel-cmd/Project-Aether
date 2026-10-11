@@ -1244,6 +1244,13 @@ def main() -> int:
                and "_hitTarget.interactable = false" in title_gate,
                "title gate does not fade out while preventing the start tap from falling through")
 
+    gate.check("LayoutComposition(bool force)" in title_gate
+               and "if (_rootRect != null && _rootRect.rect.size != _lastLayoutSize)" in title_gate
+               and "float fit = Mathf.Clamp" in title_gate
+               and "_prompt.horizontalOverflow = HorizontalWrapMode.Wrap" in title_gate
+               and "public void SetHeight(float height)" in read(f"{PRESENTATION}/MenuLogo.cs"),
+               "title gate does not adapt typography, logo size and prompt wrapping to the actual canvas bounds")
+
     print("main menu:")
     check_flow(gate)
     check_screens(gate)
