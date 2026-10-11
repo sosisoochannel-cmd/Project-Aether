@@ -20,10 +20,14 @@ namespace Aether.Gameplay.Menus
     public sealed class TitleStartScreen : MonoBehaviour
     {
         private const float FadeDuration = 0.24f;
+        private const float EnterDuration = 0.68f;
 
         private CanvasGroup _group;
         private Button _hitTarget;
         private bool _leaving;
+        private RectTransform _content;
+        private CanvasGroup _contentGroup;
+        private Vector3 _contentRestScale = Vector3.one;
 
         /// <summary>Builds the title gate over the menu, using the currently selected language.</summary>
         public static TitleStartScreen Create(Transform parent)
@@ -49,13 +53,20 @@ namespace Aether.Gameplay.Menus
             screen._hitTarget.onClick.AddListener(screen.BeginStart);
 
             screen.BuildVisuals(root);
+            screen.StartCoroutine(screen.EnterCinematic());
             return screen;
         }
 
         private void BuildVisuals(RectTransform root)
         {
             bool rtl = LanguageService.IsRightToLeft;
-            MenuLogo logo = MenuLogo.Create(root, 118f);
+            _content = MenuUi.CreateNode("Title Composition", root);
+            MenuUi.Stretch(_content);
+            _content.SetAsLastSibling();
+            _contentGroup = _content.gameObject.AddComponent<CanvasGroup>();
+            _contentRestScale = _content.localScale;
+
+            MenuLogo logo = MenuLogo.Create(_content, 118f);
             if (logo != null && logo.HasMark)
             {
                 logo.SetRightToLeft(rtl);
@@ -66,7 +77,7 @@ namespace Aether.Gameplay.Menus
             }
 
             Text title = MenuUi.CreateTrackedText(
-                "Game Title", root, MenuStrings.Get("menu.title"), 86f,
+                "Game Title", _content, MenuStrings.Get("menu.title"), 86f,
                 MenuTheme.Palette.Ink, 18f, TextAnchor.MiddleCenter);
             title.fontStyle = FontStyle.Bold;
             title.alignment = TextAnchor.MiddleCenter;
@@ -76,7 +87,7 @@ namespace Aether.Gameplay.Menus
             title.rectTransform.anchoredPosition = new Vector2(0f, 42f);
 
             Text subtitle = MenuUi.CreateText(
-                "Region Subtitle", root, MenuStrings.Get("menu.subtitle"), 23f,
+                "Region Subtitle", _content, MenuStrings.Get("menu.subtitle"), 23f,
                 MenuTheme.Palette.InkMuted, TextAnchor.MiddleCenter);
             subtitle.alignment = TextAnchor.MiddleCenter;
             subtitle.rectTransform.anchorMin = subtitle.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -84,13 +95,13 @@ namespace Aether.Gameplay.Menus
             subtitle.rectTransform.sizeDelta = new Vector2(1180f, 52f);
             subtitle.rectTransform.anchoredPosition = new Vector2(0f, -32f);
 
-            Image rule = MenuUi.CreateImage("Gold Rule", root, MenuArt.Solid, MenuTheme.Palette.Line);
+            Image rule = MenuUi.CreateImage("Gold Rule", _content, MenuArt.Solid, MenuTheme.Palette.Line);
             rule.rectTransform.anchorMin = rule.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             rule.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             rule.rectTransform.sizeDelta = new Vector2(224f, 2f);
             rule.rectTransform.anchoredPosition = new Vector2(0f, -83f);
 
-            Image gem = MenuUi.CreateImage("Rule Gem", root, MenuArt.Solid, MenuTheme.Palette.Accent);
+            Image gem = MenuUi.CreateImage("Rule Gem", _content, MenuArt.Solid, MenuTheme.Palette.Accent);
             gem.rectTransform.anchorMin = gem.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             gem.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             gem.rectTransform.sizeDelta = new Vector2(9f, 9f);
@@ -98,7 +109,7 @@ namespace Aether.Gameplay.Menus
             gem.rectTransform.anchoredPosition = new Vector2(0f, -83f);
 
             Text prompt = MenuUi.CreateTrackedText(
-                "Touch To Start", root, MenuStrings.Get("title.touchToStart"), 25f,
+                "Touch To Start", _content, MenuStrings.Get("title.touchToStart"), 25f,
                 MenuTheme.Palette.Accent, 2.5f, TextAnchor.MiddleCenter);
             prompt.alignment = TextAnchor.MiddleCenter;
             prompt.rectTransform.anchorMin = prompt.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -110,6 +121,30 @@ namespace Aether.Gameplay.Menus
             // non-raycastable, so any point on the display starts the game.
             rule.raycastTarget = false;
             gem.raycastTarget = false;
+
+            // Reveal the title composition once; the full-screen root remains touchable throughout.
+            _contentGroup.alpha = 0f;
+            _content.localScale = _contentRestScale * 0.985f;
+        }
+
+        private IEnumerator EnterCinematic()
+        {
+            float elapsed = 0f;
+            while (elapsed < EnterDuration && !_leaving)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / EnterDuration);
+                float eased = t * t * (3f - 2f * t);
+                if (_contentGroup != null) _contentGroup.alpha = eased;
+                if (_content != null) _content.localScale = Vector3.Lerp(
+                    _contentRestScale * 0.985f, _contentRestScale, eased);
+                yield return null;
+            }
+            if (!_leaving)
+            {
+                if (_contentGroup != null) _contentGroup.alpha = 1f;
+                if (_content != null) _content.localScale = _contentRestScale;
+            }
         }
 
         private void BeginStart()
