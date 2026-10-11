@@ -116,6 +116,20 @@ require("Mathf.Lerp(-20f, 0f, settle)" in intro and
         "studio emblem must have a restrained 3D yaw/roll settle rather than only a fade")
 require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro,
         "intro matte must keep pace with the same ease-out as each part's alpha")
+
+# The studio intro must actually emit its own original sound at the exact visual cue times.
+require("InitializeStudioAudio();" in intro and "AudioClip.Create(" in intro and
+        "clip.SetData(samples, 0);" in intro,
+        "studio intro must synthesise and initialise its own playable audio clips")
+require("PlayStudioCue(true);" in intro and "PlayStudioCue(false);" in intro and
+        "SoundDirector.Request(_revealCueId, Vector2.zero);" in intro and
+        "SoundDirector.Request(_exitCueId, Vector2.zero);" in intro,
+        "the studio sting must stay synchronised with the reveal and resolve cue requests")
+require("AudioSource" in intro and "spatialBlend = 0f" in intro and
+        "private const int StudioAudioSampleRate = 24000;" in intro,
+        "studio sting must use lightweight non-spatial audio suitable for mobile")
+require("Destroy(_studioRevealClip)" in intro and "Destroy(_studioResolveClip)" in intro,
+        "runtime-generated studio audio clips must be released during hand-over")
 require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
         "skipping the intro must preserve the current matte instead of snapping it open")
 
