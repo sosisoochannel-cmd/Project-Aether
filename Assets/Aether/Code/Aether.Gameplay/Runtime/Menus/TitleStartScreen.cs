@@ -128,7 +128,7 @@ namespace Aether.Gameplay.Menus
             _content.localScale = _contentRestScale * 0.985f;
         }
 
-        private void LateUpdate()
+        private void OnRectTransformDimensionsChange()
         {
             if (_rootRect != null && _rootRect.rect.size != _lastLayoutSize)
                 LayoutComposition(false);
