@@ -187,9 +187,9 @@ namespace Aether.Gameplay.Menus.Widgets
             float available = Mathf.Max(0f, width);
             host.sizeDelta = new Vector2(available, host.sizeDelta.y);
 
-            float readoutWidth = Mathf.Min(120f, Mathf.Max(64f, available * 0.24f));
+            float readoutWidth = Mathf.Min(120f, available * 0.28f);
             float gap = Mathf.Min(20f, available * 0.06f);
-            float trackWidth = Mathf.Max(80f, available - readoutWidth - gap);
+            float trackWidth = Mathf.Max(0f, available - readoutWidth - gap);
             _track.sizeDelta = new Vector2(trackWidth, _track.sizeDelta.y);
             _readout.rectTransform.sizeDelta = new Vector2(readoutWidth, _readout.rectTransform.sizeDelta.y);
             _readout.rectTransform.anchoredPosition = new Vector2(trackWidth + gap, 0f);
