@@ -342,7 +342,9 @@ namespace Aether.Gameplay.Menus.Components
             {
                 _meta.rectTransform.anchorMin = _meta.rectTransform.anchorMax = new Vector2(oppositeEdge, 0.5f);
                 _meta.rectTransform.pivot = new Vector2(oppositeEdge, 0.5f);
-                _meta.rectTransform.anchoredPosition = new Vector2(rtl ? textInset : -textInset, 0f);
+                float controlGap = _control != null && _control.sizeDelta.x > 0f
+                    ? _control.sizeDelta.x + textInset : textInset;
+                _meta.rectTransform.anchoredPosition = new Vector2(rtl ? controlGap : -controlGap, 0f);
                 _meta.alignment = rtl ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
             }
 
@@ -388,19 +390,20 @@ namespace Aether.Gameplay.Menus.Components
 
             float inset = Mathf.Max(MenuTheme.Metrics.CaretOutdent, 12f);
             bool hasControl = _control.sizeDelta.x > 0f;
-            float metaWidth = _meta.gameObject.activeSelf && !hasControl
+            float metaWidth = _meta.gameObject.activeSelf
                 ? Mathf.Clamp(rowWidth * 0.36f, 112f, rowWidth * 0.46f)
                 : 0f;
             float controlReserve = hasControl ? _control.sizeDelta.x + inset : 0f;
             float metaReserve = metaWidth > 0f ? metaWidth + inset : 0f;
             float labelWidth = Mathf.Max(24f, rowWidth - (inset * 2f)
-                                         - Mathf.Max(controlReserve, metaReserve));
+                                         - controlReserve - metaReserve);
 
             _label.rectTransform.sizeDelta = new Vector2(labelWidth, 0f);
             _meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f);
             if (_help != null)
             {
-                float helpWidth = Mathf.Max(24f, rowWidth - (inset * 2f) - controlReserve);
+                float helpWidth = Mathf.Max(24f, rowWidth - (inset * 2f)
+                                            - controlReserve - metaReserve);
                 _help.rectTransform.sizeDelta = new Vector2(helpWidth,
                     MenuTheme.Metrics.SettingHelpSize * 2f);
             }
