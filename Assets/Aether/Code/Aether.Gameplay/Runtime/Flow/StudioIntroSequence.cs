@@ -628,7 +628,7 @@ namespace Aether.Gameplay.Flow
                 // compression and the wordmark's final convergence. They are synthesized here,
                 // not loaded from a stock sound, and sit under the tonal body rather than replacing it.
                 float firstImpactAge = t - 0.445f;
-                float secondImpactAge = t - 0.790f;
+                float secondImpactAge = t - 0.555f;
                 float firstImpactEnvelope = firstImpactAge < 0f ? 0f :
                     Mathf.Exp(-firstImpactAge * 46f) * Mathf.Clamp01(firstImpactAge / 0.0025f);
                 float secondImpactEnvelope = secondImpactAge < 0f ? 0f :
