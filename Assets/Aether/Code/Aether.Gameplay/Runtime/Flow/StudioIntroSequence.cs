@@ -571,7 +571,15 @@ namespace Aether.Gameplay.Flow
             part.Renderer.color = new Color(ink, ink, ink, Mathf.Clamp01(presence));
             if (part.RevealMaterial != null)
                 part.RevealMaterial.SetFloat("_RevealProgress", Mathf.Clamp01(revealProgress));
+            float settle = EaseInOutSine(Mathf.Clamp01(revealProgress));
+            float yaw = part.Renderer == _mark.Renderer
+                ? Mathf.Lerp(-12f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.1f
+                : 0f;
+            float roll = part.Renderer == _mark.Renderer
+                ? Mathf.Lerp(2.2f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.35f
+                : 0f;
             Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
+            part.Renderer.transform.localRotation = Quaternion.Euler(0f, yaw, roll);
         }
 
         // -- the light pass ------------------------------------------------------------------------
