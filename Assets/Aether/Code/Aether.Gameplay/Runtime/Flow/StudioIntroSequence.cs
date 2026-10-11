@@ -944,7 +944,7 @@ namespace Aether.Gameplay.Flow
                 revealMaterial.SetFloat("_RevealFeather", 0.12f);
                 revealMaterial.SetFloat("_RevealTilt", 0.10f);
                 revealMaterial.SetColor("_RevealEdgeColor", new Color(1f, 0.76f, 0.40f, 1f));
-                revealMaterial.SetFloat("_RevealEdgeStrength", 0.78f);
+                revealMaterial.SetFloat("_RevealEdgeStrength", 0.92f);
                 revealMaterial.SetFloat("_RevealEdgeWidth", 0.075f);
                 renderer.sharedMaterial = revealMaterial;
             }
