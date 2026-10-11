@@ -1224,6 +1224,26 @@ def check_discipline(gate: Gate) -> None:
 def main() -> int:
     gate = Gate()
 
+    # The first game-owned screen must be a real full-screen start gate over the menu, not
+    # a second scene or an unlocalized hard-coded prompt.
+    title_gate = read(f"{MENUS}/TitleStartScreen.cs")
+    menu_root = read(ROOT)
+    strings = read(STRINGS)
+    gate.check("TitleStartScreen.Create(_canvas.Root)" in menu_root
+               and "if (!openSettingsRequest)" in menu_root,
+               "normal launches do not stop at the title gate, or the explicit settings route was lost")
+    gate.check("root.SetAsLastSibling()" in title_gate
+               and "root.gameObject.AddComponent<Button>()" in title_gate
+               and "scrim.raycastTarget = true" in title_gate,
+               "title gate does not own the full screen's touch target above the menu")
+    gate.check('MenuStrings.Get("title.touchToStart")' in title_gate
+               and '"title.touchToStart", "TOUCH ANYWHERE TO START"' in strings,
+               "title start prompt is missing its localization key or English reference")
+    gate.check("StartCoroutine(FadeAway())" in title_gate
+               and "Time.unscaledDeltaTime" in title_gate
+               and "_hitTarget.interactable = false" in title_gate,
+               "title gate does not fade out while preventing the start tap from falling through")
+
     print("main menu:")
     check_flow(gate)
     check_screens(gate)
