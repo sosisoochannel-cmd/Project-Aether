@@ -102,6 +102,13 @@ namespace Aether.Gameplay.Presentation
             Apply();
         }
 
+        /// <summary>Sets the intended mark height before preserving the source artwork's aspect ratio.</summary>
+        public void SetHeight(float height)
+        {
+            _height = Mathf.Max(1f, height);
+            Apply();
+        }
+
         /// <summary>Sizes the trimmed mark to its slot, preserving the artwork's aspect ratio.</summary>
         public void Apply()
         {
