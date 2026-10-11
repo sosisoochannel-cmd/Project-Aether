@@ -42,10 +42,10 @@ def main() -> int:
     check("m_Name: Main Camera" in scene, "MainMenu must retain its camera.")
     check("SceneRoots:" in scene, "MainMenu has no SceneRoots block.")
     roots_block = scene.split("SceneRoots:", 1)[1]
-    roots = re.findall(r"- \\{fileID: (\\d+)\\}", roots_block)
+    roots = re.findall(r"- \{fileID: (\d+)\}", roots_block)
     check(roots == ["100001"],
           f"MainMenu must have only the camera root while awaiting new direction; found {roots}.")
-    check(not re.search(r"m_Name: Menu(?:\\s|$)", scene),
+    check(not re.search(r"m_Name: Menu(?:\s|$)", scene),
           "The old Menu GameObject is still present.")
     check("6c14e975393997fe2e541979b04832cc" not in scene,
           "The old MenuRoot component is still attached to the scene.")
@@ -55,7 +55,7 @@ def main() -> int:
           "The reset scene still contains an interactive UI component.")
 
     entries = re.findall(
-        r"- enabled: (\\d)\\n\\s+path: (\\S+)\\n\\s+guid: ([0-9a-f]{32})",
+        r"- enabled: (\d)\n\s+path: (\S+)\n\s+guid: ([0-9a-f]{32})",
         settings,
     )
     enabled = [path for flag, path, _guid in entries if flag == "1"]
