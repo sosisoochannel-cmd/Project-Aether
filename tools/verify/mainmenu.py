@@ -1095,7 +1095,7 @@ def check_discipline(gate: Gate) -> None:
     gate.check("RefreshTextGeometry();" in button
                and "rowWidth - (inset * 2)" in button
                and "_meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f)" in button
-               and "controlReserve + metaReserve" in button,
+               and "- controlReserve - metaReserve" in button,
                "translated menu labels do not reserve measured lanes for metadata and setting controls")
     gate.check("_label.horizontalOverflow = HorizontalWrapMode.Wrap" in button
                and "_label.verticalOverflow = VerticalWrapMode.Truncate" in button
