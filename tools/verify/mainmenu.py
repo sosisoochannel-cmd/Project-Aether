@@ -1059,6 +1059,10 @@ def check_discipline(gate: Gate) -> None:
     art = read(f"{MENUS}/MenuArt.cs")
     title_panel = read(TITLE_PANEL)
     entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
+    main_screen = read(MAIN_SCREEN)
+    gate.check("_columnDivider" in main_screen and "_columnDividerTop" in main_screen
+               and "_columnDividerBottom" in main_screen and "dividerHeight" in main_screen,
+               "the main menu's asymmetric columns have no responsive ornamental spine")
     gate.check("_ruleGem" in title_panel and "Quaternion.Euler(0f, 0f, 45f)" in title_panel
                and "TitleRuleWidth * 0.5f" in title_panel,
                "the title divider has no centered carved-gold focal detail")
