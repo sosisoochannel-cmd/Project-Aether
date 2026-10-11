@@ -389,22 +389,30 @@ namespace Aether.Gameplay.Menus.Components
             if (rowWidth <= 0f) return;
 
             float inset = Mathf.Max(MenuTheme.Metrics.CaretOutdent, 12f);
+            float innerWidth = Mathf.Max(0f, rowWidth - (inset * 2f));
             bool hasControl = _control.sizeDelta.x > 0f;
-            float metaWidth = _meta.gameObject.activeSelf
-                ? Mathf.Clamp(rowWidth * 0.36f, 112f, rowWidth * 0.46f)
+            bool hasMeta = _meta.gameObject.activeSelf;
+
+            // Keep each lane inside the row even when the screen is narrow. In particular, do not
+            // clamp metadata to a fixed minimum that can exceed the available width on a phone.
+            float controlWidth = hasControl ? Mathf.Min(_control.sizeDelta.x, innerWidth) : 0f;
+            float controlReserve = hasControl
+                ? Mathf.Min(innerWidth, controlWidth + inset) : 0f;
+            float remainingAfterControl = Mathf.Max(0f, innerWidth - controlReserve);
+            float labelFloor = Mathf.Min(48f, remainingAfterControl);
+            float metaCapacity = Mathf.Max(0f, remainingAfterControl - labelFloor - inset);
+            float wantedMetaWidth = Mathf.Max(72f, rowWidth * 0.36f);
+            float metaWidth = hasMeta
+                ? Mathf.Min(wantedMetaWidth, Mathf.Min(rowWidth * 0.46f, metaCapacity))
                 : 0f;
-            float controlReserve = hasControl ? _control.sizeDelta.x + inset : 0f;
             float metaReserve = metaWidth > 0f ? metaWidth + inset : 0f;
-            float labelWidth = Mathf.Max(24f, rowWidth - (inset * 2f)
-                                         - controlReserve - metaReserve);
+            float labelWidth = Mathf.Max(0f, remainingAfterControl - metaReserve);
 
             _label.rectTransform.sizeDelta = new Vector2(labelWidth, 0f);
             _meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f);
             if (_help != null)
             {
-                float helpWidth = Mathf.Max(24f, rowWidth - (inset * 2f)
-                                            - controlReserve - metaReserve);
-                _help.rectTransform.sizeDelta = new Vector2(helpWidth,
+                _help.rectTransform.sizeDelta = new Vector2(labelWidth,
                     MenuTheme.Metrics.SettingHelpSize * 2f);
             }
         }
