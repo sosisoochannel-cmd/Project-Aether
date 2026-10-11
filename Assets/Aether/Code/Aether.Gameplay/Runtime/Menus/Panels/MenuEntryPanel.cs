@@ -28,6 +28,7 @@ namespace Aether.Gameplay.Menus.Panels
 
         private RectTransform _label;
         private Text _labelText;
+        private Image _sectionRule;
         private int _columns = 1;
         private float _pitch = MenuTheme.Metrics.SecondaryPitch;
 
@@ -58,6 +59,15 @@ namespace Aether.Gameplay.Menus.Panels
                                                             MenuTheme.Palette.Accent,
                                                             MenuTheme.Metrics.SectionLabelTracking);
                 MenuUi.Stretch(panel._labelText.rectTransform);
+
+                panel._sectionRule = MenuUi.CreateHairline("SectionRule", panel.Rect,
+                                                           MenuTheme.Palette.Line,
+                                                           MenuTheme.Metrics.TitleRuleHeight);
+                panel._sectionRule.rectTransform.anchorMin = new Vector2(0f, 1f);
+                panel._sectionRule.rectTransform.anchorMax = new Vector2(0f, 1f);
+                panel._sectionRule.rectTransform.pivot = new Vector2(0f, 1f);
+                panel._sectionRule.rectTransform.anchoredPosition = new Vector2(
+                    0f, -(MenuTheme.Metrics.SectionLabelHeight + 4f));
             }
 
             return panel;
@@ -108,6 +118,11 @@ namespace Aether.Gameplay.Menus.Panels
             Remember(width, height);
 
             float top = _label != null ? MenuTheme.Metrics.SectionLabelHeight + MenuTheme.Metrics.SectionLabelGap : 0f;
+            if (_sectionRule != null)
+            {
+                _sectionRule.rectTransform.sizeDelta = new Vector2(width,
+                    MenuTheme.Metrics.TitleRuleHeight);
+            }
             float cell = width / _columns;
             int bands = Mathf.CeilToInt(_rows.Count / (float)_columns);
 
@@ -140,6 +155,7 @@ namespace Aether.Gameplay.Menus.Panels
                 _labelText.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent,
                                                                   MenuPreferences.HighContrast);
             }
+            if (_sectionRule != null) _sectionRule.color = MenuTheme.Palette.Line;
 
             for (int i = 0; i < _rows.Count; i++) _rows[i].RefreshColors();
         }
