@@ -327,11 +327,18 @@ namespace Aether.Gameplay.Menus.Components
                 _help.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
             }
 
+            float oppositeEdge = rtl ? 0f : 1f;
+            if (_control != null)
+            {
+                _control.anchorMin = _control.anchorMax = new Vector2(oppositeEdge, 0.5f);
+                _control.pivot = new Vector2(oppositeEdge, 0.5f);
+                _control.anchoredPosition = Vector2.zero;
+            }
+
             if (_meta != null)
             {
-                float opposite = rtl ? 0f : 1f;
-                _meta.rectTransform.anchorMin = _meta.rectTransform.anchorMax = new Vector2(opposite, 0.5f);
-                _meta.rectTransform.pivot = new Vector2(opposite, 0.5f);
+                _meta.rectTransform.anchorMin = _meta.rectTransform.anchorMax = new Vector2(oppositeEdge, 0.5f);
+                _meta.rectTransform.pivot = new Vector2(oppositeEdge, 0.5f);
                 _meta.rectTransform.anchoredPosition = new Vector2(rtl ? textInset : -textInset, 0f);
                 _meta.alignment = rtl ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
             }
