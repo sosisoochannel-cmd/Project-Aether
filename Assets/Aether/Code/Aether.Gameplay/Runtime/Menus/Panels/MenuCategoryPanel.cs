@@ -688,8 +688,16 @@ namespace Aether.Gameplay.Menus.Panels
 
                 row.Button.ApplyLayout(MenuTheme.Metrics.CaretOutdent, MenuTheme.Metrics.CaretOutdent);
                 row.Button.SetRuleWidth(_columnWidth - MenuTheme.Metrics.CaretOutdent);
-                row.Button.SetControlWidth(_columnWidth * (1f - MenuTheme.Metrics.SettingLabelFraction)
-                                           - (MenuTheme.Metrics.CaretOutdent * 2f));
+                float controlWidth = Mathf.Max(0f,
+                    _columnWidth * (1f - MenuTheme.Metrics.SettingLabelFraction)
+                    - (MenuTheme.Metrics.CaretOutdent * 2f));
+                row.Button.SetControlWidth(controlWidth);
+
+                // Widget internals must share the same measured lane as their parent. Fixed-width
+                // tracks and selectors can otherwise intrude into a translated label on compact
+                // landscape layouts, even when the text lane budget itself is valid.
+                if (row.Slider != null) row.Slider.SetWidth(controlWidth);
+                if (row.Selector != null) row.Selector.SetWidth(controlWidth);
 
                 y += height;
                 _visible.Add(row);
