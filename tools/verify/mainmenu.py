@@ -1083,6 +1083,9 @@ def check_discipline(gate: Gate) -> None:
                and "header._back.SetCaretMirrored(!rtl)" in header
                and "TextAnchor.MiddleRight : TextAnchor.MiddleLeft" in header,
                "screen headers do not mirror title alignment and back navigation for RTL")
+    gate.check("_title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking))"
+               in header,
+               "reused screen titles bypass RTL shaping when settings categories change")
     gate.check("IsTrackableLatinLabel(content)" in menu_ui
                and "c >= 'A' && c <= 'Z'" in menu_ui
                and "char.IsLetter(c)" in menu_ui,
