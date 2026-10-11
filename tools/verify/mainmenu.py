@@ -1056,6 +1056,13 @@ def check_discipline(gate: Gate) -> None:
     # Every row is a target the size of its pitch, and every row that is drawn as a fact is not
     # selectable — the two halves of "no dead rows".
     button = read(f"{MENUS}/Components/MenuButton.cs")
+    art = read(f"{MENUS}/MenuArt.cs")
+    gate.check("_selectionFrame" in button and "MenuArt.SelectionFrame" in button
+               and "Image.Type.Sliced" in button,
+               "the selected row has no nine-sliced angular selection frame")
+    gate.check("MakeSelectionFrame" in art and "SpriteMeshType.FullRect" in art
+               and "new Vector4(28f, 28f, 28f, 28f)" in art,
+               "the selection frame has no crisp nine-slice corners")
     # The states the brief names. Normal needs no case of its own — it is the drawing every other
     # state modifies — so what is checked is that the other four are drawn, and that "locked" is
     # drawn as a state apart from "disabled": a row that is not in the build is not the same as a
