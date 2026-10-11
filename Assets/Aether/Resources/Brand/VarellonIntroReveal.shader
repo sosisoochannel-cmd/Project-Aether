@@ -7,6 +7,9 @@ Shader "Sprites/VarellonIntroReveal"
         _RevealProgress ("Reveal Progress", Range(0,1)) = 0
         _RevealFeather ("Reveal Edge Softness", Range(0.03,0.25)) = 0.12
         _RevealTilt ("Reveal Edge Tilt", Range(0,0.25)) = 0.10
+        _RevealEdgeColor ("Reveal Crest Light", Color) = (1,0.76,0.40,1)
+        _RevealEdgeStrength ("Reveal Crest Strength", Range(0,1)) = 0.78
+        _RevealEdgeWidth ("Reveal Crest Width", Range(0.01,0.15)) = 0.075
     }
 
     SubShader
@@ -39,6 +42,9 @@ Shader "Sprites/VarellonIntroReveal"
             float _RevealProgress;
             float _RevealFeather;
             float _RevealTilt;
+            fixed4 _RevealEdgeColor;
+            float _RevealEdgeStrength;
+            float _RevealEdgeWidth;
 
             struct appdata_t
             {
@@ -74,8 +80,16 @@ Shader "Sprites/VarellonIntroReveal"
                                       saturate(_RevealProgress));
                 float matte = smoothstep(boundary - _RevealFeather,
                                          boundary + _RevealFeather, coordinate);
+                // A narrow antique-gold crest rides the moving matte edge. It is clipped by the
+                // logo coverage, so the light can polish the Varellon ink but can never spill onto
+                // the black field like a generic screen-space flare.
+                float edgeDistance = abs(coordinate - boundary);
+                float crest = (1.0 - smoothstep(0.0, _RevealEdgeWidth, edgeDistance))
+                            * smoothstep(0.0, 0.16, matte);
+                fixed3 ink = lerp(input.color.rgb, _RevealEdgeColor.rgb,
+                                  saturate(crest * _RevealEdgeStrength));
                 fixed alpha = coverage * input.color.a * matte;
-                return fixed4(input.color.rgb, alpha);
+                return fixed4(ink, alpha);
             }
             ENDCG
         }
