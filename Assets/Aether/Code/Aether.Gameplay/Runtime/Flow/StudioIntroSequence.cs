@@ -493,8 +493,13 @@ namespace Aether.Gameplay.Flow
             float duration = wordmark ? Timing.WordmarkReveal : Timing.Reveal;
             float linear = Ramp(elapsed, startsAt, duration);
             float settle = EaseInOutSine(linear);
-            presence = wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
-            scale = Mathf.Lerp(Layout.RevealScale, 1f, settle);
+            float arrival = wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);
+            presence = arrival;
+            // One restrained overshoot gives the emblem a confident, physical arrival, then resolves
+            // cleanly to 1.0. This is logo motion itself (not the scene fade), with no looping pulse
+            // and no bounce after the mark has settled.
+            float crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.025f;
+            scale = Mathf.Lerp(Layout.RevealScale, 1f, settle) + crestSettle;
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
 
@@ -930,6 +935,9 @@ namespace Aether.Gameplay.Flow
                 revealMaterial.SetFloat("_RevealProgress", 0f);
                 revealMaterial.SetFloat("_RevealFeather", 0.12f);
                 revealMaterial.SetFloat("_RevealTilt", 0.10f);
+                revealMaterial.SetColor("_RevealEdgeColor", new Color(1f, 0.76f, 0.40f, 1f));
+                revealMaterial.SetFloat("_RevealEdgeStrength", 0.78f);
+                revealMaterial.SetFloat("_RevealEdgeWidth", 0.075f);
                 renderer.sharedMaterial = revealMaterial;
             }
             host.hideFlags = HideFlags.HideAndDontSave;
