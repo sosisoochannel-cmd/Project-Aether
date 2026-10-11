@@ -34,6 +34,7 @@ namespace Aether.Gameplay.Presentation
         private Texture2D _generatedTexture;
         private Sprite _generatedSprite;
         private float _height = MenuTheme.Metrics.LogoHeight;
+        private bool _rightToLeft;
 
         /// <summary>Whether a mark is actually being drawn.</summary>
         public bool HasMark
@@ -87,6 +88,20 @@ namespace Aether.Gameplay.Presentation
             return logo;
         }
 
+        /// <summary>Aligns the mark to the reading edge without flipping its artwork.</summary>
+        public void SetRightToLeft(bool rightToLeft)
+        {
+            _rightToLeft = rightToLeft;
+            if (_rect != null)
+            {
+                float edge = _rightToLeft ? 1f : 0f;
+                _rect.anchorMin = _rect.anchorMax = new Vector2(edge, 1f);
+                _rect.pivot = new Vector2(edge, 1f);
+            }
+
+            Apply();
+        }
+
         /// <summary>Sizes the trimmed mark to its slot, preserving the artwork's aspect ratio.</summary>
         public void Apply()
         {
@@ -100,8 +115,8 @@ namespace Aether.Gameplay.Presentation
             float height = width / aspect;
 
             _rect.sizeDelta = new Vector2(MenuTheme.Metrics.LogoMaxWidth, height);
-            Place(_mark, width, height, Vector2.zero);
-            Place(_shadow, width, height, new Vector2(1f, -1f));
+            Place(_mark, width, height, Vector2.zero, _rightToLeft);
+            Place(_shadow, width, height, new Vector2(_rightToLeft ? -1f : 1f, -1f), _rightToLeft);
             _shadow.transform.SetAsFirstSibling();
             _mark.transform.SetAsLastSibling();
             _shadow.color = new Color(0f, 0f, 0f, 0.18f);
@@ -226,13 +241,13 @@ namespace Aether.Gameplay.Presentation
                 "the title remains in place without a substitute mark.", this);
         }
 
-        private static void Place(Image image, float width, float height, Vector2 offset)
+        private static void Place(Image image, float width, float height, Vector2 offset, bool rtl)
         {
             if (image == null) return;
 
-            image.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            image.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            image.rectTransform.pivot = new Vector2(0f, 0.5f);
+            float edge = rtl ? 1f : 0f;
+            image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(edge, 0.5f);
+            image.rectTransform.pivot = new Vector2(edge, 0.5f);
             image.rectTransform.sizeDelta = new Vector2(width, height);
             image.rectTransform.anchoredPosition = offset;
         }
