@@ -399,8 +399,6 @@ namespace Aether.Gameplay.Flow
             float wordmarkFadeFrom = 1f;
             float markRevealFrom = 0f;
             float wordmarkRevealFrom = 0f;
-            float markYawFrom = 0f;
-            float markRollFrom = 0f;
             // The still hold runs from the moment the light has left the lockup to the moment the fade
             // begins, which is why it is not simply the reveal's end plus a pause: between them are the
             // wordmark's arrival and the pass itself.
