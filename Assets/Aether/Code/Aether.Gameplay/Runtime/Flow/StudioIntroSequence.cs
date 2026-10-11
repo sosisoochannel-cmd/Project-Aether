@@ -627,7 +627,21 @@ namespace Aether.Gameplay.Flow
                 float envelopeIn = Mathf.Clamp01(t / 0.018f);
                 float envelopeOut = Mathf.Clamp01((duration - t) / 0.055f);
                 float sample = (low + chord + breath + shimmer) * envelopeIn * envelopeOut;
-                samples[i] = Mathf.Clamp(sample, -0.85f, 0.85f);
+                samples[i] = Mathf.Clamp(sample * 1.35f, -0.85f, 0.85f);
+            }
+
+            // Three quiet, deterministic reflections give the sting a little hall depth without
+            // adding a reverb plug-in, a large impulse response or noticeable delay echoes.
+            int earlyReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.047f);
+            int sideReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.083f);
+            int lateReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.137f);
+            for (int i = count - 1; i >= 0; i--)
+            {
+                float reflected = 0f;
+                if (i >= earlyReflection) reflected += samples[i - earlyReflection] * 0.16f;
+                if (i >= sideReflection) reflected += samples[i - sideReflection] * 0.095f;
+                if (i >= lateReflection) reflected += samples[i - lateReflection] * 0.055f;
+                samples[i] = Mathf.Clamp(samples[i] + reflected, -0.90f, 0.90f);
             }
 
             AudioClip clip = AudioClip.Create(clipName, count, 1, StudioAudioSampleRate, false);
