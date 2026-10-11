@@ -57,7 +57,7 @@ Sound events must align to rendered motion frames, not merely to approximate tim
 9. Build only after the implementation and verification gates pass; no APK should be described as tested without a real successful workflow and artifact.
 
 ## Current implementation and next engineering steps
-- Implemented on branch `arena/varellon-rift-lock`: opposing lateral movement, stronger dimensional yaw/roll, controlled lock compression, and two synthesized impact transients.
-- Existing static intro/artwork and shader/lifecycle regression workflow passed on the prototype commit.
+- Implemented on branch `arena/varellon-rift-lock`: opposing lateral movement, stronger dimensional yaw/roll, subtle opposing counter-arcs, controlled lock compression, and two synthesized impact transients aligned to the exact compression peaks (0.572s and 0.778s into the reveal sting).
+- Existing static intro/artwork and shader/lifecycle regression workflow passed on the prototype commit. A new static regression assertion now derives both impact timestamps from the reveal/wordmark timings; it awaits a fresh CI run.
 - Not yet established: visual quality from rendered frames, actual audio perception, performance on a physical Android device, or a release APK.
 - Next: inspect the CI diff, render at representative aspect ratios, listen on phone speakers and headphones, tune timing/impact strength, test skip/cleanup, then run the Android build only after those checks pass.
