@@ -128,26 +128,26 @@ namespace Aether.Gameplay.Menus
 
             // -- the brand block
             /// <summary>Height of the cropped studio lockup, in units. Its aspect is preserved.</summary>
-            public const float LogoHeight = 112f;
+            public const float LogoHeight = 100f;
 
             /// <summary>Widest the mark may be drawn before it is capped to fit its slot.</summary>
             public const float LogoMaxWidth = 420f;
 
             /// <summary>Distance from the brand block to the title.</summary>
-            public const float LogoGap = 18f;
+            public const float LogoGap = 14f;
 
-            public const float TitleSize = 56f;
-            public const float TitleTracking = 18f;
+            public const float TitleSize = 64f;
+            public const float TitleTracking = 16f;
 
             /// <summary>The line under the title: which region the game is standing in.</summary>
-            public const float SubtitleSize = 22f;
-            public const float SubtitleTracking = 12f;
-            public const float TitleGapRule = 18f;
-            public const float TitleRuleWidth = 300f;
+            public const float SubtitleSize = 20f;
+            public const float SubtitleTracking = 8f;
+            public const float TitleGapRule = 14f;
+            public const float TitleRuleWidth = 260f;
             public const float TitleRuleHeight = 3f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
-            public const float TitleGapBody = 24f;
+            public const float TitleGapBody = 28f;
 
             // -- section labels
             public const float SectionLabelSize = 22f;
@@ -188,10 +188,10 @@ namespace Aether.Gameplay.Menus
 
             // -- the two clusters, as fractions of the content box
             /// <summary>Width of the primary column (the spine on the left).</summary>
-            public const float LeftColumnFraction = 0.40f;
+            public const float LeftColumnFraction = 0.42f;
 
             /// <summary>Width of the right block (the explore grid and the system pair).</summary>
-            public const float RightBlockFraction = 0.54f;
+            public const float RightBlockFraction = 0.52f;
 
             // -- the frame
             public const float ScreenMarginLeft = 180f;
