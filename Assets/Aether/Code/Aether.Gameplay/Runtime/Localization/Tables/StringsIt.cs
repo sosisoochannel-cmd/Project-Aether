@@ -10,6 +10,7 @@ namespace Aether.Gameplay.Localization.Tables
     {
         internal static readonly Strings Table = Strings.Of(
             "menu.title", "AETHER",
+            "title.touchToStart", "TOCCA OVUNQUE PER INIZIARE",
             "menu.subtitle", "IL SENTIERO VERDE — REGIONE UNO",
             "menu.playSection", "GIOCA",
             "menu.exploreSection", "ESPLORA",
