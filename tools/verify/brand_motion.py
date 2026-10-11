@@ -110,8 +110,8 @@ require("_RevealProgress" in intro and "RevealProgress(elapsed, false)" in intro
         "studio mark must animate the reveal matte")
 require("RevealProgress(elapsed, true)" in intro,
         "studio wordmark must animate its reveal matte after the mark")
-require("Mathf.Lerp(-12f, 0f, settle)" in intro and
-        "Mathf.Lerp(2.2f, 0f, settle)" in intro and
+require("Mathf.Lerp(-20f, 0f, settle)" in intro and
+        "Mathf.Lerp(3.6f, 0f, settle)" in intro and
         "Quaternion.Euler(0f, yaw, roll)" in intro,
         "studio emblem must have a restrained 3D yaw/roll settle rather than only a fade")
 require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro,
