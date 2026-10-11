@@ -39,6 +39,9 @@ namespace Aether.Gameplay.Menus
             /// <summary>A restrained antique-gold wash, wide enough to read as warm air.</summary>
             public static readonly Color Atmosphere = new Color(0.48f, 0.30f, 0.10f, 0.13f);
 
+            /// <summary>A distant lapis-blue wash, balancing the gold with cool cinematic depth.</summary>
+            public static readonly Color AtmosphereCool = new Color(0.16f, 0.27f, 0.58f, 0.15f);
+
             /// <summary>Primary text: warm ivory for the title and the important choices.</summary>
             public static readonly Color Ink = new Color(0.97f, 0.94f, 0.84f, 1f);
 
