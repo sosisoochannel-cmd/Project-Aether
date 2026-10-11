@@ -70,10 +70,12 @@ namespace Aether.Gameplay.Menus.Widgets
             float arrow = MenuTheme.Metrics.SelectorArrowSize;
             float inset = Mathf.Min(30f, available * 0.12f);
             float readoutWidth = Mathf.Max(0f, available - (inset * 2f) - (arrow * 2f));
-            _left.rectTransform.anchoredPosition = new Vector2(0f, 0f);
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            _left.rectTransform.anchoredPosition = new Vector2(rtl ? Mathf.Max(0f, available - arrow) : 0f, 0f);
+            _right.rectTransform.anchoredPosition = new Vector2(rtl ? 0f : Mathf.Max(0f, available - arrow), 0f);
             _readout.rectTransform.anchoredPosition = new Vector2(inset + arrow, 0f);
             _readout.rectTransform.sizeDelta = new Vector2(readoutWidth, _readout.rectTransform.sizeDelta.y);
-            _right.rectTransform.anchoredPosition = new Vector2(Mathf.Max(arrow + inset, available - arrow), 0f);
+            _readout.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
         }
 
         /// <summary>
