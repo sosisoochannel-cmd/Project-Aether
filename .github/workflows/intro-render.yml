@@ -21,6 +21,7 @@ on:
       - arena/01a10203-project-aether
       - arena/m4-whispering-woods
       - arena/varellon-rift-lock
+      - arena/varellon-motion-video-preview
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Resources/Brand/**'
