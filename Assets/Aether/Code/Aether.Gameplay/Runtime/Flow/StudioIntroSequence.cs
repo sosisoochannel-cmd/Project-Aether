@@ -627,8 +627,11 @@ namespace Aether.Gameplay.Flow
                 // Two original, short lock transients are aligned with the emblem's first
                 // compression and the wordmark's final convergence. They are synthesized here,
                 // not loaded from a stock sound, and sit under the tonal body rather than replacing it.
-                float firstImpactAge = t - 0.445f;
-                float secondImpactAge = t - 0.555f;
+                // The clip starts at BlackHold (0.30s). These offsets land on the peak of
+                // each part's lock compression: Reveal * 0.88, then WordmarkDelay + WordmarkReveal * 0.88.
+                // Keep the visual curve and the audible impact tied together, rather than guessing by ear.
+                float firstImpactAge = t - 0.572f;
+                float secondImpactAge = t - 0.778f;
                 float firstImpactEnvelope = firstImpactAge < 0f ? 0f :
                     Mathf.Exp(-firstImpactAge * 46f) * Mathf.Clamp01(firstImpactAge / 0.0025f);
                 float secondImpactEnvelope = secondImpactAge < 0f ? 0f :
@@ -727,9 +730,14 @@ namespace Aether.Gameplay.Flow
             // Stronger initial yaw/roll gives a brief dimensional turn, while the small lateral
             // overshoot makes the final convergence readable even on a phone-sized screen.
             float travel = EaseOutCubic(progress);
+            float arc = Mathf.Sin(Mathf.PI * progress);
             float lateralFraction = isMark
-                ? Mathf.Lerp(-0.115f, 0f, travel) + Mathf.Sin(Mathf.PI * progress) * 0.018f
-                : Mathf.Lerp(0.120f, 0f, travel) - Mathf.Sin(Mathf.PI * progress) * 0.012f;
+                ? Mathf.Lerp(-0.115f, 0f, travel) + arc * 0.018f
+                : Mathf.Lerp(0.120f, 0f, travel) - arc * 0.012f;
+
+            // A tiny counter-arc makes the two regions feel authored on separate trajectories,
+            // rather than sliding on parallel rails. It is exactly zero at both endpoints.
+            rise += isMark ? arc * 0.018f : -arc * 0.012f;
             yaw += isMark ? Mathf.Lerp(-18f, 0f, travel) : Mathf.Lerp(15f, 0f, travel);
             roll += isMark ? Mathf.Lerp(-10f, 0f, travel) : Mathf.Lerp(8f, 0f, travel);
 
