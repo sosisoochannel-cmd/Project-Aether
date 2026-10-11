@@ -72,9 +72,10 @@ namespace Aether.Gameplay.Flow
     /// <b>Skipping and switching it off are both seams that already exist.</b> A tap, a key or a
     /// button ends the intro early after a short grace period — the grace is there because the tap
     /// that launched the app is still on the screen — and <see cref="Preference"/> is the setting a
-    /// future settings screen writes when a player would rather never see it. The intro is silent
-    /// today: it requests its cues through <see cref="SoundDirector"/> like the rest of the game, so
-    /// it becomes audible the moment an audio backend exists, and no audio asset is invented here.
+    /// future settings screen writes when a player would rather never see it. The intro uses an
+    /// original procedural studio sting synchronised to the logo cues: warm resonance, a breath of
+    /// filtered air, a restrained harmonic bloom and a soft resolving tail. It uses no third-party
+    /// recording and needs no imported audio asset.
     /// </para>
     /// </remarks>
     [DefaultExecutionOrder(-100)]
@@ -291,7 +292,7 @@ namespace Aether.Gameplay.Flow
         [SerializeField]
         private Color _markColour = new Color(0.949f, 0.937f, 0.918f, 1f);
 
-        [Tooltip("Sound cue requested as the mark appears. Silent until an audio backend exists.")]
+        [Tooltip("Sound cue requested as the mark appears; paired with the original studio sting.")]
         [SerializeField]
         private string _revealCueId = "studio.intro.reveal";
 
@@ -317,6 +318,11 @@ namespace Aether.Gameplay.Flow
         private SpriteRenderer _sheenRenderer;
         private Material _sheenMaterial;
         private Shader _revealShader;
+        private AudioSource _studioAudioSource;
+        private AudioClip _studioRevealClip;
+        private AudioClip _studioResolveClip;
+
+        private const int StudioAudioSampleRate = 24000;
 
         /// <summary>Most texels the light's mask may have on its longer side.</summary>
         private const int MaxSheenTexels = 420;
@@ -368,6 +374,7 @@ namespace Aether.Gameplay.Flow
             }
 
             BuildLockup();
+            InitializeStudioAudio();
         }
 
         private void Start()
@@ -427,12 +434,14 @@ namespace Aether.Gameplay.Flow
                 {
                     revealCued = true;
                     SoundDirector.Request(_revealCueId, Vector2.zero);
+                    PlayStudioCue(true);
                 }
 
                 if (!exitCued && elapsed >= exitStartsAt)
                 {
                     exitCued = true;
                     SoundDirector.Request(_exitCueId, Vector2.zero);
+                    PlayStudioCue(false);
                 }
 
                 if (elapsed >= exitStartsAt)
@@ -522,6 +531,108 @@ namespace Aether.Gameplay.Flow
         {
             if (duration <= 0f) return 1f;
             return Mathf.Clamp01((elapsed - startsAt) / duration);
+        }
+
+        // -- original Varellon studio sound -------------------------------------------------------
+
+        /// <summary>
+        /// Builds an original, lightweight studio sting at runtime: rounded low resonance, a rising
+        /// breath of filtered air, a suspended harmonic bloom and quiet bell-like partials. The sound
+        /// is deterministic, needs no imported file, and is intentionally restrained on mobile.
+        /// </summary>
+        private void InitializeStudioAudio()
+        {
+            _studioAudioSource = GetComponent<AudioSource>();
+            if (_studioAudioSource == null) _studioAudioSource = gameObject.AddComponent<AudioSource>();
+            _studioAudioSource.playOnAwake = false;
+            _studioAudioSource.loop = false;
+            _studioAudioSource.spatialBlend = 0f;
+            _studioAudioSource.dopplerLevel = 0f;
+            _studioAudioSource.pitch = 1f;
+            _studioAudioSource.volume = 0.82f;
+            _studioAudioSource.priority = 32;
+
+            _studioRevealClip = CreateStudioClip("Varellon_Original_Studio_Sting", 1.52f, true);
+            _studioResolveClip = CreateStudioClip("Varellon_Original_Resolve", 0.64f, false);
+        }
+
+        private void PlayStudioCue(bool reveal)
+        {
+            if (_studioAudioSource == null) return;
+            AudioClip clip = reveal ? _studioRevealClip : _studioResolveClip;
+            if (clip != null) _studioAudioSource.PlayOneShot(clip, reveal ? 0.86f : 0.54f);
+        }
+
+        private static AudioClip CreateStudioClip(string clipName, float duration, bool reveal)
+        {
+            int count = Mathf.CeilToInt(StudioAudioSampleRate * duration);
+            var samples = new float[count];
+            float air = 0f;
+            uint noiseState = reveal ? 0x6D2B79F5u : 0x1B873593u;
+
+            for (int i = 0; i < count; i++)
+            {
+                float t = i / (float)StudioAudioSampleRate;
+                float lowEnvelope = reveal
+                    ? Mathf.Exp(-t * 3.9f) * Mathf.Clamp01(t * 18f)
+                    : Mathf.Exp(-t * 5.2f) * Mathf.Clamp01(t * 24f);
+                float bloom = reveal
+                    ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.42f))
+                    : Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.60f));
+                bloom = Mathf.Pow(Mathf.Max(0f, bloom), reveal ? 0.72f : 1.05f);
+
+                // Warm low resonance gives the mark weight without an exaggerated bass impact.
+                float fundamental = reveal
+                    ? Mathf.Lerp(98f, 73.42f, Mathf.Clamp01(t / 0.48f))
+                    : Mathf.Lerp(146.83f, 110f, Mathf.Clamp01(t / 0.42f));
+                float low = (Mathf.Sin(2f * Mathf.PI * fundamental * t) * 0.105f
+                           + Mathf.Sin(2f * Mathf.PI * fundamental * 2.003f * t) * 0.034f)
+                           * lowEnvelope;
+
+                // A soft, consonant chord blooms behind the emblem.
+                float chordEnvelope = bloom * (reveal ? 0.070f : 0.045f);
+                float chord = (
+                    Mathf.Sin(2f * Mathf.PI * 146.83f * t) * 0.42f +
+                    Mathf.Sin(2f * Mathf.PI * 220.00f * t) * 0.31f +
+                    Mathf.Sin(2f * Mathf.PI * 293.66f * t) * 0.30f +
+                    Mathf.Sin(2f * Mathf.PI * 369.99f * t) * 0.20f +
+                    Mathf.Sin(2f * Mathf.PI * 440.00f * t) * 0.14f) * chordEnvelope;
+
+                // Deterministic filtered noise forms a breath of air, not a stock swoosh.
+                noiseState = (noiseState * 1664525u) + 1013904223u;
+                float white = ((noiseState >> 8) / 8388607.5f) - 1f;
+                air += (white - air) * (reveal ? 0.075f : 0.11f);
+                float airEnvelope = reveal
+                    ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.02f)) * Mathf.Exp(-t * 0.85f)
+                    : Mathf.Exp(-t * 6.5f) * Mathf.Clamp01(t * 28f);
+                float breath = air * airEnvelope * (reveal ? 0.20f : 0.045f);
+
+                // Quiet high partials add a signature glint while staying behind the logo.
+                float shimmer;
+                if (reveal)
+                {
+                    shimmer = Mathf.Sin(2f * Mathf.PI * 587.33f * t) *
+                              Mathf.Exp(-Mathf.Max(0f, t - 0.34f) * 4.5f) *
+                              Mathf.Clamp01(t * 9f) * 0.018f;
+                    shimmer += Mathf.Sin(2f * Mathf.PI * 880.00f * t) *
+                               Mathf.Exp(-Mathf.Max(0f, t - 0.52f) * 5.5f) *
+                               Mathf.Clamp01(t * 10f) * 0.010f;
+                }
+                else
+                {
+                    shimmer = Mathf.Sin(2f * Mathf.PI * 440f * t) *
+                              Mathf.Exp(-t * 5.8f) * 0.012f;
+                }
+
+                float envelopeIn = Mathf.Clamp01(t / 0.018f);
+                float envelopeOut = Mathf.Clamp01((duration - t) / 0.055f);
+                float sample = (low + chord + breath + shimmer) * envelopeIn * envelopeOut;
+                samples[i] = Mathf.Clamp(sample, -0.85f, 0.85f);
+            }
+
+            AudioClip clip = AudioClip.Create(clipName, count, 1, StudioAudioSampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
         }
 
         // -- the lockup -------------------------------------------------------------------------
@@ -1106,6 +1217,13 @@ namespace Aether.Gameplay.Flow
         /// </summary>
         private void ReleaseLockup()
         {
+            if (_studioAudioSource != null) _studioAudioSource.Stop();
+            if (_studioRevealClip != null) Destroy(_studioRevealClip);
+            if (_studioResolveClip != null) Destroy(_studioResolveClip);
+            _studioAudioSource = null;
+            _studioRevealClip = null;
+            _studioResolveClip = null;
+
             // The hosts carry HideAndDontSave, so the scene unload would not take them along; they
             // are destroyed here, renderer and all, rather than travelling into the next scene
             // disabled and invisible.
