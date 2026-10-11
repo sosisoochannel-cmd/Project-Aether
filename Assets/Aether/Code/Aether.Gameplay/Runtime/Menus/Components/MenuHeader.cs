@@ -68,7 +68,8 @@ namespace Aether.Gameplay.Menus.Components
             titleRect.pivot = new Vector2(rtl ? 1f : 0f, 0.5f);
             titleRect.anchoredPosition = new Vector2(0f, -6f);
             // Stretch across the header while reserving a full back-button lane on the reading edge.
-            titleRect.sizeDelta = new Vector2(-MenuTheme.Metrics.BackHitWidth - 40f, 0f);
+            titleRect.sizeDelta = new Vector2(
+                showBack ? -MenuTheme.Metrics.BackHitWidth - 40f : -80f, 0f);
             header._title.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
 
             header._rule = MenuUi.CreateHairline("Rule", header._rect, MenuTheme.Palette.Line,
