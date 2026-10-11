@@ -51,7 +51,7 @@ namespace Aether.Gameplay.Menus
             /// <summary>Hairlines, separators and the tracks of sliders.</summary>
             public static readonly Color Line = new Color(0.48f, 0.35f, 0.16f, 0.72f);
 
-            /// <summary>The one accent: muted sage for focus and enabled controls.</summary>
+            /// <summary>The one accent: restrained antique gold for focus and selected controls.</summary>
             public static readonly Color Accent = new Color(0.91f, 0.70f, 0.34f, 1f);
 
             /// <summary>The accent at a lower opacity for selected-row surfaces.</summary>
