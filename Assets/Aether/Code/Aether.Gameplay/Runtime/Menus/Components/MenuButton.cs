@@ -269,9 +269,13 @@ namespace Aether.Gameplay.Menus.Components
             if (_help.gameObject.activeSelf != wanted) _help.gameObject.SetActive(wanted);
             if (wanted && _help.text != text) _help.text = MenuUi.PrepareText(text);
 
-            // With a second line the label moves up to make room for it; without one it is centred.
-            _labelY = wanted ? 15f : 0f;
+            // A help paragraph gets its own lower lane. Keeping the label in the upper half
+            // prevents wrapped translations from colliding with the explanation beneath them.
+            _labelY = 0f;
             _label.rectTransform.anchoredPosition = new Vector2(_label.rectTransform.anchoredPosition.x, _labelY);
+            if (_help != null)
+                _help.rectTransform.anchoredPosition = new Vector2(_help.rectTransform.anchoredPosition.x,
+                                                                    wanted ? -44f : -18f);
             RefreshTextGeometry();
         }
 
@@ -317,7 +321,8 @@ namespace Aether.Gameplay.Menus.Components
             }
 
             _textBaseX = signedInset;
-            _label.rectTransform.anchorMin = new Vector2(edge, 0f);
+            bool hasHelp = _help != null && _help.gameObject.activeSelf;
+            _label.rectTransform.anchorMin = new Vector2(edge, hasHelp ? 0.5f : 0f);
             _label.rectTransform.anchorMax = new Vector2(edge, 1f);
             _label.rectTransform.pivot = new Vector2(edge, 0.5f);
             _label.rectTransform.anchoredPosition = new Vector2(signedInset, _labelY);
@@ -326,7 +331,7 @@ namespace Aether.Gameplay.Menus.Components
             {
                 _help.rectTransform.anchorMin = _help.rectTransform.anchorMax = new Vector2(edge, 0.5f);
                 _help.rectTransform.pivot = new Vector2(edge, 0.5f);
-                _help.rectTransform.anchoredPosition = new Vector2(signedInset, -18f);
+                _help.rectTransform.anchoredPosition = new Vector2(signedInset, hasHelp ? -44f : -18f);
                 _help.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
             }
 
