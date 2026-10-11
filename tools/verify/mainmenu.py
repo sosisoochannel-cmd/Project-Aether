@@ -1073,6 +1073,16 @@ def check_discipline(gate: Gate) -> None:
     settings_panel = read(f"{MENUS}/Panels/MenuSettingsPanel.cs")
     main_screen = read(MAIN_SCREEN)
     menu_logo = read(f"{PRESENTATION}/MenuLogo.cs")
+    header = read(f"{MENUS}/Components/MenuHeader.cs")
+    gate.check("titleRect.anchorMax = new Vector2(1f, 1f)" in header
+               and "BackHitWidth - 40f" in header
+               and "titleRect.sizeDelta = new Vector2(10f, 0f)" not in header,
+               "screen header titles do not receive a responsive text lane beside the Back target")
+    gate.check("LanguageService.IsRightToLeft" in header
+               and "header._back.Rect.anchorMin = new Vector2(rtl ? 0f : 1f, 1f)" in header
+               and "header._back.SetCaretMirrored(!rtl)" in header
+               and "TextAnchor.MiddleRight : TextAnchor.MiddleLeft" in header,
+               "screen headers do not mirror title alignment and back navigation for RTL")
     gate.check("IsTrackableLatinLabel(content)" in menu_ui
                and "c >= 'A' && c <= 'Z'" in menu_ui
                and "char.IsLetter(c)" in menu_ui,
