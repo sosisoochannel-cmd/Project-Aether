@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Menus.Components
 
         private Image _plate;
         private Image _selectionGlow;
+        private Image _selectionFrame;
         private Text _label;
         private Text _help;
         private Text _meta;
@@ -189,6 +190,7 @@ namespace Aether.Gameplay.Menus.Components
         {
             _metaText = text;
             RefreshMeta();
+            RefreshTextGeometry();
         }
 
         /// <summary>
@@ -267,9 +269,14 @@ namespace Aether.Gameplay.Menus.Components
             if (_help.gameObject.activeSelf != wanted) _help.gameObject.SetActive(wanted);
             if (wanted && _help.text != text) _help.text = MenuUi.PrepareText(text);
 
-            // With a second line the label moves up to make room for it; without one it is centred.
-            _labelY = wanted ? 15f : 0f;
+            // A help paragraph gets its own lower lane. Keeping the label in the upper half
+            // prevents wrapped translations from colliding with the explanation beneath them.
+            _labelY = 0f;
             _label.rectTransform.anchoredPosition = new Vector2(_label.rectTransform.anchoredPosition.x, _labelY);
+            if (_help != null)
+                _help.rectTransform.anchoredPosition = new Vector2(_help.rectTransform.anchoredPosition.x,
+                                                                    wanted ? -44f : -18f);
+            RefreshTextGeometry();
         }
 
         /// <summary>
@@ -280,6 +287,7 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_control == null) return;
             _control.sizeDelta = new Vector2(Mathf.Max(0f, width), 0f);
+            RefreshTextGeometry();
         }
 
         /// <summary>Lays the row out for the track it was given. Called by the panel that owns it.</summary>
@@ -287,13 +295,131 @@ namespace Aether.Gameplay.Menus.Components
         {
             if (_label == null) return;
 
-            if (_caret != null) _caret.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
-            if (_icon != null) _icon.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
+            bool rtl = LanguageService.IsRightToLeft;
+            float edge = rtl ? 1f : 0f;
+            float signedInset = rtl ? -textInset : textInset;
+            float signedOutdent = rtl ? caretOutdent : -caretOutdent;
 
-            _textBaseX = textInset;
-            _label.rectTransform.anchoredPosition = new Vector2(_textBaseX, _labelY);
-            if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(textInset, -18f);
-            if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(-textInset, 0f);
+            // Mirror the row's internal reading order as well as its text alignment. The caret,
+            // lock, accent and underline all move to the reading edge; the metadata moves to the
+            // opposite edge so it never competes with the translated label.
+            if (_caret != null)
+            {
+                RectTransform caret = _caret.rectTransform;
+                caret.anchorMin = caret.anchorMax = new Vector2(edge, 0.5f);
+                caret.pivot = new Vector2(edge, 0.5f);
+                caret.anchoredPosition = new Vector2(signedOutdent, 0f);
+                caret.localScale = new Vector3(rtl ? -1f : 1f, 1f, 1f);
+            }
+
+            if (_icon != null)
+            {
+                RectTransform icon = _icon.rectTransform;
+                icon.anchorMin = icon.anchorMax = new Vector2(edge, 0.5f);
+                icon.pivot = new Vector2(edge, 0.5f);
+                icon.anchoredPosition = new Vector2(signedOutdent, 0f);
+            }
+
+            _textBaseX = signedInset;
+            bool hasHelp = _help != null && _help.gameObject.activeSelf;
+            _label.rectTransform.anchorMin = new Vector2(edge, hasHelp ? 0.5f : 0f);
+            _label.rectTransform.anchorMax = new Vector2(edge, 1f);
+            _label.rectTransform.pivot = new Vector2(edge, 0.5f);
+            _label.rectTransform.anchoredPosition = new Vector2(signedInset, _labelY);
+
+            if (_help != null)
+            {
+                _help.rectTransform.anchorMin = _help.rectTransform.anchorMax = new Vector2(edge, 0.5f);
+                _help.rectTransform.pivot = new Vector2(edge, 0.5f);
+                _help.rectTransform.anchoredPosition = new Vector2(signedInset, hasHelp ? -44f : -18f);
+                _help.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            }
+
+            float oppositeEdge = rtl ? 0f : 1f;
+            if (_control != null)
+            {
+                _control.anchorMin = _control.anchorMax = new Vector2(oppositeEdge, 0.5f);
+                _control.pivot = new Vector2(oppositeEdge, 0.5f);
+                _control.anchoredPosition = Vector2.zero;
+            }
+
+            if (_meta != null)
+            {
+                _meta.rectTransform.anchorMin = _meta.rectTransform.anchorMax = new Vector2(oppositeEdge, 0.5f);
+                _meta.rectTransform.pivot = new Vector2(oppositeEdge, 0.5f);
+                float controlGap = _control != null && _control.sizeDelta.x > 0f
+                    ? _control.sizeDelta.x + textInset : textInset;
+                _meta.rectTransform.anchoredPosition = new Vector2(rtl ? controlGap : -controlGap, 0f);
+                _meta.alignment = rtl ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+            }
+
+            if (_accent != null)
+            {
+                RectTransform accent = _accent.rectTransform;
+                accent.anchorMin = new Vector2(edge, 0f);
+                accent.anchorMax = new Vector2(edge, 1f);
+                accent.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
+                accent.anchoredPosition = new Vector2(-8f, 0f);
+            }
+
+            if (_rule != null)
+            {
+                RectTransform rule = _rule.rectTransform;
+                rule.anchorMin = rule.anchorMax = new Vector2(edge, 0f);
+                rule.pivot = new Vector2(edge, 0f);
+                rule.anchoredPosition = new Vector2(rtl ? 0f : 0f, 0f);
+            }
+
+            if (_selectionGlow != null)
+            {
+                RectTransform glow = _selectionGlow.rectTransform;
+                glow.anchorMin = glow.anchorMax = new Vector2(edge, 0.5f);
+                glow.pivot = new Vector2(rtl ? 0.92f : 0.08f, 0.5f);
+                glow.anchoredPosition = new Vector2(rtl ? -42f : 42f, 0f);
+            }
+
+            RefreshTextGeometry();
+        }
+
+        /// <summary>
+        /// Reserves a separate lane for translated labels, metadata, and setting controls.
+        /// The label's rect is the available space, not an arbitrary ten-unit placeholder: long
+        /// translations can wrap inside the row instead of painting over the value or slider.
+        /// </summary>
+        private void RefreshTextGeometry()
+        {
+            if (_label == null || _meta == null || _control == null) return;
+
+            float rowWidth = Mathf.Max(Rect.rect.width, Rect.sizeDelta.x);
+            if (rowWidth <= 0f) return;
+
+            float inset = Mathf.Max(MenuTheme.Metrics.CaretOutdent, 12f);
+            float innerWidth = Mathf.Max(0f, rowWidth - (inset * 2f));
+            bool hasControl = _control.sizeDelta.x > 0f;
+            bool hasMeta = _meta.gameObject.activeSelf;
+
+            // Keep each lane inside the row even when the screen is narrow. In particular, do not
+            // clamp metadata to a fixed minimum that can exceed the available width on a phone.
+            float controlWidth = hasControl ? Mathf.Min(_control.sizeDelta.x, innerWidth) : 0f;
+            float controlReserve = hasControl
+                ? Mathf.Min(innerWidth, controlWidth + inset) : 0f;
+            float remainingAfterControl = Mathf.Max(0f, innerWidth - controlReserve);
+            float labelFloor = Mathf.Min(48f, remainingAfterControl);
+            float metaCapacity = Mathf.Max(0f, remainingAfterControl - labelFloor - inset);
+            float wantedMetaWidth = Mathf.Max(72f, rowWidth * 0.36f);
+            float metaWidth = hasMeta
+                ? Mathf.Min(wantedMetaWidth, Mathf.Min(rowWidth * 0.46f, metaCapacity))
+                : 0f;
+            float metaReserve = metaWidth > 0f ? metaWidth + inset : 0f;
+            float labelWidth = Mathf.Max(0f, remainingAfterControl - metaReserve);
+
+            _label.rectTransform.sizeDelta = new Vector2(labelWidth, 0f);
+            _meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f);
+            if (_help != null)
+            {
+                _help.rectTransform.sizeDelta = new Vector2(labelWidth,
+                    MenuTheme.Metrics.SettingHelpSize * 2f);
+            }
         }
 
         // -- construction ----------------------------------------------------------------------
@@ -315,6 +441,22 @@ namespace Aether.Gameplay.Menus.Components
             _selectionGlow.raycastTarget = false;
             _selectionGlow.gameObject.SetActive(false);
             _selectionGlow.transform.SetAsFirstSibling();
+
+            // A sliced, chamfered frame is the primary selected-state cue. Its corners are authored
+            // once by MenuArt and remain crisp as the row stretches to fit a column or translation.
+            _selectionFrame = MenuUi.CreateImage("SelectionFrame", transform, MenuArt.SelectionFrame,
+                                                 new Color(MenuTheme.Palette.Accent.r,
+                                                           MenuTheme.Palette.Accent.g,
+                                                           MenuTheme.Palette.Accent.b, 0f));
+            _selectionFrame.type = Image.Type.Sliced;
+            RectTransform frameRect = _selectionFrame.rectTransform;
+            frameRect.anchorMin = new Vector2(0f, 0.5f);
+            frameRect.anchorMax = new Vector2(1f, 0.5f);
+            frameRect.pivot = new Vector2(0.5f, 0.5f);
+            frameRect.anchoredPosition = Vector2.zero;
+            frameRect.sizeDelta = new Vector2(-22f, _weight == Weight.Primary ? 116f : 92f);
+            _selectionFrame.raycastTarget = false;
+            _selectionFrame.gameObject.SetActive(false);
 
             // This component owns every pixel of its own transition — the plate, the label, the caret
             // and the rule each answer the state on their own schedule — so Selectable's built-in
@@ -378,6 +520,8 @@ namespace Aether.Gameplay.Menus.Components
             _label.rectTransform.pivot = new Vector2(0f, 0.5f);
             _label.rectTransform.anchoredPosition = Vector2.zero;
             _label.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            _label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _label.verticalOverflow = VerticalWrapMode.Truncate;
 
             _meta = MenuUi.CreateText("Meta", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
@@ -387,6 +531,8 @@ namespace Aether.Gameplay.Menus.Components
             _meta.rectTransform.pivot = new Vector2(1f, 0.5f);
             _meta.rectTransform.anchoredPosition = Vector2.zero;
             _meta.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            _meta.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _meta.verticalOverflow = VerticalWrapMode.Truncate;
             _meta.gameObject.SetActive(false);
 
             _help = MenuUi.CreateText("Help", _textBlock, string.Empty,
@@ -396,6 +542,8 @@ namespace Aether.Gameplay.Menus.Components
             _help.rectTransform.anchorMax = new Vector2(0f, 0.5f);
             _help.rectTransform.pivot = new Vector2(0f, 0.5f);
             _help.rectTransform.sizeDelta = new Vector2(10f, MenuTheme.Metrics.SettingHelpSize * 2f);
+            _help.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _help.verticalOverflow = VerticalWrapMode.Truncate;
             _help.rectTransform.anchoredPosition = new Vector2(0f, -18f);
             _help.gameObject.SetActive(false);
 
@@ -505,15 +653,22 @@ namespace Aether.Gameplay.Menus.Components
             }
 
             CrossFade(_plate, plate, fade);
+            bool selectionVisible = !_locked && !_informational &&
+                                    (state == SelectionState.Highlighted || state == SelectionState.Selected ||
+                                     state == SelectionState.Pressed);
             if (_selectionGlow != null)
             {
-                bool glowVisible = !_locked && !_informational &&
-                                   (state == SelectionState.Highlighted || state == SelectionState.Selected ||
-                                    state == SelectionState.Pressed);
                 Color glow = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
-                                       MenuTheme.Palette.Accent.b, glowVisible ? 0.10f : 0f);
-                _selectionGlow.gameObject.SetActive(glowVisible || !instant);
+                                       MenuTheme.Palette.Accent.b, selectionVisible ? 0.10f : 0f);
+                _selectionGlow.gameObject.SetActive(selectionVisible || !instant);
                 CrossFade(_selectionGlow, glow, fade);
+            }
+            if (_selectionFrame != null)
+            {
+                Color frame = MenuTheme.Palette.Accent;
+                frame.a = selectionVisible ? (state == SelectionState.Pressed ? 1f : 0.88f) : 0f;
+                _selectionFrame.gameObject.SetActive(selectionVisible || !instant);
+                CrossFade(_selectionFrame, frame, fade);
             }
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);

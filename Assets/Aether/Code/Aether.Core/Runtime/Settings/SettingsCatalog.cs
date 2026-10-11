@@ -309,7 +309,7 @@ namespace Aether.Core.Settings
                 // Offered means drawable *and* written: a language with no sheet of its own is not in
                 // the row, because choosing it would do nothing. The catalogue holds that list, and
                 // tools/verify/localization.py holds the catalogue to the sheets.
-                if (language.BundledFontCovers &&
+                if (language.FontResolverConfigured &&
                     Aether.Core.Localization.LanguageCatalog.IsOffered(language.Code))
                 {
                     keys.Add(language.LabelKey);
@@ -335,7 +335,7 @@ namespace Aether.Core.Settings
             {
                 Aether.Core.Localization.LanguageDefinition option =
                     Aether.Core.Localization.LanguageCatalog.All[i];
-                if (option.BundledFontCovers &&
+                if (option.FontResolverConfigured &&
                     Aether.Core.Localization.LanguageCatalog.IsOffered(option.Code))
                 {
                     values.Add(i);

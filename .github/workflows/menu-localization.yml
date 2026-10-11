@@ -1,0 +1,32 @@
+name: Menu and localization verification
+
+on:
+  pull_request:
+    paths:
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/**'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Presentation/MenuBackdrop.cs'
+      - 'Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**'
+      - 'Assets/Aether/Scenes/MainMenu.unity'
+      - 'tools/localization/**'
+      - 'tools/verify/localization.py'
+      - 'tools/verify/mainmenu.py'
+      - '.github/workflows/menu-localization.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  menu-localization:
+    name: Validate menu layout and translation tables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify localization sheets and generated tables
+        run: python3 tools/verify/localization.py
+      - name: Verify menu composition, touch targets, and wiring
+        run: python3 tools/verify/mainmenu.py

@@ -67,13 +67,13 @@ menu_shader = read("menu_shader")
 intro_shader = read("intro_shader")
 reveal_shader = read("reveal_shader")
 
-# The menu logo gets one finite, alpha-clipped UI glint after its entrance; it must not loop or glow.
-require('Resources.Load<Shader>(GlintShaderPath)' in menu and
-        'private const string GlintShaderPath = "Brand/VarellonLogoSheen";' in menu,
-        "menu logo must load the dedicated VarellonLogoSheen shader for its one-time glint")
-require('logo._glint.gameObject.SetActive(false);' in menu and
-        '_glint.gameObject.SetActive(false);' in menu,
-        "menu glint must be hidden at rest and after it finishes")
+# The menu uses the Varellon mark as a still brand signature. Cinematic motion belongs to
+# the dedicated studio intro, not the interactive menu where it can distract from navigation.
+require("_glint" not in menu and "GlintShaderPath" not in menu and
+        "BuildGlintMaterial" not in menu and "PresentRoutine" not in menu,
+        "menu logo must stay static and must not load or animate a glint")
+require("private void OnEnable()" in menu and "if (_mark != null && _mark.sprite != null) Apply();" in menu,
+        "menu logo must reapply its fixed layout safely when re-enabled")
 require('Resources.Load<Shader>("Brand/VarellonIntroSheen")' in intro,
         "studio intro must load Brand/VarellonIntroSheen")
 require('Resources.Load<Shader>("Brand/VarellonIntroReveal")' in intro,
@@ -93,19 +93,9 @@ require("Blend SrcAlpha OneMinusSrcAlpha" in intro_shader,
 
 # Catch accidental CPU texture uploads in per-frame animation methods while allowing one-time
 # texture construction in setup methods.
-menu_update = method_body(menu, r"\bIEnumerator\s+PresentRoutine\s*\(")
 intro_draw = method_body(intro, r"\bvoid\s+DrawSheen\s*\(")
-for label, body in (("menu PresentRoutine", menu_update), ("intro DrawSheen", intro_draw)):
-    require("SetPixels" not in body and ".Apply(" not in body,
-            f"{label} must not rewrite/upload texture pixels per frame")
-require("_SweepProgress" in menu_update and "_SweepOpacity" in menu_update,
-        "menu logo must animate one glint pass and its opacity envelope")
-require("const float sweepDuration = 0.92f;" in menu_update and
-        "const float lingerDuration = 0.16f;" in menu_update and
-        "const float fadeDuration = 0.34f;" in menu_update,
-        "menu glint must use the longer sweep, brief linger, and soft fade")
-require("!MenuPreferences.ReducedMotion" in menu_update,
-        "menu glint must respect Reduced Motion")
+require("SetPixels" not in intro_draw and ".Apply(" not in intro_draw,
+        "intro DrawSheen must not rewrite/upload texture pixels per frame")
 require("_SweepProgress" in intro_draw and "_SweepOpacity" in intro_draw,
         "intro DrawSheen must drive the shader's sweep parameters")
 
@@ -120,16 +110,33 @@ require("_RevealProgress" in intro and "RevealProgress(elapsed, false)" in intro
         "studio mark must animate the reveal matte")
 require("RevealProgress(elapsed, true)" in intro,
         "studio wordmark must animate its reveal matte after the mark")
+require("Mathf.Lerp(-20f, 0f, settle)" in intro and
+        "Mathf.Lerp(3.6f, 0f, settle)" in intro and
+        "Quaternion.Euler(0f, yaw, roll)" in intro,
+        "studio emblem must have a restrained 3D yaw/roll settle rather than only a fade")
 require("return wordmark ? EaseOutCubic(linear) : EaseOutSine(linear);" in intro,
         "intro matte must keep pace with the same ease-out as each part's alpha")
+
+# The studio intro must actually emit its own original sound at the exact visual cue times.
+require("InitializeStudioAudio();" in intro and "AudioClip.Create(" in intro and
+        "clip.SetData(samples, 0);" in intro,
+        "studio intro must synthesise and initialise its own playable audio clips")
+require("PlayStudioCue(true);" in intro and "PlayStudioCue(false);" in intro and
+        "SoundDirector.Request(_revealCueId, Vector2.zero);" in intro and
+        "SoundDirector.Request(_exitCueId, Vector2.zero);" in intro,
+        "the studio sting must stay synchronised with the reveal and resolve cue requests")
+require("AudioSource" in intro and "spatialBlend = 0f" in intro and
+        "private const int StudioAudioSampleRate = 24000;" in intro,
+        "studio sting must use lightweight non-spatial audio suitable for mobile")
+require("Destroy(_studioRevealClip)" in intro and "Destroy(_studioResolveClip)" in intro,
+        "runtime-generated studio audio clips must be released during hand-over")
 require("skipped ? markRevealFrom : 1f" in intro and "skipped ? wordmarkRevealFrom : 1f" in intro,
         "skipping the intro must preserve the current matte instead of snapping it open")
 
 # Runtime-owned materials must have a cleanup path; the one-time glint owns one UI material.
-require("_sweepMaterial" not in menu and "BuildSweepMaterial" not in menu,
-        "menu logo must not retain the old perpetual sweep-material machinery")
-require("BuildGlintMaterial()" in menu and "Destroy(_glintMaterial)" in menu,
-        "menu one-time glint material must be created and destroyed safely")
+require("_sweepMaterial" not in menu and "BuildSweepMaterial" not in menu and
+        "_glintMaterial" not in menu and "BuildGlintMaterial" not in menu,
+        "menu logo must not retain sweep or glint material machinery")
 require("_generatedSprite != null) Destroy(_generatedSprite)" in menu and
         "_generatedTexture != null) Destroy(_generatedTexture)" in menu,
         "menu generated sprite and texture must be destroyed during cleanup")
@@ -137,14 +144,8 @@ require("_sheenMaterial" in intro and re.search(r"Destroy\s*\(\s*_sheenMaterial\
         "intro runtime sheen material must be destroyed during cleanup")
 require("Destroy(_mark.RevealMaterial)" in intro and "Destroy(_wordmark.RevealMaterial)" in intro,
         "per-part intro reveal materials must be destroyed during cleanup")
-require("ReducedMotion" in menu or "reducedMotion" in menu,
-        "menu logo must retain Reduced Motion handling")
-require("logo.BeginPresentation();" in menu and "private void BeginPresentation()" in menu,
-        "menu logo entrance motion must start after the generated mark is ready")
-require("if (!isActiveAndEnabled || _mark == null || _mark.sprite == null) return;" in menu,
-        "menu logo presentation start must respect active/enabled lifecycle state")
-require("const float duration = 0.42f;" in menu and "const float rise = 6f;" in menu,
-        "menu logo must keep its brief restrained entrance")
+require("IEnumerator" not in menu and "Coroutine" not in menu and "localScale" not in menu,
+        "menu logo must not introduce entrance animation or scale effects")
 
 # The intro's signature remains brief and its sheen is intentionally subtle.
 def number(name: str) -> float | None:
@@ -180,6 +181,6 @@ if problems:
     sys.exit(1)
 
 print("Varellon brand-motion static gate: PASS")
-print("Checked shader/resource contracts, one-time menu glint timing, UI clipping,")
-print("per-frame texture-upload absence, cleanup, Reduced Motion, and restrained intro timing.")
+print("Checked static menu-logo contract, intro shader/resource contracts, UI clipping,")
+print("per-frame texture-upload absence, cleanup, and restrained studio-intro timing.")
 print("Unity shader compilation, rendered appearance, and Android profiling remain separate checks.")

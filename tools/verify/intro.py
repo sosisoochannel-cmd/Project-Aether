@@ -35,6 +35,7 @@ SEQUENCE = "Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/StudioIntroSequence.
 SCENE = "Assets/Aether/Scenes/StudioIntro.unity"
 RESOURCES = "Assets/Aether/Resources"
 BRAND_DIR = "Assets/Aether/Resources/Brand"
+REVEAL_SHADER = "Assets/Aether/Resources/Brand/VarellonIntroReveal.shader"
 
 # Device shapes the intro can meet, as width / height. Landscape because that is how the game is
 # played, and portrait because the app is launched before anything has chosen an orientation: the
@@ -694,6 +695,22 @@ def main() -> int:
     print()
 
     problems = check_constants(values) + check_timing(values)
+
+    # The logo reveal itself must carry the authored crest light and a one-time physical settle;
+    # checking these source contracts prevents a future edit from reducing the studio ident to fades.
+    reveal_shader_path = os.path.join(REPO_ROOT, REVEAL_SHADER)
+    reveal_shader = open(reveal_shader_path, encoding="utf-8").read() if os.path.exists(reveal_shader_path) else ""
+    if not reveal_shader:
+        problems.append(f"brand: {REVEAL_SHADER} is missing, so the emblem has no authored reveal shader")
+    else:
+        for token in ("_RevealEdgeColor", "_RevealEdgeStrength", "_RevealEdgeWidth",
+                      "edgeDistance", "coverage * input.color.a * matte"):
+            if token not in reveal_shader:
+                problems.append(f"brand: Varellon reveal shader is missing its logo-masked crest-light feature ({token})")
+    if "crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.035f" not in script_text:
+        problems.append("brand: Varellon emblem has lost its single, non-looping cinematic settle")
+    else:
+        print("  ok   logo animation: matte reveal with ink-masked antique-gold crest light and a single controlled settle")
 
     checked = 0
     tightest_major = (9.9, "")

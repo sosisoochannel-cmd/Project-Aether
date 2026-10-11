@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using Aether.Core.Localization;
 using Aether.Gameplay.Localization;
 
 namespace Aether.Gameplay.Menus
@@ -28,12 +30,14 @@ namespace Aether.Gameplay.Menus
         private static Sprite _solid;
         private static Sprite _circle;
         private static Sprite _glow;
+        private static Sprite _selectionFrame;
         private static Sprite _band;
         private static Sprite _vignette;
         private static Sprite _triangle;
         private static Sprite _padlock;
         private static Font _font;
         private static Font _rtlFont;
+        private static readonly Dictionary<string, Font> ScriptFonts = new Dictionary<string, Font>();
         private static bool _built;
 
         /// <summary>The approved forest background loaded from Resources, without modifying the asset.</summary>
@@ -73,6 +77,16 @@ namespace Aether.Gameplay.Menus
             {
                 EnsureBuilt();
                 return _glow;
+            }
+        }
+
+        /// <summary>An antique-gold, chamfered frame for the active menu row.</summary>
+        public static Sprite SelectionFrame
+        {
+            get
+            {
+                EnsureBuilt();
+                return _selectionFrame;
             }
         }
 
@@ -134,8 +148,63 @@ namespace Aether.Gameplay.Menus
             get
             {
                 EnsureBuilt();
-                return LanguageService.IsRightToLeft ? (_rtlFont ?? _font) : _font;
+                return FontForLanguage(LanguageService.Code);
             }
+        }
+
+        /// <summary>Gets the best available font for a particular language code.</summary>
+        public static Font FontForLanguage(string code)
+        {
+            EnsureBuilt();
+            Font resolved = GetFontForLanguage(code);
+            if (resolved != null) return resolved;
+
+            LanguageDefinition language = LanguageCatalog.Find(code);
+            return language != null && language.Direction == TextDirection.RightToLeft
+                ? (_rtlFont ?? _font)
+                : _font;
+        }
+
+        /// <summary>
+        /// Returns whether the current device exposes a font that contains a representative glyph
+        /// for this script. This is a runtime probe, not a guarantee of shaping or visual quality;
+        /// those still require Unity/device QA.
+        /// </summary>
+        public static bool CanRenderLanguage(string code)
+        {
+            EnsureBuilt();
+            Font font = GetFontForLanguage(code);
+            if (font == null) return false;
+
+            char probe;
+            switch (code)
+            {
+                case "ar": probe = 'ع'; break;
+                case "fa": probe = 'پ'; break;
+                case "zh": probe = '汉'; break;
+                case "ja": probe = 'あ'; break;
+                case "ko": probe = '한'; break;
+                case "ru": probe = 'Ж'; break;
+                case "tr": probe = 'İ'; break;
+                case "es": probe = 'ñ'; break;
+                case "fr": probe = 'é'; break;
+                case "de": probe = 'ß'; break;
+                case "it": probe = 'à'; break;
+                case "pt": probe = 'ã'; break;
+                default: probe = 'A'; break;
+            }
+
+            return font.HasCharacter(probe);
+        }
+
+        private static Font GetFontForLanguage(string code)
+        {
+            Font cached;
+            if (ScriptFonts.TryGetValue(code, out cached) && cached != null) return cached;
+
+            Font resolved = ResolveFontForLanguage(code);
+            if (resolved != null) ScriptFonts[code] = resolved;
+            return resolved;
         }
 
         /// <summary>Builds everything, once. Safe to call from anywhere; repeated calls do nothing.</summary>
@@ -149,6 +218,7 @@ namespace Aether.Gameplay.Menus
             _circle = MakeSprite(Radial("circle", 64, 0.5f, 1f, 1f), "circle",
                                  new Rect(0f, 0f, 64f, 64f));
             _glow = MakeSprite(Radial("glow", 128, 0f, 1f, 1.9f), "glow", new Rect(0f, 0f, 128f, 128f));
+            _selectionFrame = MakeSelectionFrame();
             _band = MakeSprite(BandTexture(8, 128), "band", new Rect(0f, 0f, 8f, 128f));
             _vignette = MakeSprite(VignetteTexture(160), "vignette", new Rect(0f, 0f, 160f, 160f));
             _triangle = MakeSprite(TriangleTexture(32), "triangle", new Rect(0f, 0f, 32f, 32f));
@@ -164,14 +234,17 @@ namespace Aether.Gameplay.Menus
             Destroy(_solid);
             Destroy(_circle);
             Destroy(_glow);
+            Destroy(_selectionFrame);
             Destroy(_band);
             Destroy(_vignette);
             Destroy(_triangle);
             Destroy(_padlock);
             _solid = _circle = _glow = _band = _vignette = _triangle = _padlock = null;
+            _selectionFrame = null;
             _forest = null;
             _font = null;
             _rtlFont = null;
+            ScriptFonts.Clear();
             _built = false;
         }
 
@@ -186,10 +259,131 @@ namespace Aether.Gameplay.Menus
             }
 
             string[] names = rtl
-                ? new[] { "Noto Sans Arabic", "Noto Naskh Arabic", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }
+                ? new[] { "Noto Sans Arabic UI", "Noto Naskh Arabic UI", "Noto Sans Arabic",
+                          "Noto Naskh Arabic", "Noto Sans Persian", "Noto Sans", "Droid Sans",
+                          "DejaVu Sans", "Arial" }
                 : new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" };
 
             return Font.CreateDynamicFontFromOSFont(names, 48);
+        }
+
+        /// <summary>
+        /// Resolves a script-aware dynamic font. Android devices do not all ship the same font
+        /// family names, so each script has a short ordered fallback list rather than one assumed
+        /// family. The returned font is cached by locale code because UI screens are rebuilt on a
+        /// language change and font creation is comparatively expensive.
+        /// </summary>
+        private static Font ResolveFontForLanguage(string code)
+        {
+            switch (code)
+            {
+                case "ar":
+                case "fa":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans Arabic UI", "Noto Naskh Arabic UI", "Noto Sans Arabic",
+                                "Noto Naskh Arabic", "Noto Sans Persian", "Noto Sans", "Droid Sans",
+                                "DejaVu Sans", "Arial" }, 48);
+
+                case "zh":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC",
+                                "Droid Sans Fallback", "Noto Sans CJK", "Arial Unicode MS" }, 48);
+
+                case "ja":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK JP", "Noto Sans JP", "Source Han Sans JP",
+                                "Yu Gothic", "Meiryo", "Droid Sans Fallback", "Noto Sans CJK" }, 48);
+
+                case "ko":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans CJK KR", "Noto Sans KR", "Source Han Sans K",
+                                "Malgun Gothic", "Droid Sans Fallback", "Noto Sans CJK" }, 48);
+
+                case "ru":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans", "Roboto", "Arial", "DejaVu Sans" }, 48);
+
+                case "es":
+                case "fr":
+                case "de":
+                case "it":
+                case "pt":
+                case "tr":
+                    return Font.CreateDynamicFontFromOSFont(
+                        new[] { "Noto Sans", "Roboto", "Droid Sans", "DejaVu Sans", "Arial" }, 48);
+
+                default:
+                    return _font;
+            }
+        }
+
+        /// <summary>
+        /// Creates a nine-sliced, chamfered frame. The corners stay crisp at every row width while
+        /// the straight edges stretch, so the selection is a designed frame rather than a rectangle.
+        /// </summary>
+        private static Sprite MakeSelectionFrame()
+        {
+            const int size = 96;
+            Texture2D texture = Texture("selection frame", size, size);
+            var pixels = new Color32[size * size];
+
+            // Outer eight-sided path. White pixels are tinted with the menu's antique gold at draw time.
+            Vector2[] outer =
+            {
+                new Vector2(2f, 26f), new Vector2(26f, 2f),
+                new Vector2(70f, 2f), new Vector2(94f, 26f),
+                new Vector2(94f, 70f), new Vector2(70f, 94f),
+                new Vector2(26f, 94f), new Vector2(2f, 70f),
+            };
+            for (int i = 0; i < outer.Length; i++)
+                DrawFrameLine(pixels, size, outer[i], outer[(i + 1) % outer.Length], 2.5f);
+
+            // Short inset cuts give the corners a carved, layered finish without adding visual noise.
+            Vector2[][] details =
+            {
+                new[] { new Vector2(6f, 27f), new Vector2(27f, 6f) },
+                new[] { new Vector2(69f, 6f), new Vector2(90f, 27f) },
+                new[] { new Vector2(90f, 69f), new Vector2(69f, 90f) },
+                new[] { new Vector2(27f, 90f), new Vector2(6f, 69f) },
+            };
+            for (int i = 0; i < details.Length; i++)
+                DrawFrameLine(pixels, size, details[i][0], details[i][1], 1.25f);
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect,
+                new Vector4(28f, 28f, 28f, 28f));
+            sprite.name = "Aether menu selection frame";
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        private static void DrawFrameLine(Color32[] pixels, int size, Vector2 start, Vector2 end,
+                                          float thickness)
+        {
+            int minX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(start.x, end.x) - thickness - 1f));
+            int maxX = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(start.x, end.x) + thickness + 1f));
+            int minY = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(start.y, end.y) - thickness - 1f));
+            int maxY = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(start.y, end.y) + thickness + 1f));
+            Vector2 delta = end - start;
+            float lengthSquared = delta.sqrMagnitude;
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    Vector2 point = new Vector2(x + 0.5f, y + 0.5f);
+                    float t = lengthSquared > 0f
+                        ? Mathf.Clamp01(Vector2.Dot(point - start, delta) / lengthSquared)
+                        : 0f;
+                    float distance = Vector2.Distance(point, start + (delta * t));
+                    byte alpha = (byte)Mathf.RoundToInt(
+                        Mathf.Clamp01((thickness * 0.5f) + 0.75f - distance) * 255f);
+                    int index = (y * size) + x;
+                    if (alpha > pixels[index].a) pixels[index] = new Color32(255, 255, 255, alpha);
+                }
+            }
         }
 
         private static Texture2D Texture(string name, int width, int height)

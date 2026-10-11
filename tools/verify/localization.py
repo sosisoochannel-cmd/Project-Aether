@@ -159,6 +159,130 @@ def sheet(code: str) -> "list[tuple[str, str]]":
     return pairs
 
 
+def check_persian_quality() -> "list[str]":
+    """Guard the known Persian copy and RTL-joining regressions against returning."""
+    problems = []
+    fa = dict(sheet("fa"))
+    expected = {
+        "menu.credits": "دست‌اندرکاران",
+        "credits.title": "دست‌اندرکاران",
+        "about.credits": "دست‌اندرکاران",
+    }
+    for key, wanted in expected.items():
+        if fa.get(key) != wanted:
+            problems.append("fa: %s should use the approved Persian wording %r" % (key, wanted))
+
+    rate_help = fa.get("setting.frameRate.help", "")
+    if "۱۲۰ تا ۱۲۰" in rate_help:
+        problems.append("fa: setting.frameRate.help contains the incorrect phrase '۱۲۰ تا ۱۲۰'")
+    if "\u200c" not in fa.get("credits.title", ""):
+        problems.append("fa: credits.title must preserve the Persian zero-width non-joiner")
+
+    rtl_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "RtlText.cs")
+    rtl_source = read(rtl_path) if os.path.exists(rtl_path) else ""
+    if rtl_source.count("if (IsRtlMark(text[i])) continue;") < 2:
+        problems.append("RtlText.cs must skip combining marks without joining across spaces or ZWNJ")
+    if "Add(m, 'ة', 0xFE93, 0xFE94, 0, 0, false);" not in rtl_source:
+        problems.append("RtlText.cs is missing the Arabic teh-marbuta presentation forms")
+    if "Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);" not in rtl_source:
+        problems.append("RtlText.cs must use U+FBFF for the Persian yeh medial form")
+    if "previousCanJoinForward" not in rtl_source or "nextCanAcceptJoin" not in rtl_source:
+        problems.append("RtlText.cs must allow right-joining letters to accept a connection from the previous letter")
+    if "for (int g = groups.Count - 1; g >= 0; g--)" not in rtl_source:
+        problems.append("RtlText.cs must preserve LTR phrases while ordering mixed RTL runs")
+    if "ReverseKeepingMarks" not in rtl_source:
+        problems.append("RtlText.cs must keep combining marks attached while reversing visual runs")
+    if "\x00" in rtl_source:
+        problems.append("RtlText.cs contains a literal NUL byte; use the C# \\0 escape")
+    test_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Tests.EditMode", "Tests", "RtlTextTests.cs")
+    test_source = read(test_path) if os.path.exists(test_path) else ""
+    for regression in ("ArabicRightJoiningLettersConnectToTheirPreviousLetter",
+                       "PersianYehUsesItsActualMedialPresentationForm",
+                       "ZeroWidthNonJoinerBreaksJoining",
+                       "PlaceholderStaysReadableBesideArabicText",
+                       "MixedRtlTextKeepsLatinPhraseInReadingOrder",
+                       "ArabicCombiningMarksStayWithTheirBaseAfterReversal",
+                       "PureLeftToRightTextIsPreservedExactly"):
+        if regression not in test_source:
+            problems.append("RtlTextTests.cs is missing regression test %s" % regression)
+    return problems
+
+
+def check_known_translation_quality() -> "list[str]":
+    """Pin reviewed fixes for obvious untranslated or malformed ability names."""
+    problems = []
+    expected = {
+        ("fa", "entry.ability.rootbind"): "مهار ریشه",
+        ("it", "entry.ability.rootbind"): "VINCOLO DI RADICI",
+    }
+    for (code, key), wanted in expected.items():
+        actual = dict(sheet(code)).get(key)
+        if actual != wanted:
+            problems.append("%s: %s should use the reviewed wording %r"
+                            % (code, key, wanted))
+    return problems
+
+
+def check_runtime_script_fonts() -> "list[str]":
+    """Guard the script-aware runtime font resolver and selection gate against regressions."""
+    problems = []
+    menu_art_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuArt.cs")
+    service_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Localization", "LanguageService.cs")
+    menu_art = read(menu_art_path) if os.path.exists(menu_art_path) else ""
+    service = read(service_path) if os.path.exists(service_path) else ""
+
+    required_families = {
+        "Arabic": "Noto Sans Arabic",
+        "Chinese": "Noto Sans CJK SC",
+        "Japanese": "Noto Sans CJK JP",
+        "Korean": "Noto Sans CJK KR",
+    }
+    for script, family in required_families.items():
+        if family not in menu_art:
+            problems.append("MenuArt.cs has no configured runtime font candidate for %s" % script)
+
+    if "public static bool CanRenderLanguage(string code)" not in menu_art:
+        problems.append("MenuArt.cs must probe script glyph coverage on the current device")
+    if "font.HasCharacter(probe)" not in menu_art:
+        problems.append("MenuArt.cs must verify a representative glyph, not just a font name")
+    if "MenuArt.CanRenderLanguage(wanted.Code)" not in service:
+        problems.append("LanguageService.cs must gate selection on runtime glyph coverage")
+
+    return problems
+
+
+def check_picker_native_names() -> "list[str]":
+    """Keep language discovery native-first and regional variants explicit."""
+    problems = []
+    picker_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Menus", "Panels", "MenuCategoryPanel.cs")
+    service_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Localization", "LanguageService.cs")
+    picker = read(picker_path) if os.path.exists(picker_path) else ""
+    service = read(service_path) if os.path.exists(service_path) else ""
+    book = catalogue()
+
+    if "language.NativeName" not in picker:
+        problems.append("language picker should show each language's native name")
+    if "language.LatinName.ToUpperInvariant()" not in picker:
+        problems.append("language picker must retain a readable Latin fallback for unsupported scripts")
+    if book["entries"].get("pt", {}).get("native") != "Português (Brasil)":
+        problems.append("pt must be identified explicitly as Brazilian Portuguese")
+    if book["entries"].get("zh", {}).get("native") != "简体中文":
+        problems.append("zh must be identified explicitly as Simplified Chinese")
+    if 'cultureCode = "pt-BR"' not in service or 'cultureCode = "zh-CN"' not in service:
+        problems.append("regional language variants must use Brazilian Portuguese and Simplified Chinese cultures")
+
+    return problems
+
+
 def check_placeholders(code: str, reference: "list[tuple[str, str]]",
                        translated: "dict[str, str]") -> "list[str]":
     """Finds translations that lost, gained or renumbered a placeholder."""
@@ -291,6 +415,10 @@ def main() -> int:
 
     failures = []
     coverage = []
+    failures.extend(check_persian_quality())
+    failures.extend(check_known_translation_quality())
+    failures.extend(check_runtime_script_fonts())
+    failures.extend(check_picker_native_names())
 
     generated = []
     for code in book["offered"]:

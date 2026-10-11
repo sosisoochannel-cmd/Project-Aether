@@ -871,6 +871,16 @@ def check_composition(gate: Gate) -> None:
     minimum_cell = number(main, r"MinimumSecondaryCell\s*=\s*([0-9.]+)f",
                           "MainMenuScreen.MinimumSecondaryCell")
     title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
+    logo_source = read(f"{PRESENTATION}/MenuLogo.cs")
+    gate.check(m["LogoHeight"] == 100 and m["TitleSize"] == 64
+               and m["LogoGap"] == 14 and m["TitleGapRule"] == 14,
+               "the main-menu brand hierarchy drifted from its compact logo and stronger title")
+    gate.check(abs(m["LeftColumnFraction"] - 0.42) < 0.001
+               and abs(m["RightBlockFraction"] - 0.52) < 0.001,
+               "the primary and destination columns no longer use the intended balanced proportions")
+    gate.check("BuildGlintMaterial" not in logo_source and "PresentRoutine" not in logo_source
+               and "_glint" not in logo_source and "Coroutine" not in logo_source,
+               "the Varellon menu logo must stay static, without animated glints or scale effects")
     subtitle_factor = number(title_source, r"SubtitleSize \* ([0-9.]+)f",
                              "the subtitle's line height")
     columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
@@ -1056,6 +1066,142 @@ def check_discipline(gate: Gate) -> None:
     # Every row is a target the size of its pitch, and every row that is drawn as a fact is not
     # selectable — the two halves of "no dead rows".
     button = read(f"{MENUS}/Components/MenuButton.cs")
+    menu_ui = read(f"{MENUS}/MenuUi.cs")
+    art = read(f"{MENUS}/MenuArt.cs")
+    title_panel = read(TITLE_PANEL)
+    entry_panel = read(f"{MENUS}/Panels/MenuEntryPanel.cs")
+    settings_panel = read(f"{MENUS}/Panels/MenuSettingsPanel.cs")
+    main_screen = read(MAIN_SCREEN)
+    menu_logo = read(f"{PRESENTATION}/MenuLogo.cs")
+    header = read(f"{MENUS}/Components/MenuHeader.cs")
+    gate.check("titleRect.anchorMax = new Vector2(1f, 1f)" in header
+               and "BackHitWidth - 40f" in header
+               and "titleRect.sizeDelta = new Vector2(10f, 0f)" not in header,
+               "screen header titles do not receive a responsive text lane beside the Back target")
+    gate.check("LanguageService.IsRightToLeft" in header
+               and "header._back.Rect.anchorMin = new Vector2(rtl ? 0f : 1f, 1f)" in header
+               and "header._back.SetCaretMirrored(!rtl)" in header
+               and "TextAnchor.MiddleRight : TextAnchor.MiddleLeft" in header,
+               "screen headers do not mirror title alignment and back navigation for RTL")
+    gate.check("_title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking))"
+               in header,
+               "reused screen titles bypass RTL shaping when settings categories change")
+    gate.check("IsTrackableLatinLabel(content)" in menu_ui
+               and "c >= 'A' && c <= 'Z'" in menu_ui
+               and "char.IsLetter(c)" in menu_ui,
+               "display tracking is not restricted to uppercase ASCII Latin, risking stretched "
+               "Cyrillic, CJK, accented or mixed-case translated labels")
+    gate.check("LanguageService.IsRightToLeft" in menu_ui
+               and "!IsTrackableLatinLabel(content)" in menu_ui,
+               "text tracking does not explicitly preserve RTL and non-Latin script spacing")
+    gate.check("LanguageService.IsRightToLeft" in main_screen
+               and "width - leftWidth" in main_screen
+               and "width - rightWidth" in main_screen
+               and "rtlVersion ? TextAnchor.LowerLeft : TextAnchor.LowerRight" in main_screen,
+               "the main menu columns and footer do not mirror for RTL reading order")
+    gate.check("LanguageService.IsRightToLeft" in entry_panel
+               and "width - ((column + 1) * cell)" in entry_panel,
+               "section headings and grid order are not mirrored for RTL")
+    gate.check("navigationColumn = rtl ? _columns - 1 - column : column" in entry_panel
+               and "navigationColumn = rtl ? _columns - 1 - column : column" in settings_panel
+               and "width - ((column + 1) * cell)" in settings_panel,
+               "RTL visual grid placement and directional navigation coordinates disagree")
+    gate.check("LanguageService.IsRightToLeft" in button
+               and "caret.anchorMin = caret.anchorMax = new Vector2(edge, 0.5f)" in button
+               and "accent.anchoredPosition = new Vector2(-8f, 0f)" in button,
+               "menu row affordances are not mirrored safely for RTL")
+    gate.check("RefreshTextGeometry();" in button
+               and "innerWidth = Mathf.Max(0f, rowWidth - (inset * 2f))" in button
+               and "_meta.rectTransform.sizeDelta = new Vector2(metaWidth, 0f)" in button
+               and "metaCapacity = Mathf.Max(0f, remainingAfterControl - labelFloor - inset)" in button
+               and "float labelWidth = Mathf.Max(0f, remainingAfterControl - metaReserve)" in button,
+               "translated menu labels do not keep metadata and setting-control lanes within narrow rows")
+
+    # Exercise the same lane-budget rules against narrow category cells and wider setting rows.
+    # This is a geometry stress check, not a substitute for a Unity render: it catches impossible
+    # negative budgets and lane sums that exceed the row before device QA.
+    lane_cases = 0
+    for row_width in (176.0, 220.0, 320.0, 480.0, 720.0, 1080.0):
+        inset = 24.0
+        inner_width = max(0.0, row_width - (inset * 2.0))
+        for requested_control in (0.0, 72.0, 128.0, 200.0):
+            has_control = requested_control > 0.0
+            control_width = min(requested_control, inner_width) if has_control else 0.0
+            control_reserve = min(inner_width, control_width + inset) if has_control else 0.0
+            remaining = max(0.0, inner_width - control_reserve)
+            label_floor = min(48.0, remaining)
+            meta_capacity = max(0.0, remaining - label_floor - inset)
+            wanted_meta = max(72.0, row_width * 0.36)
+            meta_width = min(wanted_meta, min(row_width * 0.46, meta_capacity))
+            meta_reserve = meta_width + inset if meta_width > 0.0 else 0.0
+            label_width = max(0.0, remaining - meta_reserve)
+            gate.check(min(inner_width, control_reserve + meta_reserve + label_width)
+                       <= inner_width + 0.001,
+                       f"{row_width:.0f}-unit row with {requested_control:.0f}-unit control "
+                       "allocates more text/control lanes than its available width")
+            gate.check(min(control_reserve, inner_width) >= 0.0 and meta_width >= 0.0
+                       and label_width >= 0.0,
+                       f"{row_width:.0f}-unit row produces a negative responsive lane")
+            lane_cases += 1
+    gate.check(lane_cases == 24, "responsive text-lane stress matrix did not run all cases")
+    gate.check("_label.horizontalOverflow = HorizontalWrapMode.Wrap" in button
+               and "_label.verticalOverflow = VerticalWrapMode.Truncate" in button
+               and "_help.horizontalOverflow = HorizontalWrapMode.Wrap" in button
+               and "_help.verticalOverflow = VerticalWrapMode.Truncate" in button,
+               "long translated labels and help text can paint outside their row instead of wrapping safely")
+    gate.check("bool hasHelp = _help != null && _help.gameObject.activeSelf" in button
+               and "hasHelp ? 0.5f : 0f" in button
+               and "wanted ? -44f : -18f" in button
+               and "hasHelp ? -44f : -18f" in button,
+               "setting labels and their help paragraph do not receive separate vertical lanes, risking overlap in long translations")
+
+    slider = read(f"{MENUS}/Widgets/MenuSlider.cs")
+    selector = read(f"{MENUS}/Widgets/MenuSelector.cs")
+    category_panel = read(CATEGORY_PANEL)
+    gate.check("row.Slider.SetWidth(controlWidth)" in category_panel
+               and "row.Selector.SetWidth(controlWidth)" in category_panel
+               and "public void SetWidth(float width)" in slider
+               and "public void SetWidth(float width)" in selector,
+               "settings widgets ignore the control lane width and can overlap translated labels")
+    gate.check("float trackWidth = Mathf.Max(0f, available - readoutWidth - gap)" in slider
+               and "available * 0.25f" in selector
+               and "LanguageService.IsRightToLeft" in selector
+               and "_readout.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft" in selector,
+               "slider/selector internals are not sized responsively or mirrored for RTL")
+
+    # Prove that the visible track/readout and selector arrows/value never reserve more than
+    # their actual control lane. This is arithmetic over source constants, not a rendered UI test.
+    for available in (0.0, 43.0, 120.0, 208.0, 320.0, 531.0, 768.0):
+        slider_readout = min(120.0, available * 0.28)
+        slider_gap = min(20.0, available * 0.06)
+        slider_track = max(0.0, available - slider_readout - slider_gap)
+        gate.check(slider_track + slider_readout + slider_gap <= available + 0.001,
+                   f"{available:.0f}-unit slider exceeds its allocated control lane")
+        selector_arrow = min(18.0, available * 0.25)
+        selector_inset = min(30.0, available * 0.12)
+        selector_readout = max(0.0, available - 2.0 * selector_inset - 2.0 * selector_arrow)
+        gate.check(2.0 * selector_arrow + 2.0 * selector_inset + selector_readout <= available + 0.001,
+                   f"{available:.0f}-unit selector exceeds its allocated control lane")
+    gate.check("SetRightToLeft(rtl)" in title_panel
+               and "width - MenuTheme.Metrics.TitleRuleWidth" in title_panel,
+               "the title mark and rule do not align to the RTL reading edge")
+    gate.check("SetRightToLeft(bool rightToLeft)" in menu_logo
+               and "Place(_mark, width, height, Vector2.zero, _rightToLeft)" in menu_logo,
+               "the studio logo cannot align to the RTL edge without mirroring its artwork")
+    gate.check("_columnDivider" in main_screen and "_columnDividerTop" in main_screen
+               and "_columnDividerBottom" in main_screen and "dividerHeight" in main_screen,
+               "the main menu's asymmetric columns have no responsive ornamental spine")
+    gate.check("_ruleGem" in title_panel and "Quaternion.Euler(0f, 0f, 45f)" in title_panel
+               and "TitleRuleWidth * 0.5f" in title_panel,
+               "the title divider has no centered carved-gold focal detail")
+    gate.check("_sectionRule" in entry_panel and '"SectionRule"' in entry_panel,
+               "menu sections have no visual divider")
+    gate.check("_selectionFrame" in button and "MenuArt.SelectionFrame" in button
+               and "Image.Type.Sliced" in button,
+               "the selected row has no nine-sliced angular selection frame")
+    gate.check("MakeSelectionFrame" in art and "SpriteMeshType.FullRect" in art
+               and "new Vector4(28f, 28f, 28f, 28f)" in art,
+               "the selection frame has no crisp nine-slice corners")
     # The states the brief names. Normal needs no case of its own — it is the drawing every other
     # state modifies — so what is checked is that the other four are drawn, and that "locked" is
     # drawn as a state apart from "disabled": a row that is not in the build is not the same as a
@@ -1077,6 +1223,33 @@ def check_discipline(gate: Gate) -> None:
 
 def main() -> int:
     gate = Gate()
+
+    # The first game-owned screen must be a real full-screen start gate over the menu, not
+    # a second scene or an unlocalized hard-coded prompt.
+    title_gate = read(f"{MENUS}/TitleStartScreen.cs")
+    menu_root = read(ROOT)
+    strings = read(STRINGS)
+    gate.check("TitleStartScreen.Create(_canvas.Root)" in menu_root
+               and "if (!openSettingsRequest)" in menu_root,
+               "normal launches do not stop at the title gate, or the explicit settings route was lost")
+    gate.check("root.SetAsLastSibling()" in title_gate
+               and "root.gameObject.AddComponent<Button>()" in title_gate
+               and "scrim.raycastTarget = true" in title_gate,
+               "title gate does not own the full screen's touch target above the menu")
+    gate.check('MenuStrings.Get("title.touchToStart")' in title_gate
+               and '"title.touchToStart", "TOUCH ANYWHERE TO START"' in strings,
+               "title start prompt is missing its localization key or English reference")
+    gate.check("StartCoroutine(FadeAway())" in title_gate
+               and "Time.unscaledDeltaTime" in title_gate
+               and "_hitTarget.interactable = false" in title_gate,
+               "title gate does not fade out while preventing the start tap from falling through")
+
+    gate.check("LayoutComposition(bool force)" in title_gate
+               and "if (_rootRect != null && _rootRect.rect.size != _lastLayoutSize)" in title_gate
+               and "float fit = Mathf.Clamp" in title_gate
+               and "_prompt.horizontalOverflow = HorizontalWrapMode.Wrap" in title_gate
+               and "public void SetHeight(float height)" in read(f"{PRESENTATION}/MenuLogo.cs"),
+               "title gate does not adapt typography, logo size and prompt wrapping to the actual canvas bounds")
 
     print("main menu:")
     check_flow(gate)

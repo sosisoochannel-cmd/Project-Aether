@@ -18,6 +18,16 @@ namespace Aether.Gameplay.Localization.Tables
                 // wrapped by StringsEn rather than generated like the others.
                 { "en", StringsEn.Table },
                 { "es", StringsEs.Table },
+                { "de", StringsDe.Table },
+                { "fr", StringsFr.Table },
+                { "it", StringsIt.Table },
+                { "pt", StringsPt.Table },
+                { "ru", StringsRu.Table },
+                { "tr", StringsTr.Table },
+                { "zh", StringsZh.Table },
+                { "ja", StringsJa.Table },
+                { "ko", StringsKo.Table },
+                { "ar", StringsAr.Table },
                 { "fa", StringsFa.Table },
             };
         }

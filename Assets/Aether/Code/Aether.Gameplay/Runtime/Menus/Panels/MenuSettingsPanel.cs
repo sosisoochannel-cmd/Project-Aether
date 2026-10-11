@@ -137,6 +137,7 @@ namespace Aether.Gameplay.Menus.Panels
             float pitch = MenuTheme.Metrics.SecondaryPitch;
             float cell = width / _columns;
             int bands = Mathf.CeilToInt(_rows.Length / (float)_columns);
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
 
             for (int i = 0; i < _rows.Length; i++)
             {
@@ -148,7 +149,8 @@ namespace Aether.Gameplay.Menus.Panels
                 rect.anchorMax = new Vector2(0f, 1f);
                 rect.pivot = new Vector2(0f, 1f);
                 rect.sizeDelta = new Vector2(cell, pitch);
-                rect.anchoredPosition = new Vector2(column * cell, -(band * pitch));
+                float columnX = rtl ? width - ((column + 1) * cell) : column * cell;
+                rect.anchoredPosition = new Vector2(columnX, -(band * pitch));
 
                 _rows[i].ApplyLayout(MenuTheme.Metrics.CaretOutdent, MenuTheme.Metrics.CaretOutdent);
                 _rows[i].SetRuleWidth(cell - MenuTheme.Metrics.CaretOutdent);
@@ -174,9 +176,12 @@ namespace Aether.Gameplay.Menus.Panels
         /// <inheritdoc />
         public override void Register()
         {
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             for (int i = 0; i < _rows.Length; i++)
             {
-                Nav.Add(_rows[i], i % _columns, i / _columns);
+                int column = i % _columns;
+                int navigationColumn = rtl ? _columns - 1 - column : column;
+                Nav.Add(_rows[i], navigationColumn, i / _columns);
             }
         }
 

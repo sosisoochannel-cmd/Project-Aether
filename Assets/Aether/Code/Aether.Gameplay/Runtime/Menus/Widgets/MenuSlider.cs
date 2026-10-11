@@ -178,6 +178,24 @@ namespace Aether.Gameplay.Menus.Widgets
             if (_readout != null) _readout.text = text;
         }
 
+        /// <summary>
+        /// Fits the track and value readout to the row's actual control lane.
+        /// </summary>
+        public void SetWidth(float width)
+        {
+            RectTransform host = (RectTransform)transform;
+            float available = Mathf.Max(0f, width);
+            host.sizeDelta = new Vector2(available, host.sizeDelta.y);
+
+            float readoutWidth = Mathf.Min(120f, available * 0.28f);
+            float gap = Mathf.Min(20f, available * 0.06f);
+            float trackWidth = Mathf.Max(0f, available - readoutWidth - gap);
+            _track.sizeDelta = new Vector2(trackWidth, _track.sizeDelta.y);
+            _readout.rectTransform.sizeDelta = new Vector2(readoutWidth, _readout.rectTransform.sizeDelta.y);
+            _readout.rectTransform.anchoredPosition = new Vector2(trackWidth + gap, 0f);
+            Draw();
+        }
+
         /// <summary>Enables or disables the drag, for a setting that is not available.</summary>
         public void SetInteractable(bool interactable)
         {

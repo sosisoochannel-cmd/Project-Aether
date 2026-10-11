@@ -109,10 +109,17 @@ namespace Aether.Gameplay.Menus
             Canvas.ForceUpdateCanvases();
             LayoutNow();
 
-            MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
+            bool openSettingsRequest = GameLaunch.TakeOpenSettingsRequest();
+            MenuScreenId initialScreen = openSettingsRequest
                 ? MenuScreenId.Settings
                 : MenuScreenId.MainMenu;
             _system.Show(initialScreen, true);
+
+            // Normal launches stop on the game's own title screen. An explicit settings deep-link
+            // remains direct, so support and QA can still open the requested screen without a tap.
+            if (!openSettingsRequest)
+                TitleStartScreen.Create(_canvas.Root);
+
             _box = _canvas.ContentRoot.rect.size;
         }
 
