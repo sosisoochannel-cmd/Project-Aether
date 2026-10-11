@@ -93,14 +93,17 @@ namespace Aether.Gameplay.Menus.Panels
             _subtitle.rectTransform.anchoredPosition = new Vector2(0f, -y);
             y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
 
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            float ruleX = rtl ? width - MenuTheme.Metrics.TitleRuleWidth : 0f;
             _rule.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.TitleRuleWidth,
                                                        MenuTheme.Metrics.TitleRuleHeight);
-            _rule.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            _rule.rectTransform.anchoredPosition = new Vector2(ruleX, -y);
 
             float gemSize = Mathf.Max(7f, MenuTheme.Metrics.TitleRuleHeight * 3.2f);
             _ruleGem.rectTransform.sizeDelta = new Vector2(gemSize, gemSize);
             _ruleGem.rectTransform.anchoredPosition = new Vector2(
-                MenuTheme.Metrics.TitleRuleWidth * 0.5f, -y - (MenuTheme.Metrics.TitleRuleHeight * 0.5f));
+                ruleX + (MenuTheme.Metrics.TitleRuleWidth * 0.5f),
+                -y - (MenuTheme.Metrics.TitleRuleHeight * 0.5f));
             y += MenuTheme.Metrics.TitleRuleHeight;
 
             SetPanelSize(width, y);
