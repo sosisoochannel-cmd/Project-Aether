@@ -174,6 +174,28 @@ if peak is not None:
     require(0.35 <= peak <= 0.55,
             f"intro highlight peak {peak:.3f} is outside the subtle range 0.35–0.55")
 
+# The synthesized lock transients must hit the peak of the visual compression curve, measured
+# relative to the reveal clip's start. This catches a sound that is present but feels disconnected.
+reveal = number("Reveal")
+wordmark_delay = number("WordmarkDelay")
+wordmark_reveal = number("WordmarkReveal")
+first_impact = re.search(r"firstImpactAge\\s*=\\s*t\\s*-\\s*([0-9.]+)f", intro)
+second_impact = re.search(r"secondImpactAge\\s*=\\s*t\\s*-\\s*([0-9.]+)f", intro)
+require(first_impact is not None, "intro audio is missing the mark-lock impact timing")
+require(second_impact is not None, "intro audio is missing the wordmark-lock impact timing")
+if None not in (reveal, wordmark_delay, wordmark_reveal) and first_impact and second_impact:
+    # Draw() peaks the lock compression at reveal progress 0.88.
+    expected_first = reveal * 0.88
+    expected_second = wordmark_delay + wordmark_reveal * 0.88
+    actual_first = float(first_impact.group(1))
+    actual_second = float(second_impact.group(1))
+    require(abs(actual_first - expected_first) <= 0.015,
+            f"mark-lock impact at {actual_first:.3f}s is not synchronized with the {expected_first:.3f}s visual beat")
+    require(abs(actual_second - expected_second) <= 0.015,
+            f"wordmark-lock impact at {actual_second:.3f}s is not synchronized with the {expected_second:.3f}s visual beat")
+require("rise += isMark ? arc * 0.018f : -arc * 0.012f;" in intro,
+        "mark and wordmark should follow distinct counter-arcs that return to zero at lock")
+
 if problems:
     print("Varellon brand-motion static gate: FAIL")
     for problem in problems:
