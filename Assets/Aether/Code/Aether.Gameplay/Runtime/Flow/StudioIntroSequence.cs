@@ -624,9 +624,25 @@ namespace Aether.Gameplay.Flow
                               Mathf.Exp(-t * 5.8f) * 0.012f;
                 }
 
+                // Two original, short lock transients are aligned with the emblem's first
+                // compression and the wordmark's final convergence. They are synthesized here,
+                // not loaded from a stock sound, and sit under the tonal body rather than replacing it.
+                float firstImpactAge = t - 0.445f;
+                float secondImpactAge = t - 0.790f;
+                float firstImpactEnvelope = firstImpactAge < 0f ? 0f :
+                    Mathf.Exp(-firstImpactAge * 46f) * Mathf.Clamp01(firstImpactAge / 0.0025f);
+                float secondImpactEnvelope = secondImpactAge < 0f ? 0f :
+                    Mathf.Exp(-secondImpactAge * 39f) * Mathf.Clamp01(secondImpactAge / 0.0025f);
+                float lockTransient = reveal
+                    ? (Mathf.Sin(2f * Mathf.PI * 1180f * firstImpactAge) * 0.026f * firstImpactEnvelope
+                       + Mathf.Sin(2f * Mathf.PI * 930f * secondImpactAge) * 0.052f * secondImpactEnvelope
+                       + Mathf.Sin(2f * Mathf.PI * 73.42f * firstImpactAge) * 0.060f * firstImpactEnvelope
+                       + Mathf.Sin(2f * Mathf.PI * 65.41f * secondImpactAge) * 0.085f * secondImpactEnvelope)
+                    : 0f;
+
                 float envelopeIn = Mathf.Clamp01(t / 0.018f);
                 float envelopeOut = Mathf.Clamp01((duration - t) / 0.055f);
-                float sample = (low + chord + breath + shimmer) * envelopeIn * envelopeOut;
+                float sample = (low + chord + breath + shimmer + lockTransient) * envelopeIn * envelopeOut;
                 samples[i] = Mathf.Clamp(sample * 1.35f, -0.85f, 0.85f);
             }
 
@@ -696,14 +712,36 @@ namespace Aether.Gameplay.Flow
             part.Renderer.color = new Color(ink, ink, ink, Mathf.Clamp01(presence));
             if (part.RevealMaterial != null)
                 part.RevealMaterial.SetFloat("_RevealProgress", Mathf.Clamp01(revealProgress));
-            float settle = EaseInOutSine(Mathf.Clamp01(revealProgress));
-            float yaw = part.Renderer == _mark.Renderer
+            float progress = Mathf.Clamp01(revealProgress);
+            float settle = EaseInOutSine(progress);
+            bool isMark = part.Renderer == _mark.Renderer;
+            float yaw = isMark
                 ? Mathf.Lerp(-20f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.8f
                 : 0f;
-            float roll = part.Renderer == _mark.Renderer
+            float roll = isMark
                 ? Mathf.Lerp(3.6f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.8f
                 : 0f;
-            Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
+
+            // Rift-Lock: the mark and wordmark travel on opposing arcs instead of merely fading
+            // into place. The artwork is still the same two trimmed regions; nothing is redrawn.
+            // Stronger initial yaw/roll gives a brief dimensional turn, while the small lateral
+            // overshoot makes the final convergence readable even on a phone-sized screen.
+            float travel = EaseOutCubic(progress);
+            float lateralFraction = isMark
+                ? Mathf.Lerp(-0.115f, 0f, travel) + Mathf.Sin(Mathf.PI * progress) * 0.018f
+                : Mathf.Lerp(0.120f, 0f, travel) - Mathf.Sin(Mathf.PI * progress) * 0.012f;
+            yaw += isMark ? Mathf.Lerp(-18f, 0f, travel) : Mathf.Lerp(15f, 0f, travel);
+            roll += isMark ? Mathf.Lerp(-10f, 0f, travel) : Mathf.Lerp(8f, 0f, travel);
+
+            // A restrained compression at the lock beat, followed by a clean return to the exact
+            // source scale. The curve is zero at both ends, so the held logo is never distorted.
+            float lockBeat = Mathf.Sin(Mathf.PI * Mathf.Clamp01((progress - 0.76f) / 0.24f));
+            float compression = 1f - (isMark ? 0.035f : 0.022f) * lockBeat;
+            Place(part.Renderer.transform, part.OffsetPixels, scale * compression, rise);
+            Rect safe = DrawableArea();
+            float worldPerPixel = (2f * _camera.orthographicSize) / Mathf.Max(1f, Screen.height);
+            part.Renderer.transform.position += _camera.transform.right *
+                                                (safe.width * worldPerPixel * lateralFraction);
             part.Renderer.transform.localRotation = Quaternion.Euler(0f, yaw, roll);
         }
 
