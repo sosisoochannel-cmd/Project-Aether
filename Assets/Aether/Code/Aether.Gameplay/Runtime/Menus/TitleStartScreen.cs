@@ -26,7 +26,15 @@ namespace Aether.Gameplay.Menus
         private Button _hitTarget;
         private bool _leaving;
         private RectTransform _content;
+        private RectTransform _rootRect;
         private CanvasGroup _contentGroup;
+        private MenuLogo _logo;
+        private Text _title;
+        private Text _subtitle;
+        private Image _rule;
+        private Image _gem;
+        private Text _prompt;
+        private Vector2 _lastLayoutSize;
         private Vector3 _contentRestScale = Vector3.one;
 
         /// <summary>Builds the title gate over the menu, using the currently selected language.</summary>
@@ -52,7 +60,9 @@ namespace Aether.Gameplay.Menus
             screen._hitTarget.navigation = new Navigation { mode = Navigation.Mode.None };
             screen._hitTarget.onClick.AddListener(screen.BeginStart);
 
+            screen._rootRect = root;
             screen.BuildVisuals(root);
+            screen.LayoutComposition(true);
             screen.StartCoroutine(screen.EnterCinematic());
             return screen;
         }
@@ -66,65 +76,104 @@ namespace Aether.Gameplay.Menus
             _contentGroup = _content.gameObject.AddComponent<CanvasGroup>();
             _contentRestScale = _content.localScale;
 
-            MenuLogo logo = MenuLogo.Create(_content, 118f);
-            if (logo != null && logo.HasMark)
+            _logo = MenuLogo.Create(_content, 118f);
+            if (_logo != null && _logo.HasMark)
             {
-                logo.SetRightToLeft(rtl);
-                RectTransform rect = logo.Rect;
+                _logo.SetRightToLeft(rtl);
+                RectTransform rect = _logo.Rect;
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = new Vector2(0f, 190f);
             }
 
-            Text title = MenuUi.CreateTrackedText(
+            _title = MenuUi.CreateTrackedText(
                 "Game Title", _content, MenuStrings.Get("menu.title"), 86f,
                 MenuTheme.Palette.Ink, 18f, TextAnchor.MiddleCenter);
-            title.fontStyle = FontStyle.Bold;
-            title.alignment = TextAnchor.MiddleCenter;
-            title.rectTransform.anchorMin = title.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            title.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            title.rectTransform.sizeDelta = new Vector2(1120f, 124f);
-            title.rectTransform.anchoredPosition = new Vector2(0f, 42f);
+            _title.fontStyle = FontStyle.Bold;
+            _title.alignment = TextAnchor.MiddleCenter;
+            _title.rectTransform.anchorMin = _title.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _title.rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
-            Text subtitle = MenuUi.CreateText(
+            _subtitle = MenuUi.CreateText(
                 "Region Subtitle", _content, MenuStrings.Get("menu.subtitle"), 23f,
                 MenuTheme.Palette.InkMuted, TextAnchor.MiddleCenter);
-            subtitle.alignment = TextAnchor.MiddleCenter;
-            subtitle.rectTransform.anchorMin = subtitle.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            subtitle.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            subtitle.rectTransform.sizeDelta = new Vector2(1180f, 52f);
-            subtitle.rectTransform.anchoredPosition = new Vector2(0f, -32f);
+            _subtitle.alignment = TextAnchor.MiddleCenter;
+            _subtitle.rectTransform.anchorMin = _subtitle.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _subtitle.rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
-            Image rule = MenuUi.CreateImage("Gold Rule", _content, MenuArt.Solid, MenuTheme.Palette.Line);
-            rule.rectTransform.anchorMin = rule.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            rule.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            rule.rectTransform.sizeDelta = new Vector2(224f, 2f);
-            rule.rectTransform.anchoredPosition = new Vector2(0f, -83f);
+            _rule = MenuUi.CreateImage("Gold Rule", _content, MenuArt.Solid, MenuTheme.Palette.Line);
+            _rule.rectTransform.anchorMin = _rule.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _rule.rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
-            Image gem = MenuUi.CreateImage("Rule Gem", _content, MenuArt.Solid, MenuTheme.Palette.Accent);
-            gem.rectTransform.anchorMin = gem.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            gem.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            gem.rectTransform.sizeDelta = new Vector2(9f, 9f);
-            gem.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            gem.rectTransform.anchoredPosition = new Vector2(0f, -83f);
+            _gem = MenuUi.CreateImage("Rule Gem", _content, MenuArt.Solid, MenuTheme.Palette.Accent);
+            _gem.rectTransform.anchorMin = _gem.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _gem.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _gem.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
-            Text prompt = MenuUi.CreateTrackedText(
+            _prompt = MenuUi.CreateTrackedText(
                 "Touch To Start", _content, MenuStrings.Get("title.touchToStart"), 25f,
                 MenuTheme.Palette.Accent, 2.5f, TextAnchor.MiddleCenter);
-            prompt.alignment = TextAnchor.MiddleCenter;
-            prompt.rectTransform.anchorMin = prompt.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            prompt.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            prompt.rectTransform.sizeDelta = new Vector2(1500f, 74f);
-            prompt.rectTransform.anchoredPosition = new Vector2(0f, -322f);
+            _prompt.alignment = TextAnchor.MiddleCenter;
+            _prompt.rectTransform.anchorMin = _prompt.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _prompt.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _prompt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _prompt.verticalOverflow = VerticalWrapMode.Truncate;
 
             // Visuals never intercept the full-screen button; every decorative image and label is
             // non-raycastable, so any point on the display starts the game.
-            rule.raycastTarget = false;
-            gem.raycastTarget = false;
+            _rule.raycastTarget = false;
+            _gem.raycastTarget = false;
 
             // Reveal the title composition once; the full-screen root remains touchable throughout.
             _contentGroup.alpha = 0f;
             _content.localScale = _contentRestScale * 0.985f;
+        }
+
+        private void LateUpdate()
+        {
+            if (_rootRect != null && _rootRect.rect.size != _lastLayoutSize)
+                LayoutComposition(false);
+        }
+
+        /// <summary>
+        /// Keeps the title hierarchy inside the visible canvas when interface scale or device
+        /// dimensions change. The layout is measured only when the rect changes, not every frame.
+        /// </summary>
+        private void LayoutComposition(bool force)
+        {
+            if (_rootRect == null || _title == null || _prompt == null) return;
+            Rect bounds = _rootRect.rect;
+            Vector2 size = bounds.size;
+            if (!force && size == _lastLayoutSize) return;
+            _lastLayoutSize = size;
+
+            float height = Mathf.Max(1f, size.y);
+            float width = Mathf.Max(1f, size.x);
+            float fit = Mathf.Clamp(Mathf.Min((height - 72f) / 1008f, width / 1280f), 0.38f, 1f);
+            float halfHeight = height * 0.5f;
+            float sideInset = Mathf.Min(44f, width * 0.055f);
+
+            if (_logo != null && _logo.HasMark)
+            {
+                _logo.SetHeight(118f * fit);
+                _logo.Rect.anchoredPosition = new Vector2(0f, halfHeight * 0.35f);
+            }
+
+            _title.fontSize = Mathf.Max(30, Mathf.RoundToInt(86f * fit));
+            _title.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - sideInset * 2f), 124f * fit);
+            _title.rectTransform.anchoredPosition = new Vector2(0f, height * 0.039f);
+
+            _subtitle.fontSize = Mathf.Max(14, Mathf.RoundToInt(23f * fit));
+            _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - sideInset * 2f), 52f * fit);
+            _subtitle.rectTransform.anchoredPosition = new Vector2(0f, -height * 0.030f);
+
+            _rule.rectTransform.sizeDelta = new Vector2(224f * fit, Mathf.Max(1f, 2f * fit));
+            _rule.rectTransform.anchoredPosition = new Vector2(0f, -height * 0.077f);
+            _gem.rectTransform.sizeDelta = new Vector2(9f * fit, 9f * fit);
+            _gem.rectTransform.anchoredPosition = _rule.rectTransform.anchoredPosition;
+
+            _prompt.fontSize = Mathf.Max(13, Mathf.RoundToInt(25f * fit));
+            _prompt.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - sideInset * 2f), 74f * fit);
+            _prompt.rectTransform.anchoredPosition = new Vector2(0f, -halfHeight * 0.60f);
         }
 
         private IEnumerator EnterCinematic()
