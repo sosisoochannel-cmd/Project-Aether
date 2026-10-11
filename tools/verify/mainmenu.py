@@ -1154,6 +1154,34 @@ def check_discipline(gate: Gate) -> None:
                and "wanted ? -44f : -18f" in button
                and "hasHelp ? -44f : -18f" in button,
                "setting labels and their help paragraph do not receive separate vertical lanes, risking overlap in long translations")
+
+    slider = read(f"{MENUS}/Widgets/MenuSlider.cs")
+    selector = read(f"{MENUS}/Widgets/MenuSelector.cs")
+    category_panel = read(CATEGORY_PANEL)
+    gate.check("row.Slider.SetWidth(controlWidth)" in category_panel
+               and "row.Selector.SetWidth(controlWidth)" in category_panel
+               and "public void SetWidth(float width)" in slider
+               and "public void SetWidth(float width)" in selector,
+               "settings widgets ignore the control lane width and can overlap translated labels")
+    gate.check("float trackWidth = Mathf.Max(0f, available - readoutWidth - gap)" in slider
+               and "available * 0.25f" in selector
+               and "LanguageService.IsRightToLeft" in selector
+               and "_readout.alignment = rtl ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft" in selector,
+               "slider/selector internals are not sized responsively or mirrored for RTL")
+
+    # Prove that the visible track/readout and selector arrows/value never reserve more than
+    # their actual control lane. This is arithmetic over source constants, not a rendered UI test.
+    for available in (0.0, 43.0, 120.0, 208.0, 320.0, 531.0, 768.0):
+        slider_readout = min(120.0, available * 0.28)
+        slider_gap = min(20.0, available * 0.06)
+        slider_track = max(0.0, available - slider_readout - slider_gap)
+        gate.check(slider_track + slider_readout + slider_gap <= available + 0.001,
+                   f"{available:.0f}-unit slider exceeds its allocated control lane")
+        selector_arrow = min(18.0, available * 0.25)
+        selector_inset = min(30.0, available * 0.12)
+        selector_readout = max(0.0, available - 2.0 * selector_inset - 2.0 * selector_arrow)
+        gate.check(2.0 * selector_arrow + 2.0 * selector_inset + selector_readout <= available + 0.001,
+                   f"{available:.0f}-unit selector exceeds its allocated control lane")
     gate.check("SetRightToLeft(rtl)" in title_panel
                and "width - MenuTheme.Metrics.TitleRuleWidth" in title_panel,
                "the title mark and rule do not align to the RTL reading edge")
