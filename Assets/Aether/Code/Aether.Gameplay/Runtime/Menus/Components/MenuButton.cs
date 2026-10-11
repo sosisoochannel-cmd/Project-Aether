@@ -342,7 +342,7 @@ namespace Aether.Gameplay.Menus.Components
                 accent.anchorMin = new Vector2(edge, 0f);
                 accent.anchorMax = new Vector2(edge, 1f);
                 accent.pivot = new Vector2(rtl ? 0f : 1f, 0.5f);
-                accent.anchoredPosition = new Vector2(rtl ? 8f : -8f, 0f);
+                accent.anchoredPosition = new Vector2(-8f, 0f);
             }
 
             if (_rule != null)
