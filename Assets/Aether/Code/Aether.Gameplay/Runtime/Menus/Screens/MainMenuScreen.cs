@@ -44,6 +44,9 @@ namespace Aether.Gameplay.Menus.Screens
         private MenuEntryPanel _play;
         private MenuEntryPanel _explore;
         private MenuEntryPanel _system;
+        private Image _columnDivider;
+        private Image _columnDividerTop;
+        private Image _columnDividerBottom;
         private MenuButton _continue;
         private Text _version;
         private MenuConfirmPanel _confirm;
@@ -105,6 +108,21 @@ namespace Aether.Gameplay.Menus.Screens
             AddDestination(_system, MenuScreenId.Settings, "menu.settings");
             AddDestination(_system, MenuScreenId.Credits, "menu.credits");
 
+            // The two-column composition gets a quiet spine in the negative space between its
+            // primary actions and the destination clusters. It is decorative, never interactive.
+            Color divider = MenuTheme.Palette.Line;
+            divider.a *= 0.72f;
+            _columnDivider = MenuUi.CreateImage("Column Divider", _content, MenuArt.Solid, divider);
+            _columnDivider.raycastTarget = false;
+            _columnDividerTop = MenuUi.CreateImage("Column Divider Top Gem", _content, MenuArt.Solid,
+                                                    MenuTheme.Palette.Accent);
+            _columnDividerBottom = MenuUi.CreateImage("Column Divider Bottom Gem", _content, MenuArt.Solid,
+                                                       MenuTheme.Palette.Accent);
+            _columnDividerTop.raycastTarget = false;
+            _columnDividerBottom.raycastTarget = false;
+            _columnDividerTop.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            _columnDividerBottom.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
             _version = MenuUi.CreateText("Version", Rect, string.Empty, MenuTheme.Metrics.VersionSize,
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
             _version.text = MenuUi.Track(MenuUi.PrepareText(MenuStrings.Format("about.version", Application.version)),
@@ -163,6 +181,34 @@ namespace Aether.Gameplay.Menus.Screens
             _system.Rect.anchoredPosition = new Vector2(width - rightWidth, -systemTop);
 
             float bottom = Mathf.Max(top + _play.Height, systemTop + _system.Height);
+
+            // A fine rule and two tiny lozenges give the asymmetrical layout a deliberate axis.
+            // The line is held inside the empty gutter, so it never steals space from a touch target.
+            float dividerX = width * (MenuTheme.Metrics.LeftColumnFraction
+                                      + ((1f - MenuTheme.Metrics.LeftColumnFraction
+                                          - MenuTheme.Metrics.RightBlockFraction) * 0.5f));
+            float dividerTop = top + 10f;
+            float dividerBottom = bottom - 10f;
+            float dividerHeight = Mathf.Max(0f, dividerBottom - dividerTop);
+            RectTransform dividerRect = _columnDivider.rectTransform;
+            dividerRect.anchorMin = new Vector2(0f, 1f);
+            dividerRect.anchorMax = new Vector2(0f, 1f);
+            dividerRect.pivot = new Vector2(0.5f, 0.5f);
+            dividerRect.anchoredPosition = new Vector2(dividerX, -(dividerTop + dividerHeight * 0.5f));
+            dividerRect.sizeDelta = new Vector2(2f, dividerHeight);
+
+            float gem = 8f;
+            RectTransform topGem = _columnDividerTop.rectTransform;
+            topGem.anchorMin = topGem.anchorMax = new Vector2(0f, 1f);
+            topGem.pivot = new Vector2(0.5f, 0.5f);
+            topGem.sizeDelta = new Vector2(gem, gem);
+            topGem.anchoredPosition = new Vector2(dividerX, -dividerTop);
+            RectTransform bottomGem = _columnDividerBottom.rectTransform;
+            bottomGem.anchorMin = bottomGem.anchorMax = new Vector2(0f, 1f);
+            bottomGem.pivot = new Vector2(0.5f, 0.5f);
+            bottomGem.sizeDelta = new Vector2(gem, gem);
+            bottomGem.anchoredPosition = new Vector2(dividerX, -dividerBottom);
+
             MenuUi.SetContentHeight(_content, bottom + MenuTheme.Metrics.ParagraphBlockPadding);
             _content.anchoredPosition = Vector2.zero;
         }
