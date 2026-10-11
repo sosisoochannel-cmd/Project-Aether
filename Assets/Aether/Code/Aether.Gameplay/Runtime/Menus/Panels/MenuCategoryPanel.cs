@@ -313,7 +313,14 @@ namespace Aether.Gameplay.Menus.Panels
                 Row languageRow;
                 if (nativeLabelReadable)
                 {
-                    languageRow = NewRow(SettingCategory.Language, language.LabelKey, string.Empty);
+                    // Keep each option in its own language name, as players expect in a
+                    // language picker: "Español", "Français", "Deutsch", not a translated
+                    // or shout-case label that changes with the currently selected locale.
+                    languageRow = new Row { Category = SettingCategory.Language };
+                    languageRow.Button = MenuButton.Create("Language " + language.Code, _content,
+                                                            language.NativeName,
+                                                            MenuButton.Weight.Secondary);
+                    languageRow.Button.Nav = Nav;
                     languageRow.Button.Label.font = MenuArt.FontForLanguage(language.Code);
                 }
                 else
