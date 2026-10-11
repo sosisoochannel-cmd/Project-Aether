@@ -256,6 +256,33 @@ def check_runtime_script_fonts() -> "list[str]":
     return problems
 
 
+def check_picker_native_names() -> "list[str]":
+    """Keep language discovery native-first and regional variants explicit."""
+    problems = []
+    picker_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Menus", "Panels", "MenuCategoryPanel.cs")
+    service_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
+        "Localization", "LanguageService.cs")
+    picker = read(picker_path) if os.path.exists(picker_path) else ""
+    service = read(service_path) if os.path.exists(service_path) else ""
+    book = catalogue()
+
+    if "language.NativeName" not in picker:
+        problems.append("language picker should show each language's native name")
+    if "language.LatinName.ToUpperInvariant()" not in picker:
+        problems.append("language picker must retain a readable Latin fallback for unsupported scripts")
+    if book["entries"].get("pt", {}).get("native") != "Português (Brasil)":
+        problems.append("pt must be identified explicitly as Brazilian Portuguese")
+    if book["entries"].get("zh", {}).get("native") != "简体中文":
+        problems.append("zh must be identified explicitly as Simplified Chinese")
+    if 'cultureCode = "pt-BR"' not in service or 'cultureCode = "zh-CN"' not in service:
+        problems.append("regional language variants must use Brazilian Portuguese and Simplified Chinese cultures")
+
+    return problems
+
+
 def check_placeholders(code: str, reference: "list[tuple[str, str]]",
                        translated: "dict[str, str]") -> "list[str]":
     """Finds translations that lost, gained or renumbered a placeholder."""
@@ -391,6 +418,7 @@ def main() -> int:
     failures.extend(check_persian_quality())
     failures.extend(check_known_translation_quality())
     failures.extend(check_runtime_script_fonts())
+    failures.extend(check_picker_native_names())
 
     generated = []
     for code in book["offered"]:
