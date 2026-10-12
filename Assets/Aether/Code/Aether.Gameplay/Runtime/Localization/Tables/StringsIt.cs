@@ -134,7 +134,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "DATI DI SALVATAGGIO",
             "credits.art", "GRAFICA — VARELLON STUDIOS",
             "credits.art.body", "Il marchio dello studio e tutto ciò con cui è costruito il menu sono opere approvate.",
-            "credits.code", "CODICE — PROJECT AETHER",
+            "credits.code", "CODICE — AETHER",
             "credits.code.body", "Creato per Android in orizzontale, prima di tutto per telefono.",
             "credits.engine", "REALIZZATO CON UNITY",
             "credits.music", "MUSICA",
