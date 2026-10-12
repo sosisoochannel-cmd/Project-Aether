@@ -71,6 +71,12 @@ namespace Aether.Gameplay.Player
             var feedback = host.AddComponent<PlayerFeedback>();
             feedback.Configure(renderer);
 
+            var slashObject = new GameObject("AttackSlash");
+            slashObject.transform.SetParent(host.transform, false);
+            var slashRenderer = slashObject.AddComponent<SpriteRenderer>();
+            var attackView = host.AddComponent<PlayerAttackView>();
+            attackView.Configure(combat, motor, slashRenderer);
+
             router.AddSource(deviceInput);
             motor.ConfigureGrounding(GameplayLayers.Ground);
             combat.Configure(firstAttack, GameplayLayers.Enemy);
