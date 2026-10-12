@@ -68,7 +68,7 @@ namespace Aether.Tests.PlayMode
         {
             for (int i = 0; i < _built.Count; i++)
             {
-                if (_built[i] != null) Object.Destroy(_built[i]);
+                if (_built[i] != null) UnityEngine.Object.Destroy(_built[i]);
             }
 
             _built.Clear();
@@ -78,10 +78,10 @@ namespace Aether.Tests.PlayMode
             // is exactly why a test may not leave one behind: a full-screen canvas in front of the
             // next test's camera is not a thing any test should have to know about. It is a
             // singleton that rebuilds itself on demand, so taking it away here costs nothing.
-            MenuTransition[] transitions = Object.FindObjectsByType<MenuTransition>(FindObjectsSortMode.None);
+            MenuTransition[] transitions = UnityEngine.Object.FindObjectsByType<MenuTransition>(FindObjectsSortMode.None);
             for (int i = 0; i < transitions.Length; i++)
             {
-                if (transitions[i] != null) Object.Destroy(transitions[i].gameObject);
+                if (transitions[i] != null) UnityEngine.Object.Destroy(transitions[i].gameObject);
             }
 
             yield return null;
@@ -149,7 +149,7 @@ namespace Aether.Tests.PlayMode
             Assert.IsTrue(root.System.Current.Visible, "the language selector is not visible");
 
             // One canvas, and it is the menu's.
-            Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             Assert.IsTrue(canvases.Length >= 1, "no canvas was created");
             bool found = false;
             for (int i = 0; i < canvases.Length; i++)
