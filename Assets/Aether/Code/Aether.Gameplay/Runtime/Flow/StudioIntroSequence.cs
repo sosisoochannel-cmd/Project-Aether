@@ -404,6 +404,8 @@ namespace Aether.Gameplay.Flow
             bool exitCued = false;
             float markFadeFrom = 1f;
             float wordmarkFadeFrom = 1f;
+            float markMotionFrom = 1f;
+            float wordmarkMotionFrom = 1f;
             // The still hold runs from the moment the light has left the lockup to the moment the fade
             // begins, which is why it is not simply the reveal's end plus a pause: between them are the
             // wordmark's arrival and the pass itself.
@@ -421,6 +423,9 @@ namespace Aether.Gameplay.Flow
                     // Skipping mid-reveal must not jump: each part exits from wherever it currently is.
                     RevealAt(elapsed, false, out markFadeFrom, out _, out _);
                     RevealAt(elapsed, true, out wordmarkFadeFrom, out _, out _);
+                    markMotionFrom = Ramp(elapsed, Timing.BlackHold, Timing.Reveal);
+                    wordmarkMotionFrom = Ramp(elapsed, Timing.BlackHold + Timing.WordmarkDelay,
+                                              Timing.WordmarkReveal);
                     skipped = true;
                     exitStartsAt = elapsed;
                     exitLength = Timing.SkipExit;
@@ -443,8 +448,10 @@ namespace Aether.Gameplay.Flow
                     // The exit is a fade and nothing else: the lockup leaves at the size and in the
                     // place the hold gave it, so the last thing seen is the picture that was held.
                     float exit = EaseInOutCubic(Ramp(elapsed, exitStartsAt, exitLength));
-                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
-                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit, 1f, 0f, 1f);
+                    Draw(_mark, skipped ? markFadeFrom * (1f - exit) : 1f - exit,
+                         1f, 0f, 1f, skipped ? markMotionFrom : 1f);
+                    Draw(_wordmark, skipped ? wordmarkFadeFrom * (1f - exit) : 1f - exit,
+                         1f, 0f, 1f, skipped ? wordmarkMotionFrom : 1f);
                     HideSheen();
                 }
                 else
