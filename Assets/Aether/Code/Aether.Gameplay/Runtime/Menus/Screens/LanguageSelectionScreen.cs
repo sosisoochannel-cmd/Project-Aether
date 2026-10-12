@@ -261,8 +261,8 @@ namespace Aether.Gameplay.Menus.Screens
                 else _switchTone = clip;
             }
 
-            // PlayClipAtPoint creates a temporary source, so the confirmation tail survives screen handoff.
-            AudioSource.PlayClipAtPoint(clip, Vector3.zero, confirm ? 0.24f : 0.16f);
+            // Use the menu's UI bus so mute and UI-volume settings affect this generated sound too.
+            MenuAudio.PlayGeneratedUiClip(clip, confirm ? 0.24f : 0.16f);
         }
 
         private static AudioClip BuildUiTone(bool confirm)
