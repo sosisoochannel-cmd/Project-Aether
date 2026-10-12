@@ -178,7 +178,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Content_advisory_continue_opens_the_main_menu()
+        public IEnumerator Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button()
         {
             yield return BuildMenu();
             MenuRoot root = CurrentMenu();
@@ -189,12 +189,17 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
                             "the content advisory did not open");
             Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(1, buttons.Length, "the advisory should expose one clear continue action");
-            buttons[0].onClick.Invoke();
-            yield return Settle(root);
+            Assert.AreEqual(0, buttons.Length,
+                            "the advisory must be informational and must not require a Continue press");
 
+            float deadline = Time.unscaledTime + 9f;
+            while (root.System.CurrentId == MenuScreenId.ContentAdvisory &&
+                   Time.unscaledTime < deadline)
+                yield return null;
+
+            yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "continuing from the content advisory did not open the main menu");
+                            "the advisory did not automatically advance after its reading period");
         }
 
         [UnityTest]
