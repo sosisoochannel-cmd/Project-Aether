@@ -52,7 +52,6 @@ namespace Aether.Gameplay.Menus.Components
         public MenuNav Nav;
 
         private Image _plate;
-        private Image _selectionGlow;
         private Text _label;
         private Text _help;
         private Text _meta;
@@ -320,18 +319,6 @@ namespace Aether.Gameplay.Menus.Components
 
             _plate = GetComponent<Image>();
 
-            _selectionGlow = MenuUi.CreateImage("SelectionGlow", transform, MenuArt.Glow,
-                                                new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
-                                                          MenuTheme.Palette.Accent.b, 0f));
-            _selectionGlow.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _selectionGlow.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _selectionGlow.rectTransform.pivot = new Vector2(0.08f, 0.5f);
-            _selectionGlow.rectTransform.anchoredPosition = new Vector2(42f, 0f);
-            _selectionGlow.rectTransform.sizeDelta = new Vector2(520f, 150f);
-            _selectionGlow.raycastTarget = false;
-            _selectionGlow.gameObject.SetActive(false);
-            _selectionGlow.transform.SetAsFirstSibling();
-
             // This component owns every pixel of its own transition — the plate, the label, the caret
             // and the rule each answer the state on their own schedule — so Selectable's built-in
             // tinting is switched off rather than fought with. Navigation is solved by
@@ -481,9 +468,8 @@ namespace Aether.Gameplay.Menus.Components
             var plate = new Color(1f, 1f, 1f, 0f);
             Color label = _weight == Weight.Primary ? ink : muted;
             Color caret = faint;
-            float nudge = 0f;
             bool ruleVisible = false;
-            bool accentVisible = _accented && !_locked && !_informational;
+            bool accentVisible = false;
 
             if (_locked)
             {
@@ -495,22 +481,13 @@ namespace Aether.Gameplay.Menus.Components
                 switch (state)
                 {
                     case SelectionState.Pressed:
-                        plate = MenuTheme.Palette.AccentWash;
-                        label = ink;
-                        caret = MenuTheme.Palette.Accent;
-                        ruleVisible = true;
-                        accentVisible = true;
-                        nudge = MenuTheme.Metrics.HighlightNudge * 0.5f;
-                        break;
-
                     case SelectionState.Highlighted:
                     case SelectionState.Selected:
-                        plate = MenuTheme.Palette.AccentWash;
-                        label = ink;
+                        // Gold text, a fine gold rule and a small caret: no glow, filled plate,
+                        // sliding text or scale-pulse. The black field stays visually quiet.
+                        label = MenuTheme.Palette.Accent;
                         caret = MenuTheme.Palette.Accent;
                         ruleVisible = true;
-                        accentVisible = true;
-                        nudge = MenuTheme.Metrics.HighlightNudge;
                         break;
 
                     case SelectionState.Disabled:
@@ -537,27 +514,7 @@ namespace Aether.Gameplay.Menus.Components
                 caret = MenuTheme.Palette.Accent;
             }
 
-            // A press also compresses the row a little. It is set instantly rather than
-            // interpolated: the finger is already on the row, and an animation that starts after
-            // the touch reads as a delay. The compression is under three per cent — enough to be
-            // felt as feedback, not enough to move the text the eye is reading.
-            float scale = state == SelectionState.Pressed && !_locked ? MenuTheme.Motion.PressedScale : 1f;
-            if (_textBlock.localScale.x != scale)
-            {
-                _textBlock.localScale = new Vector3(scale, scale, 1f);
-            }
-
             CrossFade(_plate, plate, fade);
-            if (_selectionGlow != null)
-            {
-                bool glowVisible = !_locked && !_informational &&
-                                   (state == SelectionState.Highlighted || state == SelectionState.Selected ||
-                                    state == SelectionState.Pressed);
-                Color glow = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
-                                       MenuTheme.Palette.Accent.b, glowVisible ? 0.10f : 0f);
-                _selectionGlow.gameObject.SetActive(glowVisible || !instant);
-                CrossFade(_selectionGlow, glow, fade);
-            }
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
             if (_accent != null)
@@ -580,8 +537,7 @@ namespace Aether.Gameplay.Menus.Components
                 _icon.gameObject.SetActive(_locked);
             }
 
-            float x = nudge;
-            _label.rectTransform.anchoredPosition = new Vector2(x, _labelY);
+            _label.rectTransform.anchoredPosition = new Vector2(0f, _labelY);
         }
 
         private static void CrossFade(Graphic graphic, Color colour, float duration)
@@ -668,9 +624,6 @@ namespace Aether.Gameplay.Menus.Components
 
             _lastActivationFrame = Time.frameCount;
 
-            // One buzz, in the one place every route into a row passes through, and only when the
-            // player asked for it and the device can: the gate is inside Haptics itself.
-            Support.Haptics.Tap();
 
             System.Action handler = Activated;
             if (handler != null) handler();
