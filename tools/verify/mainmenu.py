@@ -387,12 +387,16 @@ def check_screens(gate: Gate) -> None:
         text = read(f"{SCREENS}/{name}")
         if "abstract class" in text:
             continue    # the base every screen derives from, not a screen
-        gate.check("public override bool OnBack()" in text,
-                   f"{name} does not answer a back request")
 
         # The standalone content advisory is deliberately self-contained: its own composition
-        # carries the Varellon signature and it must not expose a Back row.
+        # carries the warning title and copy, and it must not expose a Back row.
+        if name == "ContentAdvisoryScreen.cs":
+            gate.check("MenuHeader.Create" not in text,
+                       "the content advisory must not have a menu header or Back row")
             continue
+
+        gate.check("public override bool OnBack()" in text,
+                   f"{name} does not answer a back request")
 
         if name == "MainMenuScreen.cs":
             gate.check("MenuHeader.Create" not in text,
