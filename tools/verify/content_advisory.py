@@ -54,8 +54,8 @@ def main() -> int:
     if extra:
         errors.append("unexpected language copy: " + ", ".join(sorted(extra)))
     for code, strings in entries.items():
-        if len(strings) != 4:
-            errors.append(f"{code}: expected eyebrow, body, footer and continue label; found {len(strings)} strings")
+        if len(strings) != 3:
+            errors.append(f"{code}: expected eyebrow, body and footer; found {len(strings)} strings")
         elif any(not value.strip() for value in strings):
             errors.append(f"{code}: an advisory string is empty")
         elif "\\n" not in strings[1]:
@@ -66,10 +66,12 @@ def main() -> int:
         ("selector fades fully to black before handoff", selector.index("_blackout.color = Color.black;") < selector.index("Host.GoTo(MenuScreenId.ContentAdvisory)")),
         ("advisory screen is registered in the enum", "ContentAdvisory = 9" in registry),
         ("advisory screen is constructed by the factory", "MenuScreen.Create<ContentAdvisoryScreen>" in registry),
-        ("advisory continue routes to main menu", "Host.GoTo(MenuScreenId.MainMenu)" in advisory),
+        ("advisory automatically advances to main menu", "AutoAdvanceAfterReadingPeriod" in advisory and "Host.GoTo(MenuScreenId.MainMenu)" in advisory),
+        ("advisory has a seven-second reading period", "ReadingDurationSeconds = 7f" in advisory),
+        ("advisory timer starts only when shown", "protected override void OnShown(bool instant)" in advisory),
         ("back cannot skip the advisory", "public override bool OnBack()" in advisory and "return true;" in advisory.split("public override bool OnBack()", 1)[1]),
         ("play-mode test asserts language selector as startup", "BuildMenu(true)" in tests and "MenuScreenId.LanguageSelection" in tests),
-        ("play-mode test checks advisory continue route", "Content_advisory_continue_opens_the_main_menu" in tests),
+        ("play-mode test checks timed auto-advance without a button", "Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button" in tests),
         ("RTL preview is handled line by line", "RtlText.Visualize(lines[i])" in advisory),
     ]
     for label, passed in checks:
@@ -81,7 +83,7 @@ def main() -> int:
             print("FAIL:", error)
         return 1
 
-    print("content advisory: PASSED — 10 localized copies, language → advisory → main-menu flow, RTL preview, and PlayMode coverage")
+    print("content advisory: PASSED — 10 localized copies, timed language → advisory → main-menu flow, RTL preview, and PlayMode coverage")
     return 0
 
 
