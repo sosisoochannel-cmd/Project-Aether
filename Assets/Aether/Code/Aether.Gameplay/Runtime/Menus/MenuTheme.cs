@@ -134,18 +134,18 @@ namespace Aether.Gameplay.Menus
             /// <summary>Distance from the brand block to the title.</summary>
             public const float LogoGap = 18f;
 
-            public const float TitleSize = 88f;
+            public const float TitleSize = 76f;
             public const float TitleTracking = 14f;
 
             /// <summary>The line under the title: which region the game is standing in.</summary>
             public const float SubtitleSize = 22f;
             public const float SubtitleTracking = 12f;
-            public const float TitleGapRule = 18f;
+            public const float TitleGapRule = 8f;
             public const float TitleRuleWidth = 300f;
-            public const float TitleRuleHeight = 3f;
+            public const float TitleRuleHeight = 2f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
-            public const float TitleGapBody = 18f;
+            public const float TitleGapBody = 10f;
 
             // -- section labels
             public const float SectionLabelSize = 22f;
@@ -158,7 +158,7 @@ namespace Aether.Gameplay.Menus
             public const float SectionLabelGap = 16f;
 
             /// <summary>Distance between two clusters (the primary block and the system block).</summary>
-            public const float ClusterGap = 28f;
+            public const float ClusterGap = 10f;
 
             // -- the rows
             /// <summary>Primary rows: CONTINUE, NEW GAME.</summary>
