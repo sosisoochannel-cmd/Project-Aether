@@ -18,7 +18,7 @@ namespace Aether.Gameplay.Menus.Screens
         private const float EntranceSeconds = 0.45f;
 
         private static readonly Color Black = Color.black;
-        private static readonly Color White = new Color(0.96f, 0.96f, 0.94f, 1f);
+        private static readonly Color White = Color.white;
 
         private static readonly Dictionary<string, string[]> Copy = new Dictionary<string, string[]>
         {
@@ -67,12 +67,12 @@ namespace Aether.Gameplay.Menus.Screens
             _invisibleContinueSurface.onClick.AddListener(ContinueToMenu);
 
             _title = MenuUi.CreateText("Advisory Warning Heading", Rect, "هشدار",
-                46f, White, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _body = MenuUi.CreateText("Advisory Warning Copy", Rect, "", 23f,
-                White, TextAnchor.MiddleCenter);
+                58f, White, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _body = MenuUi.CreateText("Advisory Warning Copy", Rect, "", 30f,
+                White, TextAnchor.MiddleCenter, FontStyle.Normal);
             _body.horizontalOverflow = HorizontalWrapMode.Wrap;
             _body.verticalOverflow = VerticalWrapMode.Overflow;
-            _body.lineSpacing = 1.22f;
+            _body.lineSpacing = 1.28f;
             _title.raycastTarget = false;
             _body.raycastTarget = false;
 
@@ -106,15 +106,17 @@ namespace Aether.Gameplay.Menus.Screens
         {
             float safeWidth = Mathf.Max(240f, width - 72f);
             bool compact = height < 600f;
-            float titleSize = compact ? 40f : 46f;
+            float titleSize = width >= 1000f ? 58f : width >= 600f ? 48f : 40f;
             _title.fontSize = Mathf.RoundToInt(titleSize);
-            _body.fontSize = compact ? 20 : 23;
+            // Legacy UI Text looks noticeably cleaner when the warning uses a generous, responsive
+            // size rather than the small default menu label size. Keep a comfortable measure on phones.
+            _body.fontSize = width >= 1000f ? 30 : width >= 600f ? 25 : 21;
 
             Place(_title.rectTransform, new Vector2(0.5f, 0.5f),
                 new Vector2(0f, height * 0.36f), new Vector2(safeWidth, compact ? 66f : 78f));
             Place(_body.rectTransform, new Vector2(0.5f, 0.5f),
                 new Vector2(0f, -height * 0.12f),
-                new Vector2(Mathf.Min(safeWidth, 1100f), height * (compact ? 0.62f : 0.60f)));
+                new Vector2(Mathf.Min(safeWidth, 1200f), height * (compact ? 0.66f : 0.64f)));
         }
 
         private static void Place(RectTransform rect, Vector2 anchor, Vector2 offset, Vector2 size)
