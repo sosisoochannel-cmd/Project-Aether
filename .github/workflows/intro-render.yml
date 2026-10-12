@@ -139,13 +139,13 @@ jobs:
               sudo apt-get update -qq
               sudo apt-get install -y -qq ffmpeg
             fi
-            cd WarningRender
+            sed "s|file '|file 'WarningRender/|" WarningRender/frames.txt > warning-frames.ffconcat
             ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 \
-              -i frames.txt \
+              -i warning-frames.ffconcat \
               -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
               -c:v libx264 -preset veryfast -movflags +faststart \
               AETHER-warning-preview.mp4
-            echo "::notice title=Warning video::WarningRender/AETHER-warning-preview.mp4"
+            echo "::notice title=Warning video::AETHER-warning-preview.mp4"
           else
             echo "::warning title=Warning video::No Unity warning frames were captured"
           fi
@@ -271,6 +271,7 @@ jobs:
           path: |
             IntroRender/**
             WarningRender/**
+            AETHER-warning-preview.mp4
             artifacts/**
             intro-render.log
           if-no-files-found: warn
