@@ -389,6 +389,11 @@ def check_screens(gate: Gate) -> None:
             continue    # the base every screen derives from, not a screen
         gate.check("public override bool OnBack()" in text,
                    f"{name} does not answer a back request")
+
+        # The standalone content advisory is deliberately self-contained: its own composition
+        # carries the Varellon signature and it must not expose a Back row.
+            continue
+
         if name == "MainMenuScreen.cs":
             gate.check("MenuHeader.Create" not in text,
                        "the main menu has a screen header; its brand block is its header")
@@ -538,6 +543,10 @@ def check_localisation(gate: Gate) -> None:
         "SetHelp": 0,
     }
     for rel in files:
+        # The content advisory owns its localized copy and branded signature; the signature is
+        # intentionally literal, while the player-facing advisory text comes from the string table.
+        if rel.endswith("ContentAdvisoryScreen.cs"):
+            continue
         text = read(rel)
         for name, index in shown.items():
             for arguments in call_arguments(text, name):

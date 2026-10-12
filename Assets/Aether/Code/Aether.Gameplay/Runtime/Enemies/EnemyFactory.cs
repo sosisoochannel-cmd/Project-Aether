@@ -22,8 +22,7 @@ namespace Aether.Gameplay.Enemies
     /// </remarks>
     public static class EnemyFactory
     {
-        // Placeholder body. The archetype data describes behaviour, not silhouette; the real body
-        // size arrives with art, and this is the one number that will change with it.
+        // Gameplay dimensions stay separate from the illustrated silhouette.
         private const float BodyWidth = 0.9f;
         private const float BodyHeight = 1.1f;
         private const int SortingOrder = 5;
@@ -52,8 +51,8 @@ namespace Aether.Gameplay.Enemies
             visual.transform.SetParent(host.transform, false);
             visual.transform.localScale = new Vector3(BodyWidth, BodyHeight, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = colour;
+            renderer.sprite = CharacterSpriteLibrary.ForestStalker;
+            renderer.color = Color.white;
             renderer.sortingOrder = SortingOrder;
 
             var motor = host.AddComponent<EnemyMotor2D>();
@@ -62,8 +61,16 @@ namespace Aether.Gameplay.Enemies
 
             // Presentation only, and added last so the controller's Awake has already wired the
             // state machine and health events it listens to.
+            var telegraphObject = new GameObject("AttackTelegraph");
+            telegraphObject.transform.SetParent(host.transform, false);
+            telegraphObject.transform.localScale = new Vector3(BodyWidth * 1.28f, BodyHeight * 1.28f, 1f);
+            var telegraphRenderer = telegraphObject.AddComponent<SpriteRenderer>();
+            telegraphRenderer.sprite = PlaceholderVisuals.Ring;
+            telegraphRenderer.color = colour;
+            telegraphRenderer.sortingOrder = SortingOrder - 1;
+
             var telegraph = host.AddComponent<EnemyTelegraph>();
-            telegraph.Configure(renderer, controller);
+            telegraph.Configure(telegraphRenderer, controller);
 
             motor.ConfigureSolidLayers(GameplayLayers.Ground);
             controller.ConfigureLayers(GameplayLayers.Ground, GameplayLayers.Player);

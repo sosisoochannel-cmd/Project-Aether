@@ -185,6 +185,19 @@ namespace Aether.Gameplay.Menus
             audio._oneShots.PlayOneShot(clip, Mathf.Clamp01(volume));
         }
 
+        /// <summary>Plays a short generated UI clip through the UI bus, respecting the player's volume settings.</summary>
+        public static void PlayGeneratedUiClip(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+
+            float gain = AudioBuses.Gain(AudioBusId.Ui);
+            if (gain <= 0.0001f) return;
+
+            MenuAudio audio = _instance;
+            if (audio == null || audio._oneShots == null) return;
+            audio._oneShots.PlayOneShot(clip, Mathf.Clamp01(volume));
+        }
+
         /// <summary>
         /// A press sound, at the three moments the interface has: choosing a row, changing a value,
         /// and going back.

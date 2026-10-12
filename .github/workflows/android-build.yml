@@ -21,29 +21,8 @@
 name: Android APK
 
 on:
-  push:
-    branches:
-      - main
-      - arena/01a10203-project-aether
-    # Documentation cannot change an APK, and a build spends real minutes from the month's free
-    # allowance, so a docs-only push should not start one.
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      # CI plumbing that cannot change a single byte of the game. The build workflow is in this
-      # list on purpose: editing the recipe should not spend a build, and it is what lets a
-      # temporary helper be added and taken out again without rebuilding the APK.
-      - '.github/workflows/android-build.yml'
-      - '.github/workflows/relay-apk.yml'
-      - '.github/workflows/intro-render.yml'
-      - 'tools/ci/**'
-      # The verification tools cannot change a byte of the game either: they read the project's
-      # sources and prove things about them. Editing a gate must not spend a build.
-      - 'tools/verify/**'
-      # The play-mode tests are an editor-only assembly (includePlatforms: Editor, and gated on
-      # UNITY_INCLUDE_TESTS), so nothing under here can reach a player build. Editing the render
-      # test would otherwise spend a Unity Android build to prove that nothing in the APK changed.
-      - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
+  # APK builds are intentionally manual-only while the game is being audited and rebuilt.
+  # Do not spend runner minutes or publish a misleading development APK on every source change.
   workflow_dispatch:
 
 permissions:

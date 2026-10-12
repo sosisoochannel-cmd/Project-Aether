@@ -109,6 +109,7 @@ namespace Aether.Gameplay.Menus
             Canvas.ForceUpdateCanvases();
             LayoutNow();
 
+            // Normal launch goes straight to the main menu. Language remains changeable in Settings.
             MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
                 ? MenuScreenId.Settings
                 : MenuScreenId.MainMenu;
@@ -192,7 +193,11 @@ namespace Aether.Gameplay.Menus
         /// </remarks>
         private void OnLanguageChanged()
         {
-            if (_system != null) _system.RequestRebuild();
+            if (_system == null) return;
+
+            // Language changes are made from Settings. Rebuild cached menu labels once the service
+            // has committed the new language so every visible and hidden screen uses the same copy.
+            _system.RequestRebuild();
         }
 
     }

@@ -23,8 +23,8 @@ namespace Aether.Gameplay.Levels
         // -- entities ---------------------------------------------------------------------------
         //
         // One vocabulary, learned in the first minute: warm and bright means danger, dull and cool
-        // means it is safe to go there. Shapes carry the rest — a square attacks, a ring saves, a
-        // diamond is a secret — so the player never has to read text to know what a thing is.
+        // means it is safe to go there. The illustrated combatants carry identity, while a ring marks a checkpoint or enemy attack and a
+        // diamond marks a secret — so the player never has to read text to understand key feedback.
 
         public static readonly Color Player = new Color(0.86f, 0.92f, 1f, 1f);
         public static readonly Color PlayerHit = new Color(1f, 0.45f, 0.45f, 1f);

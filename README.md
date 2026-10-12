@@ -1,12 +1,12 @@
 # Project Aether
 
-Foundation repository for a professional 2D action-platformer built with Unity.
+A Unity project for a 2D action-platformer. This is an **unfinished prototype**, not a complete or production-ready game.
 
-> **Status: Milestone 1 of The Rootbound Wilds — core architecture and the player.**
-> There is still **no playable level, no enemies, no boss and no art** in this repository.
-> What exists is the foundation plus the systems the region will be assembled from.
-> See [`docs/MILESTONES.md`](docs/MILESTONES.md) for what is done and what is next, and
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the decisions behind the structure.
+> **Current state:** one early playable-region scaffold, **The Greenway**, with movement, basic melee, Forest Stalker encounters, checkpoints, a discovery and a region exit. Menus and ten language options exist, but several destinations and most of the larger game are still incomplete.
+>
+> **Visual quality is in active rebuild.** The current branch is replacing debug-square characters and flat terrain with a first procedural illustration pass, readable attack feedback and tiled terrain detail. This is an improvement step, not a claim that final art, animation, effects, sound or game feel are finished.
+>
+> There is no Root Guardian boss, no complete multi-region campaign, no finished NPC/dialogue system and no final production art pass yet. See [`docs/MILESTONES.md`](docs/MILESTONES.md) for the scope and remaining milestones, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the technical structure.
 
 ## Milestone status
 
@@ -14,18 +14,17 @@ Foundation repository for a professional 2D action-platformer built with Unity.
 |---|---|---|
 | M0 | Unity 6.3 LTS project foundation (2D, URP 2D Renderer, Android) | ✅ done |
 | M1 | Core architecture, player traversal + combat, camera, progression hooks | ✅ done |
-| M2 | Level pipeline + The Greenway (next) | ⬜ |
-| M3 | Enemy archetypes + encounter integration | ✅ done |
-| M4 | Whispering Woods + shortcut | ⬜ |
+| M2 | Level pipeline + The Greenway scaffold | ✅ done; presentation still in progress |
+| M3 | Enemy archetypes + encounter integration | ✅ done; first-pass visuals |
+| M3a | Greenway hardening and regression gates | 🟡 ongoing |
+| M4 | Whispering Woods + shortcut | ⬜ next |
 | M5 | Old Settlement + NPC hook + secrets | ⬜ |
 | M6 | Deep Forest + environmental storytelling | ⬜ |
 | M7 | Root Guardian arena + three-phase boss | ⬜ |
 | M8 | Rootbind unlock + gated backtracking | ⬜ |
 | M9 | Region exit + full audit + touch controls | ⬜ |
 
-Nothing in this repository has been run in Play Mode. No Unity Editor exists in the
-environment it was authored in, so every "verified" claim in the docs is a claim about
-static analysis, and is labelled as such.
+The repository has automated checks and a Unity-based render test for the studio intro, but that is **not** the same as validating the full game. Gameplay still needs in-engine playtesting and real Android-device testing; source changes and a successful APK build alone cannot establish that the game feels or looks good.
 
 ---
 
@@ -51,7 +50,8 @@ end-of-support on 2026-10-16, while 6.3 LTS is supported until December 2027.
    open the project; Unity will simply offer to upgrade the project version.)
 2. In Unity Hub choose **Add → Add project from disk** and select this repository root.
 3. Open the project. First import pulls packages from `packages.unity.com` and generates
-   `Library/` (git-ignored). No compile errors are expected — there is no first-party code yet.
+   `Library/` (git-ignored). Let Unity finish importing, then check the Console for compilation
+   errors before entering Play Mode; the project contains substantial first-party gameplay code.
 
 ## Building for Android
 

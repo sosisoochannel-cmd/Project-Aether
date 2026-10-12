@@ -17,6 +17,9 @@ namespace Aether.Gameplay.Menus
         /// <summary>The first screen: brand, primary choices, the rest of the destinations.</summary>
         MainMenu = 0,
 
+        /// <summary>Localized content advisory shown after the player confirms a language.</summary>
+        ContentAdvisory = 9,
+
         /// <summary>Settings, category by category.</summary>
         Settings = 1,
 
@@ -53,6 +56,8 @@ namespace Aether.Gameplay.Menus
         {
             switch (id)
             {
+                case MenuScreenId.ContentAdvisory:
+                    return MenuScreen.Create<ContentAdvisoryScreen>(id, parent, host);
                 case MenuScreenId.Settings:
                     return MenuScreen.Create<SettingsScreen>(id, parent, host);
                 case MenuScreenId.Credits:
@@ -77,6 +82,7 @@ namespace Aether.Gameplay.Menus
         {
             switch (id)
             {
+                case MenuScreenId.ContentAdvisory: return "content.advisory.title";
                 case MenuScreenId.Settings: return "menu.settings";
                 case MenuScreenId.Credits: return "credits.title";
                 case MenuScreenId.Chapters: return "chapters.title";

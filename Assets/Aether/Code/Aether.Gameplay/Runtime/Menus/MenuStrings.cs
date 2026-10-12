@@ -62,6 +62,10 @@ namespace Aether.Gameplay.Menus
             { "menu.newGame.confirm", "Starting again deletes the stored run. Abilities and findings are lost, and this cannot be undone." },
             { "menu.quit.confirm", "The game closes. Anything the run has not written down is lost." },
             { "menu.quit.saveFailed", "COULD NOT SAVE — THE GAME STAYS OPEN" },
+            { "language.select.title", "CHOOSE YOUR LANGUAGE" },
+            { "language.select.hint", "USE ARROWS TO SELECT • CONFIRM TO CONTINUE" },
+            { "language.select.continue", "CONTINUE" },
+            { "content.advisory.title", "CONTENT ADVISORY" },
 
             // -- the screens around it
             { "common.back", "BACK" },

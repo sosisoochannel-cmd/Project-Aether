@@ -68,7 +68,7 @@ namespace Aether.Tests.PlayMode
         {
             for (int i = 0; i < _built.Count; i++)
             {
-                if (_built[i] != null) Object.Destroy(_built[i]);
+                if (_built[i] != null) UnityEngine.Object.Destroy(_built[i]);
             }
 
             _built.Clear();
@@ -78,10 +78,10 @@ namespace Aether.Tests.PlayMode
             // is exactly why a test may not leave one behind: a full-screen canvas in front of the
             // next test's camera is not a thing any test should have to know about. It is a
             // singleton that rebuilds itself on demand, so taking it away here costs nothing.
-            MenuTransition[] transitions = Object.FindObjectsByType<MenuTransition>(FindObjectsSortMode.None);
+            MenuTransition[] transitions = UnityEngine.Object.FindObjectsByType<MenuTransition>(FindObjectsSortMode.None);
             for (int i = 0; i < transitions.Length; i++)
             {
-                if (transitions[i] != null) Object.Destroy(transitions[i].gameObject);
+                if (transitions[i] != null) UnityEngine.Object.Destroy(transitions[i].gameObject);
             }
 
             yield return null;
@@ -106,6 +106,8 @@ namespace Aether.Tests.PlayMode
             // canvas, the event system and the screens settle before anything is asserted.
             yield return null;
             yield return null;
+
+            // The shipped startup flow now opens directly on the main menu.
         }
 
         private MenuRoot CurrentMenu()
@@ -138,11 +140,11 @@ namespace Aether.Tests.PlayMode
             Assert.IsNotNull(root, "the menu root did not build");
             Assert.IsNotNull(root.System, "the menu built no screens");
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "the menu did not open on the main menu");
-            Assert.IsTrue(root.System.Current.Visible, "the main menu screen is not visible");
+                            "normal launch must skip the removed language selector");
+            Assert.IsTrue(root.System.Current.Visible, "the main menu is not visible");
 
             // One canvas, and it is the menu's.
-            Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             Assert.IsTrue(canvases.Length >= 1, "no canvas was created");
             bool found = false;
             for (int i = 0; i < canvases.Length; i++)
@@ -168,6 +170,31 @@ namespace Aether.Tests.PlayMode
             yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
                             "Back from settings did not return to the main menu behind it");
+        }
+
+        [UnityTest]
+        public IEnumerator Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.ContentAdvisory);
+            yield return Settle(root);
+
+            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
+                            "the content advisory did not open");
+            Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(0, buttons.Length,
+                            "the advisory must be informational and must not require a Continue press");
+
+            float deadline = Time.unscaledTime + 9f;
+            while (root.System.CurrentId == MenuScreenId.ContentAdvisory &&
+                   Time.unscaledTime < deadline)
+                yield return null;
+
+            yield return Settle(root);
+            Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
+                            "the advisory did not automatically advance after its reading period");
         }
 
         [UnityTest]

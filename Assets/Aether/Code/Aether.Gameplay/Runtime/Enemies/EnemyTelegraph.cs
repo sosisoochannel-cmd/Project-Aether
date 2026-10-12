@@ -17,7 +17,7 @@ namespace Aether.Gameplay.Enemies
     /// <para>
     /// <b>It owns no timing.</b> Nothing here decides how long a wind-up lasts or when damage
     /// lands; it reads <see cref="EnemyController.State"/> and
-    /// <see cref="EnemyController.AttackStartupProgress"/> and colours a square. Delete it and the
+    /// <see cref="EnemyController.AttackStartupProgress"/> and colours a separate ring around the enemy. Delete it and the
     /// enemy fights exactly the same, which is the test for whether presentation has stayed
     /// presentation. There is deliberately no second attack timeline.
     /// </para>

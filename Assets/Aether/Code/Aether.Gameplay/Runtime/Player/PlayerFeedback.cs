@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Aether.Gameplay.Player
 {
     /// <summary>
-    /// Shows what happened to the player: a hit taken, a hit landed, a swing thrown, a death.
+    /// Presents the player every frame: facing, subtle locomotion, and combat feedback.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -16,8 +16,8 @@ namespace Aether.Gameplay.Player
     /// decoration and is not here.
     /// </para>
     /// <para>
-    /// Like the enemy telegraph, this owns no timing and no rules. It listens to events the combat
-    /// systems already publish and colours a square; delete it and the fight is unchanged.
+    /// This owns no timing and no rules. It listens to combat events, while deriving facing and a
+    /// restrained movement pose from the existing physics motor. The collider is never animated.
     /// </para>
     /// </remarks>
     [DisallowMultipleComponent]
@@ -32,6 +32,7 @@ namespace Aether.Gameplay.Player
 
         private SpriteRenderer _renderer;
         private Transform _visual;
+        private PlayerMotor _motor;
         private Vector3 _baseScale;
 
         private Color _target = Color.white;
@@ -47,6 +48,7 @@ namespace Aether.Gameplay.Player
             _visual = renderer != null ? renderer.transform : null;
             _baseScale = _visual != null ? _visual.localScale : Vector3.one;
             _target = LevelPalette.Player;
+            _motor = GetComponent<PlayerMotor>();
         }
 
         private void OnEnable()
@@ -80,6 +82,7 @@ namespace Aether.Gameplay.Player
         private void Awake()
         {
             if (_renderer == null) _renderer = GetComponentInChildren<SpriteRenderer>();
+            if (_motor == null) _motor = GetComponent<PlayerMotor>();
             if (_renderer != null) _renderer.color = LevelPalette.Player;
 
             PlayerHealth health = GetComponent<PlayerHealth>();
@@ -167,7 +170,8 @@ namespace Aether.Gameplay.Player
                 colour = Color.Lerp(_target, Color.white, Mathf.Clamp01(_landedFlash / LandedFlashSeconds));
             }
 
-            float scale = 1f;
+            float scaleX = 1f;
+            float scaleY = 1f;
             if (_attackPulse > 0f)
             {
                 _attackPulse -= Time.deltaTime;
@@ -179,27 +183,49 @@ namespace Aether.Gameplay.Player
                 if (!_reducedMotion)
                 {
                     float t = Mathf.Clamp01(_attackPulse / AttackPulseSeconds);
-                    scale = Mathf.Lerp(1f, AttackPulseScale, t);
+                    scaleX = Mathf.Lerp(1f, AttackPulseScale, t);
+                    scaleY = Mathf.Lerp(1f, 0.94f, t);
                 }
             }
 
             _renderer.color = Color.Lerp(_renderer.color, colour,
                 1f - Mathf.Exp(-Time.deltaTime / 0.05f));
 
+            if (_motor != null)
+            {
+                // The sprite turns with the physics-facing sign, never by rotating the collider.
+                _renderer.flipX = _motor.FacingSign < 0;
+
+                // Small, grounded stride compression gives motion a readable rhythm without
+                // introducing a separate animation clock or changing the collision shape.
+                if (!_reducedMotion && _attackPulse <= 0f)
+                {
+                    float speed = Mathf.Abs(_motor.VelocityX);
+                    if (_motor.IsGrounded && speed > 0.2f)
+                    {
+                        float strideRate = Mathf.Lerp(8f, 15f, Mathf.Clamp01(speed / 6f));
+                        float stride = Mathf.Sin(Time.time * strideRate);
+                        scaleX = 1f + Mathf.Abs(stride) * 0.018f;
+                        scaleY = 1f + stride * 0.028f;
+                    }
+                    else
+                    {
+                        scaleY = 1f + Mathf.Sin(Time.time * 2.2f) * 0.012f;
+                    }
+                }
+            }
+
             if (_visual != null)
             {
-                Vector3 wanted = new Vector3(_baseScale.x * scale, _baseScale.y, _baseScale.z);
+                Vector3 wanted = new Vector3(_baseScale.x * scaleX, _baseScale.y * scaleY, _baseScale.z);
                 _visual.localScale = Vector3.Lerp(_visual.localScale, wanted,
                     1f - Mathf.Exp(-Time.deltaTime / 0.05f));
             }
 
-            if (_hitFlash <= 0f && _landedFlash <= 0f && _attackPulse <= 0f
-                && (_renderer.color - colour).maxColorComponent < 0.02f
-                && (_visual == null || (_visual.localScale - _baseScale).sqrMagnitude < 1e-6f))
+            if (_hitFlash <= 0f && _landedFlash <= 0f
+                && (_renderer.color - colour).maxColorComponent < 0.02f)
             {
                 _renderer.color = _target;
-                if (_visual != null) _visual.localScale = _baseScale;
-                enabled = false;
             }
         }
     }

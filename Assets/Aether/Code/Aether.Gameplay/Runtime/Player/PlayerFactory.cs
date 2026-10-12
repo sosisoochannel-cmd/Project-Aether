@@ -24,7 +24,6 @@ namespace Aether.Gameplay.Player
     /// </remarks>
     public static class PlayerFactory
     {
-        private static readonly Color BodyColour = new Color(0.88f, 0.91f, 0.98f, 1f);
         private const int SortingOrder = 6;
 
         /// <summary>Creates the player, standing at <paramref name="centre"/>.</summary>
@@ -57,8 +56,8 @@ namespace Aether.Gameplay.Player
             visual.transform.SetParent(host.transform, false);
             visual.transform.localScale = new Vector3(width, height, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = BodyColour;
+            renderer.sprite = CharacterSpriteLibrary.Player;
+            renderer.color = Color.white;
             renderer.sortingOrder = SortingOrder;
 
             // Order matters only in that the controller's Awake looks its siblings up, and every
@@ -71,6 +70,12 @@ namespace Aether.Gameplay.Player
             var controller = host.AddComponent<PlayerController>();
             var feedback = host.AddComponent<PlayerFeedback>();
             feedback.Configure(renderer);
+
+            var slashObject = new GameObject("AttackSlash");
+            slashObject.transform.SetParent(host.transform, false);
+            var slashRenderer = slashObject.AddComponent<SpriteRenderer>();
+            var attackView = host.AddComponent<PlayerAttackView>();
+            attackView.Configure(combat, motor, slashRenderer);
 
             router.AddSource(deviceInput);
             motor.ConfigureGrounding(GameplayLayers.Ground);

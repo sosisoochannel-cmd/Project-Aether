@@ -96,9 +96,10 @@ namespace Aether.Gameplay.Menus
         /// </remarks>
         public static Text CreateTrackedText(string name, Transform parent, string content, float size,
                                             Color colour, float tracking = 1f,
-                                            TextAnchor alignment = TextAnchor.MiddleLeft)
+                                            TextAnchor alignment = TextAnchor.MiddleLeft,
+                                            FontStyle style = FontStyle.Normal)
         {
-            return CreateText(name, parent, Track(content, tracking), size, colour, alignment);
+            return CreateText(name, parent, Track(content, tracking), size, colour, alignment, style);
         }
 
         /// <summary>Opens a string up with hair spaces, leaving punctuation and spaces alone.</summary>
