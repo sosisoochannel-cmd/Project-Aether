@@ -25,15 +25,14 @@ on:
     branches:
       - main
       - arena/01a10203-project-aether
+      - arena/aether-gold-black-language-selector
     # Documentation cannot change an APK, and a build spends real minutes from the month's free
     # allowance, so a docs-only push should not start one.
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      # CI plumbing that cannot change a single byte of the game. The build workflow is in this
-      # list on purpose: editing the recipe should not spend a build, and it is what lets a
-      # temporary helper be added and taken out again without rebuilding the APK.
-      - '.github/workflows/android-build.yml'
+      # Other CI plumbing cannot change a byte of the game. Keep this Android build workflow
+      # OUT of paths-ignore so a change to the build recipe itself can launch a validating build.
       - '.github/workflows/relay-apk.yml'
       - '.github/workflows/intro-render.yml'
       - 'tools/ci/**'
