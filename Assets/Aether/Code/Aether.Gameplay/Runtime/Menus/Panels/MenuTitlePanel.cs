@@ -34,18 +34,22 @@ namespace Aether.Gameplay.Menus.Panels
                                                     MenuTheme.Metrics.TitleSize, MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.TitleTracking);
             panel._title.fontStyle = FontStyle.Bold;
-            panel._title.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._title.rectTransform.pivot = new Vector2(0f, 1f);
+            panel._title.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+            panel._title.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            panel._title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            panel._title.alignment = TextAnchor.UpperCenter;
 
-            panel._subtitle = MenuUi.CreateTrackedText("Subtitle", panel.Rect,
-                                                       MenuStrings.Get(subtitleKey),
-                                                       MenuTheme.Metrics.SubtitleSize,
-                                                       MenuTheme.Palette.InkMuted,
-                                                       MenuTheme.Metrics.SubtitleTracking);
-            panel._subtitle.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.pivot = new Vector2(0f, 1f);
+            if (!string.IsNullOrEmpty(subtitleKey))
+            {
+                panel._subtitle = MenuUi.CreateTrackedText("Subtitle", panel.Rect,
+                                                           MenuStrings.Get(subtitleKey),
+                                                           MenuTheme.Metrics.SubtitleSize,
+                                                           MenuTheme.Palette.InkMuted,
+                                                           MenuTheme.Metrics.SubtitleTracking);
+                panel._subtitle.rectTransform.anchorMin = new Vector2(0f, 1f);
+                panel._subtitle.rectTransform.anchorMax = new Vector2(0f, 1f);
+                panel._subtitle.rectTransform.pivot = new Vector2(0f, 1f);
+            }
 
             panel._rule = MenuUi.CreateImage("Rule", panel.Rect, MenuArt.Solid, MenuTheme.Palette.Line);
             panel._rule.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -63,33 +67,38 @@ namespace Aether.Gameplay.Menus.Panels
             float y = 0f;
 
             float titleHeight = MenuTheme.Metrics.TitleSize * 1.2f;
-            // Keep a deliberate inset on both sides: right-aligned RTL text must never sit
-            // against the physical screen edge, and long translations get a real width to fit.
             const float horizontalInset = 24f;
             _title.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f), titleHeight);
-            _title.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+            _title.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            _title.alignment = TextAnchor.UpperCenter;
             _title.resizeTextForBestFit = true;
-            _title.resizeTextMinSize = 22;
+            _title.resizeTextMinSize = 28;
             _title.resizeTextMaxSize = _title.fontSize;
             _title.horizontalOverflow = HorizontalWrapMode.Wrap;
             _title.verticalOverflow = VerticalWrapMode.Truncate;
             y += titleHeight;
 
-            _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f),
-                                                             MenuTheme.Metrics.SubtitleSize * 1.4f);
-            _subtitle.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
-            _subtitle.resizeTextForBestFit = true;
-            _subtitle.resizeTextMinSize = 14;
-            _subtitle.resizeTextMaxSize = _subtitle.fontSize;
-            _subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _subtitle.verticalOverflow = VerticalWrapMode.Truncate;
-            y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
+            if (_subtitle != null)
+            {
+                _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f),
+                                                                 MenuTheme.Metrics.SubtitleSize * 1.4f);
+                _subtitle.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+                _subtitle.resizeTextForBestFit = true;
+                _subtitle.resizeTextMinSize = 14;
+                _subtitle.resizeTextMaxSize = _subtitle.fontSize;
+                _subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _subtitle.verticalOverflow = VerticalWrapMode.Truncate;
+                y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
+            }
+            else
+            {
+                y += MenuTheme.Metrics.TitleGapRule;
+            }
 
             _rule.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.TitleRuleWidth,
                                                        MenuTheme.Metrics.TitleRuleHeight);
-            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             _rule.rectTransform.anchoredPosition = new Vector2(
-                rtl ? Mathf.Max(0f, width - MenuTheme.Metrics.TitleRuleWidth) : 0f, -y);
+                Mathf.Max(0f, (width - MenuTheme.Metrics.TitleRuleWidth) * 0.5f), -y);
             y += MenuTheme.Metrics.TitleRuleHeight;
 
             SetPanelSize(width, y);
