@@ -4,14 +4,13 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Menus.Panels
 {
     /// <summary>
-    /// The brand block: the approved mark, the game's name, the region it stands in, and a rule.
+    /// The game-title block: AETHER, the region it stands in, and a rule.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the composition the brief asks for at the top of the main menu: the approved logo, at
-    /// a scale that reads at arm's length, with the title under it in tracked capitals, a short line
-    /// saying where the player is, and a single hairline closing the block. Nothing else — no box, no
-    /// gradient panel, no glow behind the type.
+    /// The main menu begins with the game title itself, followed by a short regional subtitle and a
+    /// single hairline. Studio branding is kept out of this screen; the Varellon mark belongs to the
+    /// separate intro. Nothing else — no box, no gradient panel, no glow behind the type.
     /// </para>
     /// <para>
     /// It is a panel like any other so that it takes part in the entrance: the background arrives
@@ -25,7 +24,7 @@ namespace Aether.Gameplay.Menus.Panels
         private Text _subtitle;
         private Image _rule;
 
-        /// <summary>Builds the block with the mark, the game's title and its subtitle.</summary>
+        /// <summary>Builds the title, subtitle and closing rule.</summary>
         public static MenuTitlePanel Create(string name, Transform parent, MenuNav nav,
                                             string titleKey, string subtitleKey)
         {
