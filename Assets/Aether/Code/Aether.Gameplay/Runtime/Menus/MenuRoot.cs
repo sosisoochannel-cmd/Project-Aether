@@ -192,7 +192,15 @@ namespace Aether.Gameplay.Menus
         /// </remarks>
         private void OnLanguageChanged()
         {
-            if (_system != null) _system.RequestRebuild();
+            if (_system == null) return;
+
+            // The language selector commits its choice immediately before navigating to the main
+            // menu. Rebuilding that selector from inside LanguageService.Set would destroy the
+            // caller while its Confirm handler is still running; the destination menu is built in
+            // the new language anyway, so there is nothing to refresh here.
+            if (_system.CurrentId == MenuScreenId.LanguageSelection) return;
+
+            _system.RequestRebuild();
         }
 
     }
