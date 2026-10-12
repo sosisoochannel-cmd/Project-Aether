@@ -19,12 +19,16 @@ namespace Aether.Gameplay.Flow
     {
         private static bool _playRequested;
         private static bool _openSettingsRequested;
+        private static bool _showAdvisoryRequested;
 
         /// <summary>True while a request is waiting to be served.</summary>
         public static bool IsPlayRequested => _playRequested;
 
         /// <summary>True while the menu has been asked to open its Settings screen.</summary>
         public static bool IsOpenSettingsRequested => _openSettingsRequested;
+
+        /// <summary>True while the first-launch content warning is waiting to be shown.</summary>
+        public static bool IsShowAdvisoryRequested => _showAdvisoryRequested;
 
         /// <summary>Asks for the region to be started the next time boot runs.</summary>
         public static void RequestPlay()
@@ -51,6 +55,20 @@ namespace Aether.Gameplay.Flow
             return requested;
         }
 
+        /// <summary>Requests the one-time hand-off to the content warning after the studio ident.</summary>
+        public static void RequestShowAdvisory()
+        {
+            _showAdvisoryRequested = true;
+        }
+
+        /// <summary>Reads and clears the pending content-warning destination.</summary>
+        public static bool TakeShowAdvisoryRequest()
+        {
+            bool requested = _showAdvisoryRequested;
+            _showAdvisoryRequested = false;
+            return requested;
+        }
+
         /// <summary>Reads and clears the pending menu-settings destination.</summary>
         public static bool TakeOpenSettingsRequest()
         {
@@ -70,6 +88,7 @@ namespace Aether.Gameplay.Flow
         {
             _playRequested = false;
             _openSettingsRequested = false;
+            _showAdvisoryRequested = false;
         }
     }
 }

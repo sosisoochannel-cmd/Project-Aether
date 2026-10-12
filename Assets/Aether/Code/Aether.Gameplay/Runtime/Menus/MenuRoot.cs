@@ -110,9 +110,11 @@ namespace Aether.Gameplay.Menus
             LayoutNow();
 
             // Normal launch goes straight to the main menu. Language remains changeable in Settings.
-            MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
+            bool openSettings = GameLaunch.TakeOpenSettingsRequest();
+            bool showAdvisory = GameLaunch.TakeShowAdvisoryRequest();
+            MenuScreenId initialScreen = openSettings
                 ? MenuScreenId.Settings
-                : MenuScreenId.MainMenu;
+                : showAdvisory ? MenuScreenId.ContentAdvisory : MenuScreenId.MainMenu;
             _system.Show(initialScreen, true);
             _box = _canvas.ContentRoot.rect.size;
         }

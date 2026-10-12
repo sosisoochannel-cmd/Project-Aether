@@ -73,12 +73,9 @@ namespace Aether.Gameplay.Presentation
             // -- background: the supplied forest artwork, with a solid fallback if it is unavailable.
             Image ground = MenuUi.Fill("Background", root, MenuTheme.Palette.Ground);
             backdrop._background = ground.rectTransform;
-            backdrop._backgroundSprite = MenuArt.Forest;
-            if (backdrop._backgroundSprite != null)
-            {
-                ground.sprite = backdrop._backgroundSprite;
-                ground.color = Color.white;
-            }
+            // AETHER's menu now uses a true black field: no forest artwork or image backdrop.
+            backdrop._backgroundSprite = null;
+            ground.color = Color.black;
             ground.transform.SetAsFirstSibling();
 
             // -- midground: the horizon. A wash, and three soft bands of decreasing width and strength.
@@ -86,6 +83,7 @@ namespace Aether.Gameplay.Presentation
             RectTransform midground = MenuUi.CreateNode("Midground", root);
             MenuUi.Stretch(midground);
             backdrop._midground = midground;
+            midground.gameObject.SetActive(false);
 
             Image horizon = MenuUi.CreateImage("Horizon Wash", midground, MenuArt.Band,
                                                MenuTheme.Palette.Horizon);
@@ -98,6 +96,8 @@ namespace Aether.Gameplay.Presentation
             // -- atmosphere: two blooms, far apart, moving at different speeds.
             backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
             backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
+            backdrop._bloomFar.gameObject.SetActive(false);
+            backdrop._bloomNear.gameObject.SetActive(false);
 
             // -- foreground: the shade along the bottom edge, and the vignette over everything.
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
@@ -114,6 +114,9 @@ namespace Aether.Gameplay.Presentation
             vignette.color = new Color(0f, 0f, 0f, 0.75f);
 
             backdrop.ApplySettings();
+            // Static black means there is no atmosphere to animate, regardless of graphics settings.
+            backdrop.MotionEnabled = false;
+            backdrop.enabled = false;
             return backdrop;
         }
 

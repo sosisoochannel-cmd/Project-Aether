@@ -100,7 +100,7 @@ namespace Aether.Core.Settings
         public AccessibilitySettings Accessibility = new AccessibilitySettings();
 
         /// <summary>Language code the interface is shown in, for example <c>en</c>.</summary>
-        public string Language = "en";
+        public string Language = "fa";
 
         /// <summary>Repairs settings groups that were null in a stored document.</summary>
         public void RepairMissingSections()
@@ -125,7 +125,7 @@ namespace Aether.Core.Settings
             Graphics.Reset();
             Display.Reset();
             Accessibility.Reset();
-            Language = "en";
+            Language = "fa";
             Version = CurrentVersion;
         }
 
@@ -165,7 +165,7 @@ namespace Aether.Core.Settings
             Graphics.Clamp();
             Display.Clamp();
             Accessibility.Clamp();
-            if (string.IsNullOrEmpty(Language)) Language = "en";
+            if (string.IsNullOrEmpty(Language)) Language = "fa";
         }
     }
 

@@ -21,8 +21,7 @@
 name: Android APK
 
 on:
-  # APK builds are intentionally manual-only while the game is being audited and rebuilt.
-  # Do not spend runner minutes or publish a misleading development APK on every source change.
+  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
   workflow_dispatch:
 
 permissions:

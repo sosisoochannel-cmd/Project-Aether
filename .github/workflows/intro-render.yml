@@ -20,6 +20,7 @@ on:
     branches:
       - arena/01a10203-project-aether
       - arena/aether-gold-black-language-selector
+      - arena/aether-warning-persian-default
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
@@ -37,7 +38,8 @@ permissions:
 
 concurrency:
   group: intro-render-${{ github.ref }}
-  cancel-in-progress: false
+  # Render previews are disposable: the newest source revision should replace an older queued or running capture.
+  cancel-in-progress: true
 
 jobs:
   render:
@@ -129,6 +131,25 @@ jobs:
       # very long line of XML, so the annotation showed the <testsuite> header and none of the reason.
       #
       # The one deliberate cut is on a file that is known to be enormous.
+      - name: Assemble warning preview video
+        if: always()
+        run: |
+          if [ -f WarningRender/frames.txt ]; then
+            if ! command -v ffmpeg >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq ffmpeg
+            fi
+            sed "s|file '|file 'WarningRender/|" WarningRender/frames.txt > warning-frames.ffconcat
+            ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 \
+              -i warning-frames.ffconcat \
+              -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
+              -c:v libx264 -preset veryfast -movflags +faststart \
+              AETHER-warning-preview.mp4
+            echo "::notice title=Warning video::AETHER-warning-preview.mp4"
+          else
+            echo "::warning title=Warning video::No Unity warning frames were captured"
+          fi
+
       - name: Surface what the run said
         if: always()
         run: |
@@ -249,6 +270,8 @@ jobs:
           name: intro-render
           path: |
             IntroRender/**
+            WarningRender/**
+            AETHER-warning-preview.mp4
             artifacts/**
             intro-render.log
           if-no-files-found: warn

@@ -9,6 +9,7 @@ using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Menus.Screens;
 using Aether.Gameplay.Presentation;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Settings;
@@ -60,6 +61,8 @@ namespace Aether.Tests.PlayMode
             // The menu tests use isolated settings and save storage. A menu should never migrate,
             // overwrite or even need to inspect a player's real save while a test is running.
             AetherSettings.ResetForTests(new MemorySettingsStore());
+            LanguageService.Reload();
+            LanguageService.Set("en");
             yield return null;
         }
 
@@ -132,6 +135,24 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator A_normal_startup_request_opens_the_warning_before_the_main_menu()
+        {
+            GameLaunch.RequestShowAdvisory();
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            Assert.IsNotNull(root, "the menu root did not build");
+            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
+                            "normal startup should show the content warning after the studio ident");
+            Assert.IsTrue(root.System.Current.Visible, "the content warning is not visible");
+            Button[] hitAreas = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(1, hitAreas.Length,
+                            "the warning should have one invisible full-screen touch hit area");
+            Assert.AreEqual(0f, hitAreas[0].GetComponent<Image>().color.a,
+                            "the warning touch hit area must not be visible");
+        }
+
+        [UnityTest]
         public IEnumerator The_menu_comes_up_on_its_first_screen()
         {
             yield return BuildMenu();
@@ -173,7 +194,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button()
+        public IEnumerator Content_advisory_auto_continues_after_seven_seconds_without_input()
         {
             yield return BuildMenu();
             MenuRoot root = CurrentMenu();
@@ -184,17 +205,12 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
                             "the content advisory did not open");
             Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(0, buttons.Length,
-                            "the advisory must be informational and must not require a Continue press");
+            Assert.AreEqual(0, buttons.Length, "the warning must not have a tap surface or visible button");
 
-            float deadline = Time.unscaledTime + 9f;
-            while (root.System.CurrentId == MenuScreenId.ContentAdvisory &&
-                   Time.unscaledTime < deadline)
-                yield return null;
-
+            yield return new WaitForSecondsRealtime(7.5f);
             yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "the advisory did not automatically advance after its reading period");
+                            "the warning did not automatically open the main menu after seven seconds");
         }
 
         [UnityTest]
