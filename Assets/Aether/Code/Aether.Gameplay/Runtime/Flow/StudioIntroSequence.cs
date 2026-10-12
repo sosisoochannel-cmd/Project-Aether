@@ -452,8 +452,11 @@ namespace Aether.Gameplay.Flow
                     RevealAt(elapsed, false, out float markPresence, out float markScale, out float markRise);
                     RevealAt(elapsed, true, out float wordPresence, out float wordScale, out float wordRise);
                     float dim = SheenDim(elapsed);
-                    Draw(_mark, markPresence, markScale, markRise, dim);
-                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim);
+                    float markProgress = Ramp(elapsed, Timing.BlackHold, Timing.Reveal);
+                    float wordmarkProgress = Ramp(elapsed, Timing.BlackHold + Timing.WordmarkDelay,
+                                                  Timing.WordmarkReveal);
+                    Draw(_mark, markPresence, markScale, markRise, dim, markProgress);
+                    Draw(_wordmark, wordPresence, wordScale, wordRise, dim, wordmarkProgress);
                     DrawSheen(elapsed);
                 }
 
@@ -548,11 +551,43 @@ namespace Aether.Gameplay.Flow
         /// over the lockup has taken it down. The dip belongs to the light, not to the piece: both are
         /// given the same one, so the lockup dims as one picture.
         /// </summary>
-        private void Draw(Part part, float presence, float scale, float rise, float dim)
+        private void Draw(Part part, float presence, float scale, float rise, float dim,
+                          float revealProgress = 1f)
         {
             if (part.Renderer == null) return;
+
             part.Renderer.color = new Color(dim, dim, dim, Mathf.Clamp01(presence));
-            Place(part.Renderer.transform, part.OffsetPixels, scale, rise);
+
+            // Rift-Lock signature motion: the mark and wordmark approach from opposing arcs,
+            // turn into the frame with separate rotational accents, then settle into the original
+            // artwork's exact lockup. The optional progress defaults to 1 for exit/cleanup calls,
+            // so once the reveal is complete the held composition is unchanged.
+            float progress = Mathf.Clamp01(revealProgress);
+            bool isMark = part.Renderer == _mark.Renderer;
+            float travel = EaseOutCubic(progress);
+            float arc = Mathf.Sin(Mathf.PI * progress);
+            float lateralFraction = isMark
+                ? Mathf.Lerp(-0.115f, 0f, travel) + arc * 0.018f
+                : Mathf.Lerp(0.120f, 0f, travel) - arc * 0.012f;
+
+            rise += isMark ? arc * 0.018f : -arc * 0.012f;
+            float yaw = isMark
+                ? Mathf.Lerp(-38f, 0f, travel) + Mathf.Sin(Mathf.PI * EaseInOutSine(progress)) * 1.8f
+                : Mathf.Lerp(15f, 0f, travel);
+            float roll = isMark
+                ? Mathf.Lerp(-6.4f, 0f, travel) - Mathf.Sin(Mathf.PI * EaseInOutSine(progress)) * 0.8f
+                : Mathf.Lerp(8f, 0f, travel);
+
+            // The compression peaks late in each reveal and returns to zero at both endpoints.
+            float lockBeat = Mathf.Sin(Mathf.PI * Mathf.Clamp01((progress - 0.76f) / 0.24f));
+            float compression = 1f - (isMark ? 0.035f : 0.022f) * lockBeat;
+
+            Place(part.Renderer.transform, part.OffsetPixels, scale * compression, rise);
+            Rect safe = DrawableArea();
+            float worldPerPixel = (2f * _camera.orthographicSize) / Mathf.Max(1f, Screen.height);
+            part.Renderer.transform.position += _camera.transform.right *
+                                                (safe.width * worldPerPixel * lateralFraction);
+            part.Renderer.transform.localRotation = Quaternion.Euler(0f, yaw, roll);
         }
 
         // -- the light pass ------------------------------------------------------------------------
