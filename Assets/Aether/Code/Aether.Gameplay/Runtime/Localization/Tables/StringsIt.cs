@@ -105,7 +105,7 @@ namespace Aether.Gameplay.Localization.Tables
             "setting.highContrast.help", "Rende più luminoso il testo dell’interfaccia",
             "setting.language", "LINGUA",
             "setting.language.help", "Lingua dell’interfaccia",
-            "language.en", "ENGLISH",
+            "language.en", "INGLESE",
             "note.gameplay", "Difficoltà e assistenza non sono incluse in questa versione. La regione è calibrata come un’esperienza unica.",
             "note.controls", "Visuale e mira dipendono dalla telecamera, non da uno stick: non esiste un comando di mira da invertire.",
             "note.camera", "Il movimento della telecamera non è ancora presente; per ora nulla la scuote.",
