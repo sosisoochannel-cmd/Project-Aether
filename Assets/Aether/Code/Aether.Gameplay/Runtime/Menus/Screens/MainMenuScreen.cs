@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Menus.Screens
 {
     /// <summary>
-    /// The main menu: the brand, the primary choices, the rest of the destinations, and the version.
+    /// A centered, single-column main menu: AETHER first, then five clear destinations.
     /// </summary>
     /// <remarks>
     /// <para>
