@@ -97,8 +97,8 @@ namespace Aether.Gameplay.Support
             Line(p, s, 42, 55, 27, 45, 4.3f, navy, steel, 0f);
             Line(p, s, 42, 33, 39, 18, 4.7f, ink, ink, 1.5f);
             Line(p, s, 54, 33, 58, 18, 4.7f, ink, ink, 1.5f);
-            RoundRect(p, s, 33, 12, 44, 8, 3, ink, ink, 0f);
-            RoundRect(p, s, 52, 12, 63, 8, 3, ink, ink, 0f);
+            RoundRect(p, s, 33, 8, 11, 5, 3, ink, ink, 0f);
+            RoundRect(p, s, 52, 8, 11, 5, 3, ink, ink, 0f);
             Line(p, s, 42, 31, 41, 19, 2.8f, steel, navy, 0f);
             Line(p, s, 55, 31, 58, 19, 2.8f, steel, navy, 0f);
 
@@ -111,8 +111,8 @@ namespace Aether.Gameplay.Support
             Ellipse(p, s, 58, 55, 5.4f, 5.0f, gold, gold, 0f);
 
             // Body armour, belt and a bright centre crest.
-            RoundRect(p, s, 39, 37, 58, 59, 6, ink, ink, 0f);
-            RoundRect(p, s, 41, 39, 56, 57, 5, steel, navy, 0f);
+            RoundRect(p, s, 39, 37, 20, 22, 6, ink, ink, 0f);
+            RoundRect(p, s, 41, 39, 16, 18, 5, steel, navy, 0f);
             Line(p, s, 42, 51, 55, 51, 1.6f, gold, gold, 0f);
             Ellipse(p, s, 49, 47, 3.2f, 4.0f, gold, gold, 0f);
             Ellipse(p, s, 49, 47, 1.5f, 2.1f, ice, cyan, 0f);
