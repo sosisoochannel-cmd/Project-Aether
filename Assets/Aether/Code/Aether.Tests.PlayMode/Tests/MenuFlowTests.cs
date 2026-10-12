@@ -96,7 +96,7 @@ namespace Aether.Tests.PlayMode
         }
 
         /// <summary>Builds the menu the way the scene does, and waits for it to come up.</summary>
-        private IEnumerator BuildMenu()
+        private IEnumerator BuildMenu(bool keepStartupScreen = false)
         {
             var host = new GameObject("Menu Root (test)");
             _built.Add(host);
@@ -106,6 +106,13 @@ namespace Aether.Tests.PlayMode
             // canvas, the event system and the screens settle before anything is asserted.
             yield return null;
             yield return null;
+
+            // Most menu tests exercise destinations from the main menu. Keep that fixture stable,
+            // while the startup-flow test opts in to asserting the real first screen.
+            MenuRoot root = CurrentMenu();
+            if (!keepStartupScreen && root != null &&
+                root.System.CurrentId == MenuScreenId.LanguageSelection)
+                root.System.Show(MenuScreenId.MainMenu, true);
         }
 
         private MenuRoot CurrentMenu()
@@ -132,14 +139,14 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator The_menu_comes_up_on_its_first_screen()
         {
-            yield return BuildMenu();
+            yield return BuildMenu(true);
             MenuRoot root = CurrentMenu();
 
             Assert.IsNotNull(root, "the menu root did not build");
             Assert.IsNotNull(root.System, "the menu built no screens");
-            Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "the menu did not open on the main menu");
-            Assert.IsTrue(root.System.Current.Visible, "the main menu screen is not visible");
+            Assert.AreEqual(MenuScreenId.LanguageSelection, root.System.CurrentId,
+                            "normal launch must begin with language selection");
+            Assert.IsTrue(root.System.Current.Visible, "the language selector is not visible");
 
             // One canvas, and it is the menu's.
             Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
@@ -168,6 +175,26 @@ namespace Aether.Tests.PlayMode
             yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
                             "Back from settings did not return to the main menu behind it");
+        }
+
+        [UnityTest]
+        public IEnumerator Content_advisory_continue_opens_the_main_menu()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            root.System.GoTo(MenuScreenId.ContentAdvisory);
+            yield return Settle(root);
+
+            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
+                            "the content advisory did not open");
+            Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(1, buttons.Length, "the advisory should expose one clear continue action");
+            buttons[0].onClick.Invoke();
+            yield return Settle(root);
+
+            Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
+                            "continuing from the content advisory did not open the main menu");
         }
 
         [UnityTest]

@@ -391,8 +391,10 @@ namespace Aether.Gameplay.Menus.Screens
 
             _blackout.color = Color.black;
             _blackoutRoutine = null;
-            // Intentionally do not open Main Menu yet. This black hold is the hand-off point
-            // for the next menu-flow milestone.
+
+            // The language choice is now committed. Keep the selector hidden behind black while
+            // the shared menu transition hands control to the localized content advisory.
+            Host.GoTo(MenuScreenId.ContentAdvisory);
         }
     }
 }
