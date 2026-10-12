@@ -503,7 +503,6 @@ namespace Aether.Gameplay.Menus.Components
                 // dropped, so a reader cannot mistake it for something they can press.
                 plate = new Color(1f, 1f, 1f, 0f);
                 ruleVisible = false;
-                nudge = 0f;
                 label = muted;
                 caret = faint;
             }
@@ -528,8 +527,8 @@ namespace Aether.Gameplay.Menus.Components
             if (_help != null) _help.color = faint;
             _label.color = label;
 
-            // Geometry is instant: the caret appears and the text slides the frame the row is
-            // selected, which is what makes the menu feel like it heard the finger.
+            // Keep the label stationary. Selection is communicated only by gold type, a fine rule
+            // and the caret, so the menu stays quiet and consistent with the black-and-gold theme.
             if (_caret != null) _caret.gameObject.SetActive(!_locked && !_informational);
             if (_icon != null)
             {
