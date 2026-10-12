@@ -61,11 +61,19 @@ namespace Aether.Gameplay.Menus.Components
                                                      MenuTheme.Metrics.ScreenTitleSize,
                                                      MenuTheme.Palette.Ink,
                                                      MenuTheme.Metrics.ScreenTitleTracking);
-            header._title.rectTransform.anchorMin = new Vector2(0f, 0f);
-            header._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            header._title.rectTransform.pivot = new Vector2(0f, 0.5f);
-            header._title.rectTransform.anchoredPosition = new Vector2(0f, -6f);
-            header._title.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            float sideInset = showBack ? MenuTheme.Metrics.BackHitWidth + 24f : 24f;
+            header._title.rectTransform.anchorMin = Vector2.zero;
+            header._title.rectTransform.anchorMax = Vector2.one;
+            header._title.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            header._title.rectTransform.offsetMin = new Vector2(rtl && showBack ? sideInset : 24f, 6f);
+            header._title.rectTransform.offsetMax = new Vector2(!rtl && showBack ? -sideInset : -24f, -6f);
+            header._title.rectTransform.sizeDelta = Vector2.zero;
+            header._title.resizeTextForBestFit = true;
+            header._title.resizeTextMinSize = 22;
+            header._title.resizeTextMaxSize = header._title.fontSize;
+            header._title.horizontalOverflow = HorizontalWrapMode.Wrap;
+            header._title.verticalOverflow = VerticalWrapMode.Truncate;
 
             header._rule = MenuUi.CreateHairline("Rule", header._rect, MenuTheme.Palette.Line,
                                                  MenuTheme.Metrics.TitleRuleHeight);
@@ -80,15 +88,15 @@ namespace Aether.Gameplay.Menus.Components
             header._back = MenuButton.Create("Back", header._rect, MenuStrings.Get("common.back"),
                                              MenuButton.Weight.Secondary);
             header._back.Nav = nav;
-            header._back.Rect.anchorMin = new Vector2(1f, 1f);
-            header._back.Rect.anchorMax = new Vector2(1f, 1f);
-            header._back.Rect.pivot = new Vector2(1f, 1f);
+            header._back.Rect.anchorMin = new Vector2(rtl ? 0f : 1f, 1f);
+            header._back.Rect.anchorMax = new Vector2(rtl ? 0f : 1f, 1f);
+            header._back.Rect.pivot = new Vector2(rtl ? 0f : 1f, 1f);
             header._back.Rect.anchoredPosition = Vector2.zero;
             header._back.Rect.sizeDelta = new Vector2(MenuTheme.Metrics.BackHitWidth,
                                                               MenuTheme.Metrics.ScreenHeaderPitch);
             header._back.ApplyLayout(MenuTheme.Metrics.CaretOutdent + 14f, 14f);
             header._back.SetRuleWidth(MenuTheme.Metrics.BackHitWidth);
-            header._back.SetCaretMirrored(true);
+            header._back.SetCaretMirrored(!rtl);
 
             return header;
         }
