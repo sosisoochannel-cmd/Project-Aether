@@ -390,10 +390,8 @@ def check_screens(gate: Gate) -> None:
         gate.check("public override bool OnBack()" in text,
                    f"{name} does not answer a back request")
 
-        # These two cinematic startup screens are deliberately self-contained: their own framed
-        # composition carries the Varellon signature and they must not expose a Back row that lets
-        # players skip language choice or the content advisory.
-        if name in ("LanguageSelectionScreen.cs", "ContentAdvisoryScreen.cs"):
+        # The standalone content advisory is deliberately self-contained: its own composition
+        # carries the Varellon signature and it must not expose a Back row.
             continue
 
         if name == "MainMenuScreen.cs":
@@ -545,10 +543,9 @@ def check_localisation(gate: Gate) -> None:
         "SetHelp": 0,
     }
     for rel in files:
-        # These two startup screens own their language-preview copy and use blank initial labels
-        # that are filled immediately from their ten-language catalogue. Their branded signature
-        # is intentionally literal; all player-facing advisory and selector copy is localized.
-        if rel.endswith(("LanguageSelectionScreen.cs", "ContentAdvisoryScreen.cs")):
+        # The content advisory owns its localized copy and branded signature; the signature is
+        # intentionally literal, while the player-facing advisory text comes from the string table.
+        if rel.endswith("ContentAdvisoryScreen.cs"):
             continue
         text = read(rel)
         for name, index in shown.items():
