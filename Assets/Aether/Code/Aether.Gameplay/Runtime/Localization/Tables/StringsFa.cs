@@ -34,7 +34,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.select.title", "زبان خود را انتخاب کنید",
             "language.select.hint", "با پیکان‌ها انتخاب کنید • برای ادامه تأیید کنید",
             "language.select.continue", "ادامه",
-            "content.advisory.title", "undefined",
+            "content.advisory.title", "اطلاعیهٔ محتوای بازی",
             "common.back", "بازگشت",
             "common.on", "روشن",
             "common.off", "خاموش",
