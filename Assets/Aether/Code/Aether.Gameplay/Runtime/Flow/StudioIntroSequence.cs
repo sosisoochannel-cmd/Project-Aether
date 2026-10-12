@@ -565,103 +565,131 @@ namespace Aether.Gameplay.Flow
 
         private static AudioClip CreateStudioClip(string clipName, float duration, bool reveal)
         {
+            // A deliberately composed, original studio cue: one soft sub impact, an evolving
+            // D-major harmonic bed, a restrained filtered-air rise, two lock transients, then
+            // a clear but quiet upper resonance. Integrated oscillator phases avoid the brittle,
+            // static "beep/chord" quality of restarting unrelated sine waves at every sample.
             int count = Mathf.CeilToInt(StudioAudioSampleRate * duration);
             var samples = new float[count];
+            const float twoPi = 2f * Mathf.PI;
+            float subPhase = 0f;
+            float d3Phase = 0f;
+            float a3Phase = 0f;
+            float d4Phase = 0f;
+            float fs4Phase = 0f;
+            float a4Phase = 0f;
             float air = 0f;
             uint noiseState = reveal ? 0x6D2B79F5u : 0x1B873593u;
 
             for (int i = 0; i < count; i++)
             {
                 float t = i / (float)StudioAudioSampleRate;
+
+                // The low body falls in pitch rather than holding a single synthetic note.
+                float subFrequency = reveal
+                    ? Mathf.Lerp(92f, 48f, Mathf.Clamp01(t / 0.22f))
+                    : Mathf.Lerp(126f, 73.42f, Mathf.Clamp01(t / 0.28f));
+                subPhase += twoPi * subFrequency / StudioAudioSampleRate;
+                if (subPhase >= twoPi) subPhase -= twoPi;
                 float lowEnvelope = reveal
-                    ? Mathf.Exp(-t * 3.9f) * Mathf.Clamp01(t * 18f)
-                    : Mathf.Exp(-t * 5.2f) * Mathf.Clamp01(t * 24f);
-                float bloom = reveal
-                    ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.42f))
-                    : Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.60f));
-                bloom = Mathf.Pow(Mathf.Max(0f, bloom), reveal ? 0.72f : 1.05f);
+                    ? Mathf.Exp(-t * 7.2f) * Mathf.Clamp01(t * 26f)
+                    : Mathf.Exp(-t * 8.0f) * Mathf.Clamp01(t * 32f);
+                float low = (Mathf.Sin(subPhase) * 0.18f
+                           + Mathf.Sin(subPhase * 2.01f) * 0.035f) * lowEnvelope;
 
-                // Warm low resonance gives the mark weight without an exaggerated bass impact.
-                float fundamental = reveal
-                    ? Mathf.Lerp(98f, 73.42f, Mathf.Clamp01(t / 0.48f))
-                    : Mathf.Lerp(146.83f, 110f, Mathf.Clamp01(t / 0.42f));
-                float low = (Mathf.Sin(2f * Mathf.PI * fundamental * t) * 0.105f
-                           + Mathf.Sin(2f * Mathf.PI * fundamental * 2.003f * t) * 0.034f)
-                           * lowEnvelope;
+                // A coherent D/A/D/F#/A voicing, gently blooming and then resolving.
+                // The small level differences leave room for the impacts and the air layer.
+                d3Phase += twoPi * 146.83f / StudioAudioSampleRate;
+                a3Phase += twoPi * 220.00f / StudioAudioSampleRate;
+                d4Phase += twoPi * 293.66f / StudioAudioSampleRate;
+                fs4Phase += twoPi * 369.99f / StudioAudioSampleRate;
+                a4Phase += twoPi * 440.00f / StudioAudioSampleRate;
+                if (d3Phase >= twoPi) d3Phase -= twoPi;
+                if (a3Phase >= twoPi) a3Phase -= twoPi;
+                if (d4Phase >= twoPi) d4Phase -= twoPi;
+                if (fs4Phase >= twoPi) fs4Phase -= twoPi;
+                if (a4Phase >= twoPi) a4Phase -= twoPi;
 
-                // A soft, consonant chord blooms behind the emblem.
-                float chordEnvelope = bloom * (reveal ? 0.070f : 0.045f);
+                float chordEnvelope = reveal
+                    ? (1f - Mathf.Exp(-t * 7.5f)) * Mathf.Exp(-t * 1.75f)
+                    : Mathf.Exp(-t * 3.7f) * Mathf.Clamp01(t * 24f);
                 float chord = (
-                    Mathf.Sin(2f * Mathf.PI * 146.83f * t) * 0.42f +
-                    Mathf.Sin(2f * Mathf.PI * 220.00f * t) * 0.31f +
-                    Mathf.Sin(2f * Mathf.PI * 293.66f * t) * 0.30f +
-                    Mathf.Sin(2f * Mathf.PI * 369.99f * t) * 0.20f +
-                    Mathf.Sin(2f * Mathf.PI * 440.00f * t) * 0.14f) * chordEnvelope;
+                    Mathf.Sin(d3Phase) * 0.28f +
+                    Mathf.Sin(a3Phase) * 0.24f +
+                    Mathf.Sin(d4Phase) * 0.22f +
+                    Mathf.Sin(fs4Phase) * 0.13f +
+                    Mathf.Sin(a4Phase) * 0.09f) * chordEnvelope * (reveal ? 0.115f : 0.065f);
 
-                // Deterministic filtered noise forms a breath of air, not a stock swoosh.
+                // A smooth, band-limited-feeling breath: the noise is low-pass filtered and
+                // shaped around the arrival, not left as a loud constant hiss.
                 noiseState = (noiseState * 1664525u) + 1013904223u;
                 float white = ((noiseState >> 8) / 8388607.5f) - 1f;
-                air += (white - air) * (reveal ? 0.075f : 0.11f);
+                air += (white - air) * 0.032f;
                 float airEnvelope = reveal
-                    ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.02f)) * Mathf.Exp(-t * 0.85f)
-                    : Mathf.Exp(-t * 6.5f) * Mathf.Clamp01(t * 28f);
-                float breath = air * airEnvelope * (reveal ? 0.20f : 0.045f);
+                    ? Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.05f)) * Mathf.Exp(-t * 0.55f)
+                    : Mathf.Exp(-t * 7.5f) * Mathf.Clamp01(t * 28f);
+                float breath = air * airEnvelope * (reveal ? 0.085f : 0.018f);
 
-                // Quiet high partials add a signature glint while staying behind the logo.
-                float shimmer;
-                if (reveal)
-                {
-                    shimmer = Mathf.Sin(2f * Mathf.PI * 587.33f * t) *
-                              Mathf.Exp(-Mathf.Max(0f, t - 0.34f) * 4.5f) *
-                              Mathf.Clamp01(t * 9f) * 0.018f;
-                    shimmer += Mathf.Sin(2f * Mathf.PI * 880.00f * t) *
-                               Mathf.Exp(-Mathf.Max(0f, t - 0.52f) * 5.5f) *
-                               Mathf.Clamp01(t * 10f) * 0.010f;
-                }
-                else
-                {
-                    shimmer = Mathf.Sin(2f * Mathf.PI * 440f * t) *
-                              Mathf.Exp(-t * 5.8f) * 0.012f;
-                }
-
-                // Two original, short lock transients are aligned with the emblem's first
-                // compression and the wordmark's final convergence. They are synthesized here,
-                // not loaded from a stock sound, and sit under the tonal body rather than replacing it.
-                // The clip starts at BlackHold (0.30s). These offsets land on the peak of
-                // each part's lock compression: Reveal * 0.88, then WordmarkDelay + WordmarkReveal * 0.88.
-                // Keep the visual curve and the audible impact tied together, rather than guessing by ear.
+                // Two soft, precisely timed lock accents. Each combines a rounded low body,
+                // a short high transient and a tiny noise tick; neither is a harsh click.
                 float firstImpactAge = t - 0.572f;
                 float secondImpactAge = t - 0.778f;
                 float firstImpactEnvelope = firstImpactAge < 0f ? 0f :
-                    Mathf.Exp(-firstImpactAge * 46f) * Mathf.Clamp01(firstImpactAge / 0.0025f);
+                    Mathf.Exp(-firstImpactAge * 38f) * Mathf.Clamp01(firstImpactAge / 0.0028f);
                 float secondImpactEnvelope = secondImpactAge < 0f ? 0f :
-                    Mathf.Exp(-secondImpactAge * 39f) * Mathf.Clamp01(secondImpactAge / 0.0025f);
-                float lockTransient = reveal
-                    ? (Mathf.Sin(2f * Mathf.PI * 1180f * firstImpactAge) * 0.026f * firstImpactEnvelope
-                       + Mathf.Sin(2f * Mathf.PI * 930f * secondImpactAge) * 0.052f * secondImpactEnvelope
-                       + Mathf.Sin(2f * Mathf.PI * 73.42f * firstImpactAge) * 0.060f * firstImpactEnvelope
-                       + Mathf.Sin(2f * Mathf.PI * 65.41f * secondImpactAge) * 0.085f * secondImpactEnvelope)
-                    : 0f;
+                    Mathf.Exp(-secondImpactAge * 34f) * Mathf.Clamp01(secondImpactAge / 0.0028f);
+                float lockTransient = 0f;
+                if (reveal)
+                {
+                    float firstBody = Mathf.Sin(twoPi * 82f * Mathf.Max(0f, firstImpactAge))
+                                       * 0.115f * firstImpactEnvelope;
+                    float secondBody = Mathf.Sin(twoPi * 69.3f * Mathf.Max(0f, secondImpactAge))
+                                       * 0.145f * secondImpactEnvelope;
+                    float firstEdge = (Mathf.Sin(twoPi * 920f * Mathf.Max(0f, firstImpactAge)) * 0.042f
+                                      + white * 0.022f) * firstImpactEnvelope;
+                    float secondEdge = (Mathf.Sin(twoPi * 1180f * Mathf.Max(0f, secondImpactAge)) * 0.052f
+                                       + white * 0.025f) * secondImpactEnvelope;
+                    lockTransient = firstBody + secondBody + firstEdge + secondEdge;
+                }
 
-                float envelopeIn = Mathf.Clamp01(t / 0.018f);
-                float envelopeOut = Mathf.Clamp01((duration - t) / 0.055f);
-                float sample = (low + chord + breath + shimmer + lockTransient) * envelopeIn * envelopeOut;
-                samples[i] = Mathf.Clamp(sample * 1.35f, -0.85f, 0.85f);
+                // A small, musical upper resonance appears after the final lock, then disappears
+                // naturally into the tail. It is not a continuous high-frequency sparkle.
+                float tailAge = t - 0.84f;
+                float tailEnvelope = tailAge < 0f ? 0f :
+                    Mathf.Exp(-tailAge * 3.6f) * Mathf.Clamp01(tailAge * 15f);
+                float resonance = reveal
+                    ? (Mathf.Sin(twoPi * 587.33f * Mathf.Max(0f, tailAge)) * 0.024f
+                       + Mathf.Sin(twoPi * 880f * Mathf.Max(0f, tailAge)) * 0.010f
+                       + Mathf.Sin(twoPi * 1174.66f * Mathf.Max(0f, tailAge)) * 0.004f)
+                      * tailEnvelope
+                    : Mathf.Sin(twoPi * 293.66f * t) * Mathf.Exp(-t * 4.2f) * 0.018f;
+
+                float envelopeIn = Mathf.Clamp01(t / 0.024f);
+                float envelopeOut = Mathf.Clamp01((duration - t) / 0.075f);
+                samples[i] = (low + chord + breath + lockTransient + resonance)
+                             * envelopeIn * envelopeOut;
             }
 
-            // Three quiet, deterministic reflections give the sting a little hall depth without
-            // adding a reverb plug-in, a large impulse response or noticeable delay echoes.
-            int earlyReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.047f);
-            int sideReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.083f);
-            int lateReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.137f);
+            // A short, quiet early-reflection field adds depth without obvious slapback.
+            // Read from earlier samples while iterating backwards so the reflection taps remain
+            // deterministic and do not recursively feed themselves.
+            int earlyReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.039f);
+            int sideReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.071f);
+            int lateReflection = Mathf.RoundToInt(StudioAudioSampleRate * 0.113f);
             for (int i = count - 1; i >= 0; i--)
             {
                 float reflected = 0f;
-                if (i >= earlyReflection) reflected += samples[i - earlyReflection] * 0.16f;
-                if (i >= sideReflection) reflected += samples[i - sideReflection] * 0.095f;
-                if (i >= lateReflection) reflected += samples[i - lateReflection] * 0.055f;
-                samples[i] = Mathf.Clamp(samples[i] + reflected, -0.90f, 0.90f);
+                if (i >= earlyReflection) reflected += samples[i - earlyReflection] * 0.12f;
+                if (i >= sideReflection) reflected += samples[i - sideReflection] * 0.065f;
+                if (i >= lateReflection) reflected += samples[i - lateReflection] * 0.035f;
+                samples[i] += reflected;
             }
+
+            // Set a predictable headroom target before AudioSource/PlayOneShot gain is applied.
+            float peak = 0f;
+            for (int i = 0; i < count; i++) peak = Mathf.Max(peak, Mathf.Abs(samples[i]));
+            float gain = peak > 0.0001f ? Mathf.Min(3f, 0.72f / peak) : 1f;
+            for (int i = 0; i < count; i++) samples[i] = Mathf.Clamp(samples[i] * gain, -0.78f, 0.78f);
 
             AudioClip clip = AudioClip.Create(clipName, count, 1, StudioAudioSampleRate, false);
             clip.SetData(samples, 0);
