@@ -186,10 +186,10 @@ namespace Aether.Gameplay.Menus
             }
 
             string[] names = rtl
-                ? new[] { "Noto Sans Arabic", "Noto Naskh Arabic", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }
+                ? new[] { "Noto Sans Arabic UI", "Noto Sans Arabic", "Noto Naskh Arabic UI", "Noto Naskh Arabic", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" }
                 : new[] { "Roboto", "Noto Sans", "Droid Sans", "DejaVu Sans", "Arial" };
 
-            return Font.CreateDynamicFontFromOSFont(names, 48);
+            return Font.CreateDynamicFontFromOSFont(names, 64);
         }
 
         private static Texture2D Texture(string name, int width, int height)
