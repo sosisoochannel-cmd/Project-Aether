@@ -93,8 +93,6 @@ namespace Aether.Gameplay.Menus.Screens
             _continue.Activated = Continue;
             newGame.Activated = NewGame;
 
-            int columns = MenuTheme.Metrics.SecondaryColumns;
-
             _explore = MenuEntryPanel.Create("Explore", _content, Nav, null, 1);
             AddDestination(_explore, MenuScreenId.Chapters, "menu.chapters");
 
