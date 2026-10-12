@@ -109,9 +109,10 @@ namespace Aether.Gameplay.Menus
             Canvas.ForceUpdateCanvases();
             LayoutNow();
 
+            // Normal launch goes straight to the main menu. Language remains changeable in Settings.
             MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
                 ? MenuScreenId.Settings
-                : MenuScreenId.LanguageSelection;
+                : MenuScreenId.MainMenu;
             _system.Show(initialScreen, true);
             _box = _canvas.ContentRoot.rect.size;
         }
@@ -194,12 +195,8 @@ namespace Aether.Gameplay.Menus
         {
             if (_system == null) return;
 
-            // The language selector commits its choice and then owns the confirmation fade to
-            // black. Rebuilding it from inside LanguageService.Set would destroy the caller while
-            // its Confirm handler is still running; leave it intact until it transitions to the
-            // localized content advisory. Other screens can still rebuild normally after a language change.
-            if (_system.CurrentId == MenuScreenId.LanguageSelection) return;
-
+            // Language changes are made from Settings. Rebuild cached menu labels once the service
+            // has committed the new language so every visible and hidden screen uses the same copy.
             _system.RequestRebuild();
         }
 
