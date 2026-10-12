@@ -30,11 +30,12 @@ These timings are an initial storyboard, not proof of quality. Adjust after rend
 
 ## Audio direction
 Build an original layered sonic identity:
-- a short low-frequency body for the impulse;
-- a crisp, non-harsh transient at the lock;
-- a restrained tonal/resonant layer that resolves into a distinct interval;
-- a short natural tail with no stock-logo cliché.
-Sound events must align to rendered motion frames, not merely to approximate timeline percentages. Keep peaks controlled, avoid clipping, test mono playback and phone speakers. Prefer authored original synthesis/recording over unlicensed sound assets.
+- a falling sub-bass body for weight, with a fast, controlled decay;
+- a coherent D/A/D/F#/A harmonic bed that blooms rather than holding a flat chord;
+- a quiet filtered-air rise to support movement without a constant hiss;
+- two rounded, frame-aligned lock accents with a restrained upper transient;
+- a brief musical resonance and natural early-reflection tail, then silence.
+The implementation avoids harsh clicks, loud noise, obvious slapback and uncontrolled peaks. It remains procedural and original, with no third-party recording. Sound events must still be judged against rendered motion and listened to on actual phone speakers/headphones before approval.
 
 ## Technical implementation in Unity
 - Keep changes isolated to the studio-intro flow and brand resources. Do not touch the gameplay, level, localization, menu redesign, or build settings in this pass.
@@ -57,7 +58,7 @@ Sound events must align to rendered motion frames, not merely to approximate tim
 9. Build only after the implementation and verification gates pass; no APK should be described as tested without a real successful workflow and artifact.
 
 ## Current implementation and next engineering steps
-- Implemented on branch `arena/varellon-rift-lock`: opposing lateral movement, stronger dimensional yaw/roll, subtle opposing counter-arcs, controlled lock compression, and two synthesized impact transients aligned to the exact compression peaks (0.572s and 0.778s into the reveal sting).
-- Existing static intro/artwork and shader/lifecycle regression workflow passed on the prototype commit. A new static regression assertion now derives both impact timestamps from the reveal/wordmark timings; it awaits a fresh CI run.
-- Not yet established: visual quality from rendered frames, actual audio perception, performance on a physical Android device, or a release APK.
-- Next: inspect the CI diff, render at representative aspect ratios, listen on phone speakers and headphones, tune timing/impact strength, test skip/cleanup, then run the Android build only after those checks pass.
+- Implemented on branch `arena/varellon-rift-lock`: opposing lateral movement, stronger dimensional yaw/roll, subtle opposing counter-arcs, controlled lock compression, and two synthesized impact transients aligned to the compression peaks (0.572s and 0.778s into the reveal sting).
+- Latest audio revision replaces the static, sine-heavy chord/noise blend with integrated oscillator phases, a falling low-frequency body, a coherent evolving harmonic bed, a shaped filtered-air layer, two rounded lock accents, a restrained upper resonance, quiet reflections, and peak normalization.
+- A render workflow has been triggered for the updated intro; this is not an Android APK build.
+- Not yet established: the sound's subjective quality in actual playback, visual/audio synchronization in a rendered video, performance on a physical Android device, or a release APK. Do not claim final audio approval until rendered playback is reviewed and listened to on phone speakers/headphones.
