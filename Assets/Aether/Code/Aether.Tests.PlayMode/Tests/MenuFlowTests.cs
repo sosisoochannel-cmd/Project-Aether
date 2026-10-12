@@ -96,7 +96,7 @@ namespace Aether.Tests.PlayMode
         }
 
         /// <summary>Builds the menu the way the scene does, and waits for it to come up.</summary>
-        private IEnumerator BuildMenu(bool keepStartupScreen = false)
+        private IEnumerator BuildMenu()
         {
             var host = new GameObject("Menu Root (test)");
             _built.Add(host);
@@ -107,12 +107,7 @@ namespace Aether.Tests.PlayMode
             yield return null;
             yield return null;
 
-            // Most menu tests exercise destinations from the main menu. Keep that fixture stable,
-            // while the startup-flow test opts in to asserting the real first screen.
-            MenuRoot root = CurrentMenu();
-            if (!keepStartupScreen && root != null &&
-                root.System.CurrentId == MenuScreenId.LanguageSelection)
-                root.System.Show(MenuScreenId.MainMenu, true);
+            // The shipped startup flow now opens directly on the main menu.
         }
 
         private MenuRoot CurrentMenu()
@@ -139,14 +134,14 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator The_menu_comes_up_on_its_first_screen()
         {
-            yield return BuildMenu(true);
+            yield return BuildMenu();
             MenuRoot root = CurrentMenu();
 
             Assert.IsNotNull(root, "the menu root did not build");
             Assert.IsNotNull(root.System, "the menu built no screens");
-            Assert.AreEqual(MenuScreenId.LanguageSelection, root.System.CurrentId,
-                            "normal launch must begin with language selection");
-            Assert.IsTrue(root.System.Current.Visible, "the language selector is not visible");
+            Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
+                            "normal launch must skip the removed language selector");
+            Assert.IsTrue(root.System.Current.Visible, "the main menu is not visible");
 
             // One canvas, and it is the menu's.
             Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
