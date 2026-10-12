@@ -24,6 +24,7 @@ menu.quit.saveFailed=SPEICHERN NICHT MÖGLICH — DAS SPIEL BLEIBT GEÖFFNET
 language.select.title=SPRACHE WÄHLEN
 language.select.hint=MIT DEN PFEILEN WÄHLEN • ZUM FORTFAHREN BESTÄTIGEN
 language.select.continue=WEITER
+content.advisory.title=HINWEIS ZUM SPIELINHALT
 common.back=ZURÜCK
 common.on=AN
 common.off=AUS

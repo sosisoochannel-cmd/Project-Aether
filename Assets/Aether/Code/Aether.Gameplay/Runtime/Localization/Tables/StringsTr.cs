@@ -34,6 +34,7 @@ namespace Aether.Gameplay.Localization.Tables
             "language.select.title", "DİLİNİZİ SEÇİN",
             "language.select.hint", "SEÇMEK İÇİN OKLARI KULLANIN • DEVAM ETMEK İÇİN ONAYLAYIN",
             "language.select.continue", "DEVAM ET",
+            "content.advisory.title", "İÇERİK BİLGİLENDİRMESİ",
             "common.back", "GERİ",
             "common.on", "AÇIK",
             "common.off", "KAPALI",

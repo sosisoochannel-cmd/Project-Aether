@@ -24,6 +24,7 @@ menu.quit.saveFailed=SALVATAGGIO NON RIUSCITO — IL GIOCO RESTA APERTO
 language.select.title=SCEGLI LA LINGUA
 language.select.hint=USA LE FRECCE PER SCEGLIERE • CONFERMA PER CONTINUARE
 language.select.continue=CONTINUA
+content.advisory.title=AVVISO SUI CONTENUTI
 common.back=INDIETRO
 common.on=ATTIVO
 common.off=DISATTIVO

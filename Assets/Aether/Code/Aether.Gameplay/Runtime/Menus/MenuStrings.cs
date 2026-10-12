@@ -65,6 +65,7 @@ namespace Aether.Gameplay.Menus
             { "language.select.title", "CHOOSE YOUR LANGUAGE" },
             { "language.select.hint", "USE ARROWS TO SELECT • CONFIRM TO CONTINUE" },
             { "language.select.continue", "CONTINUE" },
+            { "content.advisory.title", "CONTENT ADVISORY" },
 
             // -- the screens around it
             { "common.back", "BACK" },
