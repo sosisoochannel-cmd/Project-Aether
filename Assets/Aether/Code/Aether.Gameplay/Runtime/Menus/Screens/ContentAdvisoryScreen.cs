@@ -43,7 +43,9 @@ namespace Aether.Gameplay.Menus.Screens
 
         protected override void Construct()
         {
-            MenuUi.Fill("Advisory Pure Black Background", Rect, Black, true);
+            // Cover the complete canvas, including the safe-area margins and forest backdrop.
+            Image background = MenuUi.Fill("Advisory Pure Black Background", Rect.root, Black, false);
+            background.transform.SetSiblingIndex(1);
 
             // The full-screen hit area is deliberately invisible: the warning has no visible button,
             // timer, bar, or other decoration, but a tap anywhere lets the player continue.
@@ -107,9 +109,9 @@ namespace Aether.Gameplay.Menus.Screens
             _body.fontSize = compact ? 20 : 23;
 
             Place(_title.rectTransform, new Vector2(0.5f, 0.5f),
-                new Vector2(0f, height * 0.27f), new Vector2(safeWidth, compact ? 66f : 78f));
+                new Vector2(0f, height * 0.36f), new Vector2(safeWidth, compact ? 66f : 78f));
             Place(_body.rectTransform, new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -height * 0.045f),
+                new Vector2(0f, -height * 0.12f),
                 new Vector2(Mathf.Min(safeWidth, 1100f), height * (compact ? 0.62f : 0.60f)));
         }
 
