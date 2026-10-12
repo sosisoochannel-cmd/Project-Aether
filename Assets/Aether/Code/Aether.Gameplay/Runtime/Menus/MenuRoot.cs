@@ -111,7 +111,7 @@ namespace Aether.Gameplay.Menus
 
             MenuScreenId initialScreen = GameLaunch.TakeOpenSettingsRequest()
                 ? MenuScreenId.Settings
-                : MenuScreenId.MainMenu;
+                : MenuScreenId.LanguageSelection;
             _system.Show(initialScreen, true);
             _box = _canvas.ContentRoot.rect.size;
         }
