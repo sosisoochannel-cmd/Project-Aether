@@ -341,7 +341,7 @@ namespace Aether.Gameplay.Localization
         {
             string stored = AetherSettings.Ensure().Values.Language;
             LanguageDefinition resolved = LanguageCatalog.Resolve(stored);
-            if (!CanSelectQuietly(resolved.Code)) resolved = LanguageCatalog.All[0];
+            if (!CanSelectQuietly(resolved.Code)) resolved = LanguageCatalog.Find("fa") ?? LanguageCatalog.All[0];
 
             bool changed = _loaded && _code != resolved.Code;
             _code = resolved.Code;
