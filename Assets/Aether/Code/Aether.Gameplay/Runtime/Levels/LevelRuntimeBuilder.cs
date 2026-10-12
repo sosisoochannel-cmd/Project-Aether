@@ -168,12 +168,38 @@ namespace Aether.Gameplay.Levels
             go.transform.position = rect.WorldCenter(level.TileSize, level.Height);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
             renderer.color = colour;
             renderer.sortingOrder = sortingOrder;
 
             Vector2 size = rect.WorldSize(level.TileSize);
-            go.transform.localScale = new Vector3(size.x, size.y, 1f);
+            Sprite tiledSurface = null;
+            switch (rect.Kind)
+            {
+                case LevelTileKind.Ground:
+                    tiledSurface = EnvironmentSpriteLibrary.Ground;
+                    break;
+                case LevelTileKind.DeepRock:
+                    tiledSurface = EnvironmentSpriteLibrary.DeepRock;
+                    break;
+                case LevelTileKind.Platform:
+                    tiledSurface = EnvironmentSpriteLibrary.Platform;
+                    break;
+            }
+
+            if (tiledSurface != null)
+            {
+                // Merged colliders stay merged, while their art repeats at one world unit per tile.
+                // This prevents surface cracks and highlights from stretching across long platforms.
+                renderer.sprite = tiledSurface;
+                renderer.drawMode = SpriteDrawMode.Tiled;
+                renderer.size = size;
+                go.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                renderer.sprite = PlaceholderVisuals.Square;
+                go.transform.localScale = new Vector3(size.x, size.y, 1f);
+            }
             return go;
         }
 
