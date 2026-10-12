@@ -78,7 +78,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator The_real_warning_screen_renders_and_stays_until_input()
+        public IEnumerator The_real_warning_screen_renders_and_auto_continues_after_seven_seconds()
         {
             GameLaunch.RequestShowAdvisory();
             _menuHost = new GameObject("AETHER warning render test");
@@ -151,11 +151,16 @@ namespace Aether.Tests.PlayMode
             manifest += "file '" + files[files.Length - 1] + "'\n";
             File.WriteAllText(OutputPath("frames.txt"), manifest);
 
-            // The warning has no countdown: it must remain up after the captured preview period.
+            // The preview captures finish well before seven seconds; the warning must still be
+            // visible during that interval and must then advance without any input.
             yield return new WaitForSecondsRealtime(2f);
             Assert.AreEqual(MenuScreenId.ContentAdvisory, _menu.System.CurrentId,
-                            "the warning automatically disappeared without player input");
+                            "the warning advanced before its seven-second display period");
             Assert.IsTrue(_menu.System.Current.Visible, "the warning screen is not visible");
+
+            yield return new WaitForSecondsRealtime(2f);
+            Assert.AreEqual(MenuScreenId.MainMenu, _menu.System.CurrentId,
+                            "the warning did not automatically advance after seven seconds");
 
             NoteOutput(folder, files.Length);
         }
