@@ -607,21 +607,40 @@ namespace Aether.Gameplay.Flow
                     : Mathf.Exp(-t * 6.5f) * Mathf.Clamp01(t * 28f);
                 float breath = air * airEnvelope * (reveal ? 0.20f : 0.045f);
 
-                // Quiet high partials add a signature glint while staying behind the logo.
+                // A fine, bell-metal glint gives the ident a memorable upper signature.
+                // Its partials are deliberately original and restrained: this is not a copy of
+                // another studio's cue, nor a literal imitation of any one traditional instrument.
                 float shimmer;
                 if (reveal)
                 {
-                    shimmer = Mathf.Sin(2f * Mathf.PI * 587.33f * t) *
-                              Mathf.Exp(-Mathf.Max(0f, t - 0.34f) * 4.5f) *
-                              Mathf.Clamp01(t * 9f) * 0.018f;
+                    float glintAge = t - 0.115f;
+                    float secondGlintAge = t - 0.405f;
+                    float glintEnvelope = glintAge < 0f ? 0f :
+                        Mathf.Exp(-glintAge * 5.4f) * Mathf.Clamp01(glintAge / 0.006f);
+                    float secondGlintEnvelope = secondGlintAge < 0f ? 0f :
+                        Mathf.Exp(-secondGlintAge * 7.0f) * Mathf.Clamp01(secondGlintAge / 0.006f);
+                    // Slightly inharmonic partials feel more tactile than a stack of pure sine waves.
+                    float pluck = (
+                        Mathf.Sin(2f * Mathf.PI * 587.33f * glintAge) * 0.58f +
+                        Mathf.Sin(2f * Mathf.PI * 1178.5f * glintAge) * 0.25f +
+                        Mathf.Sin(2f * Mathf.PI * 1768.0f * glintAge) * 0.11f) *
+                        glintEnvelope * 0.026f;
+                    float answer = (
+                        Mathf.Sin(2f * Mathf.PI * 739.99f * secondGlintAge) * 0.65f +
+                        Mathf.Sin(2f * Mathf.PI * 1482.0f * secondGlintAge) * 0.22f) *
+                        secondGlintEnvelope * 0.014f;
+                    shimmer = pluck + answer;
                     shimmer += Mathf.Sin(2f * Mathf.PI * 880.00f * t) *
                                Mathf.Exp(-Mathf.Max(0f, t - 0.52f) * 5.5f) *
-                               Mathf.Clamp01(t * 10f) * 0.010f;
+                               Mathf.Clamp01(t * 10f) * 0.008f;
                 }
                 else
                 {
-                    shimmer = Mathf.Sin(2f * Mathf.PI * 440f * t) *
-                              Mathf.Exp(-t * 5.8f) * 0.012f;
+                    float resolveAge = t - 0.035f;
+                    float resolveEnvelope = resolveAge < 0f ? 0f :
+                        Mathf.Exp(-resolveAge * 6.2f) * Mathf.Clamp01(resolveAge / 0.004f);
+                    shimmer = Mathf.Sin(2f * Mathf.PI * 440f * resolveAge) *
+                              resolveEnvelope * 0.010f;
                 }
 
                 // Two original, short lock transients are aligned with the emblem's first
