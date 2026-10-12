@@ -24,7 +24,6 @@ on:
       - "tools/localization/**"
       - "tools/verify/localization.py"
       - "tools/verify/content_advisory.py"
-      - "tools/verify/mainmenu.py"
       - ".github/workflows/localization-check.yml"
   workflow_dispatch:
 
