@@ -73,8 +73,14 @@ namespace Aether.Gameplay.Menus
             bool rtl = LanguageService.IsRightToLeft;
             text.text = PrepareText(content);
             if (rtl) alignment = TextAnchor.MiddleRight;
-            text.fontSize = Mathf.RoundToInt(size);
-            text.fontStyle = style;
+
+            // Persian is a reading language, not a decorative variant of the Latin UI.
+            // Give it slightly larger, genuinely bold native-script typography while keeping
+            // authored row geometry and touch targets intact. The selected OS font is cached
+            // by MenuArt; font choice and script shaping remain separate concerns.
+            bool persian = string.Equals(LanguageService.Code, "fa", System.StringComparison.Ordinal);
+            text.fontSize = Mathf.RoundToInt(size * (persian ? 1.07f : 1f));
+            text.fontStyle = persian && style == FontStyle.Normal ? FontStyle.Bold : style;
             text.color = colour;
             text.alignment = alignment;
             text.raycastTarget = false;
