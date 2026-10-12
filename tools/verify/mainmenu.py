@@ -389,6 +389,13 @@ def check_screens(gate: Gate) -> None:
             continue    # the base every screen derives from, not a screen
         gate.check("public override bool OnBack()" in text,
                    f"{name} does not answer a back request")
+
+        # These two cinematic startup screens are deliberately self-contained: their own framed
+        # composition carries the Varellon signature and they must not expose a Back row that lets
+        # players skip language choice or the content advisory.
+        if name in ("LanguageSelectionScreen.cs", "ContentAdvisoryScreen.cs"):
+            continue
+
         if name == "MainMenuScreen.cs":
             gate.check("MenuHeader.Create" not in text,
                        "the main menu has a screen header; its brand block is its header")
