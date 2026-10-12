@@ -53,6 +53,8 @@ namespace Aether.Gameplay.Menus
         {
             switch (id)
             {
+                case MenuScreenId.LanguageSelection:
+                    return MenuScreen.Create<LanguageSelectionScreen>(id, parent, host);
                 case MenuScreenId.Settings:
                     return MenuScreen.Create<SettingsScreen>(id, parent, host);
                 case MenuScreenId.Credits:
