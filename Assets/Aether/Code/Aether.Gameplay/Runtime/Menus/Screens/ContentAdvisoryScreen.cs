@@ -174,6 +174,12 @@ namespace Aether.Gameplay.Menus.Screens
             _entrance = null;
         }
 
+        public override bool OnMove(MenuNav.Move move)
+        {
+            ContinueToMenu();
+            return true;
+        }
+
         public override bool OnBack()
         {
             ContinueToMenu();
