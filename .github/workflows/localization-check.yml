@@ -3,6 +3,7 @@ name: Localization checks
 on:
   push:
     paths:
+      - "Assets/Aether/Scenes/MainMenu.unity"
       - "Assets/Aether/Code/Aether.Core/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
