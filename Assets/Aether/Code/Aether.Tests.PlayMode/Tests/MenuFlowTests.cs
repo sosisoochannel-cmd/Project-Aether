@@ -142,8 +142,11 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
                             "normal startup should show the content warning after the studio ident");
             Assert.IsTrue(root.System.Current.Visible, "the content warning is not visible");
-            Assert.AreEqual(0, root.System.Current.GetComponentsInChildren<Button>(true).Length,
-                            "the warning should contain only its heading and text, without a button");
+            Button[] hitAreas = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(1, hitAreas.Length,
+                            "the warning should have one invisible full-screen touch hit area");
+            Assert.AreEqual(0f, hitAreas[0].GetComponent<Image>().color.a,
+                            "the warning touch hit area must not be visible");
         }
 
         [UnityTest]
@@ -188,7 +191,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button()
+        public IEnumerator Content_advisory_waits_for_player_input_without_a_visible_continue_button()
         {
             yield return BuildMenu();
             MenuRoot root = CurrentMenu();
@@ -198,18 +201,18 @@ namespace Aether.Tests.PlayMode
 
             Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
                             "the content advisory did not open");
-            Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(0, buttons.Length,
-                            "the advisory must be informational and must not require a Continue press");
+            Button[] hitAreas = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(1, hitAreas.Length, "the warning should have one invisible touch hit area");
+            Assert.AreEqual(0f, hitAreas[0].GetComponent<Image>().color.a, "the Continue control must be invisible");
 
-            float deadline = Time.unscaledTime + 16f;
-            while (root.System.CurrentId == MenuScreenId.ContentAdvisory &&
-                   Time.unscaledTime < deadline)
-                yield return null;
+            yield return new WaitForSecondsRealtime(15f);
+            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
+                            "the warning disappeared without player input");
 
+            Assert.IsTrue(root.System.Back(), "back input did not continue past the warning");
             yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "the advisory did not automatically advance after its reading period");
+                            "continuing from the warning did not open the main menu");
         }
 
         [UnityTest]
