@@ -719,32 +719,31 @@ namespace Aether.Gameplay.Flow
             float settle = EaseInOutSine(progress);
             bool isMark = part.Renderer == _mark.Renderer;
             float yaw = isMark
-                ? Mathf.Lerp(-20f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.8f
+                ? Mathf.Lerp(-13f, 0f, settle) + Mathf.Sin(Mathf.PI * settle) * 1.2f
                 : 0f;
             float roll = isMark
-                ? Mathf.Lerp(3.6f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.8f
+                ? Mathf.Lerp(2.4f, 0f, settle) - Mathf.Sin(Mathf.PI * settle) * 0.45f
                 : 0f;
 
-            // Rift-Lock: the mark and wordmark travel on opposing arcs instead of merely fading
-            // into place. The artwork is still the same two trimmed regions; nothing is redrawn.
-            // Stronger initial yaw/roll gives a brief dimensional turn, while the small lateral
-            // overshoot makes the final convergence readable even on a phone-sized screen.
+            // Varellon's signature motion: the crest and its wordmark converge from opposing,
+            // shallow arcs. The motion is legible at phone size, with a short dimensional turn
+            // instead of a large spin, then resolves to the untouched artwork.
             float travel = EaseOutCubic(progress);
             float arc = Mathf.Sin(Mathf.PI * progress);
             float lateralFraction = isMark
-                ? Mathf.Lerp(-0.115f, 0f, travel) + arc * 0.018f
-                : Mathf.Lerp(0.120f, 0f, travel) - arc * 0.012f;
+                ? Mathf.Lerp(-0.085f, 0f, travel) + arc * 0.012f
+                : Mathf.Lerp(0.088f, 0f, travel) - arc * 0.009f;
 
-            // A tiny counter-arc makes the two regions feel authored on separate trajectories,
-            // rather than sliding on parallel rails. It is exactly zero at both endpoints.
-            rise += isMark ? arc * 0.018f : -arc * 0.012f;
-            yaw += isMark ? Mathf.Lerp(-18f, 0f, travel) : Mathf.Lerp(15f, 0f, travel);
-            roll += isMark ? Mathf.Lerp(-10f, 0f, travel) : Mathf.Lerp(8f, 0f, travel);
+            // Their vertical counter-arc gives the two pieces a single authored convergence,
+            // rather than a generic left/right slide. It is exactly zero at both endpoints.
+            rise += isMark ? arc * 0.012f : -arc * 0.008f;
+            yaw += isMark ? Mathf.Lerp(-10f, 0f, travel) : Mathf.Lerp(9f, 0f, travel);
+            roll += isMark ? Mathf.Lerp(-5f, 0f, travel) : Mathf.Lerp(4.5f, 0f, travel);
 
-            // A restrained compression at the lock beat, followed by a clean return to the exact
-            // source scale. The curve is zero at both ends, so the held logo is never distorted.
+            // A tiny lock-beat compression gives the emblem a moment of weight, then returns
+            // pixel-perfectly to its source scale before the still hold.
             float lockBeat = Mathf.Sin(Mathf.PI * Mathf.Clamp01((progress - 0.76f) / 0.24f));
-            float compression = 1f - (isMark ? 0.035f : 0.022f) * lockBeat;
+            float compression = 1f - (isMark ? 0.026f : 0.016f) * lockBeat;
             Place(part.Renderer.transform, part.OffsetPixels, scale * compression, rise);
             Rect safe = DrawableArea();
             float worldPerPixel = (2f * _camera.orthographicSize) / Mathf.Max(1f, Screen.height);
