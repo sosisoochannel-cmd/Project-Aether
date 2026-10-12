@@ -21,7 +21,11 @@
 name: Android APK
 
 on:
-  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
+  # One authorized verification build for the current menu revision; revert this branch-only
+  # trigger after the run starts so future UI commits do not spend Actions minutes automatically.
+  push:
+    branches:
+      - arena/aether-gold-black-menu-polish
   workflow_dispatch:
 
 permissions:
