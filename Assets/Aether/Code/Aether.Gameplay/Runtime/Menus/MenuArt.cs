@@ -179,7 +179,14 @@ namespace Aether.Gameplay.Menus
 
         private static Font ResolveFont(bool rtl)
         {
-            if (!rtl)
+            if (rtl)
+            {
+                // Bundle a known Persian-capable font so Android devices render the same glyphs
+                // instead of depending on whichever Arabic font happens to be installed by OEM.
+                Font bundledPersian = Resources.Load<Font>("Fonts/Vazirmatn-Regular");
+                if (bundledPersian != null) return bundledPersian;
+            }
+            else
             {
                 Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 if (builtin != null) return builtin;
