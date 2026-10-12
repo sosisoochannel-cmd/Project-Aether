@@ -247,7 +247,7 @@ namespace Aether.Gameplay.Menus.Screens
             Transform progress = Rect.Find("Advisory Reading Progress");
             RectTransform progressRect = progress as RectTransform;
             Place(progressRect, new Vector2(.5f, 0f), new Vector2(0f, 20f), new Vector2(Mathf.Min(width - 120f, 760f), 4f));
-            _progressTrack.rectTransform.sizeDelta = new Vector2(Mathf.Min(width - 120f, 760f), 2f);
+            _progressTrack.rectTransform.sizeDelta = new Vector2(0f, 2f);
             _progressFill.sizeDelta = new Vector2(0f, 2f);
         }
 
