@@ -1136,6 +1136,48 @@ def check_discipline(gate: Gate) -> None:
     gate.check("Time.frameCount" in button,
                "MenuButton has no same-frame guard, so one tap could activate a row twice")
 
+    # The game title is simply AETHER in every offered language; studio branding stays in the
+    # separate intro and must not be injected into a corner of the gameplay menu.
+    english_strings = read(f"{MENUS}/MenuStrings.cs")
+    title_match = re.search(r'\{\s*"menu.title"\s*,\s*"([^"]*)"\s*\}', english_strings)
+    gate.check(title_match is not None and title_match.group(1) == "AETHER",
+               "the main-menu title must be AETHER, never 'Project Aether'")
+    title_panel = read(f"{MENUS}/Panels/MenuTitlePanel.cs")
+    main_screen = read(MAIN_SCREEN)
+    gate.check("MenuLogo.Create" not in title_panel and "MenuLogo.Create" not in main_screen,
+               "the main menu must not draw the Varellon logo; keep it for the separate intro")
+    sheet_dir = os.path.join(REPO_ROOT, "tools", "localization")
+    for name in sorted(os.listdir(sheet_dir)):
+        if not name.startswith("strings_") or not name.endswith(".txt"):
+            continue
+        sheet_text = read(os.path.join("tools", "localization", name))
+        title_line = re.search(r"^menu\.title=(.*)$", sheet_text, re.MULTILINE)
+        gate.check(title_line is not None and title_line.group(1).strip() == "AETHER",
+                   f"{name} must display only AETHER as the game title")
+        gate.check(re.search(r"project\s+aether", sheet_text, re.IGNORECASE) is None,
+                   f"{name} still contains 'Project Aether' in player-facing copy")
+
+    # No menu action may invoke device vibration/haptic APIs. Selection feedback is visual only.
+    code_root = os.path.join(REPO_ROOT, "Assets", "Aether", "Code")
+    haptic_calls = []
+    for root, _dirs, names in os.walk(code_root):
+        for name in names:
+            if not name.endswith(".cs"):
+                continue
+            rel = os.path.relpath(os.path.join(root, name), REPO_ROOT).replace(os.sep, "/")
+            source = without_comments(read(rel))
+            if re.search(r"(?:Handheld\\.Vibrate|Vibration\\.|HapticFeedback|PerformHaptic)", source):
+                haptic_calls.append(rel)
+    gate.check(not haptic_calls,
+               f"device vibration/haptic calls remain in {haptic_calls}; menu selection must not vibrate")
+
+    gate.check("MenuTheme.Palette.AccentWash" in button
+               and "accentVisible = true;" in button
+               and "selectionVisible && !_locked && !_informational" in button,
+               "selected rows need the quiet gold focus wash and marker, with no idle caret")
+    gate.check("ruleVisible = true;" not in button,
+               "selected rows must not use the old underline-sweep selection effect")
+
 
 def main() -> int:
     gate = Gate()
