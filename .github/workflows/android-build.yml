@@ -21,11 +21,7 @@
 name: Android APK
 
 on:
-  # Build the current development branch automatically so a real APK is produced and can be checked.
-  # Manual runs remain available for intentional rebuilds.
-  push:
-    branches:
-      - arena/aether-warning-persian-default
+  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
   workflow_dispatch:
 
 permissions:
