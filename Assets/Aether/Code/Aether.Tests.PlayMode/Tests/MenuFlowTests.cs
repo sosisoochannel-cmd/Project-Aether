@@ -9,6 +9,7 @@ using Aether.Gameplay.Menus.Components;
 using Aether.Gameplay.Menus.Panels;
 using Aether.Gameplay.Menus.Screens;
 using Aether.Gameplay.Presentation;
+using Aether.Gameplay.Localization;
 using Aether.Gameplay.Progression;
 using Aether.Gameplay.Progression.Achievements;
 using Aether.Gameplay.Settings;
@@ -60,6 +61,8 @@ namespace Aether.Tests.PlayMode
             // The menu tests use isolated settings and save storage. A menu should never migrate,
             // overwrite or even need to inspect a player's real save while a test is running.
             AetherSettings.ResetForTests(new MemorySettingsStore());
+            LanguageService.Reload();
+            LanguageService.Set("en");
             yield return null;
         }
 
