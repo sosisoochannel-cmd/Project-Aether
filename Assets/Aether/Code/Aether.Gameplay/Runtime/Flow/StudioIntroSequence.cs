@@ -325,6 +325,9 @@ namespace Aether.Gameplay.Flow
         private AudioSource _studioAudioSource;
         private AudioClip _studioRevealClip;
         private AudioClip _studioResolveClip;
+        // Load the destination while the ident is still playing. Activating it is deferred until
+        // the screen is black, so scene loading cannot interrupt the visible fade.
+        private AsyncOperation _nextSceneLoad;
 
         private const int StudioAudioSampleRate = 24000;
 
@@ -427,6 +430,7 @@ namespace Aether.Gameplay.Flow
             float exitLength = Timing.Exit;
 
             HideAll();
+            BeginNextScenePreload();
 
             while (true)
             {
@@ -1279,16 +1283,50 @@ namespace Aether.Gameplay.Flow
             return false;
         }
 
+        /// <summary>
+        /// Begins loading the destination in the background while the logo is animating. Activation
+        /// is deliberately held until the ident has faded to black.
+        /// </summary>
+        private void BeginNextScenePreload()
+        {
+            if (_nextSceneLoad != null || string.IsNullOrEmpty(_nextScene)) return;
+
+            try
+            {
+                _nextSceneLoad = SceneManager.LoadSceneAsync(_nextScene, LoadSceneMode.Single);
+                if (_nextSceneLoad != null)
+                    _nextSceneLoad.allowSceneActivation = false;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"[studio intro] Could not preload destination scene '{_nextScene}'. " +
+                    "The final hand-over will use the regular scene-load path. " + exception.Message, this);
+                _nextSceneLoad = null;
+            }
+        }
+
         private void HandOver()
         {
             RestoreFramePacing();
-            ReleaseLockup();
 
             if (string.IsNullOrEmpty(_nextScene))
             {
+                ReleaseLockup();
                 Debug.LogError(
                     "The studio intro has no scene to hand over to, so the app has nowhere to go. " +
                     "Set the next scene on the StudioIntroSequence component.", this);
+                return;
+            }
+
+            // Resource destruction and scene activation happen only after the logo is fully gone.
+            // Releasing generated textures/materials before activation also prevents them surviving
+            // into the destination scene.
+            ReleaseLockup();
+
+            if (_nextSceneLoad != null)
+            {
+                _nextSceneLoad.allowSceneActivation = true;
                 return;
             }
 
