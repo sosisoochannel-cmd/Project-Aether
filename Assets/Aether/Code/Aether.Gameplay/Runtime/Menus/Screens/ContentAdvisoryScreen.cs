@@ -44,7 +44,9 @@ namespace Aether.Gameplay.Menus.Screens
         protected override void Construct()
         {
             // Cover the complete canvas, including the safe-area margins and forest backdrop.
-            Image background = MenuUi.Fill("Advisory Pure Black Background", Rect.root, Black, false);
+            Canvas parentCanvas = Rect.GetComponentInParent<Canvas>();
+            Transform canvasRoot = parentCanvas != null ? parentCanvas.transform : Rect;
+            Image background = MenuUi.Fill("Advisory Pure Black Background", canvasRoot, Black, false);
             background.transform.SetSiblingIndex(1);
 
             // The full-screen hit area is deliberately invisible: the warning has no visible button,
