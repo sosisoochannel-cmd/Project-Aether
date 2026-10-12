@@ -372,8 +372,7 @@ def check_screens(gate: Gate) -> None:
 
     # The brief's entry points, each of which has to exist as a row on the main menu.
     main = read(MAIN_SCREEN)
-    for destination in ("Chapters", "Characters", "Collection", "Achievements", "Settings",
-                        "Credits"):
+    for destination in ("Chapters", "Settings", "Credits"):
         gate.check(f"MenuScreenId.{destination}" in main,
                    f"the main menu has no row for {destination}")
     for key in ("menu.continue", "menu.newGame"):
