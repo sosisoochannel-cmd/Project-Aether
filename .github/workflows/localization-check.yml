@@ -12,6 +12,7 @@ on:
       - "tools/localization/**"
       - "tools/verify/localization.py"
       - "tools/verify/content_advisory.py"
+      - "tools/verify/mainmenu.py"
       - ".github/workflows/localization-check.yml"
   pull_request:
     paths:
@@ -24,6 +25,7 @@ on:
       - "tools/localization/**"
       - "tools/verify/localization.py"
       - "tools/verify/content_advisory.py"
+      - "tools/verify/mainmenu.py"
       - ".github/workflows/localization-check.yml"
   workflow_dispatch:
 
@@ -49,6 +51,8 @@ jobs:
         run: python -m py_compile tools/verify/localization.py tools/verify/content_advisory.py
       - name: Validate content-advisory flow and all ten localized copies
         run: python tools/verify/content_advisory.py
+      - name: Verify menu registry, layout and navigation invariants
+        run: python tools/verify/mainmenu.py
       - name: Validate all offered translation sheets and generated tables
         run: python tools/verify/localization.py
       - name: Report coverage for all ten agreed languages
