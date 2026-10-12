@@ -387,12 +387,16 @@ def check_screens(gate: Gate) -> None:
         text = read(f"{SCREENS}/{name}")
         if "abstract class" in text:
             continue    # the base every screen derives from, not a screen
-        gate.check("public override bool OnBack()" in text,
-                   f"{name} does not answer a back request")
 
         # The standalone content advisory is deliberately self-contained: its own composition
-        # carries the Varellon signature and it must not expose a Back row.
+        # carries the warning title and copy, and it must not expose a Back row.
+        if name == "ContentAdvisoryScreen.cs":
+            gate.check("MenuHeader.Create" not in text,
+                       "the content advisory must not have a menu header or Back row")
             continue
+
+        gate.check("public override bool OnBack()" in text,
+                   f"{name} does not answer a back request")
 
         if name == "MainMenuScreen.cs":
             gate.check("MenuHeader.Create" not in text,
@@ -958,6 +962,25 @@ def check_composition(gate: Gate) -> None:
                    f"{name}: the brand block takes {title_block:.0f} of {viewport:.0f} units, "
                    "leaving the entries too little of the screen")
         gate.check(box_w > 0 and box_h > 0, f"{name}: the content box is empty")
+
+    # Regression checks for the clipping bug reported on a real screen. These catch the
+    # exact anti-pattern (a 10-unit text rect) that can make translated labels look like fragments,
+    # and require bounded, best-fit text for both menu rows and the long content advisory.
+    button_source = read(f"{MENUS}/Components/MenuButton.cs")
+    warning_source = read(f"{SCREENS}/ContentAdvisoryScreen.cs")
+    gate.check("_label.rectTransform.anchorMax = Vector2.one;" in button_source,
+               "menu labels must stretch across their row instead of using a tiny fixed width")
+    gate.check("_label.horizontalOverflow = HorizontalWrapMode.Wrap;" in button_source
+               and "_label.resizeTextForBestFit = true;" in button_source
+               and "_label.verticalOverflow = VerticalWrapMode.Truncate;" in button_source,
+               "menu labels need wrapping, best-fit sizing and a bounded vertical area")
+    gate.check("_meta.rectTransform.anchorMax = Vector2.one;" in button_source
+               and "Metadata belongs on its own line" in button_source,
+               "primary-row metadata must have its own full-width line, not overlap the label")
+    gate.check("_body.resizeTextForBestFit = true;" in warning_source
+               and "_body.verticalOverflow = VerticalWrapMode.Truncate;" in warning_source
+               and "height * (compact ? 0.70f : 0.68f)" in warning_source,
+               "the content advisory must fit its text into a bounded reading column")
 
     # Every interactive row is at least 48dp tall. The menu's canvas is 1080 units over a screen
     # that is about 360dp in landscape, so a unit is a third of a dp.

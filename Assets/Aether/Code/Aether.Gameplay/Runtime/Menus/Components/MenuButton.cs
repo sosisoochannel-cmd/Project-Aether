@@ -268,8 +268,8 @@ namespace Aether.Gameplay.Menus.Components
             if (wanted && _help.text != text) _help.text = MenuUi.PrepareText(text);
 
             // With a second line the label moves up to make room for it; without one it is centred.
-            _labelY = wanted ? 15f : 0f;
-            _label.rectTransform.anchoredPosition = new Vector2(_label.rectTransform.anchoredPosition.x, _labelY);
+            _labelY = wanted ? 22f : (_meta != null && _meta.gameObject.activeSelf ? 30f : 0f);
+            _label.rectTransform.anchoredPosition = new Vector2(0f, _labelY);
         }
 
         /// <summary>
@@ -291,9 +291,25 @@ namespace Aether.Gameplay.Menus.Components
             if (_icon != null) _icon.rectTransform.anchoredPosition = new Vector2(-caretOutdent, 0f);
 
             _textBaseX = textInset;
-            _label.rectTransform.anchoredPosition = new Vector2(_textBaseX, _labelY);
-            if (_help != null) _help.rectTransform.anchoredPosition = new Vector2(textInset, -18f);
-            if (_meta != null) _meta.rectTransform.anchoredPosition = new Vector2(-textInset, 0f);
+            float inset = Mathf.Max(40f, textInset);
+            if (_label != null)
+            {
+                _label.rectTransform.offsetMin = new Vector2(inset, 0f);
+                _label.rectTransform.offsetMax = new Vector2(-inset, 0f);
+                _label.rectTransform.anchoredPosition = new Vector2(0f, _labelY);
+            }
+            if (_help != null)
+            {
+                _help.rectTransform.offsetMin = new Vector2(inset, 0f);
+                _help.rectTransform.offsetMax = new Vector2(-inset, 0f);
+                _help.rectTransform.anchoredPosition = new Vector2(0f, -18f);
+            }
+            if (_meta != null)
+            {
+                _meta.rectTransform.offsetMin = new Vector2(inset, 8f);
+                _meta.rectTransform.offsetMax = new Vector2(-inset, -72f);
+                _meta.rectTransform.anchoredPosition = new Vector2(0f, -34f);
+            }
         }
 
         // -- construction ----------------------------------------------------------------------
@@ -373,30 +389,57 @@ namespace Aether.Gameplay.Menus.Components
             _label = MenuUi.CreateTrackedText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
                                              Tracking, TextAnchor.MiddleLeft,
                                              _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
-            _label.rectTransform.anchorMin = new Vector2(0f, 0f);
-            _label.rectTransform.anchorMax = new Vector2(0f, 1f);
-            _label.rectTransform.pivot = new Vector2(0f, 0.5f);
+            // Stretch the label across the row. A fixed 10-unit width silently clips translated
+            // labels; the old layout only looked correct for a few short strings.
+            _label.rectTransform.anchorMin = Vector2.zero;
+            _label.rectTransform.anchorMax = Vector2.one;
+            _label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _label.rectTransform.offsetMin = new Vector2(40f, 0f);
+            _label.rectTransform.offsetMax = new Vector2(-40f, 0f);
             _label.rectTransform.anchoredPosition = Vector2.zero;
-            _label.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            _label.rectTransform.sizeDelta = Vector2.zero;
+            _label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _label.verticalOverflow = VerticalWrapMode.Truncate;
+            _label.resizeTextForBestFit = true;
+            _label.resizeTextMinSize = Mathf.Max(18, Mathf.RoundToInt(size * 0.68f));
+            _label.resizeTextMaxSize = _label.fontSize;
 
             _meta = MenuUi.CreateText("Meta", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
                                       TextAnchor.MiddleRight);
-            _meta.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _meta.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _meta.rectTransform.pivot = new Vector2(1f, 0.5f);
-            _meta.rectTransform.anchoredPosition = Vector2.zero;
-            _meta.rectTransform.sizeDelta = new Vector2(10f, 0f);
+            // Metadata belongs on its own line under the primary label, not on top of it.
+            // Give it the same usable width so translated copy cannot leave a fragment behind.
+            _meta.rectTransform.anchorMin = Vector2.zero;
+            _meta.rectTransform.anchorMax = Vector2.one;
+            _meta.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _meta.rectTransform.offsetMin = new Vector2(40f, 8f);
+            _meta.rectTransform.offsetMax = new Vector2(-40f, -72f);
+            _meta.rectTransform.anchoredPosition = new Vector2(0f, -34f);
+            _meta.rectTransform.sizeDelta = Vector2.zero;
+            _meta.alignment = LanguageService.IsRightToLeft ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            _meta.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _meta.verticalOverflow = VerticalWrapMode.Truncate;
+            _meta.resizeTextForBestFit = true;
+            _meta.resizeTextMinSize = 14;
+            _meta.resizeTextMaxSize = _meta.fontSize;
             _meta.gameObject.SetActive(false);
 
             _help = MenuUi.CreateText("Help", _textBlock, string.Empty,
                                       MenuTheme.Metrics.SettingHelpSize, MenuTheme.Palette.InkFaint,
                                       TextAnchor.MiddleLeft);
-            _help.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            _help.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            _help.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _help.rectTransform.sizeDelta = new Vector2(10f, MenuTheme.Metrics.SettingHelpSize * 2f);
+            _help.rectTransform.anchorMin = Vector2.zero;
+            _help.rectTransform.anchorMax = Vector2.one;
+            _help.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _help.rectTransform.offsetMin = new Vector2(40f, 0f);
+            _help.rectTransform.offsetMax = new Vector2(-40f, 0f);
+            _help.rectTransform.sizeDelta = Vector2.zero;
             _help.rectTransform.anchoredPosition = new Vector2(0f, -18f);
+            _help.alignment = LanguageService.IsRightToLeft ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            _help.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _help.verticalOverflow = VerticalWrapMode.Truncate;
+            _help.resizeTextForBestFit = true;
+            _help.resizeTextMinSize = 14;
+            _help.resizeTextMaxSize = _help.fontSize;
             _help.gameObject.SetActive(false);
 
             ApplyState(currentSelectionState, true);
@@ -537,7 +580,7 @@ namespace Aether.Gameplay.Menus.Components
                 _icon.gameObject.SetActive(_locked);
             }
 
-            float x = _textBaseX + nudge;
+            float x = nudge;
             _label.rectTransform.anchoredPosition = new Vector2(x, _labelY);
         }
 

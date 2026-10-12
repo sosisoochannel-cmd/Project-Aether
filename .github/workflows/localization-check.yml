@@ -7,6 +7,16 @@ on:
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuScreens.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuUi.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuTheme.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Components/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Panels/**"
+      - "tools/verify/mainmenu.py"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuUi.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuTheme.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Components/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Panels/**"
+      - "tools/verify/mainmenu.py"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/**"
       - "Assets/Aether/Code/Aether.Tests.PlayMode/**"
       - "tools/localization/**"
@@ -51,5 +61,9 @@ jobs:
         run: python tools/verify/content_advisory.py
       - name: Validate all offered translation sheets and generated tables
         run: python tools/verify/localization.py
+      - name: Check menu layout verifier syntax
+        run: python -m py_compile tools/verify/mainmenu.py
+      - name: Verify menu composition and text bounds
+        run: python tools/verify/mainmenu.py
       - name: Report coverage for all ten agreed languages
         run: python tools/verify/localization.py --coverage

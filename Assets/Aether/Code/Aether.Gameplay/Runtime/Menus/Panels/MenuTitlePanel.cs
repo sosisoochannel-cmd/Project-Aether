@@ -74,17 +74,33 @@ namespace Aether.Gameplay.Menus.Panels
             }
 
             float titleHeight = MenuTheme.Metrics.TitleSize * 1.2f;
-            _title.rectTransform.sizeDelta = new Vector2(width, titleHeight);
-            _title.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            // Keep a deliberate inset on both sides: right-aligned RTL text must never sit
+            // against the physical screen edge, and long translations get a real width to fit.
+            const float horizontalInset = 24f;
+            _title.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f), titleHeight);
+            _title.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+            _title.resizeTextForBestFit = true;
+            _title.resizeTextMinSize = 22;
+            _title.resizeTextMaxSize = _title.fontSize;
+            _title.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _title.verticalOverflow = VerticalWrapMode.Truncate;
             y += titleHeight;
 
-            _subtitle.rectTransform.sizeDelta = new Vector2(width, MenuTheme.Metrics.SubtitleSize * 1.4f);
-            _subtitle.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f),
+                                                             MenuTheme.Metrics.SubtitleSize * 1.4f);
+            _subtitle.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+            _subtitle.resizeTextForBestFit = true;
+            _subtitle.resizeTextMinSize = 14;
+            _subtitle.resizeTextMaxSize = _subtitle.fontSize;
+            _subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _subtitle.verticalOverflow = VerticalWrapMode.Truncate;
             y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
 
             _rule.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.TitleRuleWidth,
                                                        MenuTheme.Metrics.TitleRuleHeight);
-            _rule.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
+            _rule.rectTransform.anchoredPosition = new Vector2(
+                rtl ? Mathf.Max(0f, width - MenuTheme.Metrics.TitleRuleWidth) : 0f, -y);
             y += MenuTheme.Metrics.TitleRuleHeight;
 
             SetPanelSize(width, y);

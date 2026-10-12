@@ -56,8 +56,11 @@ namespace Aether.Gameplay.Menus.Screens
             _body = MenuUi.CreateText("Advisory Warning Copy", Rect, "", 36f,
                 White, TextAnchor.MiddleCenter, FontStyle.Bold);
             _body.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _body.verticalOverflow = VerticalWrapMode.Overflow;
-            _body.lineSpacing = 1.28f;
+            _body.verticalOverflow = VerticalWrapMode.Truncate;
+            _body.resizeTextForBestFit = true;
+            _body.resizeTextMinSize = 20;
+            _body.resizeTextMaxSize = _body.fontSize;
+            _body.lineSpacing = 1.18f;
             _title.raycastTarget = false;
             _body.raycastTarget = false;
 
@@ -100,12 +103,18 @@ namespace Aether.Gameplay.Menus.Screens
             // increase and remains bold, while the responsive text box still wraps naturally.
             float bodySize = width >= 1000f ? 36f : width >= 600f ? 31f : 26f;
             _body.fontSize = Mathf.RoundToInt(bodySize * (persian ? 1.07f : 1f));
+            _body.resizeTextMaxSize = _body.fontSize;
+            _body.resizeTextMinSize = Mathf.Min(20, _body.fontSize);
+            _body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _body.verticalOverflow = VerticalWrapMode.Truncate;
 
+            // The warning is centered in a bounded reading column with generous side margins.
+            // Best-fit scales long translations down before truncation can hide the end of a sentence.
             Place(_title.rectTransform, new Vector2(0.5f, 0.5f),
                 new Vector2(0f, height * 0.36f), new Vector2(safeWidth, compact ? 66f : 78f));
             Place(_body.rectTransform, new Vector2(0.5f, 0.5f),
                 new Vector2(0f, -height * 0.12f),
-                new Vector2(Mathf.Min(safeWidth, 1200f), height * (compact ? 0.66f : 0.64f)));
+                new Vector2(Mathf.Min(safeWidth, 1200f), height * (compact ? 0.70f : 0.68f)));
         }
 
         private static void Place(RectTransform rect, Vector2 anchor, Vector2 offset, Vector2 size)
