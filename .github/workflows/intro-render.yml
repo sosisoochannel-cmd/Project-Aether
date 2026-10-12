@@ -136,14 +136,15 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           count=$(find IntroRender/motion-frames -maxdepth 1 -name 'frame-*.png' | wc -l)
           echo "::notice title=Motion frames::$count sequential frames captured"
-          ffmpeg -hide_banner -loglevel warning -y \
+          # Unity's container writes the frames as root; encode with matching permissions too.
+          sudo ffmpeg -hide_banner -loglevel warning -y \
             -framerate 60 -start_number 0001 -i 'IntroRender/motion-frames/frame-%04d.png' \
             -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p \
             -movflags +faststart IntroRender/Varellon-logo-motion-preview.mp4
-          ffprobe -v error -select_streams v:0 \
+          sudo ffprobe -v error -select_streams v:0 \
             -show_entries stream=width,height,r_frame_rate,duration \
             -of default=noprint_wrappers=1 IntroRender/Varellon-logo-motion-preview.mp4
-          ls -lh IntroRender/Varellon-logo-motion-preview.mp4
+          sudo ls -lh IntroRender/Varellon-logo-motion-preview.mp4
 
       # Everything that says why the run failed is somewhere in the results or the log, and the whole
       # point of this step is to get it out of the runner: the logs and artifacts themselves live on
