@@ -52,6 +52,9 @@ namespace Aether.Gameplay.Flow
                     return;
                 }
 
+                if (!GameLaunch.IsOpenSettingsRequested)
+                    GameLaunch.RequestShowAdvisory();
+
                 if (!Application.CanStreamedLevelBeLoaded(Scenes.MainMenu))
                     throw new System.InvalidOperationException("The MainMenu scene is not enabled in the build settings.");
 
