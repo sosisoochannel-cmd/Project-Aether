@@ -17,6 +17,8 @@ namespace Aether.Gameplay.Menus.Screens
         private static readonly Color Gold = new Color(0.85f, 0.71f, 0.43f, 1f);
         private static readonly Color BrightGold = new Color(0.97f, 0.87f, 0.63f, 1f);
         private static readonly Color DimGold = new Color(0.43f, 0.32f, 0.15f, 0.85f);
+        private static readonly Color GoldGlow = new Color(1f, 0.78f, 0.36f, 1f);
+        private static readonly Color PressedGold = new Color(1f, 0.91f, 0.67f, 1f);
         private static readonly Color Ivory = new Color(0.91f, 0.88f, 0.79f, 1f);
 
         private readonly List<string> _codes = new List<string>(16);
@@ -44,10 +46,26 @@ namespace Aether.Gameplay.Menus.Screens
             Image bottom = MenuUi.CreateHairline("Frame Bottom", _frame, DimGold, 2f);
             Image left = MenuUi.CreateImage("Frame Left", _frame, MenuArt.Solid, DimGold);
             Image right = MenuUi.CreateImage("Frame Right", _frame, MenuArt.Solid, DimGold);
-            top.rectTransform.anchorMin = new Vector2(0f, 1f);\n            top.rectTransform.anchorMax = new Vector2(1f, 1f);\n            top.rectTransform.pivot = new Vector2(.5f, 1f);\n            top.rectTransform.anchoredPosition = Vector2.zero;\n            top.rectTransform.sizeDelta = new Vector2(0f, 2f);
-            bottom.rectTransform.anchorMin = new Vector2(0f, 0f);\n            bottom.rectTransform.anchorMax = new Vector2(1f, 0f);\n            bottom.rectTransform.pivot = new Vector2(.5f, 0f);\n            bottom.rectTransform.anchoredPosition = Vector2.zero;\n            bottom.rectTransform.sizeDelta = new Vector2(0f, 2f);
-            left.rectTransform.anchorMin = new Vector2(0f, 0f);\n            left.rectTransform.anchorMax = new Vector2(0f, 1f);\n            left.rectTransform.pivot = new Vector2(0f, .5f);\n            left.rectTransform.anchoredPosition = Vector2.zero;\n            left.rectTransform.sizeDelta = new Vector2(2f, 0f);
-            right.rectTransform.anchorMin = new Vector2(1f, 0f);\n            right.rectTransform.anchorMax = new Vector2(1f, 1f);\n            right.rectTransform.pivot = new Vector2(1f, .5f);\n            right.rectTransform.anchoredPosition = Vector2.zero;\n            right.rectTransform.sizeDelta = new Vector2(2f, 0f);
+            top.rectTransform.anchorMin = new Vector2(0f, 1f);
+            top.rectTransform.anchorMax = new Vector2(1f, 1f);
+            top.rectTransform.pivot = new Vector2(.5f, 1f);
+            top.rectTransform.anchoredPosition = Vector2.zero;
+            top.rectTransform.sizeDelta = new Vector2(0f, 2f);
+            bottom.rectTransform.anchorMin = new Vector2(0f, 0f);
+            bottom.rectTransform.anchorMax = new Vector2(1f, 0f);
+            bottom.rectTransform.pivot = new Vector2(.5f, 0f);
+            bottom.rectTransform.anchoredPosition = Vector2.zero;
+            bottom.rectTransform.sizeDelta = new Vector2(0f, 2f);
+            left.rectTransform.anchorMin = new Vector2(0f, 0f);
+            left.rectTransform.anchorMax = new Vector2(0f, 1f);
+            left.rectTransform.pivot = new Vector2(0f, .5f);
+            left.rectTransform.anchoredPosition = Vector2.zero;
+            left.rectTransform.sizeDelta = new Vector2(2f, 0f);
+            right.rectTransform.anchorMin = new Vector2(1f, 0f);
+            right.rectTransform.anchorMax = new Vector2(1f, 1f);
+            right.rectTransform.pivot = new Vector2(1f, .5f);
+            right.rectTransform.anchoredPosition = Vector2.zero;
+            right.rectTransform.sizeDelta = new Vector2(2f, 0f);
 
             _eyebrow = MenuUi.CreateTrackedText("Studio Signature", Rect, "V A R E L L O N", 19f, Gold, 1f, TextAnchor.MiddleCenter);
             _title = MenuUi.CreateTrackedText("Title", Rect, "CHOOSE YOUR LANGUAGE", 35f, Ivory, 1f, TextAnchor.MiddleCenter);
@@ -78,14 +96,14 @@ namespace Aether.Gameplay.Menus.Screens
             go.transform.SetParent(parent, false);
             Image image = go.GetComponent<Image>();
             image.sprite = MenuArt.Solid;
-            image.color = new Color(.12f, .095f, .045f, .55f);
+            image.color = Color.white;
             Button button = go.GetComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(action);
             ColorBlock colours = button.colors;
-            colours.normalColor = new Color(1f, 1f, 1f, .94f);
-            colours.highlightedColor = new Color(1f, .88f, .62f, 1f);
-            colours.pressedColor = new Color(.75f, .57f, .27f, 1f);
+            colours.normalColor = new Color(.22f, .16f, .065f, .88f);
+            colours.highlightedColor = GoldGlow;
+            colours.pressedColor = PressedGold;
             colours.selectedColor = colours.highlightedColor;
             button.colors = colours;
             Text text = MenuUi.CreateText(name + " Label", go.transform, label, label == "CONTINUE" ? 21f : 46f, BrightGold, TextAnchor.MiddleCenter);
@@ -144,7 +162,7 @@ namespace Aether.Gameplay.Menus.Screens
             if (language == null) return;
             if (_motion != null) StopCoroutine(_motion);
             _language.text = MenuUi.PrepareText(language.NativeName);
-            _language.color = Gold;
+            _language.color = GoldGlow;
             _counter.text = (_index + 1).ToString("00") + "  /  " + _codes.Count.ToString("00");
             _motion = StartCoroutine(Emphasize());
         }
@@ -159,11 +177,11 @@ namespace Aether.Gameplay.Menus.Screens
                 float t = Mathf.Clamp01(elapsed / .18f);
                 float eased = 1f - (1f-t)*(1f-t);
                 _language.rectTransform.localScale = Vector3.one * Mathf.Lerp(.97f, 1f, eased);
-                _language.color = Color.Lerp(Gold, BrightGold, eased);
+                _language.color = Color.Lerp(GoldGlow, PressedGold, eased);
                 yield return null;
             }
             _language.rectTransform.localScale = Vector3.one;
-            _language.color = BrightGold;
+            _language.color = PressedGold;
             _motion = null;
         }
 
