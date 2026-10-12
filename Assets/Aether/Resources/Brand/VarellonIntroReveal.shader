@@ -5,11 +5,11 @@ Shader "Sprites/VarellonIntroReveal"
         [PerRendererData] _MainTex ("Logo Coverage", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
         _RevealProgress ("Reveal Progress", Range(0,1)) = 0
-        _RevealFeather ("Reveal Edge Softness", Range(0.03,0.25)) = 0.12
-        _RevealTilt ("Reveal Edge Tilt", Range(0,0.25)) = 0.10
-        _RevealEdgeColor ("Reveal Crest Light", Color) = (1,0.76,0.40,1)
-        _RevealEdgeStrength ("Reveal Crest Strength", Range(0,1)) = 0.78
-        _RevealEdgeWidth ("Reveal Crest Width", Range(0.01,0.15)) = 0.075
+        _RevealFeather ("Reveal Edge Softness", Range(0.03,0.25)) = 0.145
+        _RevealTilt ("Reveal Edge Tilt", Range(0,0.25)) = 0.085
+        _RevealEdgeColor ("Reveal Crest Light", Color) = (0.98,0.88,0.70,1)
+        _RevealEdgeStrength ("Reveal Crest Strength", Range(0,1)) = 0.62
+        _RevealEdgeWidth ("Reveal Crest Width", Range(0.01,0.15)) = 0.045
     }
 
     SubShader
