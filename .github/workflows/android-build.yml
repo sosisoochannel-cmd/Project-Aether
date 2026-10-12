@@ -21,8 +21,11 @@
 name: Android APK
 
 on:
-  # APK builds are intentionally manual-only while the game is being audited and rebuilt.
-  # Do not spend runner minutes or publish a misleading development APK on every source change.
+  # Build the current development branch automatically so a real APK is produced and can be checked.
+  # Manual runs remain available for intentional rebuilds.
+  push:
+    branches:
+      - arena/aether-warning-persian-default
   workflow_dispatch:
 
 permissions:
