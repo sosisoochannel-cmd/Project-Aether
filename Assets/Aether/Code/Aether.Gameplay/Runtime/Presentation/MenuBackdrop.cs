@@ -75,7 +75,6 @@ namespace Aether.Gameplay.Presentation
             backdrop._background = ground.rectTransform;
             // AETHER's menu now uses a true black field: no forest artwork or image backdrop.
             backdrop._backgroundSprite = null;
-            ground.sprite = null;
             ground.color = Color.black;
             ground.transform.SetAsFirstSibling();
 
