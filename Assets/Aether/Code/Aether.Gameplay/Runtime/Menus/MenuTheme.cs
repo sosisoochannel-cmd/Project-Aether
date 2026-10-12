@@ -31,31 +31,31 @@ namespace Aether.Gameplay.Menus
         /// </remarks>
         public static class Palette
         {
-            /// <summary>Deep green-black, leaving true black to mean "gone".</summary>
+            /// <summary>True black: the interface has no forest tint or lifted-black panel.</summary>
             public static readonly Color Ground = new Color(0f, 0f, 0f, 1f);
 
-            /// <summary>The far layer of the backdrop: a quiet step above the ground.</summary>
+            /// <summary>A near-black secondary tone, reserved for any subtle depth.</summary>
             public static readonly Color Horizon = new Color(0.015f, 0.012f, 0.006f, 1f);
 
-            /// <summary>A low-saturation leaf wash, wide enough to read as air rather than a flare.</summary>
+            /// <summary>Disabled atmospheric wash; the menu remains a clean black field.</summary>
             public static readonly Color Atmosphere = new Color(0.72f, 0.48f, 0.12f, 0f);
 
-            /// <summary>Primary text: warm ivory for the title and the important choices.</summary>
+            /// <summary>Primary type: warm gold for the title and the important choices.</summary>
             public static readonly Color Ink = new Color(0.96f, 0.79f, 0.43f, 1f);
 
-            /// <summary>Secondary text: softer ivory for subtitles, values and help lines.</summary>
+            /// <summary>Secondary type: muted gold for subtitles, values and help lines.</summary>
             public static readonly Color InkMuted = new Color(0.78f, 0.64f, 0.38f, 1f);
 
-            /// <summary>Tertiary text: footnotes and version details, still readable on the ground.</summary>
+            /// <summary>Tertiary type: subdued gold for footnotes and version details.</summary>
             public static readonly Color InkFaint = new Color(0.53f, 0.42f, 0.24f, 1f);
 
-            /// <summary>Hairlines, separators and the tracks of sliders.</summary>
+            /// <summary>Dark gold hairlines, separators and slider tracks.</summary>
             public static readonly Color Line = new Color(0.42f, 0.29f, 0.11f, 0.72f);
 
-            /// <summary>The one accent: muted sage for focus and enabled controls.</summary>
+            /// <summary>The one accent: warm gold for focus and enabled controls.</summary>
             public static readonly Color Accent = new Color(0.91f, 0.64f, 0.20f, 1f);
 
-            /// <summary>The accent at a lower opacity for selected-row surfaces.</summary>
+            /// <summary>Kept transparent: selection is a rule and caret, not a filled surface.</summary>
             public static readonly Color AccentWash = new Color(0.91f, 0.64f, 0.20f, 0f);
 
             /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
