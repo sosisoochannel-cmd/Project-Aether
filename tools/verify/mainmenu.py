@@ -1008,9 +1008,10 @@ def check_composition(gate: Gate) -> None:
     gate.check("Haptics.Tap" not in button_source,
                "selecting a menu button must not trigger haptic vibration")
     gate.check("_selectionGlow" not in button_source
-               and "plate = MenuTheme.Palette.AccentWash;" not in button_source
+               and "plate = MenuTheme.Palette.AccentWash;" in button_source
+               and "ruleVisible = true;" not in button_source
                and "PressedScale" not in button_source,
-               "selection must use restrained gold text/rule/caret without glow, filled wash or scale pulse")
+               "selection must use a restrained gold wash/marker without glow, underline sweep or scale pulse")
 
     # Every interactive row is at least 48dp tall. The menu's canvas is 1080 units over a screen
     # that is about 360dp in landscape, so a unit is a third of a dp.
