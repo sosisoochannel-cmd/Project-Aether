@@ -52,7 +52,7 @@ namespace Aether.Tests.PlayMode
             Directory.CreateDirectory(OutputPath("."));
             AetherSettings.ResetForTests(new MemoryStore());
             GameLaunch.Clear();
-            Screen.SetResolution(Width, Height, false);
+            Screen.SetResolution(1920, 1080, false);
             yield return null;
             yield return null;
             // A headless runner may refuse the requested resolution. Capture at the dimensions Unity
