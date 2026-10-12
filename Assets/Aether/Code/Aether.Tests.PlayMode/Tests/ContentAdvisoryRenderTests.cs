@@ -51,6 +51,7 @@ namespace Aether.Tests.PlayMode
         {
             Directory.CreateDirectory(OutputPath("."));
             AetherSettings.ResetForTests(new MemoryStore());
+            LanguageService.Reload();
             GameLaunch.Clear();
             Screen.SetResolution(1920, 1080, false);
             yield return null;
