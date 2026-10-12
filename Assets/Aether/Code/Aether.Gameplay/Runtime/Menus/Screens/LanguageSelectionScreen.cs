@@ -31,6 +31,9 @@ namespace Aether.Gameplay.Menus.Screens
         private Button _left;
         private Button _right;
         private Button _confirm;
+        private Image _underline;
+        private Image _crest;
+        private readonly List<RectTransform> _scratchMarks = new List<RectTransform>(6);
         private int _index;
         private bool _confirming;
         private Coroutine _motion;
@@ -69,6 +72,26 @@ namespace Aether.Gameplay.Menus.Screens
             right.rectTransform.anchoredPosition = Vector2.zero;
             right.rectTransform.sizeDelta = new Vector2(2f, 0f);
 
+            // Fine corner cuts and a centered crest give the frame a crafted, non-template silhouette.
+            CreateScratch("Upper Left Etch A", new Vector2(.06f, .88f), new Vector2(0f, 0f), 54f, -28f);
+            CreateScratch("Upper Left Etch B", new Vector2(.06f, .88f), new Vector2(14f, -10f), 31f, -28f);
+            CreateScratch("Upper Right Etch A", new Vector2(.94f, .88f), new Vector2(0f, 0f), 54f, 28f);
+            CreateScratch("Lower Left Etch", new Vector2(.06f, .12f), new Vector2(0f, 0f), 44f, 28f);
+            CreateScratch("Lower Right Etch A", new Vector2(.94f, .12f), new Vector2(0f, 0f), 44f, -28f);
+            CreateScratch("Lower Right Etch B", new Vector2(.94f, .12f), new Vector2(-12f, 9f), 27f, -28f);
+
+            _crest = MenuUi.CreateNode("Central Gold Crest", Rect);
+            _crest.sizeDelta = new Vector2(13f, 13f);
+            _crest.anchorMin = _crest.anchorMax = new Vector2(.5f, .5f);
+            _crest.anchoredPosition = Vector2.zero;
+            Image crestImage = MenuUi.CreateImage("Crest Diamond", _crest, MenuArt.Solid, Gold);
+            crestImage.rectTransform.anchorMin = Vector2.zero;
+            crestImage.rectTransform.anchorMax = Vector2.one;
+            crestImage.rectTransform.offsetMin = Vector2.zero;
+            crestImage.rectTransform.offsetMax = Vector2.zero;
+            crestImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            _underline = MenuUi.CreateHairline("Selected Language Gold Underline", Rect, GoldGlow, 2f);
+
             _eyebrow = MenuUi.CreateTrackedText("Studio Signature", Rect, "V A R E L L O N", 19f, Gold, 1f, TextAnchor.MiddleCenter);
             _title = MenuUi.CreateTrackedText("Title", Rect, "CHOOSE YOUR LANGUAGE", 35f, Ivory, 1f, TextAnchor.MiddleCenter);
             _language = MenuUi.CreateText("Selected Language", Rect, "", 54f, BrightGold, TextAnchor.MiddleCenter);
@@ -90,6 +113,19 @@ namespace Aether.Gameplay.Menus.Screens
             string current = LanguageService.Code;
             _index = Mathf.Max(0, _codes.IndexOf(current));
             RefreshLanguage();
+        }
+
+        private void CreateScratch(string name, Vector2 anchor, Vector2 offset, float length, float angle)
+        {
+            Image mark = MenuUi.CreateHairline(name, Rect, new Color(.43f, .32f, .15f, .38f), 1f);
+            RectTransform rt = mark.rectTransform;
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.pivot = new Vector2(.5f, .5f);
+            rt.anchoredPosition = offset;
+            rt.sizeDelta = new Vector2(length, 1f);
+            rt.localRotation = Quaternion.Euler(0f, 0f, angle);
+            mark.raycastTarget = false;
+            _scratchMarks.Add(rt);
         }
 
         private Button MakeButton(string name, string label, Transform parent, UnityEngine.Events.UnityAction action)
@@ -132,6 +168,15 @@ namespace Aether.Gameplay.Menus.Screens
             PlaceCentered((RectTransform)_left.transform, -height * .02f, new Vector2(76f, 76f), new Vector2(.5f,.5f), new Vector2(-Mathf.Min(width * .27f, 430f), 0f));
             PlaceCentered((RectTransform)_right.transform, -height * .02f, new Vector2(76f, 76f), new Vector2(.5f,.5f), new Vector2(Mathf.Min(width * .27f, 430f), 0f));
             PlaceCentered((RectTransform)_confirm.transform, -height * .23f, new Vector2(300f, 66f));
+
+            // Keep the focus underline tied to the language name's actual center, not a fixed screen pixel.
+            _underline.rectTransform.anchorMin = _underline.rectTransform.anchorMax = new Vector2(.5f, .5f);
+            _underline.rectTransform.pivot = new Vector2(.5f, .5f);
+            _underline.rectTransform.sizeDelta = new Vector2(Mathf.Min(width * .32f, 420f), 2f);
+            _underline.rectTransform.anchoredPosition = new Vector2(0f, -height * .085f);
+            _crest.anchoredPosition = new Vector2(0f, height * .255f);
+            _crest.localScale = Vector3.one;
+            _underline.raycastTarget = false;
         }
 
         private static void PlaceCentered(RectTransform rect, float y, Vector2 size,
@@ -169,6 +214,8 @@ namespace Aether.Gameplay.Menus.Screens
             if (_motion != null) StopCoroutine(_motion);
             _language.text = MenuUi.PrepareText(language.NativeName);
             _language.color = GoldGlow;
+            _underline.color = DimGold;
+            _underline.rectTransform.localScale = new Vector3(.72f, 1f, 1f);
             _counter.text = (_index + 1).ToString("00") + "  /  " + _codes.Count.ToString("00");
             _motion = StartCoroutine(Emphasize());
         }
@@ -176,6 +223,8 @@ namespace Aether.Gameplay.Menus.Screens
         private IEnumerator Emphasize()
         {
             _language.rectTransform.localScale = new Vector3(.97f,.97f,1f);
+            _underline.rectTransform.localScale = new Vector3(.72f, 1f, 1f);
+            _crest.localRotation = Quaternion.Euler(0f, 0f, 45f);
             float elapsed = 0f;
             while (elapsed < .18f)
             {
@@ -184,10 +233,16 @@ namespace Aether.Gameplay.Menus.Screens
                 float eased = 1f - (1f-t)*(1f-t);
                 _language.rectTransform.localScale = Vector3.one * Mathf.Lerp(.97f, 1f, eased);
                 _language.color = Color.Lerp(GoldGlow, PressedGold, eased);
+                _underline.color = Color.Lerp(DimGold, GoldGlow, eased);
+                _underline.rectTransform.localScale = new Vector3(Mathf.Lerp(.72f, 1f, eased), 1f, 1f);
+                _crest.localRotation = Quaternion.Euler(0f, 0f, 45f + 12f * (1f - eased));
                 yield return null;
             }
             _language.rectTransform.localScale = Vector3.one;
             _language.color = PressedGold;
+            _underline.color = Gold;
+            _underline.rectTransform.localScale = Vector3.one;
+            _crest.localRotation = Quaternion.Euler(0f, 0f, 45f);
             _motion = null;
         }
 
@@ -244,7 +299,22 @@ namespace Aether.Gameplay.Menus.Screens
             string chosen = _codes[_index];
             PlayUiTone(true);
             // The service rechecks availability and persists through the existing settings pipeline.
-            LanguageService.Set(chosen);
+            // A false return also means "already selected", so verify the resulting code rather than
+            // treating every false return as a failure or blindly advancing after a rejected change.
+            if (LanguageService.Code != chosen)
+            {
+                bool accepted = LanguageService.Set(chosen);
+                if (!accepted && LanguageService.Code != chosen)
+                {
+                    Debug.LogWarning("[language selector] Selection was rejected; remaining on the language screen.");
+                    return;
+                }
+            }
+            if (LanguageService.Code != chosen)
+            {
+                Debug.LogWarning("[language selector] Selected language did not become active; refusing menu handoff.");
+                return;
+            }
             _confirming = true;
             _left.interactable = false;
             _right.interactable = false;
