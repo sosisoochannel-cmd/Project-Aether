@@ -87,6 +87,8 @@ namespace Aether.Gameplay.Menus
         {
             switch (id)
             {
+                case MenuScreenId.LanguageSelection: return "language.select.title";
+                case MenuScreenId.ContentAdvisory: return "content.advisory.title";
                 case MenuScreenId.Settings: return "menu.settings";
                 case MenuScreenId.Credits: return "credits.title";
                 case MenuScreenId.Chapters: return "chapters.title";
