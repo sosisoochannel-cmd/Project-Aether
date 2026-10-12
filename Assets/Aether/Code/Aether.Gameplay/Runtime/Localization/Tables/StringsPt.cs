@@ -105,7 +105,7 @@ namespace Aether.Gameplay.Localization.Tables
             "setting.highContrast.help", "Brighten the interface's text",
             "setting.language", "LANGUAGE",
             "setting.language.help", "Language of the interface",
-            "language.en", "ENGLISH",
+            "language.en", "INGLÊS",
             "note.gameplay", "Difficulty and assistance are not in the build. The region is tuned as one experience.",
             "note.controls", "Looking and aiming belong to the camera, not a stick: there is no aim control to invert.",
             "note.camera", "Camera shake is not in the build; nothing shakes the camera yet.",
