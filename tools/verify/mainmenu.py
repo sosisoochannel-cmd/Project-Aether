@@ -879,8 +879,8 @@ def check_composition(gate: Gate) -> None:
     main = read(MAIN_SCREEN)
     title_source = read(TITLE_PANEL)
 
-    footer = number(main, r"FooterHeight\\s*=\\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
-    title_factor = number(title_source, r"TitleSize \\* ([0-9.]+)f", "the title's line height")
+    footer = number(main, r"FooterHeight\s*=\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
+    title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
 
     # Count real menu rows from the code, then measure the single centered column that is actually
     # built. The subtitle and section headings are intentionally absent from this compact layout.
