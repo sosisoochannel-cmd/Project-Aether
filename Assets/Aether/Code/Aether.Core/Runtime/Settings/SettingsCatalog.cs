@@ -273,7 +273,7 @@ namespace Aether.Core.Settings
             //    cannot are named on the screen by a note row rather than offered and then failed.
             new SettingDefinition("language.primary", SettingCategory.Language, SettingKind.Choice,
                 "setting.language", "setting.language.help", LanguageOptionMinimum(),
-                LanguageOptionMaximum(), 1f, LanguageOptionKeys(), LanguageOptionValues(),
+                LanguageOptionMaximum(), Aether.Core.Localization.LanguageCatalog.IndexOf("fa"), LanguageOptionKeys(), LanguageOptionValues(),
                 "LanguageService.Set -> GameSettings.Language -> Aether/settings.json"),
 
         };
