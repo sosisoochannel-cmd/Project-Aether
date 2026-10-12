@@ -33,8 +33,8 @@ namespace Aether.Tests.PlayMode
             public string Location { get { return "isolated warning render test store"; } }
         }
 
-        private const int Width = 1920;
-        private const int Height = 1080;
+        private int _width = 1920;
+        private int _height = 1080;
         private const string OutputFolder = "WarningRender";
         private GameObject _menuHost;
         private GameObject _cameraHost;
@@ -55,6 +55,10 @@ namespace Aether.Tests.PlayMode
             Screen.SetResolution(Width, Height, false);
             yield return null;
             yield return null;
+            // A headless runner may refuse the requested resolution. Capture at the dimensions Unity
+            // actually renders so the canvas and its pixel target describe the same viewport.
+            _width = Mathf.Max(640, Screen.width);
+            _height = Mathf.Max(360, Screen.height);
         }
 
         [UnityTearDown]
@@ -91,14 +95,14 @@ namespace Aether.Tests.PlayMode
             Camera camera = _cameraHost.AddComponent<Camera>();
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.orthographic = true;
-            camera.orthographicSize = Height * 0.5f;
-            camera.aspect = (float)Width / Height;
+            camera.orthographicSize = _height * 0.5f;
+            camera.aspect = (float)_width / _height;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = Color.black;
             camera.cullingMask = ~0;
             camera.enabled = false;
 
-            _target = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
+            _target = new RenderTexture(_width, _height, 24, RenderTextureFormat.ARGB32);
             _target.name = "AETHER warning preview frame";
             _target.Create();
             camera.targetTexture = _target;
@@ -132,8 +136,8 @@ namespace Aether.Tests.PlayMode
                 camera.Render();
                 RenderTexture previous = RenderTexture.active;
                 RenderTexture.active = _target;
-                var frame = new Texture2D(Width, Height, TextureFormat.RGB24, false);
-                frame.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                var frame = new Texture2D(_width, _height, TextureFormat.RGB24, false);
+                frame.ReadPixels(new Rect(0, 0, _width, _height), 0, 0);
                 frame.Apply();
                 File.WriteAllBytes(Path.Combine(folder, files[i]), frame.EncodeToPNG());
                 Object.Destroy(frame);
