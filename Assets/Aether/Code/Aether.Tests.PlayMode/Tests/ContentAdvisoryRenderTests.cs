@@ -17,6 +17,22 @@ namespace Aether.Tests.PlayMode
     /// </summary>
     public sealed class ContentAdvisoryRenderTests
     {
+        private sealed class MemoryStore : ISettingsStore
+        {
+            private GameSettings _stored;
+            public bool TryLoad(out GameSettings settings) { settings = _stored; return settings != null; }
+            public bool Save(GameSettings settings)
+            {
+                if (settings == null) return false;
+                _stored = new GameSettings();
+                _stored.CopyFrom(settings);
+                return true;
+            }
+            public bool Clear() { _stored = null; return true; }
+            public bool Exists { get { return _stored != null; } }
+            public string Location { get { return "isolated warning render test store"; } }
+        }
+
         private const int Width = 1920;
         private const int Height = 1080;
         private const string OutputFolder = "WarningRender";
@@ -34,7 +50,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator SetUp()
         {
             Directory.CreateDirectory(OutputPath("."));
-            AetherSettings.ResetForTests(new MemorySettingsStore());
+            AetherSettings.ResetForTests(new MemoryStore());
             GameLaunch.Clear();
             Screen.SetResolution(Width, Height, false);
             yield return null;
