@@ -21,6 +21,22 @@ namespace Aether.Gameplay.Menus.Screens
         private static readonly Color PressedGold = new Color(1f, 0.91f, 0.67f, 1f);
         private static readonly Color Ivory = new Color(0.91f, 0.88f, 0.79f, 1f);
 
+        // Preview the interface copy in the language currently highlighted, before committing it.
+        // Keep these three short strings aligned with the canonical localization sheets.
+        private static readonly Dictionary<string, string[]> SelectorCopy = new Dictionary<string, string[]>
+        {
+            { "en", new[] { "CHOOSE YOUR LANGUAGE", "USE ARROWS TO SELECT • CONFIRM TO CONTINUE", "CONTINUE" } },
+            { "es", new[] { "ELIGE TU IDIOMA", "USA LAS FLECHAS PARA ELEGIR • CONFIRMA PARA CONTINUAR", "CONTINUAR" } },
+            { "fa", new[] { "زبان خود را انتخاب کنید", "با پیکان‌ها انتخاب کنید • برای ادامه تأیید کنید", "ادامه" } },
+            { "fr", new[] { "CHOISISSEZ VOTRE LANGUE", "UTILISEZ LES FLÈCHES POUR CHOISIR • CONFIRMEZ POUR CONTINUER", "CONTINUER" } },
+            { "de", new[] { "SPRACHE WÄHLEN", "MIT DEN PFEILEN WÄHLEN • ZUM FORTFAHREN BESTÄTIGEN", "WEITER" } },
+            { "it", new[] { "SCEGLI LA LINGUA", "USA LE FRECCE PER SCEGLIERE • CONFERMA PER CONTINUARE", "CONTINUA" } },
+            { "pt", new[] { "ESCOLHA O SEU IDIOMA", "USE AS SETAS PARA ESCOLHER • CONFIRME PARA CONTINUAR", "CONTINUAR" } },
+            { "pt-BR", new[] { "ESCOLHA SEU IDIOMA", "USE AS SETAS PARA ESCOLHER • CONFIRME PARA CONTINUAR", "CONTINUAR" } },
+            { "ru", new[] { "ВЫБЕРИТЕ ЯЗЫК", "ВЫБЕРИТЕ С ПОМОЩЬЮ СТРЕЛОК • ПОДТВЕРДИТЕ ДЛЯ ПРОДОЛЖЕНИЯ", "ПРОДОЛЖИТЬ" } },
+            { "tr", new[] { "DİLİNİZİ SEÇİN", "SEÇMEK İÇİN OKLARI KULLANIN • DEVAM ETMEK İÇİN ONAYLAYIN", "DEVAM ET" } },
+        };
+
         private readonly List<string> _codes = new List<string>(16);
         private RectTransform _frame;
         private Text _eyebrow;
@@ -33,6 +49,8 @@ namespace Aether.Gameplay.Menus.Screens
         private Button _confirm;
         private Image _underline;
         private Image _crest;
+        private Image _blackout;
+        private Coroutine _blackoutRoutine;
         private readonly List<RectTransform> _scratchMarks = new List<RectTransform>(6);
         private int _index;
         private bool _confirming;
@@ -113,6 +131,15 @@ namespace Aether.Gameplay.Menus.Screens
             string current = LanguageService.Code;
             _index = Mathf.Max(0, _codes.IndexOf(current));
             RefreshLanguage();
+
+            // This topmost veil is transparent until confirmation. It then fades the entire selector
+            // away and deliberately remains opaque: the next screen is a separate milestone.
+            _blackout = MenuUi.CreateImage("Post-Confirmation Blackout", Rect, MenuArt.Solid, new Color(0f, 0f, 0f, 0f));
+            _blackout.rectTransform.anchorMin = Vector2.zero;
+            _blackout.rectTransform.anchorMax = Vector2.one;
+            _blackout.rectTransform.offsetMin = Vector2.zero;
+            _blackout.rectTransform.offsetMax = Vector2.zero;
+            _blackout.raycastTarget = false;
         }
 
         private void CreateScratch(string name, Vector2 anchor, Vector2 offset, float length, float angle)
@@ -214,6 +241,12 @@ namespace Aether.Gameplay.Menus.Screens
             if (language == null) return;
             if (_motion != null) StopCoroutine(_motion);
             _language.text = MenuUi.PrepareText(language.NativeName);
+            string[] copy;
+            if (!SelectorCopy.TryGetValue(language.Code, out copy)) copy = SelectorCopy["en"];
+            _title.text = MenuUi.PrepareText(copy[0]);
+            _hint.text = MenuUi.PrepareText(copy[1]);
+            Text confirmLabel = _confirm.GetComponentInChildren<Text>();
+            if (confirmLabel != null) confirmLabel.text = MenuUi.PrepareText(copy[2]);
             _language.color = GoldGlow;
             _underline.color = DimGold;
             _underline.rectTransform.localScale = new Vector3(.72f, 1f, 1f);
@@ -320,7 +353,28 @@ namespace Aether.Gameplay.Menus.Screens
             _left.interactable = false;
             _right.interactable = false;
             _confirm.interactable = false;
-            Host.GoTo(MenuScreenId.MainMenu);
+            if (_blackoutRoutine != null) StopCoroutine(_blackoutRoutine);
+            _blackoutRoutine = StartCoroutine(FadeToBlack());
+        }
+
+        private IEnumerator FadeToBlack()
+        {
+            const float duration = 0.72f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                // Ease-in/out for a deliberate cinematic close, independent of game time scale.
+                float eased = t * t * (3f - 2f * t);
+                _blackout.color = new Color(0f, 0f, 0f, eased);
+                yield return null;
+            }
+
+            _blackout.color = Color.black;
+            _blackoutRoutine = null;
+            // Intentionally do not open Main Menu yet. This black hold is the hand-off point
+            // for the next menu-flow milestone.
         }
     }
 }
