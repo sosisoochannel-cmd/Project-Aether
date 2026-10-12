@@ -333,7 +333,15 @@ def main() -> int:
         "about.credits": "دست‌اندرکاران",
         "setting.deadZone": "ناحیهٔ بی‌اثر جوی‌استیک",
         "slots.title": "جایگاه‌های ذخیره",
-        "language.needsFont": "به فونت سازگار نیاز دارد",
+                "language.needsFont": "به فونت سازگار نیاز دارد",
+        "category.gameplay": "روند بازی",
+        "category.data": "داده‌ها و ذخیره‌سازی",
+        "setting.cameraSmoothing": "نرمی حرکت دوربین",
+        "setting.cameraLookAhead": "دید پیش‌روی دوربین",
+        "setting.safeArea": "ناحیهٔ امن",
+        "characters.met": "شخصیت‌های دیده‌شده: {0} از {1}",
+        "entry.secret.greenway.overhang": "نشان حک‌شده",
+        "hud.findings": "یافته‌ها: {0} از {1}",
     }
     for key, wanted in approved_persian.items():
         if persian.get(key) != wanted:
@@ -355,8 +363,8 @@ def main() -> int:
     menu_ui_path = os.path.join(
         ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuUi.cs")
     menu_ui = read(menu_ui_path)
-    if "persian ? 1.07f : 1f" not in menu_ui or "FontStyle.Bold" not in menu_ui:
-        failures.append("MenuUi.cs must keep Persian labels 7% larger and bold")
+    if "persian ? 1.12f : 1f" not in menu_ui or "FontStyle.Bold" not in menu_ui:
+        failures.append("MenuUi.cs must keep Persian labels 12% larger and bold")
 
     menu_art_path = os.path.join(
         ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuArt.cs")
