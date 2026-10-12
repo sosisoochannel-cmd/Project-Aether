@@ -29,41 +29,49 @@ namespace Aether.Gameplay.Menus
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Work a sentence as whitespace-separated visual runs. Consecutive RTL words are
-            // emitted from right to left, while Latin/number tokens remain in their original
-            // order. This is deliberately small and deterministic for the menu's known strings.
+            // This is a deterministic fallback for Unity's legacy Text, not a full Unicode
+            // Bidirectional Algorithm. Keep contiguous LTR phrases intact, reverse the order of
+            // directional runs in an RTL paragraph, and reverse the words inside each RTL run.
+            // Whitespace-separated numbers and placeholders remain LTR tokens instead of having their characters flipped.
             string[] tokens = input.Split(new[] { ' ' }, System.StringSplitOptions.None);
-            var prepared = new string[tokens.Length];
+            var groups = new List<List<string>>();
+            var groupIsRtl = new List<bool>();
+            bool hasRtl = false;
+
             for (int i = 0; i < tokens.Length; i++)
-                prepared[i] = ContainsRtl(tokens[i]) ? ShapeRun(tokens[i]) : tokens[i];
-
-            var output = new StringBuilder(input.Length + 8);
-            int index = 0;
-            while (index < prepared.Length)
             {
-                if (!ContainsRtl(tokens[index]))
+                bool rtl = ContainsRtl(tokens[i]);
+                hasRtl |= rtl;
+                string prepared = rtl ? ShapeRun(tokens[i]) : tokens[i];
+
+                if (groups.Count == 0 || groupIsRtl[groupIsRtl.Count - 1] != rtl)
                 {
-                    output.Append(prepared[index]);
-                    if (index + 1 < prepared.Length) output.Append(' ');
-                    index++;
-                    continue;
+                    groups.Add(new List<string>());
+                    groupIsRtl.Add(rtl);
                 }
 
-                int end = index;
-                while (end + 1 < prepared.Length && ContainsRtl(tokens[end + 1])) end++;
-
-                for (int i = end; i >= index; i--)
-                {
-                    output.Append(prepared[i]);
-                    if (i != index || end != prepared.Length - 1) output.Append(' ');
-                }
-
-                index = end + 1;
-                if (index < prepared.Length && output.Length > 0 && output[output.Length - 1] != ' ')
-                    output.Append(' ');
+                groups[groups.Count - 1].Add(prepared);
             }
 
-            return output.ToString().TrimEnd();
+            // Preserve the original string exactly when it is wholly LTR.
+            if (!hasRtl) return input;
+
+            var output = new StringBuilder(input.Length + 8);
+            bool first = true;
+            for (int g = groups.Count - 1; g >= 0; g--)
+            {
+                List<string> group = groups[g];
+                bool rtl = groupIsRtl[g];
+                for (int i = 0; i < group.Count; i++)
+                {
+                    int word = rtl ? group.Count - 1 - i : i;
+                    if (!first) output.Append(' ');
+                    output.Append(group[word]);
+                    first = false;
+                }
+            }
+
+            return output.ToString();
         }
 
         private static bool ContainsRtl(string text)
@@ -90,26 +98,26 @@ namespace Aether.Gameplay.Menus
                 int p = PreviousLetter(run, i - 1);
                 int n = NextLetter(run, i + 1);
 
-                // Joining is directional. A dual-joining previous letter may connect forward
-                // to a current letter that accepts a previous connection (has a final form),
-                // even when the current letter itself cannot connect to the following letter.
-                // This distinction is essential for alef, dal, reh and other right-joining letters.
-                bool joinPrev = false;
-                bool joinNext = false;
-
+                // A letter can join to the following logical letter when it has an initial form;
+                // the following letter can accept that join when it has a final form. This matters
+                // for right-joining letters such as alef: they accept a join from the previous
+                // letter even though they cannot continue the join to the next one.
+                bool previousCanJoinForward = false;
                 if (p >= 0)
                 {
                     Forms pf;
-                    joinPrev = Map.TryGetValue(run[p], out pf)
-                        && pf.Dual && f.Final != '\0';
+                    previousCanJoinForward = Map.TryGetValue(run[p], out pf) && pf.Dual;
                 }
 
+                bool nextCanAcceptJoin = false;
                 if (n >= 0)
                 {
                     Forms nf;
-                    joinNext = f.Dual && Map.TryGetValue(run[n], out nf)
-                        && nf.Final != '\0';
+                    nextCanAcceptJoin = Map.TryGetValue(run[n], out nf) && nf.Final != '\0';
                 }
+
+                bool joinPrev = previousCanJoinForward && f.Final != '\0';
+                bool joinNext = f.Dual && nextCanAcceptJoin;
 
                 if (joinPrev && joinNext && f.Medial != '\0') shaped.Append(f.Medial);
                 else if (joinPrev && f.Final != '\0') shaped.Append(f.Final);
@@ -119,23 +127,50 @@ namespace Aether.Gameplay.Menus
 
             // Unity's legacy Text is LTR-oriented. Presentation forms are already shaped,
             // so reversing the visual RTL run gives the correct glyph order without touching
-            // Latin/number runs outside it.
-            char[] chars = shaped.ToString().ToCharArray();
-            System.Array.Reverse(chars);
-            return new string(chars);
+            // whitespace-separated Latin/number runs. ZWNJ stays in the output and blocks joining.
+            return ReverseKeepingMarks(shaped.ToString());
+        }
+
+        private static string ReverseKeepingMarks(string text)
+        {
+            // Combining marks belong to the preceding base character. Reverse grapheme-like
+            // base+mark clusters, not UTF-16 code units, or vowel marks move onto the wrong glyph.
+            var clusters = new List<string>();
+            for (int i = 0; i < text.Length;)
+            {
+                int start = i++;
+                while (i < text.Length && IsRtlMark(text[i])) i++;
+                clusters.Add(text.Substring(start, i - start));
+            }
+
+            var output = new StringBuilder(text.Length);
+            for (int i = clusters.Count - 1; i >= 0; i--)
+                output.Append(clusters[i]);
+            return output.ToString();
         }
 
         private static int PreviousLetter(string text, int index)
         {
+            // Only combining marks may sit between two letters that join. Never skip spaces,
+            // punctuation, Latin text, or U+200C ZERO WIDTH NON-JOINER: doing so joins words
+            // across their boundaries and produces visibly incorrect Persian glyph forms.
             for (int i = index; i >= 0; i--)
+            {
+                if (IsRtlMark(text[i])) continue;
                 if (Map.ContainsKey(text[i])) return i;
+                return -1;
+            }
             return -1;
         }
 
         private static int NextLetter(string text, int index)
         {
             for (int i = index; i < text.Length; i++)
+            {
+                if (IsRtlMark(text[i])) continue;
                 if (Map.ContainsKey(text[i])) return i;
+                return -1;
+            }
             return -1;
         }
 
@@ -193,6 +228,11 @@ namespace Aether.Gameplay.Menus
             Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);
             Add(m, 'ي', 0xFEF1, 0xFEF2, 0xFEF3, 0xFEF4, true);
             Add(m, 'ء', 0xFE80, 0, 0, 0, false);
+            // Arabic-specific letters used by the new Arabic locale.
+            Add(m, 'ة', 0xFE93, 0xFE94, 0, 0, false);
+            Add(m, 'ى', 0xFEEF, 0xFEF0, 0, 0, false);
+            Add(m, 'ؤ', 0xFE85, 0xFE86, 0, 0, false);
+            Add(m, 'ئ', 0xFE89, 0xFE8A, 0xFE8B, 0xFE8C, true);
 
             return m;
         }
