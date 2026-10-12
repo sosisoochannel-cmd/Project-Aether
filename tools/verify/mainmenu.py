@@ -933,7 +933,9 @@ def check_composition(gate: Gate) -> None:
         box_h = canvas_h - m["ScreenMarginTop"] - m["ScreenMarginBottom"]
         viewport = box_h - footer
 
-        title_block = (m["LogoHeight"] + m["LogoGap"] + (m["TitleSize"] * title_factor)
+        # The studio mark is deliberately absent from the game menu; Varellon branding stays
+        # in the separate intro. The title block starts directly with AETHER.
+        title_block = ((m["TitleSize"] * title_factor)
                        + (m["SubtitleSize"] * subtitle_factor) + m["TitleGapRule"]
                        + m["TitleRuleHeight"])
         top = title_block + m["TitleGapBody"]
@@ -981,6 +983,34 @@ def check_composition(gate: Gate) -> None:
                and "_body.verticalOverflow = VerticalWrapMode.Truncate;" in warning_source
                and "height * (compact ? 0.70f : 0.68f)" in warning_source,
                "the content advisory must fit its text into a bounded reading column")
+
+    # The game menu must use the game name only; the studio mark belongs to the separate intro.
+    menu_strings = read(f"{MENUS}/MenuStrings.cs")
+    gate.check('"menu.title", "AETHER"' in menu_strings,
+               "the English main-menu title must be AETHER, without the word PROJECT")
+    for code in ("de", "es", "fa", "fr", "it", "pt", "pt-BR", "ru", "tr"):
+        sheet = read(f"tools/localization/strings_{code}.txt")
+        gate.check("menu.title=AETHER" in sheet,
+                   f"{code}: the main-menu title must be AETHER")
+        gate.check("PROJECT AETHER" not in sheet.upper(),
+                   f"{code}: the studio/project prefix must not appear in game-facing text")
+
+    header_source = read(f"{MENUS}/Components/MenuHeader.cs")
+    gate.check("header._title.rectTransform.anchorMax = Vector2.one;" in header_source
+               and "header._title.resizeTextForBestFit = true;" in header_source,
+               "secondary-screen titles must use available width and fit rather than clip")
+    theme_source = read(THEME)
+    gate.check("new Color(0f, 0f, 0f, 1f)" in theme_source
+               and "new Color(0.91f, 0.64f, 0.20f, 1f)" in theme_source,
+               "the shared menu palette must be black and gold")
+    gate.check("MenuLogo.Create" not in title_source,
+               "the main menu must not display the Varellon studio logo")
+    gate.check("Haptics.Tap" not in button_source,
+               "selecting a menu button must not trigger haptic vibration")
+    gate.check("_selectionGlow" not in button_source
+               and "plate = MenuTheme.Palette.AccentWash;" not in button_source
+               and "PressedScale" not in button_source,
+               "selection must use restrained gold text/rule/caret without glow, filled wash or scale pulse")
 
     # Every interactive row is at least 48dp tall. The menu's canvas is 1080 units over a screen
     # that is about 360dp in landscape, so a unit is a third of a dp.
