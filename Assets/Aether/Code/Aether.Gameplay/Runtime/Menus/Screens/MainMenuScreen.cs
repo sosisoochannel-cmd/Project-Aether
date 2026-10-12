@@ -145,7 +145,8 @@ namespace Aether.Gameplay.Menus.Screens
             float gap = MenuTheme.Metrics.ClusterGap;
             float stackHeight = titleHeight + MenuTheme.Metrics.TitleGapBody
                               + _play.Height + gap + _explore.Height + gap + _system.Height;
-            float top = Mathf.Max(MenuTheme.Metrics.ScreenMarginTop, (box - stackHeight) * 0.5f);
+            bool fits = stackHeight <= box;
+            float top = fits ? (box - stackHeight) * 0.5f : 24f;
 
             _title.Rect.anchoredPosition = new Vector2(0f, -top);
             float cursor = top + titleHeight + MenuTheme.Metrics.TitleGapBody;
@@ -156,7 +157,10 @@ namespace Aether.Gameplay.Menus.Screens
             _system.Rect.anchoredPosition = new Vector2(panelX, -cursor);
             cursor += _system.Height;
 
-            MenuUi.SetContentHeight(_content, Mathf.Max(box, cursor + MenuTheme.Metrics.ScreenMarginBottom));
+            // A fitting stack uses exactly the viewport height so it remains truly centered without
+            // introducing accidental scroll range. Overflowing translations retain a safe bottom pad.
+            float contentHeight = fits ? box : cursor + MenuTheme.Metrics.ScreenMarginBottom;
+            MenuUi.SetContentHeight(_content, contentHeight);
             _content.anchoredPosition = Vector2.zero;
         }
 
