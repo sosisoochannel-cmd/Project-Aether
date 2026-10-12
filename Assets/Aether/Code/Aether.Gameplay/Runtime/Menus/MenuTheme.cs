@@ -24,7 +24,7 @@ namespace Aether.Gameplay.Menus
     {
         /// <summary>The colour of the interface, and the one accent it is allowed.</summary>
         /// <remarks>
-        /// Soot-dark greenway tones, warm ivory type, and one restrained sage accent. The accent
+        /// True black, warm gold type, and one restrained gold accent. The accent
         /// appears only where the interface needs to direct the eye: a selected row, a section mark,
         /// or an enabled control. Everything else stays quiet, so the menu feels like part of the
         /// world rather than a separate blue-tinted template.
@@ -32,37 +32,37 @@ namespace Aether.Gameplay.Menus
         public static class Palette
         {
             /// <summary>Deep green-black, leaving true black to mean "gone".</summary>
-            public static readonly Color Ground = new Color(0.032f, 0.039f, 0.031f, 1f);
+            public static readonly Color Ground = new Color(0f, 0f, 0f, 1f);
 
             /// <summary>The far layer of the backdrop: a quiet step above the ground.</summary>
-            public static readonly Color Horizon = new Color(0.065f, 0.079f, 0.060f, 1f);
+            public static readonly Color Horizon = new Color(0.015f, 0.012f, 0.006f, 1f);
 
             /// <summary>A low-saturation leaf wash, wide enough to read as air rather than a flare.</summary>
-            public static readonly Color Atmosphere = new Color(0.22f, 0.32f, 0.19f, 0.14f);
+            public static readonly Color Atmosphere = new Color(0.72f, 0.48f, 0.12f, 0f);
 
             /// <summary>Primary text: warm ivory for the title and the important choices.</summary>
-            public static readonly Color Ink = new Color(0.93f, 0.92f, 0.85f, 1f);
+            public static readonly Color Ink = new Color(0.96f, 0.79f, 0.43f, 1f);
 
             /// <summary>Secondary text: softer ivory for subtitles, values and help lines.</summary>
-            public static readonly Color InkMuted = new Color(0.76f, 0.77f, 0.71f, 1f);
+            public static readonly Color InkMuted = new Color(0.78f, 0.64f, 0.38f, 1f);
 
             /// <summary>Tertiary text: footnotes and version details, still readable on the ground.</summary>
-            public static readonly Color InkFaint = new Color(0.57f, 0.59f, 0.53f, 1f);
+            public static readonly Color InkFaint = new Color(0.53f, 0.42f, 0.24f, 1f);
 
             /// <summary>Hairlines, separators and the tracks of sliders.</summary>
-            public static readonly Color Line = new Color(0.22f, 0.25f, 0.20f, 0.68f);
+            public static readonly Color Line = new Color(0.42f, 0.29f, 0.11f, 0.72f);
 
             /// <summary>The one accent: muted sage for focus and enabled controls.</summary>
-            public static readonly Color Accent = new Color(0.68f, 0.78f, 0.57f, 1f);
+            public static readonly Color Accent = new Color(0.91f, 0.64f, 0.20f, 1f);
 
             /// <summary>The accent at a lower opacity for selected-row surfaces.</summary>
-            public static readonly Color AccentWash = new Color(0.68f, 0.78f, 0.57f, 0.18f);
+            public static readonly Color AccentWash = new Color(0.91f, 0.64f, 0.20f, 0f);
 
             /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
-            public static readonly Color Locked = new Color(0.46f, 0.49f, 0.43f, 1f);
+            public static readonly Color Locked = new Color(0.40f, 0.34f, 0.22f, 1f);
 
             /// <summary>The near-black scrim used by modal and scene transitions.</summary>
-            public static readonly Color Scrim = new Color(0.013f, 0.015f, 0.012f, 0.94f);
+            public static readonly Color Scrim = new Color(0f, 0f, 0f, 0.96f);
 
             /// <summary>Raise every text colour for the high-contrast accessibility setting.</summary>
             public static Color WithContrast(Color colour, bool highContrast)
