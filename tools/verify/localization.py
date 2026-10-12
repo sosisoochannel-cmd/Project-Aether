@@ -323,6 +323,47 @@ def main() -> int:
     failures = []
     coverage = []
 
+    # Reviewed Persian copy and typography contracts. Coverage alone cannot detect awkward
+    # phrasing, Arabic/Persian character mix-ups, or a regression to thin, undersized labels.
+    persian = dict(sheet("fa"))
+    approved_persian = {
+        "menu.title": "AETHER",
+        "menu.credits": "دست‌اندرکاران",
+        "credits.title": "دست‌اندرکاران",
+        "about.credits": "دست‌اندرکاران",
+        "setting.deadZone": "ناحیهٔ بی‌اثر جوی‌استیک",
+        "slots.title": "جایگاه‌های ذخیره",
+        "language.needsFont": "به فونت سازگار نیاز دارد",
+    }
+    for key, wanted in approved_persian.items():
+        if persian.get(key) != wanted:
+            failures.append("fa: %s should use reviewed Persian wording %r" % (key, wanted))
+
+    if "۱۲۰ تا ۱۲۰" in persian.get("setting.frameRate.help", ""):
+        failures.append("fa: setting.frameRate.help contains the incorrect phrase '۱۲۰ تا ۱۲۰'")
+    if "\\u200c" not in persian.get("credits.title", ""):
+        failures.append("fa: credits.title must preserve the Persian zero-width non-joiner")
+
+    # Native Persian yeh/kaf must be used in Persian copy, not Arabic lookalikes. The Arabic
+    # language's own name is intentionally Arabic and is excluded from this check.
+    for key, value in persian.items():
+        if key == "language.ar":
+            continue
+        if any(ch in value for ch in ("ي", "ى", "ك")):
+            failures.append("fa: %s contains Arabic yeh/kaf instead of Persian characters" % key)
+
+    menu_ui_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuUi.cs")
+    menu_ui = read(menu_ui_path)
+    if "persian ? 1.07f : 1f" not in menu_ui or "FontStyle.Bold" not in menu_ui:
+        failures.append("MenuUi.cs must keep Persian labels 7% larger and bold")
+
+    menu_art_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuArt.cs")
+    menu_art = read(menu_art_path)
+    if 'Resources.Load<Font>("Fonts/Vazirmatn-Regular")' not in menu_art:
+        failures.append("MenuArt.cs must retain the bundled Vazirmatn font for RTL text")
+
     # The language picker uses these keys to name each language in the language currently shown.
     # Keep the entire catalogue label set present in the English reference, and call out a missing
     # label explicitly instead of leaving it buried among hundreds of ordinary translation keys.
