@@ -54,11 +54,11 @@ def main() -> int:
     if extra:
         errors.append("unexpected language copy: " + ", ".join(sorted(extra)))
     for code, strings in entries.items():
-        if len(strings) != 3:
-            errors.append(f"{code}: expected body, footer and continue label; found {len(strings)} strings")
+        if len(strings) != 4:
+            errors.append(f"{code}: expected eyebrow, body, footer and continue label; found {len(strings)} strings")
         elif any(not value.strip() for value in strings):
             errors.append(f"{code}: an advisory string is empty")
-        elif "\\n" not in strings[0]:
+        elif "\\n" not in strings[1]:
             errors.append(f"{code}: advisory body should have an intentional line break for readability")
 
     checks = [

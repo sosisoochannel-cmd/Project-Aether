@@ -22,16 +22,16 @@ namespace Aether.Gameplay.Menus.Screens
         // can read the notice before entering the game. Keep it factual and measured, not alarmist.
         private static readonly Dictionary<string, string[]> Copy = new Dictionary<string, string[]>
         {
-            { "en", new[] { "This game contains fantasy combat and scenes of peril.\nSome content may not suit every player. Player discretion is advised.", "AETHER • PLAYER INFORMATION", "CONTINUE" } },
-            { "es", new[] { "Este juego incluye combates fantásticos y situaciones de peligro.\nAlgunos contenidos pueden no ser adecuados para todos. Se recomienda discreción.", "AETHER • INFORMACIÓN PARA EL JUGADOR", "CONTINUAR" } },
-            { "fa", new[] { "این بازی شامل نبردهای فانتزی و صحنه‌هایی از خطر است.\nممکن است بخشی از محتوا برای همه مناسب نباشد؛ با آگاهی از این موضوع بازی کنید.", "AETHER • اطلاعات بازیکن", "ادامه" } },
-            { "fr", new[] { "Ce jeu comporte des combats fantastiques et des situations périlleuses.\nCertains éléments peuvent ne pas convenir à tout le monde. Faites preuve de discernement.", "AETHER • INFORMATIONS AUX JOUEURS", "CONTINUER" } },
-            { "de", new[] { "Dieses Spiel enthält Fantasy-Kämpfe und Gefahrensituationen.\nEinige Inhalte sind möglicherweise nicht für alle geeignet. Bitte entscheide selbst.", "AETHER • SPIELERINFORMATION", "WEITER" } },
-            { "it", new[] { "Il gioco include combattimenti fantasy e situazioni di pericolo.\nAlcuni contenuti potrebbero non essere adatti a tutti. Si consiglia discrezione.", "AETHER • INFORMAZIONI PER I GIOCATORI", "CONTINUA" } },
-            { "pt", new[] { "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER • INFORMAÇÃO AO JOGADOR", "CONTINUAR" } },
-            { "pt-BR", new[] { "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER • INFORMAÇÕES AO JOGADOR", "CONTINUAR" } },
-            { "ru", new[] { "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER • ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "ПРОДОЛЖИТЬ" } },
-            { "tr", new[] { "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ", "DEVAM ET" } },
+            { "en", new[] { "PLAYER INFORMATION", "This game contains fantasy combat and scenes of peril.\nSome content may not suit every player. Player discretion is advised.", "AETHER • PLAYER INFORMATION", "CONTINUE" } },
+            { "es", new[] { "INFORMACIÓN PARA EL JUGADOR", "Este juego incluye combates fantásticos y situaciones de peligro.\nAlgunos contenidos pueden no ser adecuados para todos. Se recomienda discreción.", "AETHER • INFORMACIÓN PARA EL JUGADOR", "CONTINUAR" } },
+            { "fa", new[] { "اطلاعات بازیکن", "این بازی شامل نبردهای فانتزی و صحنه‌هایی از خطر است.\nممکن است بخشی از محتوا برای همه مناسب نباشد؛ با آگاهی از این موضوع بازی کنید.", "AETHER • اطلاعات بازیکن", "ادامه" } },
+            { "fr", new[] { "INFORMATIONS POUR LES JOUEURS", "Ce jeu comporte des combats fantastiques et des situations périlleuses.\nCertains éléments peuvent ne pas convenir à tout le monde. Faites preuve de discernement.", "AETHER • INFORMATIONS AUX JOUEURS", "CONTINUER" } },
+            { "de", new[] { "SPIELERINFORMATION", "Dieses Spiel enthält Fantasy-Kämpfe und Gefahrensituationen.\nEinige Inhalte sind möglicherweise nicht für alle geeignet. Bitte entscheide selbst.", "AETHER • SPIELERINFORMATION", "WEITER" } },
+            { "it", new[] { "INFORMAZIONI PER I GIOCATORI", "Il gioco include combattimenti fantasy e situazioni di pericolo.\nAlcuni contenuti potrebbero non essere adatti a tutti. Si consiglia discrezione.", "AETHER • INFORMAZIONI PER I GIOCATORI", "CONTINUA" } },
+            { "pt", new[] { "INFORMAÇÃO AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER • INFORMAÇÃO AO JOGADOR", "CONTINUAR" } },
+            { "pt-BR", new[] { "INFORMAÇÕES AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER • INFORMAÇÕES AO JOGADOR", "CONTINUAR" } },
+            { "ru", new[] { "ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER • ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "ПРОДОЛЖИТЬ" } },
+            { "tr", new[] { "OYUNCU BİLGİLENDİRMESİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ", "DEVAM ET" } },
         };
 
         private RectTransform _frame;
@@ -108,11 +108,12 @@ namespace Aether.Gameplay.Menus.Screens
             LanguageDefinition language = LanguageCatalog.Find(code);
             bool rtl = language != null && language.Direction == TextDirection.RightToLeft;
 
+            _eyebrow.text = Prepare(copy[0], rtl);
             _title.text = Prepare(LanguageService.Get("content.advisory.title"), rtl);
-            _body.text = Prepare(copy[0], rtl);
-            _footer.text = Prepare(copy[1], rtl);
+            _body.text = Prepare(copy[1], rtl);
+            _footer.text = Prepare(copy[2], rtl);
             Text label = _continue.GetComponentInChildren<Text>();
-            if (label != null) label.text = Prepare(copy[2], rtl);
+            if (label != null) label.text = Prepare(copy[3], rtl);
             _title.alignment = TextAnchor.MiddleCenter;
             _body.alignment = TextAnchor.MiddleCenter;
             _footer.alignment = TextAnchor.MiddleCenter;
