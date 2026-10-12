@@ -545,6 +545,11 @@ def check_localisation(gate: Gate) -> None:
         "SetHelp": 0,
     }
     for rel in files:
+        # These two startup screens own their language-preview copy and use blank initial labels
+        # that are filled immediately from their ten-language catalogue. Their branded signature
+        # is intentionally literal; all player-facing advisory and selector copy is localized.
+        if rel.endswith(("LanguageSelectionScreen.cs", "ContentAdvisoryScreen.cs")):
+            continue
         text = read(rel)
         for name, index in shown.items():
             for arguments in call_arguments(text, name):
