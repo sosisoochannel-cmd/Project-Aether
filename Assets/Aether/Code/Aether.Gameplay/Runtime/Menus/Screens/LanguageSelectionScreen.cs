@@ -48,7 +48,7 @@ namespace Aether.Gameplay.Menus.Screens
         private Button _right;
         private Button _confirm;
         private Image _underline;
-        private Image _crest;
+        private RectTransform _crest;
         private Image _blackout;
         private Coroutine _blackoutRoutine;
         private readonly List<RectTransform> _scratchMarks = new List<RectTransform>(6);
