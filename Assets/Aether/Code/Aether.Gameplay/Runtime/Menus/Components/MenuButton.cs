@@ -469,6 +469,7 @@ namespace Aether.Gameplay.Menus.Components
             Color caret = faint;
             bool ruleVisible = false;
             bool accentVisible = false;
+            bool selectionVisible = false;
 
             if (_locked)
             {
@@ -482,11 +483,14 @@ namespace Aether.Gameplay.Menus.Components
                     case SelectionState.Pressed:
                     case SelectionState.Highlighted:
                     case SelectionState.Selected:
-                        // Gold text, a fine gold rule and a small caret: no glow, filled plate,
-                        // sliding text or scale-pulse. The black field stays visually quiet.
+                        // A PoP-inspired, black-and-gold focus treatment: a quiet gold wash,
+                        // a narrow angular-side marker and a gold caret. No glow, underline sweep,
+                        // sliding label, scaling, pulse or haptic feedback.
                         label = MenuTheme.Palette.Accent;
                         caret = MenuTheme.Palette.Accent;
-                        ruleVisible = true;
+                        plate = MenuTheme.Palette.AccentWash;
+                        accentVisible = true;
+                        selectionVisible = true;
                         break;
 
                     case SelectionState.Disabled:
@@ -502,6 +506,8 @@ namespace Aether.Gameplay.Menus.Components
                 // dropped, so a reader cannot mistake it for something they can press.
                 plate = new Color(1f, 1f, 1f, 0f);
                 ruleVisible = false;
+                accentVisible = false;
+                selectionVisible = false;
                 label = muted;
                 caret = faint;
             }
@@ -526,9 +532,9 @@ namespace Aether.Gameplay.Menus.Components
             if (_help != null) _help.color = faint;
             _label.color = label;
 
-            // Keep the label stationary. Selection is communicated only by gold type, a fine rule
-            // and the caret, so the menu stays quiet and consistent with the black-and-gold theme.
-            if (_caret != null) _caret.gameObject.SetActive(!_locked && !_informational);
+            // No transform animation: focus changes only colour and the narrow gold marker.
+            // Idle rows do not carry a stray caret, so the list remains clean at rest.
+            if (_caret != null) _caret.gameObject.SetActive(selectionVisible && !_locked && !_informational);
             if (_icon != null)
             {
                 _icon.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
