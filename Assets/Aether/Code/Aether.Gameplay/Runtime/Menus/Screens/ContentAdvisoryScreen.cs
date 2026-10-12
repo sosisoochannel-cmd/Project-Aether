@@ -4,6 +4,7 @@ using Aether.Core.Localization;
 using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 namespace Aether.Gameplay.Menus.Screens
 {
@@ -14,7 +15,6 @@ namespace Aether.Gameplay.Menus.Screens
     /// </summary>
     public sealed class ContentAdvisoryScreen : MenuScreen
     {
-        private const float ReadingDurationSeconds = 14f;
         private const float EntranceSeconds = 0.45f;
 
         private static readonly Color Black = Color.black;
@@ -37,12 +37,30 @@ namespace Aether.Gameplay.Menus.Screens
         private Text _title;
         private Text _body;
         private CanvasGroup _visuals;
-        private Coroutine _autoAdvance;
+        private Button _invisibleContinueSurface;
+        private Coroutine _entrance;
         private bool _leaving;
 
         protected override void Construct()
         {
             MenuUi.Fill("Advisory Pure Black Background", Rect, Black, true);
+
+            // The full-screen hit area is deliberately invisible: the warning has no visible button,
+            // timer, bar, or other decoration, but a tap anywhere lets the player continue.
+            var hitArea = new GameObject("Invisible Continue Hit Area", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            hitArea.transform.SetParent(Rect, false);
+            var hitRect = (RectTransform)hitArea.transform;
+            hitRect.anchorMin = Vector2.zero;
+            hitRect.anchorMax = Vector2.one;
+            hitRect.offsetMin = Vector2.zero;
+            hitRect.offsetMax = Vector2.zero;
+            Image hitImage = hitArea.GetComponent<Image>();
+            hitImage.color = new Color(1f, 1f, 1f, 0f);
+            hitImage.raycastTarget = true;
+            _invisibleContinueSurface = hitArea.GetComponent<Button>();
+            _invisibleContinueSurface.transition = Selectable.Transition.None;
+            _invisibleContinueSurface.onClick.AddListener(ContinueToMenu);
 
             _title = MenuUi.CreateText("Advisory Warning Heading", Rect, "هشدار",
                 46f, White, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -51,6 +69,8 @@ namespace Aether.Gameplay.Menus.Screens
             _body.horizontalOverflow = HorizontalWrapMode.Wrap;
             _body.verticalOverflow = VerticalWrapMode.Overflow;
             _body.lineSpacing = 1.22f;
+            _title.raycastTarget = false;
+            _body.raycastTarget = false;
 
             _visuals = MenuUi.Group(Rect);
             ApplyLanguageCopy();
@@ -101,41 +121,62 @@ namespace Aether.Gameplay.Menus.Screens
             rect.sizeDelta = size;
         }
 
-        private IEnumerator AutoAdvanceAfterReadingPeriod()
+        private IEnumerator FadeIn()
         {
             float elapsed = 0f;
             _visuals.alpha = 0f;
-            while (elapsed < ReadingDurationSeconds && !_leaving)
+            while (elapsed < EntranceSeconds && !_leaving)
             {
                 elapsed += Time.unscaledDeltaTime;
-                float entrance = Mathf.Clamp01(elapsed / EntranceSeconds);
-                _visuals.alpha = entrance * entrance * (3f - 2f * entrance);
+                float t = Mathf.Clamp01(elapsed / EntranceSeconds);
+                _visuals.alpha = t * t * (3f - 2f * t);
                 yield return null;
             }
 
-            _autoAdvance = null;
-            if (_leaving || Host == null) yield break;
+            _entrance = null;
+            if (!_leaving && _visuals != null) _visuals.alpha = 1f;
+        }
+
+        private void ContinueToMenu()
+        {
+            if (_leaving || Host == null) return;
             _leaving = true;
             Host.GoTo(MenuScreenId.MainMenu);
+        }
+
+        private void Update()
+        {
+            // Keyboard users can continue with any key; touch users tap anywhere on the invisible
+            // full-screen hit area. Neither path adds a visible control to the warning.
+            if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
+                ContinueToMenu();
         }
 
         protected override void OnShown(bool instant)
         {
             _leaving = false;
-            if (_autoAdvance != null) StopCoroutine(_autoAdvance);
-            _autoAdvance = StartCoroutine(AutoAdvanceAfterReadingPeriod());
-            if (instant && _visuals != null) _visuals.alpha = 1f;
+            if (_entrance != null) StopCoroutine(_entrance);
+            if (instant && _visuals != null)
+            {
+                _visuals.alpha = 1f;
+                _entrance = null;
+            }
+            else
+            {
+                _entrance = StartCoroutine(FadeIn());
+            }
         }
 
         protected override void OnHidden()
         {
-            if (_autoAdvance == null) return;
-            StopCoroutine(_autoAdvance);
-            _autoAdvance = null;
+            if (_entrance == null) return;
+            StopCoroutine(_entrance);
+            _entrance = null;
         }
 
         public override bool OnBack()
         {
+            ContinueToMenu();
             return true;
         }
     }
