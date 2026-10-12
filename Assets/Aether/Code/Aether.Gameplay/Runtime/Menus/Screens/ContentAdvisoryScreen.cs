@@ -212,9 +212,9 @@ namespace Aether.Gameplay.Menus.Screens
         private static string Prepare(string value, bool rtl)
         {
             if (!rtl || string.IsNullOrEmpty(value)) return value;
-            string[] lines = value.Split(new[] { '\\n' });
+            string[] lines = value.Split(new[] { '\n' });
             for (int i = 0; i < lines.Length; i++) lines[i] = RtlText.Visualize(lines[i]);
-            return string.Join("\\n", lines);
+            return string.Join("\n", lines);
         }
 
         public override void Layout(float width, float height)
