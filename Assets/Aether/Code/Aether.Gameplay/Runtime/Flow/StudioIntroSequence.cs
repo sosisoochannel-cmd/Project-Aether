@@ -306,6 +306,10 @@ namespace Aether.Gameplay.Flow
 
         private Camera _camera;
         private float _pixelsPerUnit = 100f;
+#if UNITY_ANDROID || UNITY_IOS
+        private int _previousTargetFrameRate;
+        private bool _restoreTargetFrameRate;
+#endif
         private Part _mark;
         private Part _wordmark;
         private Vector2 _lockupPixels;
@@ -364,6 +368,16 @@ namespace Aether.Gameplay.Flow
 
         private void Awake()
         {
+#if UNITY_ANDROID || UNITY_IOS
+            // A studio ident is a short, motion-sensitive sequence. On mobile Unity may otherwise
+            // inherit a 30 FPS/default pacing mode, making the easing look uneven even when each
+            // frame is inexpensive. Request a stable 60 FPS only for this intro, then restore the
+            // game's previous policy before handing over. Hardware that cannot sustain 60 FPS still
+            // cannot be forced to do so; this removes the avoidable low frame-rate cap.
+            _previousTargetFrameRate = Application.targetFrameRate;
+            _restoreTargetFrameRate = true;
+            Application.targetFrameRate = 60;
+#endif
             _camera = Camera.main;
             if (_camera == null)
             {
@@ -1267,6 +1281,7 @@ namespace Aether.Gameplay.Flow
 
         private void HandOver()
         {
+            RestoreFramePacing();
             ReleaseLockup();
 
             if (string.IsNullOrEmpty(_nextScene))
@@ -1278,6 +1293,20 @@ namespace Aether.Gameplay.Flow
             }
 
             SceneManager.LoadScene(_nextScene);
+        }
+
+        private void OnDestroy()
+        {
+            RestoreFramePacing();
+        }
+
+        private void RestoreFramePacing()
+        {
+#if UNITY_ANDROID || UNITY_IOS
+            if (!_restoreTargetFrameRate) return;
+            Application.targetFrameRate = _previousTargetFrameRate;
+            _restoreTargetFrameRate = false;
+#endif
         }
 
         /// <summary>Draws nothing, which is how the intro starts and how it ends.</summary>
