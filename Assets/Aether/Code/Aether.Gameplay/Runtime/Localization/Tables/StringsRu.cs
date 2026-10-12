@@ -134,7 +134,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "СОХРАНЁННЫЕ ДАННЫЕ",
             "credits.art", "АРТ — VARELLON STUDIOS",
             "credits.art.body", "Фирменный стиль студии и все элементы оформления меню относятся к утверждённым материалам.",
-            "credits.code", "КОД — PROJECT AETHER",
+            "credits.code", "КОД — AETHER",
             "credits.code.body", "Создано для Android в горизонтальной ориентации с приоритетом мобильных устройств.",
             "credits.engine", "СДЕЛАНО НА UNITY",
             "credits.music", "МУЗЫКА",
