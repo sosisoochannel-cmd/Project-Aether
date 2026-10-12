@@ -341,7 +341,7 @@ def main() -> int:
 
     if "۱۲۰ تا ۱۲۰" in persian.get("setting.frameRate.help", ""):
         failures.append("fa: setting.frameRate.help contains the incorrect phrase '۱۲۰ تا ۱۲۰'")
-    if "\\u200c" not in persian.get("credits.title", ""):
+    if chr(0x200c) not in persian.get("credits.title", ""):
         failures.append("fa: credits.title must preserve the Persian zero-width non-joiner")
 
     # Native Persian yeh/kaf must be used in Persian copy, not Arabic lookalikes. The Arabic
