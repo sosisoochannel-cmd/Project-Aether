@@ -500,9 +500,9 @@ def main() -> int:
     rtl_path = os.path.join(ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
                             "Menus", "RtlText.cs")
     rtl_source = read(rtl_path) if os.path.exists(rtl_path) else ""
-    if "pf.Dual && f.Final != '\\0'" not in rtl_source:
+    if "previousCanJoinForward && f.Final != '\\0'" not in rtl_source:
         failures.append("RtlText.cs does not correctly join a right-joining current letter")
-    if "f.Dual && Map.TryGetValue(run[n], out nf)" not in rtl_source:
+    if "nextCanAcceptJoin" not in rtl_source:
         failures.append("RtlText.cs does not check directional joining to the next letter")
     if "Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);" not in rtl_source:
         failures.append("RtlText.cs has an incorrect Persian Yeh medial presentation form")
