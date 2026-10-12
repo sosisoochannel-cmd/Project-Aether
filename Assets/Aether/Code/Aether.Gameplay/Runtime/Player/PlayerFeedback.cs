@@ -16,8 +16,8 @@ namespace Aether.Gameplay.Player
     /// decoration and is not here.
     /// </para>
     /// <para>
-    /// Like the enemy telegraph, this owns no timing and no rules. It listens to events the combat
-    /// systems already publish and colours a square; delete it and the fight is unchanged.
+    /// This owns no timing and no rules. It listens to combat events, while deriving facing and a
+    /// restrained movement pose from the existing physics motor. The collider is never animated.
     /// </para>
     /// </remarks>
     [DisallowMultipleComponent]
