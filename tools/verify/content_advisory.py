@@ -53,25 +53,26 @@ def main() -> int:
     if extra:
         errors.append("unexpected language copy: " + ", ".join(sorted(extra)))
     for code, strings in entries.items():
-        if len(strings) != 3:
-            errors.append(f"{code}: expected eyebrow, body and footer; found {len(strings)} strings")
+        if len(strings) != 2:
+            errors.append(f"{code}: expected warning heading and body; found {len(strings)} strings")
         elif any(not value.strip() for value in strings):
             errors.append(f"{code}: an advisory string is empty")
-        elif "\\n" not in strings[1]:
-            errors.append(f"{code}: advisory body should have an intentional line break for readability")
+        elif len(strings[1]) < 180:
+            errors.append(f"{code}: warning body should be a substantial content advisory")
 
     checks = [
         ("startup language selector file is removed", not (RUNTIME / "Menus/Screens/LanguageSelectionScreen.cs").exists()),
-        ("normal launch goes directly to main menu", "MenuScreenId.MainMenu;" in menu_root and "MenuScreenId.LanguageSelection" not in menu_root),
+        ("normal startup can route to the warning before the main menu", "MenuScreenId.ContentAdvisory" in menu_root and "TakeShowAdvisoryRequest" in menu_root and "MenuScreenId.LanguageSelection" not in menu_root),
         ("advisory screen is registered in the enum", "ContentAdvisory = 9" in registry),
         ("advisory screen is constructed by the factory", "MenuScreen.Create<ContentAdvisoryScreen>" in registry),
         ("advisory automatically advances to main menu", "AutoAdvanceAfterReadingPeriod" in advisory and "Host.GoTo(MenuScreenId.MainMenu)" in advisory),
-        ("advisory has a seven-second reading period", "ReadingDurationSeconds = 7f" in advisory),
+        ("advisory allows a readable fourteen-second period", "ReadingDurationSeconds = 14f" in advisory),
         ("advisory timer starts only when shown", "protected override void OnShown(bool instant)" in advisory),
         ("back cannot skip the advisory", "public override bool OnBack()" in advisory and "return true;" in advisory.split("public override bool OnBack()", 1)[1]),
         ("play-mode test asserts direct-to-main-menu startup", "normal launch must skip the removed language selector" in tests and "MenuScreenId.MainMenu" in tests),
         ("play-mode test checks timed auto-advance without a button", "Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button" in tests),
         ("RTL preview is handled line by line", "RtlText.Visualize(lines[i])" in advisory),
+        ("warning is pure black and contains no progress bar", "Color.black" in advisory and "Progress Fill" not in advisory and "Reading Progress" not in advisory),
     ]
     for label, passed in checks:
         if not passed:
@@ -82,7 +83,7 @@ def main() -> int:
             print("FAIL:", error)
         return 1
 
-    print("content advisory: PASSED — 10 localized copies, direct-to-menu startup, timed advisory, RTL preview, and PlayMode coverage")
+    print("content advisory: PASSED — 10 localized warning copies, warning startup route, text-only black screen, RTL preview, and PlayMode coverage")
     return 0
 
 
