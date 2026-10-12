@@ -363,6 +363,17 @@ def main() -> int:
     menu_art = read(menu_art_path)
     if 'Resources.Load<Font>("Fonts/Vazirmatn-Regular")' not in menu_art:
         failures.append("MenuArt.cs must retain the bundled Vazirmatn font for RTL text")
+    rtl_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "RtlText.cs")
+    rtl_source = read(rtl_path)
+    if "ReverseKeepingMarks" not in rtl_source:
+        failures.append("RtlText.cs must keep combining marks attached to their base characters")
+    if "U+200C ZERO WIDTH NON-JOINER" not in rtl_source:
+        failures.append("RtlText.cs must treat the Persian zero-width non-joiner as a joining boundary")
+    if "Only combining marks may sit between two letters that join" not in rtl_source:
+        failures.append("RtlText.cs must not join letters across spaces or punctuation")
+    if "FBFC, 0xFBFD, 0xFBFE, 0xFBFF" not in rtl_source:
+        failures.append("RtlText.cs must use the correct Persian yeh presentation forms")
 
     # The language picker uses these keys to name each language in the language currently shown.
     # Keep the entire catalogue label set present in the English reference, and call out a missing
