@@ -40,7 +40,7 @@ namespace Aether.Gameplay.Menus
         private static readonly Dictionary<string, string> English = new Dictionary<string, string>
         {
             // -- the menu itself
-            { "menu.title", "PROJECT AETHER" },
+            { "menu.title", "AETHER" },
             { "menu.subtitle", "THE GREENWAY — REGION ONE" },
             { "menu.playSection", "PLAY" },
             { "menu.exploreSection", "EXPLORE" },
@@ -177,7 +177,7 @@ namespace Aether.Gameplay.Menus
             { "about.storage", "SAVE DATA" },
             { "credits.art", "ARTWORK — VARELLON STUDIOS" },
             { "credits.art.body", "The studio mark, and everything the menu is built from, is the approved artwork." },
-            { "credits.code", "CODE — PROJECT AETHER" },
+            { "credits.code", "CODE — AETHER" },
             { "credits.code.body", "Written for Android, landscape, first on a phone." },
             { "credits.engine", "MADE WITH UNITY" },
             { "credits.music", "MUSIC" },
