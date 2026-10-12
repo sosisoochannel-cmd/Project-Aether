@@ -174,8 +174,8 @@ namespace Aether.Gameplay.Menus.Screens
             _underline.rectTransform.anchorMin = _underline.rectTransform.anchorMax = new Vector2(.5f, .5f);
             _underline.rectTransform.pivot = new Vector2(.5f, .5f);
             _underline.rectTransform.sizeDelta = new Vector2(Mathf.Min(width * .32f, 420f), 2f);
-            _underline.rectTransform.anchoredPosition = new Vector2(0f, -height * .085f);
-            _crest.anchoredPosition = new Vector2(0f, height * .255f);
+            _underline.rectTransform.anchoredPosition = new Vector2(0f, -height * .11f);
+            _crest.anchoredPosition = new Vector2(0f, height * .205f);
             _crest.localScale = Vector3.one;
             _underline.raycastTarget = false;
         }
