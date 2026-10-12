@@ -194,7 +194,7 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Content_advisory_waits_for_player_input_without_a_visible_continue_button()
+        public IEnumerator Content_advisory_auto_continues_after_seven_seconds_without_input()
         {
             yield return BuildMenu();
             MenuRoot root = CurrentMenu();
@@ -204,18 +204,13 @@ namespace Aether.Tests.PlayMode
 
             Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
                             "the content advisory did not open");
-            Button[] hitAreas = root.System.Current.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(1, hitAreas.Length, "the warning should have one invisible touch hit area");
-            Assert.AreEqual(0f, hitAreas[0].GetComponent<Image>().color.a, "the Continue control must be invisible");
+            Button[] buttons = root.System.Current.GetComponentsInChildren<Button>(true);
+            Assert.AreEqual(0, buttons.Length, "the warning must not have a tap surface or visible button");
 
-            yield return new WaitForSecondsRealtime(15f);
-            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
-                            "the warning disappeared without player input");
-
-            Assert.IsTrue(root.System.Back(), "back input did not continue past the warning");
+            yield return new WaitForSecondsRealtime(7.5f);
             yield return Settle(root);
             Assert.AreEqual(MenuScreenId.MainMenu, root.System.CurrentId,
-                            "continuing from the warning did not open the main menu");
+                            "the warning did not automatically open the main menu after seven seconds");
         }
 
         [UnityTest]
