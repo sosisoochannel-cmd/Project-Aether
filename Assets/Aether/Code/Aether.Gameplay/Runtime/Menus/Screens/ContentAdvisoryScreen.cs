@@ -4,7 +4,6 @@ using Aether.Core.Localization;
 using Aether.Gameplay.Localization;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
 
 namespace Aether.Gameplay.Menus.Screens
 {
@@ -16,6 +15,7 @@ namespace Aether.Gameplay.Menus.Screens
     public sealed class ContentAdvisoryScreen : MenuScreen
     {
         private const float EntranceSeconds = 0.45f;
+        private const float WarningDisplaySeconds = 7f;
 
         private static readonly Color Black = Color.black;
         private static readonly Color White = Color.white;
@@ -37,8 +37,8 @@ namespace Aether.Gameplay.Menus.Screens
         private Text _title;
         private Text _body;
         private CanvasGroup _visuals;
-        private Button _invisibleContinueSurface;
         private Coroutine _entrance;
+        private Coroutine _autoContinue;
         private bool _leaving;
 
         protected override void Construct()
@@ -49,22 +49,7 @@ namespace Aether.Gameplay.Menus.Screens
             Image background = MenuUi.Fill("Advisory Pure Black Background", canvasRoot, Black, false);
             background.transform.SetSiblingIndex(1);
 
-            // The full-screen hit area is deliberately invisible: the warning has no visible button,
-            // timer, bar, or other decoration, but a tap anywhere lets the player continue.
-            var hitArea = new GameObject("Invisible Continue Hit Area", typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            hitArea.transform.SetParent(Rect, false);
-            var hitRect = (RectTransform)hitArea.transform;
-            hitRect.anchorMin = Vector2.zero;
-            hitRect.anchorMax = Vector2.one;
-            hitRect.offsetMin = Vector2.zero;
-            hitRect.offsetMax = Vector2.zero;
-            Image hitImage = hitArea.GetComponent<Image>();
-            hitImage.color = new Color(1f, 1f, 1f, 0f);
-            hitImage.raycastTarget = true;
-            _invisibleContinueSurface = hitArea.GetComponent<Button>();
-            _invisibleContinueSurface.transition = Selectable.Transition.None;
-            _invisibleContinueSurface.onClick.AddListener(ContinueToMenu);
+            // No input surface: the warning advances automatically after seven seconds.
 
             _title = MenuUi.CreateText("Advisory Warning Heading", Rect, "هشدار",
                 70f, White, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -150,18 +135,19 @@ namespace Aether.Gameplay.Menus.Screens
             Host.GoTo(MenuScreenId.MainMenu);
         }
 
-        private void Update()
+        private IEnumerator AutoContinueAfterDelay()
         {
-            // Keyboard users can continue with any key; touch users tap anywhere on the invisible
-            // full-screen hit area. Neither path adds a visible control to the warning.
-            if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
-                ContinueToMenu();
+            yield return new WaitForSecondsRealtime(WarningDisplaySeconds);
+            _autoContinue = null;
+            ContinueToMenu();
         }
 
         protected override void OnShown(bool instant)
         {
             _leaving = false;
             if (_entrance != null) StopCoroutine(_entrance);
+            if (_autoContinue != null) StopCoroutine(_autoContinue);
+            _autoContinue = StartCoroutine(AutoContinueAfterDelay());
             if (instant && _visuals != null)
             {
                 _visuals.alpha = 1f;
@@ -175,21 +161,17 @@ namespace Aether.Gameplay.Menus.Screens
 
         protected override void OnHidden()
         {
-            if (_entrance == null) return;
-            StopCoroutine(_entrance);
-            _entrance = null;
-        }
+            if (_entrance != null)
+            {
+                StopCoroutine(_entrance);
+                _entrance = null;
+            }
 
-        public override bool OnMove(MenuNav.Move move)
-        {
-            ContinueToMenu();
-            return true;
-        }
-
-        public override bool OnBack()
-        {
-            ContinueToMenu();
-            return true;
+            if (_autoContinue != null)
+            {
+                StopCoroutine(_autoContinue);
+                _autoContinue = null;
+            }
         }
     }
 }
