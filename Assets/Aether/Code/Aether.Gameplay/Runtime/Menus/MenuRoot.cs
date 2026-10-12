@@ -196,8 +196,8 @@ namespace Aether.Gameplay.Menus
 
             // The language selector commits its choice and then owns the confirmation fade to
             // black. Rebuilding it from inside LanguageService.Set would destroy the caller while
-            // its Confirm handler is still running; leave the selector intact for that black hold.
-            // The next menu-flow milestone will decide when a destination screen should be built.
+            // its Confirm handler is still running; leave it intact until it transitions to the
+            // localized content advisory. Other screens can still rebuild normally after a language change.
             if (_system.CurrentId == MenuScreenId.LanguageSelection) return;
 
             _system.RequestRebuild();

@@ -6,16 +6,24 @@ on:
       - "Assets/Aether/Code/Aether.Core/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuScreens.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/**"
+      - "Assets/Aether/Code/Aether.Tests.PlayMode/**"
       - "tools/localization/**"
       - "tools/verify/localization.py"
+      - "tools/verify/content_advisory.py"
       - ".github/workflows/localization-check.yml"
   pull_request:
     paths:
       - "Assets/Aether/Code/Aether.Core/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Localization/**"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuStrings.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuScreens.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/**"
+      - "Assets/Aether/Code/Aether.Tests.PlayMode/**"
       - "tools/localization/**"
       - "tools/verify/localization.py"
+      - "tools/verify/content_advisory.py"
       - ".github/workflows/localization-check.yml"
   workflow_dispatch:
 
@@ -38,7 +46,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate verifier syntax
-        run: python -m py_compile tools/verify/localization.py
+        run: python -m py_compile tools/verify/localization.py tools/verify/content_advisory.py
+      - name: Validate content-advisory flow and all ten localized copies
+        run: python tools/verify/content_advisory.py
       - name: Validate all offered translation sheets and generated tables
         run: python tools/verify/localization.py
       - name: Report coverage for all ten agreed languages
