@@ -22,6 +22,7 @@ on:
       - arena/m4-whispering-woods
       - arena/varellon-rift-lock
       - arena/varellon-motion-video-preview
+      - arena/varellon-ident-cinematic-polish-v3
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Resources/Brand/**'
