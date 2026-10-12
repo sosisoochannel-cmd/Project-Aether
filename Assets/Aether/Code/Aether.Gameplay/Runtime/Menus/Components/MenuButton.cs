@@ -17,11 +17,10 @@ namespace Aether.Gameplay.Menus.Components
     /// menu's own navigation rather than by an editor-authored <c>Navigation</c> graph.
     /// </para>
     /// <para>
-    /// <b>Instant geometry, faded colour.</b> Press feedback moves the row's own text and shows its
-    /// caret the frame the finger lands, because a press that waits for an animation reads as a
-    /// missed tap. The colour change fades through <c>Graphic.CrossFadeColor</c>, which the engine
-    /// animates without this class needing an <c>Update</c>. Nothing here is per-frame, and nothing
-    /// allocates after construction.
+    /// <b>Quiet selection, faded colour.</b> The selected row uses gold type, a fine gold rule and
+    /// a small caret; the row never jumps, pulses, fills with a glow, or vibrates. Colour changes
+    /// fade through <c>Graphic.CrossFadeColor</c>, which the engine animates without this class
+    /// needing an <c>Update</c>. Nothing here is per-frame, and nothing allocates after construction.
     /// </para>
     /// <para>
     /// <b>The whole row is the target.</b> A row's rect is its pitch — 208 units for a primary entry,
