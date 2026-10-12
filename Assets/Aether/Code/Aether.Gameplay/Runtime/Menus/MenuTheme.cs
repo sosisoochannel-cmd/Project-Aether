@@ -55,8 +55,8 @@ namespace Aether.Gameplay.Menus
             /// <summary>The one accent: warm gold for focus and enabled controls.</summary>
             public static readonly Color Accent = new Color(0.91f, 0.64f, 0.20f, 1f);
 
-            /// <summary>Kept transparent: selection is a rule and caret, not a filled surface.</summary>
-            public static readonly Color AccentWash = new Color(0.91f, 0.64f, 0.20f, 0f);
+            /// <summary>A restrained gold wash beneath the focused row; never a glow or bloom.</summary>
+            public static readonly Color AccentWash = new Color(0.91f, 0.64f, 0.20f, 0.085f);
 
             /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
             public static readonly Color Locked = new Color(0.40f, 0.34f, 0.22f, 1f);
@@ -282,11 +282,11 @@ namespace Aether.Gameplay.Menus
             /// <summary>How far a row rises as it fades in, in reference units.</summary>
             public const float EntranceRise = 16f;
 
-            /// <summary>Press acknowledgment: how long the row takes to reach its pressed scale.</summary>
-            public const float PressSeconds = 0.06f;
+            /// <summary>Press feedback is colour-only; rows never scale or pulse.</summary>
+            public const float PressSeconds = 0f;
 
-            /// <summary>Scale a row is drawn at while held.</summary>
-            public const float PressedScale = 0.975f;
+            /// <summary>Rows stay at their authored scale during press and selection.</summary>
+            public const float PressedScale = 1f;
 
             /// <summary>How long the highlight caret and rule take to grow in.</summary>
             public const float HighlightSeconds = 0.14f;
