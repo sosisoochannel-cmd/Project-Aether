@@ -92,7 +92,7 @@ namespace Aether.Core.Localization
     public static class LanguageCatalog
     {
         /// <summary>The language a fresh install is shown in, and the fallback for anything missing.</summary>
-        public const string DefaultCode = "en";
+        public const string DefaultCode = "fa";
 
         /// <summary>Every language the project knows about, in picker order.</summary>
         public static readonly LanguageDefinition[] All =
