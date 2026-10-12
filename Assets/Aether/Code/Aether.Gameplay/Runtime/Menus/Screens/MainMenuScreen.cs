@@ -81,9 +81,9 @@ namespace Aether.Gameplay.Menus.Screens
             // of the list, and it should not scroll away when the list is long.
             MenuUi.Stretch(_scroll.GetComponent<RectTransform>(), 0f, 0f, 0f, FooterHeight);
 
-            _title = MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", "menu.subtitle");
+            _title = MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null);
 
-            _play = MenuEntryPanel.Create("Play", _content, Nav, "menu.playSection", 1);
+            _play = MenuEntryPanel.Create("Play", _content, Nav, null, 1);
             _continue = _play.AddEntry("Continue", MenuStrings.Get("menu.continue"),
                                        MenuButton.Weight.Primary);
             MenuButton newGame = _play.AddEntry("New Game", MenuStrings.Get("menu.newGame"),
@@ -95,13 +95,10 @@ namespace Aether.Gameplay.Menus.Screens
 
             int columns = MenuTheme.Metrics.SecondaryColumns;
 
-            _explore = MenuEntryPanel.Create("Explore", _content, Nav, "menu.exploreSection", columns);
+            _explore = MenuEntryPanel.Create("Explore", _content, Nav, null, 1);
             AddDestination(_explore, MenuScreenId.Chapters, "menu.chapters");
-            AddDestination(_explore, MenuScreenId.Characters, "menu.characters");
-            AddDestination(_explore, MenuScreenId.Collection, "menu.collection");
-            AddDestination(_explore, MenuScreenId.Achievements, "menu.achievements");
 
-            _system = MenuEntryPanel.Create("System", _content, Nav, "menu.systemSection", columns);
+            _system = MenuEntryPanel.Create("System", _content, Nav, null, 1);
             AddDestination(_system, MenuScreenId.Settings, "menu.settings");
             AddDestination(_system, MenuScreenId.Credits, "menu.credits");
 
@@ -134,36 +131,34 @@ namespace Aether.Gameplay.Menus.Screens
         public override void Layout(float width, float height)
         {
             float box = Mathf.Max(160f, height - FooterHeight);
-            float titleHeight;
-
             _title.Layout(width, box);
-            _title.Rect.anchoredPosition = Vector2.zero;
-            titleHeight = _title.Height;
+            float titleHeight = _title.Height;
 
-            float top = titleHeight + MenuTheme.Metrics.TitleGapBody;
-            float leftWidth = width * MenuTheme.Metrics.LeftColumnFraction;
-            float rightWidth = width * MenuTheme.Metrics.RightBlockFraction;
+            // One centered vertical axis. If accessibility sizing or a long translation makes the
+            // stack too tall, it starts at the safe top margin and the existing scroll view handles it.
+            float panelWidth = Mathf.Min(760f, Mathf.Max(280f, width - 48f));
+            float panelX = (width - panelWidth) * 0.5f;
+            _play.Layout(panelWidth, box);
+            _explore.Layout(panelWidth, box);
+            _system.Layout(panelWidth, box);
+            _explore.SetColumns(1);
+            _system.SetColumns(1);
 
-            // The grid keeps two columns while a cell can hold the longest label; below that it becomes
-            // one column, which is taller and therefore scrolls rather than clips.
-            int columns = rightWidth / MenuTheme.Metrics.SecondaryColumns >= MinimumSecondaryCell
-                ? MenuTheme.Metrics.SecondaryColumns
-                : 1;
-            _explore.SetColumns(columns);
-            _system.SetColumns(columns);
+            float gap = MenuTheme.Metrics.ClusterGap;
+            float stackHeight = titleHeight + MenuTheme.Metrics.TitleGapBody
+                              + _play.Height + gap + _explore.Height + gap + _system.Height;
+            float top = Mathf.Max(MenuTheme.Metrics.ScreenMarginTop, (box - stackHeight) * 0.5f);
 
-            _play.Layout(leftWidth, box);
-            _play.Rect.anchoredPosition = new Vector2(0f, -top);
+            _title.Rect.anchoredPosition = new Vector2(0f, -top);
+            float cursor = top + titleHeight + MenuTheme.Metrics.TitleGapBody;
+            _play.Rect.anchoredPosition = new Vector2(panelX, -cursor);
+            cursor += _play.Height + gap;
+            _explore.Rect.anchoredPosition = new Vector2(panelX, -cursor);
+            cursor += _explore.Height + gap;
+            _system.Rect.anchoredPosition = new Vector2(panelX, -cursor);
+            cursor += _system.Height;
 
-            _explore.Layout(rightWidth, box);
-            _explore.Rect.anchoredPosition = new Vector2(width - rightWidth, -top);
-
-            float systemTop = top + _explore.Height + MenuTheme.Metrics.ClusterGap;
-            _system.Layout(rightWidth, box);
-            _system.Rect.anchoredPosition = new Vector2(width - rightWidth, -systemTop);
-
-            float bottom = Mathf.Max(top + _play.Height, systemTop + _system.Height);
-            MenuUi.SetContentHeight(_content, bottom + MenuTheme.Metrics.ParagraphBlockPadding);
+            MenuUi.SetContentHeight(_content, Mathf.Max(box, cursor + MenuTheme.Metrics.ScreenMarginBottom));
             _content.anchoredPosition = Vector2.zero;
         }
 
