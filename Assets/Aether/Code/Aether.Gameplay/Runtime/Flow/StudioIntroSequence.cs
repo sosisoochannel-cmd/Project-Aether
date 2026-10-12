@@ -79,9 +79,10 @@ namespace Aether.Gameplay.Flow
     /// <b>Skipping and switching it off are both seams that already exist.</b> A tap, a key or a
     /// button ends the intro early after a short grace period — the grace is there because the tap
     /// that launched the app is still on the screen — and <see cref="Preference"/> is the setting a
-    /// future settings screen writes when a player would rather never see it. The intro is silent
-    /// today: it requests its cues through <see cref="SoundDirector"/> like the rest of the game, so
-    /// it becomes audible the moment an audio backend exists, and no audio asset is invented here.
+    /// future settings screen writes when a player would rather never see it. The intro uses an
+    /// original, procedurally synthesized studio sting synchronized to the mark and wordmark lock
+    /// beats. It also publishes cue requests through <see cref="SoundDirector"/> for the game's
+    /// future shared audio backend; no third-party audio asset is required.
     /// </para>
     /// </remarks>
     [DefaultExecutionOrder(-100)]
