@@ -19,6 +19,7 @@ on:
   push:
     branches:
       - arena/01a10203-project-aether
+      - arena/aether-gold-black-language-selector
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
