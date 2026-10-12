@@ -44,8 +44,8 @@ namespace Aether.Gameplay.Menus.Screens
             Image bottom = MenuUi.CreateHairline("Frame Bottom", _frame, DimGold, 2f);
             Image left = MenuUi.CreateImage("Frame Left", _frame, MenuArt.Solid, DimGold);
             Image right = MenuUi.CreateImage("Frame Right", _frame, MenuArt.Solid, DimGold);
-            MenuUi.Place(top.rectTransform, new Vector2(.5f, 1f), Vector2.zero, new Vector2(0f, 2f), new Vector2(.5f, 1f));
-            MenuUi.Place(bottom.rectTransform, new Vector2(.5f, 0f), Vector2.zero, new Vector2(0f, 2f), new Vector2(.5f, 0f));
+            top.rectTransform.anchorMin = new Vector2(0f, 1f);\n            top.rectTransform.anchorMax = new Vector2(1f, 1f);\n            top.rectTransform.pivot = new Vector2(.5f, 1f);\n            top.rectTransform.anchoredPosition = Vector2.zero;\n            top.rectTransform.sizeDelta = new Vector2(0f, 2f);
+            bottom.rectTransform.anchorMin = new Vector2(0f, 0f);\n            bottom.rectTransform.anchorMax = new Vector2(1f, 0f);\n            bottom.rectTransform.pivot = new Vector2(.5f, 0f);\n            bottom.rectTransform.anchoredPosition = Vector2.zero;\n            bottom.rectTransform.sizeDelta = new Vector2(0f, 2f);
             MenuUi.Place(left.rectTransform, new Vector2(0f, .5f), Vector2.zero, new Vector2(2f, 0f), new Vector2(0f, .5f));
             MenuUi.Place(right.rectTransform, new Vector2(1f, .5f), Vector2.zero, new Vector2(2f, 0f), new Vector2(1f, .5f));
 
