@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Aether.Core.Localization;
 using Aether.Gameplay.Localization;
@@ -8,13 +9,14 @@ namespace Aether.Gameplay.Menus.Screens
 {
     /// <summary>
     /// A calm, localized content notice between language selection and the main menu.
-    /// This is an informational advisory, not a claimed age-classification rating.
+    /// It advances automatically after a short reading period; it is not an age-classification rating.
     /// </summary>
     public sealed class ContentAdvisoryScreen : MenuScreen
     {
+        private const float ReadingDurationSeconds = 7f;
+
         private static readonly Color Black = new Color(0.012f, 0.011f, 0.009f, 1f);
         private static readonly Color Gold = new Color(0.85f, 0.71f, 0.43f, 1f);
-        private static readonly Color BrightGold = new Color(0.97f, 0.87f, 0.63f, 1f);
         private static readonly Color Ivory = new Color(0.91f, 0.88f, 0.79f, 1f);
         private static readonly Color Muted = new Color(0.70f, 0.66f, 0.57f, 1f);
 
@@ -22,16 +24,16 @@ namespace Aether.Gameplay.Menus.Screens
         // can read the notice before entering the game. Keep it factual and measured, not alarmist.
         private static readonly Dictionary<string, string[]> Copy = new Dictionary<string, string[]>
         {
-            { "en", new[] { "PLAYER INFORMATION", "This game contains fantasy combat and scenes of peril.\nSome content may not suit every player. Player discretion is advised.", "AETHER • PLAYER INFORMATION", "CONTINUE" } },
-            { "es", new[] { "INFORMACIÓN PARA EL JUGADOR", "Este juego incluye combates fantásticos y situaciones de peligro.\nAlgunos contenidos pueden no ser adecuados para todos. Se recomienda discreción.", "AETHER • INFORMACIÓN PARA EL JUGADOR", "CONTINUAR" } },
-            { "fa", new[] { "اطلاعات بازیکن", "این بازی شامل نبردهای فانتزی و صحنه‌هایی از خطر است.\nممکن است بخشی از محتوا برای همه مناسب نباشد؛ با آگاهی از این موضوع بازی کنید.", "AETHER • اطلاعات بازیکن", "ادامه" } },
-            { "fr", new[] { "INFORMATIONS POUR LES JOUEURS", "Ce jeu comporte des combats fantastiques et des situations périlleuses.\nCertains éléments peuvent ne pas convenir à tout le monde. Faites preuve de discernement.", "AETHER • INFORMATIONS AUX JOUEURS", "CONTINUER" } },
-            { "de", new[] { "SPIELERINFORMATION", "Dieses Spiel enthält Fantasy-Kämpfe und Gefahrensituationen.\nEinige Inhalte sind möglicherweise nicht für alle geeignet. Bitte entscheide selbst.", "AETHER • SPIELERINFORMATION", "WEITER" } },
-            { "it", new[] { "INFORMAZIONI PER I GIOCATORI", "Il gioco include combattimenti fantasy e situazioni di pericolo.\nAlcuni contenuti potrebbero non essere adatti a tutti. Si consiglia discrezione.", "AETHER • INFORMAZIONI PER I GIOCATORI", "CONTINUA" } },
-            { "pt", new[] { "INFORMAÇÃO AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER • INFORMAÇÃO AO JOGADOR", "CONTINUAR" } },
-            { "pt-BR", new[] { "INFORMAÇÕES AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER • INFORMAÇÕES AO JOGADOR", "CONTINUAR" } },
-            { "ru", new[] { "ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER • ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "ПРОДОЛЖИТЬ" } },
-            { "tr", new[] { "OYUNCU BİLGİLENDİRMESİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ", "DEVAM ET" } },
+            { "en", new[] { "PLAYER INFORMATION", "This game contains fantasy combat and scenes of peril.\nSome content may not suit every player. Player discretion is advised.", "AETHER • PLAYER INFORMATION" } },
+            { "es", new[] { "INFORMACIÓN PARA EL JUGADOR", "Este juego incluye combates fantásticos y situaciones de peligro.\nAlgunos contenidos pueden no ser adecuados para todos. Se recomienda discreción.", "AETHER • INFORMACIÓN PARA EL JUGADOR" } },
+            { "fa", new[] { "اطلاعات بازیکن", "این بازی شامل نبردهای فانتزی و صحنه‌هایی از خطر است.\nممکن است بخشی از محتوا برای همه مناسب نباشد؛ با آگاهی از این موضوع بازی کنید.", "AETHER • اطلاعات بازیکن" } },
+            { "fr", new[] { "INFORMATIONS POUR LES JOUEURS", "Ce jeu comporte des combats fantastiques et des situations périlleuses.\nCertains éléments peuvent ne pas convenir à tout le monde. Faites preuve de discernement.", "AETHER • INFORMATIONS AUX JOUEURS" } },
+            { "de", new[] { "SPIELERINFORMATION", "Dieses Spiel enthält Fantasy-Kämpfe und Gefahrensituationen.\nEinige Inhalte sind möglicherweise nicht für alle geeignet. Bitte entscheide selbst.", "AETHER • SPIELERINFORMATION" } },
+            { "it", new[] { "INFORMAZIONI PER I GIOCATORI", "Il gioco include combattimenti fantasy e situazioni di pericolo.\nAlcuni contenuti potrebbero non essere adatti a tutti. Si consiglia discrezione.", "AETHER • INFORMAZIONI PER I GIOCATORI" } },
+            { "pt", new[] { "INFORMAÇÃO AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER • INFORMAÇÃO AO JOGADOR" } },
+            { "pt-BR", new[] { "INFORMAÇÕES AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER • INFORMAÇÕES AO JOGADOR" } },
+            { "ru", new[] { "ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER • ИНФОРМАЦИЯ ДЛЯ ИГРОКА" } },
+            { "tr", new[] { "OYUNCU BİLGİLENDİРМЕСİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ" } },
         };
 
         private RectTransform _frame;
@@ -40,9 +42,9 @@ namespace Aether.Gameplay.Menus.Screens
         private Text _title;
         private Text _body;
         private Text _footer;
-        private Button _continue;
         private Image _rule;
         private bool _leaving;
+        private Coroutine _autoAdvance;
 
         protected override void Construct()
         {
@@ -71,33 +73,9 @@ namespace Aether.Gameplay.Menus.Screens
             _body.horizontalOverflow = HorizontalWrapMode.Wrap;
             _body.verticalOverflow = VerticalWrapMode.Overflow;
             _footer = MenuUi.CreateTrackedText("Advisory Footer", Rect, "", 13f, Muted, 1f, TextAnchor.MiddleCenter);
-            _continue = MakeContinueButton();
 
             ApplyLanguageCopy();
-        }
-
-        private Button MakeContinueButton()
-        {
-            var go = new GameObject("Advisory Continue", typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(Rect, false);
-            go.transform.localRotation = Quaternion.Euler(0f, 0f, -3f);
-            Image image = go.GetComponent<Image>();
-            image.sprite = MenuArt.Solid;
-            image.color = new Color(.22f, .16f, .065f, .94f);
-            Button button = go.GetComponent<Button>();
-            button.targetGraphic = image;
-            button.onClick.AddListener(Continue);
-            ColorBlock colours = button.colors;
-            colours.normalColor = new Color(.22f, .16f, .065f, .94f);
-            colours.highlightedColor = new Color(1f, .78f, .36f, 1f);
-            colours.pressedColor = new Color(1f, .91f, .67f, 1f);
-            colours.selectedColor = colours.highlightedColor;
-            button.colors = colours;
-
-            Text label = MenuUi.CreateText("Advisory Continue Label", go.transform, "", 20f, BrightGold, TextAnchor.MiddleCenter);
-            MenuUi.Stretch(label.rectTransform, 8f, 8f, 4f, 4f);
-            label.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 3f);
-            return button;
+            _autoAdvance = StartCoroutine(AutoAdvanceAfterReadingPeriod());
         }
 
         private void ApplyLanguageCopy()
@@ -112,12 +90,9 @@ namespace Aether.Gameplay.Menus.Screens
             _title.text = Prepare(LanguageService.Get("content.advisory.title"), rtl);
             _body.text = Prepare(copy[1], rtl);
             _footer.text = Prepare(copy[2], rtl);
-            Text label = _continue.GetComponentInChildren<Text>();
-            if (label != null) label.text = Prepare(copy[3], rtl);
             _title.alignment = TextAnchor.MiddleCenter;
             _body.alignment = TextAnchor.MiddleCenter;
             _footer.alignment = TextAnchor.MiddleCenter;
-            if (label != null) label.alignment = TextAnchor.MiddleCenter;
         }
 
         private static string Prepare(string value, bool rtl)
@@ -126,10 +101,10 @@ namespace Aether.Gameplay.Menus.Screens
 
             // RtlText handles one visual line at a time. Shaping the entire paragraph would
             // reverse its newline along with the glyphs and could move a line break to the front.
-            string[] lines = value.Split(new[] { '\n' });
+            string[] lines = value.Split(new[] { '\\n' });
             for (int i = 0; i < lines.Length; i++)
                 lines[i] = RtlText.Visualize(lines[i]);
-            return string.Join("\n", lines);
+            return string.Join("\\n", lines);
         }
 
         public override void Layout(float width, float height)
@@ -142,9 +117,8 @@ namespace Aether.Gameplay.Menus.Screens
             Place(_eyebrow.rectTransform, height * .205f, new Vector2(Mathf.Min(width - 64f, 1000f), 30f));
             Place(_title.rectTransform, height * .115f, new Vector2(Mathf.Min(width - 64f, 1300f), 66f));
             Place(_body.rectTransform, -height * .015f, new Vector2(Mathf.Min(width - 96f, 1120f), Mathf.Min(height * .30f, 190f)));
-            Place(_rule.rectTransform, -height * .155f, new Vector2(Mathf.Min(width * .42f, 440f), 2f));
-            Place(_continue.transform as RectTransform, -height * .255f, new Vector2(Mathf.Min(width - 100f, 320f), 64f));
-            Place(_footer.rectTransform, -height * .365f, new Vector2(Mathf.Min(width - 64f, 1000f), 28f));
+            Place(_rule.rectTransform, -height * .19f, new Vector2(Mathf.Min(width * .42f, 440f), 2f));
+            Place(_footer.rectTransform, -height * .29f, new Vector2(Mathf.Min(width - 64f, 1000f), 28f));
         }
 
         private static void Place(RectTransform rect, float y, Vector2 size)
@@ -155,19 +129,38 @@ namespace Aether.Gameplay.Menus.Screens
             rect.anchoredPosition = new Vector2(0f, y);
         }
 
-        private void Continue()
+        private IEnumerator AutoAdvanceAfterReadingPeriod()
         {
-            if (_leaving) return;
+            // Use unscaled time so the notice still advances if gameplay time is paused or scaled.
+            float elapsed = 0f;
+            while (elapsed < ReadingDurationSeconds && !_leaving)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            _autoAdvance = null;
+            if (_leaving || Host == null) yield break;
+
             _leaving = true;
-            _continue.interactable = false;
             Host.GoTo(MenuScreenId.MainMenu);
         }
 
         public override bool OnBack()
         {
-            // This is the first information gate after language choice; the player must explicitly
-            // acknowledge it instead of skipping it accidentally with Back/Escape.
+            // Do not let Back/Escape accidentally dismiss the notice before its reading period ends.
             return true;
+        }
+
+        protected override void OnDestroy()
+        {
+            if (_autoAdvance != null)
+            {
+                StopCoroutine(_autoAdvance);
+                _autoAdvance = null;
+            }
+
+            base.OnDestroy();
         }
     }
 }
