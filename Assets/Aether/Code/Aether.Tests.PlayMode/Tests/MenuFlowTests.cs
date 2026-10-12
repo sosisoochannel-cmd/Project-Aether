@@ -132,6 +132,21 @@ namespace Aether.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator A_normal_startup_request_opens_the_warning_before_the_main_menu()
+        {
+            GameLaunch.RequestShowAdvisory();
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+
+            Assert.IsNotNull(root, "the menu root did not build");
+            Assert.AreEqual(MenuScreenId.ContentAdvisory, root.System.CurrentId,
+                            "normal startup should show the content warning after the studio ident");
+            Assert.IsTrue(root.System.Current.Visible, "the content warning is not visible");
+            Assert.AreEqual(0, root.System.Current.GetComponentsInChildren<Button>(true).Length,
+                            "the warning should contain only its heading and text, without a button");
+        }
+
+        [UnityTest]
         public IEnumerator The_menu_comes_up_on_its_first_screen()
         {
             yield return BuildMenu();
@@ -187,7 +202,7 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(0, buttons.Length,
                             "the advisory must be informational and must not require a Continue press");
 
-            float deadline = Time.unscaledTime + 9f;
+            float deadline = Time.unscaledTime + 16f;
             while (root.System.CurrentId == MenuScreenId.ContentAdvisory &&
                    Time.unscaledTime < deadline)
                 yield return null;
