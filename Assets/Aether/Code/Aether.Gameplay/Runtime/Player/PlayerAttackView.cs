@@ -63,7 +63,7 @@ namespace Aether.Gameplay.Player
             _renderer.transform.localPosition = new Vector3(0.64f * facing, 0.10f, 0f);
             _renderer.color = Color.white;
             _renderer.enabled = true;
-            _remaining = SlashLifetime;
+            _remaining = attack != null && attack.Active > 0f ? attack.Active : SlashLifetime;
         }
 
         private void Update()
