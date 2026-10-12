@@ -41,3 +41,17 @@ The palette is exclusively black and gold, but gold must behave like a full inte
 - Smooth intro, change, highlight, press, and confirm motion.
 - Touch targets, safe areas, dynamic language widths, RTL scripts, wrap-around, persistence, repeated input, and menu handoff tested.
 - Rendered-frame review and real-device QA required before merge/APK. Source review alone is not proof of runtime quality.
+
+
+## Typography and font licensing
+The exact font files used by Prince of Persia: The Lost Crown are not identified in Ubisoft's public language/accessibility documentation reviewed for this project. Do not claim to have reproduced those fonts or extract proprietary font assets. Recreate the broad visual qualities with legally redistributable fonts, tested per writing system.
+
+- Latin scripts: use a highly legible, elegant display face for the language name and a clean UI face for instructions; preserve accents and diacritics at small sizes.
+- Cyrillic: verify full Cyrillic glyph coverage, punctuation, and matching weight; do not rely on a Latin-only display face.
+- Persian and Arabic: use a font designed for Arabic-script shaping, with correct contextual forms, diacritics, bidirectional ordering, and right-to-left layout. Test joined letters at actual Android sizes.
+- Japanese, Simplified/Traditional Chinese, and Korean: use script-specific font assets with complete glyph coverage and balanced CJK metrics; never rely on Android fallback silently.
+- Every offered language must have an explicit font-coverage check for every UI string used on the selector and first menu. Missing glyphs are a release blocker.
+- Keep the selected native language name visually prominent, but prioritize legibility over forcing every script into the same decorative typeface. The visual identity comes from consistent gold treatment, sizing, spacing, and animation.
+
+## Sound design
+The selector uses an original, short synthesized metallic chime for language changes and a slightly richer confirmation tone. These sounds should feel warm, delicate, and premium, with a quick attack and short decay; they must not copy or sample Prince of Persia audio. Audio is supplementary: every state change must also be clearly visible and usable when the phone is muted.
