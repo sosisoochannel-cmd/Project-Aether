@@ -13,6 +13,7 @@ namespace Aether.Gameplay.Support
         private const int Size = 96;
         private static Sprite _player;
         private static Sprite _forestStalker;
+        private static Sprite _slash;
 
         public static Sprite Player
         {
@@ -29,6 +30,15 @@ namespace Aether.Gameplay.Support
             {
                 if (_forestStalker == null) _forestStalker = Build("Aether_ForestStalker", DrawForestStalker);
                 return _forestStalker;
+            }
+        }
+
+        public static Sprite Slash
+        {
+            get
+            {
+                if (_slash == null) _slash = Build("Aether_AttackSlash", DrawSlash);
+                return _slash;
             }
         }
 
@@ -50,6 +60,27 @@ namespace Aether.Gameplay.Support
             sprite.name = name;
             sprite.hideFlags = HideFlags.HideAndDontSave;
             return sprite;
+        }
+
+        private static void DrawSlash(Color32[] p, int s)
+        {
+            const float cx = 34f;
+            const float cy = 48f;
+            const float radius = 30f;
+            float previousX = cx + Mathf.Cos(-64f * Mathf.Deg2Rad) * radius;
+            float previousY = cy + Mathf.Sin(-64f * Mathf.Deg2Rad) * radius;
+            for (int i = 1; i <= 16; i++)
+            {
+                float angle = Mathf.Lerp(-64f, 64f, i / 16f) * Mathf.Deg2Rad;
+                float x = cx + Mathf.Cos(angle) * radius;
+                float y = cy + Mathf.Sin(angle) * radius;
+                Line(p, s, previousX, previousY, x, y, 2.9f,
+                    new Color(0.34f, 0.95f, 1f, 0.95f), new Color(1f, 0.72f, 0.34f, 0.95f), 1.6f);
+                Line(p, s, previousX + 1.5f, previousY, x + 1.5f, y, 0.8f,
+                    new Color(0.95f, 1f, 1f, 0.9f), new Color(0.50f, 0.95f, 1f, 0.9f), 0f);
+                previousX = x;
+                previousY = y;
+            }
         }
 
         private static void DrawPlayer(Color32[] p, int s)
@@ -154,7 +185,7 @@ namespace Aether.Gameplay.Support
                                     Color top, Color bottom, float outlineWidth)
         {
             if (outlineWidth > 0f)
-                Paint(p, s, (x, y) => EllipseDistance(x, y, cx, cy, rx + outlineWidth, ry + outlineWidth), top * 0f + new Color(0.035f, 0.045f, 0.065f, 1f), top * 0f + new Color(0.035f, 0.045f, 0.065f, 1f));
+                Paint(p, s, (x, y) => EllipseDistance(x, y, cx, cy, rx + outlineWidth, ry + outlineWidth), new Color(0.035f, 0.045f, 0.065f, 1f), new Color(0.035f, 0.045f, 0.065f, 1f));
             Paint(p, s, (x, y) => EllipseDistance(x, y, cx, cy, rx, ry), top, bottom);
         }
 
