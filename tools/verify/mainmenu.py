@@ -879,42 +879,28 @@ def check_composition(gate: Gate) -> None:
     main = read(MAIN_SCREEN)
     title_source = read(TITLE_PANEL)
 
-    footer = number(main, r"FooterHeight\s*=\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
-    minimum_cell = number(main, r"MinimumSecondaryCell\s*=\s*([0-9.]+)f",
-                          "MainMenuScreen.MinimumSecondaryCell")
-    title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
-    subtitle_factor = number(title_source, r"SubtitleSize \* ([0-9.]+)f",
-                             "the subtitle's line height")
-    columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
-        r"SecondaryColumns = (\d+)", read(THEME)) else int(m.get("SecondaryColumns", 2))
+    footer = number(main, r"FooterHeight\\s*=\\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
+    title_factor = number(title_source, r"TitleSize \\* ([0-9.]+)f", "the title's line height")
 
-    # The row counts are read out of the screen, not assumed. They were a constant until a ninth
-    # entry was added to a cluster and the composition quietly grew 118 units past the viewport
-    # while this check went on measuring the screen it remembered: an arithmetic check that counts
-    # the wrong rows is worse than no arithmetic, because it reports a fit that is not there.
+    # Count real menu rows from the code, then measure the single centered column that is actually
+    # built. The subtitle and section headings are intentionally absent from this compact layout.
     clusters = {}
     for cluster, panel in (("Play", "_play"), ("Explore", "_explore"), ("System", "_system")):
-        start = main.find(f'{panel} = MenuEntryPanel.Create')
-        if start < 0:
+        start_at = main.find(f'{panel} = MenuEntryPanel.Create')
+        if start_at < 0:
             gate.check(False, f"the main menu no longer builds a {cluster} cluster")
             continue
-
-        end = len(main)
+        end_at = len(main)
         for other in ("_play", "_explore", "_system"):
             if other == panel:
                 continue
-            found = main.find(f'{other} = MenuEntryPanel.Create', start + 1)
+            found = main.find(f'{other} = MenuEntryPanel.Create', start_at + 1)
             if found > 0:
-                end = min(end, found)
-
-        # The cluster ends where the next method begins: the helper that adds a destination is a
-        # method body, and its own call to AddEntry is not a row of whichever cluster happens to
-        # be last in the file.
-        method = main.find("        private ", start + 1)
+                end_at = min(end_at, found)
+        method = main.find("        private ", start_at + 1)
         if method > 0:
-            end = min(end, method)
-
-        block = main[start:end]
+            end_at = min(end_at, method)
+        block = main[start_at:end_at]
         clusters[cluster] = block.count("AddEntry(") + block.count("AddDestination(")
 
     for cluster in ("Play", "Explore", "System"):
@@ -922,8 +908,17 @@ def check_composition(gate: Gate) -> None:
                    f"the {cluster} cluster has no rows, so what it holds cannot be measured")
 
     primary_rows = clusters.get("Play", 0)
-    secondary_rows = clusters.get("Explore", 0)
+    explore_rows = clusters.get("Explore", 0)
     system_rows = clusters.get("System", 0)
+    gate.check(primary_rows == 2 and explore_rows == 1 and system_rows == 2,
+               f"the compact main menu should have 2 primary rows, 1 chapter row and 2 system rows; "
+               f"found {primary_rows}, {explore_rows}, {system_rows}")
+    gate.check('MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null)' in main,
+               "the main menu should show the large AETHER title without a subtitle")
+    gate.check("One centered vertical axis" in main and "panelX = (width - panelWidth) * 0.5f" in main,
+               "main-menu clusters must share one centered vertical axis")
+    gate.check("MenuEntryPanel.Create(" in main and 'Nav, null, 1)' in main,
+               "main-menu clusters must not add noisy section headings")
 
     for name, aspect in ASPECTS:
         canvas_h = REFERENCE_HEIGHT
@@ -931,38 +926,21 @@ def check_composition(gate: Gate) -> None:
         box_w = canvas_w - m["ScreenMarginLeft"] - m["ScreenMarginRight"]
         box_h = canvas_h - m["ScreenMarginTop"] - m["ScreenMarginBottom"]
         viewport = box_h - footer
-
-        # The studio mark is deliberately absent from the game menu; Varellon branding stays
-        # in the separate intro. The title block starts directly with AETHER.
-        title_block = ((m["TitleSize"] * title_factor)
-                       + (m["SubtitleSize"] * subtitle_factor) + m["TitleGapRule"]
-                       + m["TitleRuleHeight"])
-        top = title_block + m["TitleGapBody"]
-
-        right = box_w * m["RightBlockFraction"]
-        left = box_w * m["LeftColumnFraction"]
-        cell = right / columns
-        gate.check(cell >= minimum_cell,
-                   f"{name}: a two-column cell is {cell:.0f} units wide, under the {minimum_cell:.0f} "
-                   "the grid needs before it drops to one column")
-        gate.check(left < right,
-                   f"{name}: the primary column ({left:.0f}) is not narrower than the secondary "
-                   f"block ({right:.0f}), so the composition has no hierarchy")
-
-        section = m["SectionLabelHeight"] + m["SectionLabelGap"]
-        play = section + (primary_rows * m["PrimaryPitch"])
-        explore = section + (_bands(secondary_rows, columns) * m["SecondaryPitch"])
-        system_top = top + explore + m["ClusterGap"]
-        system = section + (_bands(system_rows, columns) * m["SecondaryPitch"])
-        content = max(top + play, system_top + system) + m["ParagraphBlockPadding"]
-
-        gate.check(content <= viewport,
-                   f"{name}: the main menu is {content:.0f} units tall in a {viewport:.0f}-unit "
-                   f"viewport, so it would scroll at the default interface size")
+        title_block = m["TitleSize"] * title_factor + m["TitleGapRule"] + m["TitleRuleHeight"]
+        stack = (title_block + m["TitleGapBody"]
+                 + primary_rows * m["PrimaryPitch"]
+                 + explore_rows * m["SecondaryPitch"]
+                 + system_rows * m["SecondaryPitch"]
+                 + 2 * m["ClusterGap"])
+        gate.check(stack <= viewport,
+                   f"{name}: the vertical menu stack is {stack:.0f} units tall in a {viewport:.0f}-unit "
+                   "viewport, so it would scroll at the default interface size")
         gate.check(title_block + m["TitleGapBody"] < viewport * 0.6,
-                   f"{name}: the brand block takes {title_block:.0f} of {viewport:.0f} units, "
-                   "leaving the entries too little of the screen")
-        gate.check(box_w > 0 and box_h > 0, f"{name}: the content box is empty")
+                   f"{name}: the AETHER title block leaves too little room for menu entries")
+        gate.check(box_w > 0 and box_h > 0,
+                   f"{name}: the content box is empty")
+        gate.check(min(box_w - 48.0, 760.0) >= 280.0,
+                   f"{name}: the centered menu column is too narrow for readable labels")
 
     # Regression checks for the clipping bug reported on a real screen. These catch the
     # exact anti-pattern (a 10-unit text rect) that can make translated labels look like fragments,
