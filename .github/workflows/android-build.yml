@@ -21,10 +21,7 @@
 name: Android APK
 
 on:
-  # One authorized verification build for the final centered-menu revision.
-  push:
-    branches:
-      - arena/aether-gold-black-menu-polish
+  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
   workflow_dispatch:
 
 permissions:
