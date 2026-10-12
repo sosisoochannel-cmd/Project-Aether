@@ -34,6 +34,8 @@ namespace Aether.Gameplay.Menus.Screens
         private int _index;
         private bool _confirming;
         private Coroutine _motion;
+        private static AudioClip _switchTone;
+        private static AudioClip _confirmTone;
 
         protected override void Construct()
         {
@@ -94,6 +96,8 @@ namespace Aether.Gameplay.Menus.Screens
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
+            // A restrained slant gives the controls a bespoke adventure-game silhouette.
+            go.transform.localRotation = Quaternion.Euler(0f, 0f, -5f);
             Image image = go.GetComponent<Image>();
             image.sprite = MenuArt.Solid;
             image.color = Color.white;
@@ -108,6 +112,7 @@ namespace Aether.Gameplay.Menus.Screens
             button.colors = colours;
             Text text = MenuUi.CreateText(name + " Label", go.transform, label, label == "CONTINUE" ? 21f : 46f, BrightGold, TextAnchor.MiddleCenter);
             MenuUi.Stretch(text.rectTransform, 4f, 4f, 2f, 2f);
+            text.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 5f);
             return button;
         }
 
@@ -153,6 +158,7 @@ namespace Aether.Gameplay.Menus.Screens
         {
             if (_confirming || _codes.Count == 0) return;
             _index = (_index + delta + _codes.Count) % _codes.Count;
+            PlayUiTone(false);
             RefreshLanguage();
         }
 
@@ -185,10 +191,58 @@ namespace Aether.Gameplay.Menus.Screens
             _motion = null;
         }
 
+        /// <summary>
+        /// Original procedural UI tones: a short, warm metallic two-part chime.
+        /// This intentionally does not sample or reproduce another game's audio.
+        /// </summary>
+        private static void PlayUiTone(bool confirm)
+        {
+            AudioClip clip = confirm ? _confirmTone : _switchTone;
+            if (clip == null)
+            {
+                clip = BuildUiTone(confirm);
+                if (confirm) _confirmTone = clip;
+                else _switchTone = clip;
+            }
+
+            // PlayClipAtPoint creates a temporary source, so the confirmation tail survives screen handoff.
+            AudioSource.PlayClipAtPoint(clip, Vector3.zero, confirm ? 0.24f : 0.16f);
+        }
+
+        private static AudioClip BuildUiTone(bool confirm)
+        {
+            const int sampleRate = 44100;
+            int sampleCount = Mathf.RoundToInt(sampleRate * (confirm ? 0.24f : 0.16f));
+            float[] samples = new float[sampleCount];
+            float fundamental = confirm ? 1046.5f : 880f;
+            float second = confirm ? 1568f : 1320f;
+            float third = confirm ? 2093f : 1760f;
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = i / (float)sampleRate;
+                float envelope = Mathf.Exp(-t * (confirm ? 14f : 20f));
+                float attack = Mathf.Min(1f, t * 90f);
+                float body = Mathf.Sin(2f * Mathf.PI * fundamental * t) * 0.58f
+                           + Mathf.Sin(2f * Mathf.PI * second * t) * 0.28f
+                           + Mathf.Sin(2f * Mathf.PI * third * t) * 0.14f;
+                float sparkle = Mathf.Sin(2f * Mathf.PI * (third * 1.5f) * t)
+                              * Mathf.Exp(-t * 48f) * 0.10f;
+                samples[i] = (body + sparkle) * envelope * attack * 0.42f;
+            }
+
+            AudioClip clip = AudioClip.Create(
+                confirm ? "AETHER_GoldConfirm" : "AETHER_GoldLanguageSwitch",
+                sampleCount, 1, sampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
+        }
+
         private void Confirm()
         {
             if (_confirming || _codes.Count == 0) return;
             string chosen = _codes[_index];
+            PlayUiTone(true);
             // The service rechecks availability and persists through the existing settings pipeline.
             LanguageService.Set(chosen);
             _confirming = true;
