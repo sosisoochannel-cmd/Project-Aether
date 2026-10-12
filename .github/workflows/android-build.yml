@@ -21,27 +21,8 @@
 name: Android APK
 
 on:
-  push:
-    branches:
-      - main
-      - arena/01a10203-project-aether
-      - arena/aether-gold-black-language-selector
-    # Documentation cannot change an APK, and a build spends real minutes from the month's free
-    # allowance, so a docs-only push should not start one.
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      # Other CI plumbing cannot change a byte of the game. Keep this Android build workflow
-      # OUT of paths-ignore so a change to the build recipe itself can launch a validating build.
-      - '.github/workflows/relay-apk.yml'
-      - '.github/workflows/intro-render.yml'
-      - 'tools/ci/**'
-      # The verification tools cannot change a byte of the game either: they read the project's
-      # sources and prove things about them. Editing a gate must not spend a build.
-      - 'tools/verify/**'
-      # Play-mode test scripts are still compiled by Unity during project import, even though
-      # they are not included in the player. Keep these paths build-triggering so compiler errors
-      # in the test assembly are caught by the real Unity build.
+  # APK builds are intentionally manual-only while the game is being audited and rebuilt.
+  # Do not spend runner minutes or publish a misleading development APK on every source change.
   workflow_dispatch:
 
 permissions:
