@@ -1,4 +1,3 @@
-using Aether.Gameplay.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,7 +21,6 @@ namespace Aether.Gameplay.Menus.Panels
     /// </remarks>
     public sealed class MenuTitlePanel : MenuPanel
     {
-        private MenuLogo _logo;
         private Text _title;
         private Text _subtitle;
         private Image _rule;
@@ -32,8 +30,6 @@ namespace Aether.Gameplay.Menus.Panels
                                             string titleKey, string subtitleKey)
         {
             MenuTitlePanel panel = Create<MenuTitlePanel>(name, parent, nav);
-
-            panel._logo = MenuLogo.Create(panel.Rect, MenuTheme.Metrics.LogoHeight);
 
             panel._title = MenuUi.CreateTrackedText("Title", panel.Rect, MenuStrings.Get(titleKey),
                                                     MenuTheme.Metrics.TitleSize, MenuTheme.Palette.Ink,
@@ -66,12 +62,6 @@ namespace Aether.Gameplay.Menus.Panels
             Remember(width, height);
 
             float y = 0f;
-
-            if (_logo != null && _logo.HasMark)
-            {
-                _logo.Rect.anchoredPosition = new Vector2(0f, -y);
-                y += _logo.Rect.sizeDelta.y + MenuTheme.Metrics.LogoGap;
-            }
 
             float titleHeight = MenuTheme.Metrics.TitleSize * 1.2f;
             // Keep a deliberate inset on both sides: right-aligned RTL text must never sit
@@ -109,8 +99,6 @@ namespace Aether.Gameplay.Menus.Panels
         /// <inheritdoc />
         public override void Refresh()
         {
-            if (_logo != null) _logo.Apply();
-
             bool highContrast = MenuPreferences.HighContrast;
             if (_title != null)
             {
