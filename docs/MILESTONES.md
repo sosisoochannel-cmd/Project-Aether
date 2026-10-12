@@ -23,6 +23,19 @@ M9  Region exit + audit + docs
 > behaviour are unverified and are reported as such in every milestone's report. See
 > `ARCHITECTURE.md` §7 for what each level of verification can and cannot prove.
 
+### M3a — presentation hardening (in progress)
+
+This milestone is deliberately **not complete**. The first pass is replacing flat debug shapes with
+readable runtime-generated artwork and feedback while keeping collision and combat data separate:
+
+- The ranger and Forest Stalker now have distinct layered silhouettes rather than full-rectangle bodies.
+- Soil, deep rock and platforms use repeatable one-world-unit textures, so surface details do not stretch across merged colliders.
+- The ranger's sprite follows the existing facing sign and has restrained grounded motion; a slash visual is driven by the real melee hitbox activation event.
+- The Forest Stalker's coloured attack telegraph is a separate ring, so combat state remains readable without recolouring all of its artwork.
+- Play Mode pixel checks guard against blank character sprites, a filled-rectangle slash, and flat terrain textures.
+
+This is a **procedural first art pass**, not final production art. It still needs inspection in the rendered frames and hands-on gameplay/device testing. A green test or successful Android build is not a visual-quality sign-off. The Android APK workflow is manual-only during this rebuild; do not produce another APK until the presentation and gameplay audit has been accepted.
+
 ### On the order
 
 M3 (enemies) was built before M2 (the level) deliberately. The level pipeline includes a
