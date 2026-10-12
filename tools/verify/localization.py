@@ -323,6 +323,66 @@ def main() -> int:
     failures = []
     coverage = []
 
+    # Reviewed Persian copy and typography contracts. Coverage alone cannot detect awkward
+    # phrasing, Arabic/Persian character mix-ups, or a regression to thin, undersized labels.
+    persian = dict(sheet("fa"))
+    approved_persian = {
+        "menu.title": "AETHER",
+        "menu.credits": "دست‌اندرکاران",
+        "credits.title": "دست‌اندرکاران",
+        "about.credits": "دست‌اندرکاران",
+        "setting.deadZone": "ناحیهٔ بی‌اثر جوی‌استیک",
+        "slots.title": "جایگاه‌های ذخیره",
+                "language.needsFont": "به فونت سازگار نیاز دارد",
+        "category.gameplay": "روند بازی",
+        "category.data": "داده‌ها و ذخیره‌سازی",
+        "setting.cameraSmoothing": "نرمی حرکت دوربین",
+        "setting.cameraLookAhead": "دید پیش‌روی دوربین",
+        "setting.safeArea": "ناحیهٔ امن",
+        "characters.met": "شخصیت‌های دیده‌شده: {0} از {1}",
+        "entry.secret.greenway.overhang": "نشان حک‌شده",
+        "hud.findings": "یافته‌ها: {0} از {1}",
+    }
+    for key, wanted in approved_persian.items():
+        if persian.get(key) != wanted:
+            failures.append("fa: %s should use reviewed Persian wording %r" % (key, wanted))
+
+    if "۱۲۰ تا ۱۲۰" in persian.get("setting.frameRate.help", ""):
+        failures.append("fa: setting.frameRate.help contains the incorrect phrase '۱۲۰ تا ۱۲۰'")
+    if chr(0x200c) not in persian.get("credits.title", ""):
+        failures.append("fa: credits.title must preserve the Persian zero-width non-joiner")
+
+    # Native Persian yeh/kaf must be used in Persian copy, not Arabic lookalikes. The Arabic
+    # language's own name is intentionally Arabic and is excluded from this check.
+    for key, value in persian.items():
+        if key == "language.ar":
+            continue
+        if any(ch in value for ch in ("ي", "ى", "ك")):
+            failures.append("fa: %s contains Arabic yeh/kaf instead of Persian characters" % key)
+
+    menu_ui_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuUi.cs")
+    menu_ui = read(menu_ui_path)
+    if "persian ? 1.12f : 1f" not in menu_ui or "FontStyle.Bold" not in menu_ui:
+        failures.append("MenuUi.cs must keep Persian labels 12% larger and bold")
+
+    menu_art_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "MenuArt.cs")
+    menu_art = read(menu_art_path)
+    if 'Resources.Load<Font>("Fonts/Vazirmatn-Regular")' not in menu_art:
+        failures.append("MenuArt.cs must retain the bundled Vazirmatn font for RTL text")
+    rtl_path = os.path.join(
+        ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime", "Menus", "RtlText.cs")
+    rtl_source = read(rtl_path)
+    if "ReverseKeepingMarks" not in rtl_source:
+        failures.append("RtlText.cs must keep combining marks attached to their base characters")
+    if "U+200C ZERO WIDTH NON-JOINER" not in rtl_source:
+        failures.append("RtlText.cs must treat the Persian zero-width non-joiner as a joining boundary")
+    if "Only combining marks may sit between two letters that join" not in rtl_source:
+        failures.append("RtlText.cs must not join letters across spaces or punctuation")
+    if "FBFC, 0xFBFD, 0xFBFE, 0xFBFF" not in rtl_source:
+        failures.append("RtlText.cs must use the correct Persian yeh presentation forms")
+
     # The language picker uses these keys to name each language in the language currently shown.
     # Keep the entire catalogue label set present in the English reference, and call out a missing
     # label explicitly instead of leaving it buried among hundreds of ordinary translation keys.
@@ -448,9 +508,9 @@ def main() -> int:
     rtl_path = os.path.join(ROOT, "Assets", "Aether", "Code", "Aether.Gameplay", "Runtime",
                             "Menus", "RtlText.cs")
     rtl_source = read(rtl_path) if os.path.exists(rtl_path) else ""
-    if "pf.Dual && f.Final != '\\0'" not in rtl_source:
+    if "previousCanJoinForward && f.Final != '\\0'" not in rtl_source:
         failures.append("RtlText.cs does not correctly join a right-joining current letter")
-    if "f.Dual && Map.TryGetValue(run[n], out nf)" not in rtl_source:
+    if "nextCanAcceptJoin" not in rtl_source:
         failures.append("RtlText.cs does not check directional joining to the next letter")
     if "Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);" not in rtl_source:
         failures.append("RtlText.cs has an incorrect Persian Yeh medial presentation form")

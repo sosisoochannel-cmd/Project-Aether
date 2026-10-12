@@ -146,10 +146,8 @@ namespace Aether.Tests.PlayMode
                             "normal startup should show the content warning after the studio ident");
             Assert.IsTrue(root.System.Current.Visible, "the content warning is not visible");
             Button[] hitAreas = root.System.Current.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(1, hitAreas.Length,
-                            "the warning should have one invisible full-screen touch hit area");
-            Assert.AreEqual(0f, hitAreas[0].GetComponent<Image>().color.a,
-                            "the warning touch hit area must not be visible");
+            Assert.AreEqual(0, hitAreas.Length,
+                            "the warning must not contain a button or invisible hit area");
         }
 
         [UnityTest]

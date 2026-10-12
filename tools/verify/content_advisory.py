@@ -12,6 +12,7 @@ RUNTIME = ROOT / "Assets/Aether/Code/Aether.Gameplay/Runtime"
 ADVISORY = RUNTIME / "Menus/Screens/ContentAdvisoryScreen.cs"
 REGISTRY = RUNTIME / "Menus/MenuScreens.cs"
 TESTS = ROOT / "Assets/Aether/Code/Aether.Tests.PlayMode/Tests/MenuFlowTests.cs"
+RENDER_TESTS = ROOT / "Assets/Aether/Code/Aether.Tests.PlayMode/Tests/ContentAdvisoryRenderTests.cs"
 
 EXPECTED = {"en", "es", "fa", "fr", "de", "it", "pt", "pt-BR", "ru", "tr"}
 
@@ -26,6 +27,7 @@ def main() -> int:
     advisory = read(ADVISORY)
     registry = read(REGISTRY)
     tests = read(TESTS)
+    render_tests = read(RENDER_TESTS)
     menu_root = read(RUNTIME / "Menus/MenuRoot.cs")
     errors: list[str] = []
 
@@ -70,7 +72,11 @@ def main() -> int:
         ("advisory entrance fade starts only when shown", "protected override void OnShown(bool instant)" in advisory and "StartCoroutine(FadeIn())" in advisory),
         ("warning has no invisible tap surface or manual input handler", "Invisible Continue Hit Area" not in advisory and "UnityEngine.InputSystem" not in advisory and "public override bool OnBack()" not in advisory),
         ("play-mode test asserts direct-to-main-menu startup", "normal launch must skip the removed language selector" in tests and "MenuScreenId.MainMenu" in tests),
-        ("play-mode test verifies the warning waits for input", "Content_advisory_auto_continues_after_seven_seconds_without_input" in tests),
+        ("play-mode test verifies seven-second auto-continuation", "Content_advisory_auto_continues_after_seven_seconds_without_input" in tests),
+        ("render test verifies the warning advances after seven seconds", "The_real_warning_screen_renders_and_auto_continues_after_seven_seconds" in render_tests and "MenuScreenId.MainMenu" in render_tests),
+        ("Persian warning copy uses the reviewed wording", "هنگام مواجهه با نورهای چشمک‌زن" in advisory and "حملهٔ تشنج" not in advisory),
+        ("warning heading and body use bold Vazirmatn-aware text", "FontStyle.Bold" in advisory and "MenuUi.CreateText" in advisory),
+        ("warning copy catalogue has no extra class-scope semicolon", "};;" not in advisory),
         ("RTL preview is handled line by line", "RtlText.Visualize(lines[i])" in advisory),
         ("warning is pure black and contains no progress bar", "Color.black" in advisory and "Progress Fill" not in advisory and "Reading Progress" not in advisory),
     ]
@@ -83,7 +89,7 @@ def main() -> int:
             print("FAIL:", error)
         return 1
 
-    print("content advisory: PASSED — 10 localized warning copies, seven-second auto-advancing warning screen, pure-black layout, RTL preview, and PlayMode coverage")
+    print("content advisory: PASSED — 10 localized warning copies, seven-second auto-advance, Persian typography, pure-black layout, RTL preview, and PlayMode/render-test coverage")
     return 0
 
 
