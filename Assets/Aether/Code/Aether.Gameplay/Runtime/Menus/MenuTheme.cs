@@ -134,8 +134,8 @@ namespace Aether.Gameplay.Menus
             /// <summary>Distance from the brand block to the title.</summary>
             public const float LogoGap = 18f;
 
-            public const float TitleSize = 56f;
-            public const float TitleTracking = 18f;
+            public const float TitleSize = 88f;
+            public const float TitleTracking = 14f;
 
             /// <summary>The line under the title: which region the game is standing in.</summary>
             public const float SubtitleSize = 22f;
@@ -145,7 +145,7 @@ namespace Aether.Gameplay.Menus
             public const float TitleRuleHeight = 3f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
-            public const float TitleGapBody = 24f;
+            public const float TitleGapBody = 18f;
 
             // -- section labels
             public const float SectionLabelSize = 22f;
@@ -162,14 +162,14 @@ namespace Aether.Gameplay.Menus
 
             // -- the rows
             /// <summary>Primary rows: CONTINUE, NEW GAME.</summary>
-            public const float PrimarySize = 46f;
+            public const float PrimarySize = 38f;
             public const float PrimaryTracking = 8f;
-            public const float PrimaryPitch = 188f;
+            public const float PrimaryPitch = 124f;
 
             /// <summary>Secondary and system rows: the explore grid and the two system entries.</summary>
             public const float SecondarySize = 30f;
             public const float SecondaryTracking = 6f;
-            public const float SecondaryPitch = 148f;
+            public const float SecondaryPitch = 112f;
 
             /// <summary>The fewest columns the two entry clusters are ever given.</summary>
             public const int SecondaryColumns = 2;
