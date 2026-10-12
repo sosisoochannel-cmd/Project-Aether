@@ -70,7 +70,7 @@ def main() -> int:
         ("back cannot skip the advisory", "public override bool OnBack()" in advisory and "return true;" in advisory.split("public override bool OnBack()", 1)[1]),
         ("play-mode test asserts language selector as startup", "BuildMenu(true)" in tests and "MenuScreenId.LanguageSelection" in tests),
         ("play-mode test checks advisory continue route", "Content_advisory_continue_opens_the_main_menu" in tests),
-        ("RTL preview is handled", "RtlText.Visualize(value)" in advisory),
+        ("RTL preview is handled line by line", "RtlText.Visualize(lines[i])" in advisory),
     ]
     for label, passed in checks:
         if not passed:

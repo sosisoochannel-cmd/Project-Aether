@@ -121,7 +121,14 @@ namespace Aether.Gameplay.Menus.Screens
 
         private static string Prepare(string value, bool rtl)
         {
-            return rtl ? RtlText.Visualize(value) : value;
+            if (!rtl || string.IsNullOrEmpty(value)) return value;
+
+            // RtlText handles one visual line at a time. Shaping the entire paragraph would
+            // reverse its newline along with the glyphs and could move a line break to the front.
+            string[] lines = value.Split(new[] { '\\n' });
+            for (int i = 0; i < lines.Length; i++)
+                lines[i] = RtlText.Visualize(lines[i]);
+            return string.Join("\\n", lines);
         }
 
         public override void Layout(float width, float height)
