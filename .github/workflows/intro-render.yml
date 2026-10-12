@@ -134,10 +134,15 @@ jobs:
       - name: Assemble warning preview video
         if: always()
         run: |
-          if [ -f WarningRender/frames.txt ] && command -v ffmpeg >/dev/null 2>&1; then
+          if [ -f WarningRender/frames.txt ]; then
+            if ! command -v ffmpeg >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq ffmpeg
+            fi
             cd WarningRender
             ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 \
-              -i frames.txt -vf "format=yuv420p" \
+              -i frames.txt \
+              -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
               -c:v libx264 -preset veryfast -movflags +faststart \
               AETHER-warning-preview.mp4
             echo "::notice title=Warning video::WarningRender/AETHER-warning-preview.mp4"
