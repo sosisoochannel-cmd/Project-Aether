@@ -116,10 +116,10 @@ namespace Aether.Gameplay.Flow
             public const float MaxHeightFraction = 0.46f;
 
             /// <summary>Scale the lockup starts at, as a fraction of its final size.</summary>
-            public const float RevealScale = 0.945f;
+            public const float RevealScale = 0.965f;
 
             /// <summary>How far below its resting place the mark starts, in safe-area heights.</summary>
-            public const float RevealRise = 0.018f;
+            public const float RevealRise = 0.012f;
 
             /// <summary>
             /// Where the artwork splits into mark and wordmark, as a fraction of its height
@@ -134,7 +134,7 @@ namespace Aether.Gameplay.Flow
             public const float WordmarkSplit = 0.605f;
 
             /// <summary>How far the wordmark rises into its place, in safe-area heights.</summary>
-            public const float WordmarkRise = 0.008f;
+            public const float WordmarkRise = 0.004f;
         }
 
         /// <summary>
@@ -507,7 +507,7 @@ namespace Aether.Gameplay.Flow
             // One restrained overshoot gives the emblem a confident, physical arrival, then resolves
             // cleanly to 1.0. This is logo motion itself (not the scene fade), with no looping pulse
             // and no bounce after the mark has settled.
-            float crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.035f;
+            float crestSettle = Mathf.Sin(Mathf.PI * EaseOutCubic(linear)) * 0.018f;
             scale = Mathf.Lerp(Layout.RevealScale, 1f, settle) + crestSettle;
             rise = -(wordmark ? Layout.WordmarkRise : Layout.RevealRise) * (1f - settle);
         }
@@ -1112,11 +1112,11 @@ namespace Aether.Gameplay.Flow
                     hideFlags = HideFlags.HideAndDontSave,
                 };
                 revealMaterial.SetFloat("_RevealProgress", 0f);
-                revealMaterial.SetFloat("_RevealFeather", 0.12f);
-                revealMaterial.SetFloat("_RevealTilt", 0.13f);
-                revealMaterial.SetColor("_RevealEdgeColor", new Color(1f, 0.76f, 0.40f, 1f));
-                revealMaterial.SetFloat("_RevealEdgeStrength", 0.96f);
-                revealMaterial.SetFloat("_RevealEdgeWidth", 0.060f);
+                revealMaterial.SetFloat("_RevealFeather", 0.145f);
+                revealMaterial.SetFloat("_RevealTilt", 0.085f);
+                revealMaterial.SetColor("_RevealEdgeColor", new Color(0.98f, 0.88f, 0.70f, 1f));
+                revealMaterial.SetFloat("_RevealEdgeStrength", 0.62f);
+                revealMaterial.SetFloat("_RevealEdgeWidth", 0.045f);
                 renderer.sharedMaterial = revealMaterial;
             }
             host.hideFlags = HideFlags.HideAndDontSave;
