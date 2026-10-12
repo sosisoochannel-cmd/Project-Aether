@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static checks for the optional content advisory and direct-to-menu startup flow."""
+"""Static checks for the startup content warning and player-controlled continuation."""
 
 from __future__ import annotations
 
@@ -65,12 +65,12 @@ def main() -> int:
         ("normal startup can route to the warning before the main menu", "MenuScreenId.ContentAdvisory" in menu_root and "TakeShowAdvisoryRequest" in menu_root and "MenuScreenId.LanguageSelection" not in menu_root),
         ("advisory screen is registered in the enum", "ContentAdvisory = 9" in registry),
         ("advisory screen is constructed by the factory", "MenuScreen.Create<ContentAdvisoryScreen>" in registry),
-        ("advisory automatically advances to main menu", "AutoAdvanceAfterReadingPeriod" in advisory and "Host.GoTo(MenuScreenId.MainMenu)" in advisory),
-        ("advisory allows a readable fourteen-second period", "ReadingDurationSeconds = 14f" in advisory),
-        ("advisory timer starts only when shown", "protected override void OnShown(bool instant)" in advisory),
-        ("back cannot skip the advisory", "public override bool OnBack()" in advisory and "return true;" in advisory.split("public override bool OnBack()", 1)[1]),
+        ("advisory stays until the player continues", "ContinueToMenu" in advisory and "ReadingDurationSeconds" not in advisory and "Host.GoTo(MenuScreenId.MainMenu)" in advisory),
+        ("advisory has only a short entrance fade, not a countdown", "EntranceSeconds = 0.45f" in advisory and "FadeIn()" in advisory),
+        ("advisory entrance fade starts only when shown", "protected override void OnShown(bool instant)" in advisory and "StartCoroutine(FadeIn())" in advisory),
+        ("back input continues past the advisory", "public override bool OnBack()" in advisory and "ContinueToMenu();" in advisory.split("public override bool OnBack()", 1)[1]),
         ("play-mode test asserts direct-to-main-menu startup", "normal launch must skip the removed language selector" in tests and "MenuScreenId.MainMenu" in tests),
-        ("play-mode test checks timed auto-advance without a button", "Content_advisory_auto_advances_to_the_main_menu_without_a_continue_button" in tests),
+        ("play-mode test verifies the warning waits for input", "Content_advisory_waits_for_player_input_without_a_visible_continue_button" in tests),
         ("RTL preview is handled line by line", "RtlText.Visualize(lines[i])" in advisory),
         ("warning is pure black and contains no progress bar", "Color.black" in advisory and "Progress Fill" not in advisory and "Reading Progress" not in advisory),
     ]
@@ -83,7 +83,7 @@ def main() -> int:
             print("FAIL:", error)
         return 1
 
-    print("content advisory: PASSED — 10 localized warning copies, warning startup route, text-only black screen, RTL preview, and PlayMode coverage")
+    print("content advisory: PASSED — 10 localized warning copies, player-controlled warning screen, pure-black layout, RTL preview, and PlayMode coverage")
     return 0
 
 
