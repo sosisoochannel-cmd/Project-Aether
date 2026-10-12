@@ -38,7 +38,8 @@ permissions:
 
 concurrency:
   group: intro-render-${{ github.ref }}
-  cancel-in-progress: false
+  # Render previews are disposable: the newest source revision should replace an older queued or running capture.
+  cancel-in-progress: true
 
 jobs:
   render:
