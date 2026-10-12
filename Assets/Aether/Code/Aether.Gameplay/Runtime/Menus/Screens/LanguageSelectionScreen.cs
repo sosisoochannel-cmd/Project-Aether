@@ -240,18 +240,36 @@ namespace Aether.Gameplay.Menus.Screens
             LanguageDefinition language = LanguageCatalog.Find(_codes[_index]);
             if (language == null) return;
             if (_motion != null) StopCoroutine(_motion);
-            _language.text = MenuUi.PrepareText(language.NativeName);
+            // Preview shaping and alignment must follow the highlighted language, not the
+            // currently committed language. Otherwise Persian is unshaped before confirmation,
+            // or Latin copy gets incorrectly reordered while the saved language is Persian.
+            bool previewRtl = language.Direction == TextDirection.RightToLeft;
+            _language.text = PreparePreviewText(language.NativeName, previewRtl);
             string[] copy;
             if (!SelectorCopy.TryGetValue(language.Code, out copy)) copy = SelectorCopy["en"];
-            _title.text = MenuUi.PrepareText(copy[0]);
-            _hint.text = MenuUi.PrepareText(copy[1]);
+            _title.text = PreparePreviewText(copy[0], previewRtl);
+            _hint.text = PreparePreviewText(copy[1], previewRtl);
+            _eyebrow.alignment = TextAnchor.MiddleCenter;
+            _title.alignment = TextAnchor.MiddleCenter;
+            _language.alignment = TextAnchor.MiddleCenter;
+            _counter.alignment = TextAnchor.MiddleCenter;
+            _hint.alignment = TextAnchor.MiddleCenter;
             Text confirmLabel = _confirm.GetComponentInChildren<Text>();
-            if (confirmLabel != null) confirmLabel.text = MenuUi.PrepareText(copy[2]);
+            if (confirmLabel != null)
+            {
+                confirmLabel.text = PreparePreviewText(copy[2], previewRtl);
+                confirmLabel.alignment = TextAnchor.MiddleCenter;
+            }
             _language.color = GoldGlow;
             _underline.color = DimGold;
             _underline.rectTransform.localScale = new Vector3(.72f, 1f, 1f);
             _counter.text = (_index + 1).ToString("00") + "  /  " + _codes.Count.ToString("00");
             _motion = StartCoroutine(Emphasize());
+        }
+
+        private static string PreparePreviewText(string content, bool rightToLeft)
+        {
+            return rightToLeft ? RtlText.Visualize(content) : content;
         }
 
         private IEnumerator Emphasize()
