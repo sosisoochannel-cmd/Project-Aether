@@ -15,7 +15,10 @@ namespace Aether.Gameplay.Menus
     public enum MenuScreenId
     {
         /// <summary>The first screen: brand, primary choices, the rest of the destinations.</summary>
-        MainMenu = 0,\n\n        /// <summary>The dedicated gold-on-black language choice shown after the studio ident.</summary>\n        LanguageSelection = 8,
+        MainMenu = 0,
+
+        /// <summary>The dedicated gold-on-black language choice shown after the studio ident.</summary>
+        LanguageSelection = 8,
 
         /// <summary>Settings, category by category.</summary>
         Settings = 1,
