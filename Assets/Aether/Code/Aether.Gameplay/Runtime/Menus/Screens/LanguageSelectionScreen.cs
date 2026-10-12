@@ -93,14 +93,14 @@ namespace Aether.Gameplay.Menus.Screens
             _underline = MenuUi.CreateHairline("Selected Language Gold Underline", Rect, GoldGlow, 2f);
 
             _eyebrow = MenuUi.CreateTrackedText("Studio Signature", Rect, "V A R E L L O N", 19f, Gold, 1f, TextAnchor.MiddleCenter);
-            _title = MenuUi.CreateTrackedText("Title", Rect, "CHOOSE YOUR LANGUAGE", 35f, Ivory, 1f, TextAnchor.MiddleCenter);
+            _title = MenuUi.CreateTrackedText("Title", Rect, LanguageService.Get("language.select.title"), 35f, Ivory, 1f, TextAnchor.MiddleCenter);
             _language = MenuUi.CreateText("Selected Language", Rect, "", 54f, BrightGold, TextAnchor.MiddleCenter);
             _counter = MenuUi.CreateText("Language Position", Rect, "", 17f, Gold, TextAnchor.MiddleCenter);
-            _hint = MenuUi.CreateText("Navigation Hint", Rect, "SELECT WITH ARROWS  •  CONFIRM TO CONTINUE", 17f, new Color(.68f,.64f,.55f,1f), TextAnchor.MiddleCenter);
+            _hint = MenuUi.CreateText("Navigation Hint", Rect, LanguageService.Get("language.select.hint"), 17f, new Color(.68f,.64f,.55f,1f), TextAnchor.MiddleCenter);
 
             _left = MakeButton("Previous Language", "‹", Rect, () => Step(-1));
             _right = MakeButton("Next Language", "›", Rect, () => Step(1));
-            _confirm = MakeButton("Confirm Language", "CONTINUE", Rect, Confirm);
+            _confirm = MakeButton("Confirm Language", LanguageService.Get("language.select.continue"), Rect, Confirm);
             _confirming = false;
 
             foreach (string code in LanguageService.OfferedCodes()) _codes.Add(code);
@@ -146,7 +146,8 @@ namespace Aether.Gameplay.Menus.Screens
             colours.pressedColor = PressedGold;
             colours.selectedColor = colours.highlightedColor;
             button.colors = colours;
-            Text text = MenuUi.CreateText(name + " Label", go.transform, label, label == "CONTINUE" ? 21f : 46f, BrightGold, TextAnchor.MiddleCenter);
+            float labelSize = label.Length <= 2 ? 46f : (label.Length > 8 ? 17f : 21f);
+            Text text = MenuUi.CreateText(name + " Label", go.transform, label, labelSize, BrightGold, TextAnchor.MiddleCenter);
             MenuUi.Stretch(text.rectTransform, 4f, 4f, 2f, 2f);
             text.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 5f);
             return button;
