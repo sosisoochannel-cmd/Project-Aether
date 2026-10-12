@@ -20,6 +20,7 @@ on:
     branches:
       - arena/01a10203-project-aether
       - arena/aether-gold-black-language-selector
+      - arena/aether-warning-persian-default
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
@@ -129,6 +130,19 @@ jobs:
       # very long line of XML, so the annotation showed the <testsuite> header and none of the reason.
       #
       # The one deliberate cut is on a file that is known to be enormous.
+      - name: Assemble warning preview video
+        if: always()
+        run: |
+          if [ -f WarningRender/frames.txt ]; then
+            ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 \
+              -i WarningRender/frames.txt -vf "format=yuv420p" \
+              -c:v libx264 -preset veryfast -movflags +faststart \
+              WarningRender/AETHER-warning-preview.mp4
+            echo "::notice title=Warning video::WarningRender/AETHER-warning-preview.mp4"
+          else
+            echo "::warning title=Warning video::No Unity warning frames were captured"
+          fi
+
       - name: Surface what the run said
         if: always()
         run: |
@@ -249,6 +263,7 @@ jobs:
           name: intro-render
           path: |
             IntroRender/**
+            WarningRender/**
             artifacts/**
             intro-render.log
           if-no-files-found: warn
