@@ -46,8 +46,8 @@ namespace Aether.Gameplay.Menus.Screens
             Image right = MenuUi.CreateImage("Frame Right", _frame, MenuArt.Solid, DimGold);
             top.rectTransform.anchorMin = new Vector2(0f, 1f);\n            top.rectTransform.anchorMax = new Vector2(1f, 1f);\n            top.rectTransform.pivot = new Vector2(.5f, 1f);\n            top.rectTransform.anchoredPosition = Vector2.zero;\n            top.rectTransform.sizeDelta = new Vector2(0f, 2f);
             bottom.rectTransform.anchorMin = new Vector2(0f, 0f);\n            bottom.rectTransform.anchorMax = new Vector2(1f, 0f);\n            bottom.rectTransform.pivot = new Vector2(.5f, 0f);\n            bottom.rectTransform.anchoredPosition = Vector2.zero;\n            bottom.rectTransform.sizeDelta = new Vector2(0f, 2f);
-            MenuUi.Place(left.rectTransform, new Vector2(0f, .5f), Vector2.zero, new Vector2(2f, 0f), new Vector2(0f, .5f));
-            MenuUi.Place(right.rectTransform, new Vector2(1f, .5f), Vector2.zero, new Vector2(2f, 0f), new Vector2(1f, .5f));
+            left.rectTransform.anchorMin = new Vector2(0f, 0f);\n            left.rectTransform.anchorMax = new Vector2(0f, 1f);\n            left.rectTransform.pivot = new Vector2(0f, .5f);\n            left.rectTransform.anchoredPosition = Vector2.zero;\n            left.rectTransform.sizeDelta = new Vector2(2f, 0f);
+            right.rectTransform.anchorMin = new Vector2(1f, 0f);\n            right.rectTransform.anchorMax = new Vector2(1f, 1f);\n            right.rectTransform.pivot = new Vector2(1f, .5f);\n            right.rectTransform.anchoredPosition = Vector2.zero;\n            right.rectTransform.sizeDelta = new Vector2(2f, 0f);
 
             _eyebrow = MenuUi.CreateTrackedText("Studio Signature", Rect, "V A R E L L O N", 19f, Gold, 1f, TextAnchor.MiddleCenter);
             _title = MenuUi.CreateTrackedText("Title", Rect, "CHOOSE YOUR LANGUAGE", 35f, Ivory, 1f, TextAnchor.MiddleCenter);
