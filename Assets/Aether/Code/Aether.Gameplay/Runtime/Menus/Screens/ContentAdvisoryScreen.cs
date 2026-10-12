@@ -8,85 +8,49 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Menus.Screens
 {
     /// <summary>
-    /// A restrained, cinematic content notice inspired by the clarity and contrast of premium
-    /// action-adventure interfaces. Informational only; it is not an age-classification rating.
+    /// A plain-language content warning shown after the Varellon studio ident.
+    /// The presentation intentionally contains only a pure-black background, a large heading,
+    /// and the warning copy.
     /// </summary>
     public sealed class ContentAdvisoryScreen : MenuScreen
     {
-        private const float ReadingDurationSeconds = 7f;
-        private const float EntranceSeconds = 0.65f;
+        private const float ReadingDurationSeconds = 14f;
+        private const float EntranceSeconds = 0.45f;
 
-        private static readonly Color Black = new Color(0.012f, 0.012f, 0.011f, 1f);
-        private static readonly Color Gold = new Color(0.86f, 0.68f, 0.35f, 1f);
-        private static readonly Color GoldMuted = new Color(0.57f, 0.43f, 0.24f, 0.8f);
-        private static readonly Color Ivory = new Color(0.94f, 0.93f, 0.89f, 1f);
-        private static readonly Color Muted = new Color(0.68f, 0.67f, 0.62f, 1f);
+        private static readonly Color Black = Color.black;
+        private static readonly Color White = new Color(0.96f, 0.96f, 0.94f, 1f);
 
         private static readonly Dictionary<string, string[]> Copy = new Dictionary<string, string[]>
         {
-            { "en", new[] { "PLAYER INFORMATION", "This game contains fantasy combat and scenes of peril.\nSome content may not suit every player. Player discretion is advised.", "AETHER  /  PLAYER INFORMATION" } },
-            { "es", new[] { "INFORMACIÓN PARA EL JUGADOR", "Este juego incluye combates fantásticos y situaciones de peligro.\nAlgunos contenidos pueden no ser adecuados para todos. Se recomienda discreción.", "AETHER  /  INFORMACIÓN PARA EL JUGADOR" } },
-            { "fa", new[] { "اطلاعات بازیکن", "این بازی شامل نبردهای فانتزی و صحنه‌هایی از خطر است.\nممکن است بخشی از محتوا برای همه مناسب نباشد؛ با آگاهی از این موضوع بازی کنید.", "AETHER  /  اطلاعات بازیکن" } },
-            { "fr", new[] { "INFORMATIONS POUR LES JOUEURS", "Ce jeu comporte des combats fantastiques et des situations périlleuses.\nCertains éléments peuvent ne pas convenir à tout le monde. Faites preuve de discernement.", "AETHER  /  INFORMATIONS AUX JOUEURS" } },
-            { "de", new[] { "SPIELERINFORMATION", "Dieses Spiel enthält Fantasy-Kämpfe und Gefahrensituationen.\nEinige Inhalte sind möglicherweise nicht für alle geeignet. Bitte entscheide selbst.", "AETHER  /  SPIELERINFORMATION" } },
-            { "it", new[] { "INFORMAZIONI PER I GIOCATORI", "Il gioco include combattimenti fantasy e situazioni di pericolo.\nAlcuni contenuti potrebbero non essere adatti a tutti. Si consiglia discrezione.", "AETHER  /  INFORMAZIONI PER I GIOCATORI" } },
-            { "pt", new[] { "INFORMAÇÃO AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER  /  INFORMAÇÃO AO JOGADOR" } },
-            { "pt-BR", new[] { "INFORMAÇÕES AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER  /  INFORMAÇÕES AO JOGADOR" } },
-            { "ru", new[] { "ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER  /  ИНФОРМАЦИЯ ДЛЯ ИГРОКА" } },
-            { "tr", new[] { "OYUNCU BİLGİLENDİRMESİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER  /  OYUNCU BİLGİLENDİRMESİ" } },
+            { "en", new[] { "WARNING", "AETHER is a fantasy adventure that includes combat, hostile encounters, dangerous environments, and moments of tension. Some scenes may be intense for certain players. Take breaks whenever you need them, and play at a pace that feels comfortable for you. If you are playing on a shared device, make sure the experience is suitable for everyone who may be watching. This notice is provided to help players make an informed choice before continuing." } },
+            { "es", new[] { "ADVERTENCIA", "AETHER es una aventura fantástica que incluye combates, encuentros hostiles, entornos peligrosos y momentos de tensión. Algunas escenas pueden resultar intensas para ciertos jugadores. Descansa cuando lo necesites y juega a un ritmo que te resulte cómodo. Si compartes el dispositivo, asegúrate de que la experiencia sea adecuada para quienes puedan estar mirando. Este aviso ayuda a tomar una decisión informada antes de continuar." } },
+            { "fa", new[] { "هشدار", "بازی AETHER یک ماجراجویی فانتزی است و شامل نبرد، رویارویی با دشمنان، محیط‌های خطرناک و لحظات پرتنش می‌شود. ممکن است بعضی از صحنه‌ها برای برخی بازیکنان سنگین یا ناراحت‌کننده باشند. هر زمان که نیاز داشتید استراحت کنید و با سرعتی بازی کنید که برایتان راحت است. اگر بازی را در کنار دیگران یا روی دستگاهی مشترک انجام می‌دهید، در نظر بگیرید که این تجربه برای همهٔ افراد حاضر مناسب باشد. این هشدار برای آگاهی شما از محتوای بازی ارائه شده است تا پیش از ادامه، با اطلاع تصمیم بگیرید." } },
+            { "fr", new[] { "AVERTISSEMENT", "AETHER est une aventure fantastique qui comprend des combats, des rencontres hostiles, des environnements dangereux et des moments de tension. Certaines scènes peuvent être intenses pour certains joueurs. Faites une pause dès que vous en ressentez le besoin et jouez à un rythme qui vous convient. Si vous jouez sur un appareil partagé, veillez à ce que l’expérience convienne également aux personnes présentes. Cet avertissement vous aide à prendre une décision éclairée avant de continuer." } },
+            { "de", new[] { "WARNUNG", "AETHER ist ein Fantasy-Abenteuer mit Kämpfen, feindseligen Begegnungen, gefährlichen Umgebungen und angespannten Momenten. Einige Szenen können für manche Spieler belastend sein. Lege Pausen ein, wann immer du sie brauchst, und spiele in einem Tempo, das sich für dich gut anfühlt. Wenn du auf einem gemeinsam genutzten Gerät spielst, achte darauf, dass das Erlebnis auch für anwesende Personen geeignet ist. Dieser Hinweis soll dir helfen, vor dem Fortfahren eine informierte Entscheidung zu treffen." } },
+            { "it", new[] { "AVVERTENZA", "AETHER è un’avventura fantasy che include combattimenti, incontri ostili, ambienti pericolosi e momenti di tensione. Alcune scene potrebbero risultare intense per alcuni giocatori. Fai una pausa quando ne senti il bisogno e gioca a un ritmo che ti faccia sentire a tuo agio. Se giochi su un dispositivo condiviso, considera anche le persone presenti e assicurati che l’esperienza sia adatta a loro. Questo avviso ti aiuta a scegliere con consapevolezza prima di continuare." } },
+            { "pt", new[] { "AVISO", "AETHER é uma aventura de fantasia que inclui combates, encontros hostis, ambientes perigosos e momentos de tensão. Algumas cenas podem ser intensas para certos jogadores. Faça pausas sempre que precisar e jogue a um ritmo confortável para si. Se estiver a jogar num dispositivo partilhado, tenha em conta se a experiência é adequada para as pessoas presentes. Este aviso pretende ajudar a tomar uma decisão informada antes de continuar." } },
+            { "pt-BR", new[] { "AVISO", "AETHER é uma aventura de fantasia que inclui combates, encontros hostis, ambientes perigosos e momentos de tensão. Algumas cenas podem ser intensas para certos jogadores. Faça pausas sempre que precisar e jogue em um ritmo confortável para você. Se estiver jogando em um dispositivo compartilhado, considere também as pessoas presentes e se a experiência é adequada para elas. Este aviso ajuda você a tomar uma decisão informada antes de continuar." } },
+            { "ru", new[] { "ПРЕДУПРЕЖДЕНИЕ", "AETHER — это фэнтезийное приключение, в котором есть сражения, враждебные встречи, опасные места и напряжённые моменты. Некоторые сцены могут оказаться тяжёлыми для отдельных игроков. Делайте перерывы, когда они вам нужны, и играйте в комфортном для себя темпе. Если устройство общее, учитывайте, подходит ли игровой опыт всем присутствующим. Это предупреждение помогает принять осознанное решение перед продолжением." } },
+            { "tr", new[] { "UYARI", "AETHER; çatışmalar, düşmanca karşılaşmalar, tehlikeli ortamlar ve gergin anlar içeren fantastik bir maceradır. Bazı sahneler kimi oyuncular için yoğun gelebilir. İhtiyaç duyduğunuzda ara verin ve kendinizi rahat hissettiğiniz bir tempoda oynayın. Paylaşılan bir cihazda oynuyorsanız deneyimin çevrenizdeki kişiler için uygun olup olmadığını da göz önünde bulundurun. Bu uyarı, devam etmeden önce bilinçli bir karar vermenize yardımcı olmak için gösterilir." } },
         };
 
-        private RectTransform _accentRule;
-        private RectTransform _progressFill;
-        private CanvasGroup _visuals;
-        private Text _brand;
-        private Text _eyebrow;
         private Text _title;
         private Text _body;
-        private Text _footer;
-        private Image _progressTrack;
+        private CanvasGroup _visuals;
         private Coroutine _autoAdvance;
         private bool _leaving;
 
         protected override void Construct()
         {
-            // No frame, no dialog box, no ornamental plaque: just confident type, open space,
-            // high contrast, and one small AETHER-gold accent.
-            MenuUi.Fill("Advisory Clean Black Ground", Rect, Black, true);
+            MenuUi.Fill("Advisory Pure Black Background", Rect, Black, true);
 
-            _brand = MenuUi.CreateTrackedText("Advisory Studio Signature", Rect,
-                "V A R E L L O N", 15f, Gold, 1f, TextAnchor.MiddleCenter);
-            _eyebrow = MenuUi.CreateTrackedText("Advisory Eyebrow", Rect,
-                "PLAYER INFORMATION", 13f, Muted, 1f, TextAnchor.MiddleCenter);
-            _title = MenuUi.CreateTrackedText("Advisory Title", Rect,
-                "", 34f, Ivory, 1f, TextAnchor.MiddleCenter, FontStyle.Bold);
-
-            _accentRule = MenuUi.CreateNode("Advisory Single Gold Accent", Rect);
-            Image accent = MenuUi.CreateImage("Advisory Accent", _accentRule, MenuArt.Solid, Gold);
-            accent.rectTransform.anchorMin = accent.rectTransform.anchorMax = new Vector2(.5f, .5f);
-            accent.rectTransform.sizeDelta = new Vector2(52f, 2f);
-
-            _body = MenuUi.CreateText("Advisory Body", Rect, "", 23f, Ivory, TextAnchor.MiddleCenter);
+            _title = MenuUi.CreateText("Advisory Warning Heading", Rect, "هشدار",
+                46f, White, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _body = MenuUi.CreateText("Advisory Warning Copy", Rect, "", 23f,
+                White, TextAnchor.MiddleCenter);
             _body.horizontalOverflow = HorizontalWrapMode.Wrap;
             _body.verticalOverflow = VerticalWrapMode.Overflow;
-            _body.lineSpacing = 1.18f;
-
-            _footer = MenuUi.CreateTrackedText("Advisory Footer", Rect,
-                "", 11f, Muted, 1f, TextAnchor.MiddleCenter);
-
-            // A thin progress line is the only other visual ornament; it communicates timing
-            // without adding a button or interrupting the player's entry into the game.
-            RectTransform progress = MenuUi.CreateNode("Advisory Reading Progress", Rect);
-            _progressTrack = MenuUi.CreateHairline("Advisory Progress Track", progress, new Color(GoldMuted.r, GoldMuted.g, GoldMuted.b, 0.45f), 2f);
-            _progressTrack.rectTransform.anchorMin = new Vector2(0f, .5f);
-            _progressTrack.rectTransform.anchorMax = new Vector2(1f, .5f);
-            _progressTrack.rectTransform.sizeDelta = Vector2.zero;
-            Image fill = MenuUi.CreateImage("Advisory Progress Fill", progress, MenuArt.Solid, Gold);
-            _progressFill = fill.rectTransform;
-            _progressFill.anchorMin = new Vector2(0f, .5f);
-            _progressFill.anchorMax = new Vector2(0f, .5f);
-            _progressFill.pivot = new Vector2(0f, .5f);
-            _progressFill.sizeDelta = new Vector2(0f, 2f);
+            _body.lineSpacing = 1.22f;
 
             _visuals = MenuUi.Group(Rect);
             ApplyLanguageCopy();
@@ -97,17 +61,13 @@ namespace Aether.Gameplay.Menus.Screens
             string code = LanguageService.Code;
             string[] copy;
             if (!Copy.TryGetValue(code, out copy)) copy = Copy["en"];
+
             LanguageDefinition language = LanguageCatalog.Find(code);
             bool rtl = language != null && language.Direction == TextDirection.RightToLeft;
-
-            _eyebrow.text = Prepare(copy[0], rtl);
-            _title.text = Prepare(LanguageService.Get("content.advisory.title"), rtl);
+            _title.text = Prepare(copy[0], rtl);
             _body.text = Prepare(copy[1], rtl);
-            _footer.text = Prepare(copy[2], rtl);
-            _eyebrow.alignment = TextAnchor.MiddleCenter;
             _title.alignment = TextAnchor.MiddleCenter;
             _body.alignment = TextAnchor.MiddleCenter;
-            _footer.alignment = TextAnchor.MiddleCenter;
         }
 
         private static string Prepare(string value, bool rtl)
@@ -120,27 +80,23 @@ namespace Aether.Gameplay.Menus.Screens
 
         public override void Layout(float width, float height)
         {
-            float safeWidth = Mathf.Max(240f, width - 56f);
-            float compact = height < 600f ? 0.82f : 1f;
+            float safeWidth = Mathf.Max(240f, width - 72f);
+            bool compact = height < 600f;
+            float titleSize = compact ? 40f : 46f;
+            _title.fontSize = Mathf.RoundToInt(titleSize);
+            _body.fontSize = compact ? 20 : 23;
 
-            Place(_brand.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, height * .255f), new Vector2(Mathf.Min(safeWidth, 760f), 30f));
-            Place(_eyebrow.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, height * .175f), new Vector2(safeWidth, 30f));
-            Place(_title.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, height * .095f), new Vector2(safeWidth, 64f * compact));
-            Place(_accentRule, new Vector2(.5f, .5f), new Vector2(0f, height * .025f), new Vector2(64f, 8f));
-            Place(_body.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, -height * .075f), new Vector2(Mathf.Min(safeWidth, 900f), Mathf.Min(height * .25f, 190f)));
-            Place(_footer.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, -height * .265f), new Vector2(safeWidth, 26f));
-
-            Transform progress = Rect.Find("Advisory Reading Progress");
-            RectTransform progressRect = progress as RectTransform;
-            Place(progressRect, new Vector2(.5f, 0f), new Vector2(0f, 18f), new Vector2(Mathf.Min(safeWidth, 760f), 4f));
-            _progressTrack.rectTransform.sizeDelta = Vector2.zero;
-            _progressFill.sizeDelta = new Vector2(0f, 2f);
+            Place(_title.rectTransform, new Vector2(0.5f, 0.5f),
+                new Vector2(0f, height * 0.27f), new Vector2(safeWidth, compact ? 66f : 78f));
+            Place(_body.rectTransform, new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -height * 0.045f),
+                new Vector2(Mathf.Min(safeWidth, 1100f), height * (compact ? 0.62f : 0.60f)));
         }
 
         private static void Place(RectTransform rect, Vector2 anchor, Vector2 offset, Vector2 size)
         {
             rect.anchorMin = rect.anchorMax = anchor;
-            rect.pivot = new Vector2(.5f, .5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = offset;
             rect.sizeDelta = size;
         }
@@ -154,10 +110,6 @@ namespace Aether.Gameplay.Menus.Screens
                 elapsed += Time.unscaledDeltaTime;
                 float entrance = Mathf.Clamp01(elapsed / EntranceSeconds);
                 _visuals.alpha = entrance * entrance * (3f - 2f * entrance);
-
-                RectTransform trackRect = _progressTrack.rectTransform;
-                float progressWidth = trackRect.rect.width > 0f ? trackRect.rect.width : trackRect.sizeDelta.x;
-                _progressFill.sizeDelta = new Vector2(progressWidth * Mathf.Clamp01(elapsed / ReadingDurationSeconds), 2f);
                 yield return null;
             }
 
@@ -177,11 +129,9 @@ namespace Aether.Gameplay.Menus.Screens
 
         protected override void OnHidden()
         {
-            if (_autoAdvance != null)
-            {
-                StopCoroutine(_autoAdvance);
-                _autoAdvance = null;
-            }
+            if (_autoAdvance == null) return;
+            StopCoroutine(_autoAdvance);
+            _autoAdvance = null;
         }
 
         public override bool OnBack()
