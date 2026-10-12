@@ -164,12 +164,12 @@ namespace Aether.Gameplay.Menus
             /// <summary>Primary rows: CONTINUE, NEW GAME.</summary>
             public const float PrimarySize = 38f;
             public const float PrimaryTracking = 8f;
-            public const float PrimaryPitch = 124f;
+            public const float PrimaryPitch = 144f;
 
             /// <summary>Secondary and system rows: the explore grid and the two system entries.</summary>
             public const float SecondarySize = 30f;
             public const float SecondaryTracking = 6f;
-            public const float SecondaryPitch = 112f;
+            public const float SecondaryPitch = 144f;
 
             /// <summary>The fewest columns the two entry clusters are ever given.</summary>
             public const int SecondaryColumns = 2;
