@@ -33,7 +33,7 @@ namespace Aether.Gameplay.Menus.Screens
             { "pt", new[] { "INFORMAÇÃO AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados a todos. Recomenda-se discrição.", "AETHER • INFORMAÇÃO AO JOGADOR" } },
             { "pt-BR", new[] { "INFORMAÇÕES AO JOGADOR", "Este jogo inclui combates de fantasia e situações de perigo.\nAlguns conteúdos podem não ser adequados para todos. Jogue com isso em mente.", "AETHER • INFORMAÇÕES AO JOGADOR" } },
             { "ru", new[] { "ИНФОРМАЦИЯ ДЛЯ ИГРОКА", "В игре есть фэнтезийные сражения и опасные ситуации.\nНекоторые материалы могут подойти не всем. Пожалуйста, учитывайте это.", "AETHER • ИНФОРМАЦИЯ ДЛЯ ИГРОКА" } },
-            { "tr", new[] { "OYUNCU BİLGİLENDİРМЕСİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ" } },
+            { "tr", new[] { "OYUNCU BİLGİLENDİRMESİ", "Bu oyunda fantastik çatışmalar ve tehlike içeren sahneler bulunur.\nBazı içerikler herkese uygun olmayabilir. Lütfen bunu göz önünde bulundurun.", "AETHER • OYUNCU BİLGİLENDİRMESİ" } },
         };
 
         private RectTransform _frame;
@@ -75,7 +75,6 @@ namespace Aether.Gameplay.Menus.Screens
             _footer = MenuUi.CreateTrackedText("Advisory Footer", Rect, "", 13f, Muted, 1f, TextAnchor.MiddleCenter);
 
             ApplyLanguageCopy();
-            _autoAdvance = StartCoroutine(AutoAdvanceAfterReadingPeriod());
         }
 
         private void ApplyLanguageCopy()
@@ -146,21 +145,27 @@ namespace Aether.Gameplay.Menus.Screens
             Host.GoTo(MenuScreenId.MainMenu);
         }
 
-        public override bool OnBack()
+        protected override void OnShown(bool instant)
         {
-            // Do not let Back/Escape accidentally dismiss the notice before its reading period ends.
-            return true;
+            // Start only when the screen is actually shown; screens are built and hidden before use.
+            _leaving = false;
+            if (_autoAdvance != null) StopCoroutine(_autoAdvance);
+            _autoAdvance = StartCoroutine(AutoAdvanceAfterReadingPeriod());
         }
 
-        protected override void OnDestroy()
+        protected override void OnHidden()
         {
             if (_autoAdvance != null)
             {
                 StopCoroutine(_autoAdvance);
                 _autoAdvance = null;
             }
+        }
 
-            base.OnDestroy();
+        public override bool OnBack()
+        {
+            // Do not let Back/Escape accidentally dismiss the notice before its reading period ends.
+            return true;
         }
     }
 }
