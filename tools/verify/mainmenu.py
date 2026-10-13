@@ -370,9 +370,9 @@ def check_screens(gate: Gate) -> None:
                 "menu.quit.confirm", "menu.newGame.confirm", "data.reset.title", "data.reset.body"):
         gate.check(f'"{key}"' in table, f"the string table has no '{key}'")
 
-    # The brief's entry points, each of which has to exist as a row on the main menu.
+    # The compact main-menu entry points. Credits and quit are available from Settings.
     main = read(MAIN_SCREEN)
-    for destination in ("Chapters", "Settings", "Credits"):
+    for destination in ("Chapters", "Collection", "Settings"):
         gate.check(f"MenuScreenId.{destination}" in main,
                    f"the main menu has no row for {destination}")
     for key in ("menu.continue", "menu.newGame"):
@@ -882,43 +882,21 @@ def check_composition(gate: Gate) -> None:
     footer = number(main, r"FooterHeight\s*=\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
     title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
 
-    # Count real menu rows from the code, then measure the single centered column that is actually
-    # built. The subtitle and section headings are intentionally absent from this compact layout.
-    clusters = {}
-    for cluster, panel in (("Play", "_play"), ("Explore", "_explore"), ("System", "_system")):
-        start_at = main.find(f'{panel} = MenuEntryPanel.Create')
-        if start_at < 0:
-            gate.check(False, f"the main menu no longer builds a {cluster} cluster")
-            continue
-        end_at = len(main)
-        for other in ("_play", "_explore", "_system"):
-            if other == panel:
-                continue
-            found = main.find(f'{other} = MenuEntryPanel.Create', start_at + 1)
-            if found > 0:
-                end_at = min(end_at, found)
-        method = main.find("        private ", start_at + 1)
-        if method > 0:
-            end_at = min(end_at, method)
-        block = main[start_at:end_at]
-        clusters[cluster] = block.count("AddEntry(") + block.count("AddDestination(")
-
-    for cluster in ("Play", "Explore", "System"):
-        gate.check(clusters.get(cluster, 0) > 0,
-                   f"the {cluster} cluster has no rows, so what it holds cannot be measured")
-
-    primary_rows = clusters.get("Play", 0)
-    explore_rows = clusters.get("Explore", 0)
-    system_rows = clusters.get("System", 0)
-    gate.check(primary_rows == 2 and explore_rows == 1 and system_rows == 2,
-               f"the compact main menu should have 2 primary rows, 1 chapter row and 2 system rows; "
-               f"found {primary_rows}, {explore_rows}, {system_rows}")
+    # The main menu is one panel, one centered column and five choices in visible top-to-bottom order.
+    start_at = main.find('_play = MenuEntryPanel.Create')
+    gate.check(start_at >= 0, "the main menu no longer builds its single choices panel")
+    panel_block = main[start_at:main.find('            _version =', start_at)]
+    row_count = panel_block.count('AddEntry(') + panel_block.count('AddDestination(')
+    gate.check(row_count == 5,
+               f"the main menu should have five concise choices; found {row_count}")
+    gate.check('_explore' not in main and '_system' not in main,
+               "the main menu should not split the vertical list into separate clusters")
     gate.check('MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null)' in main,
                "the main menu should show the large AETHER title without a subtitle")
     gate.check("One centered vertical axis" in main and "panelX = (width - panelWidth) * 0.5f" in main,
-               "main-menu clusters must share one centered vertical axis")
+               "the main-menu wordmark and choices must share one centered vertical axis")
     gate.check("MenuEntryPanel.Create(" in main and 'Nav, null, 1)' in main,
-               "main-menu clusters must not add noisy section headings")
+               "the main menu must not add noisy section headings")
 
     for name, aspect in ASPECTS:
         canvas_h = REFERENCE_HEIGHT
@@ -927,11 +905,7 @@ def check_composition(gate: Gate) -> None:
         box_h = canvas_h - m["ScreenMarginTop"] - m["ScreenMarginBottom"]
         viewport = box_h - footer
         title_block = m["TitleSize"] * title_factor + m["TitleGapRule"] + m["TitleRuleHeight"]
-        stack = (title_block + m["TitleGapBody"]
-                 + primary_rows * m["PrimaryPitch"]
-                 + explore_rows * m["SecondaryPitch"]
-                 + system_rows * m["SecondaryPitch"]
-                 + 2 * m["ClusterGap"])
+        stack = title_block + m["TitleGapBody"] + row_count * m["SecondaryPitch"]
         gate.check(stack <= viewport,
                    f"{name}: the vertical menu stack is {stack:.0f} units tall in a {viewport:.0f}-unit "
                    "viewport, so it would scroll at the default interface size")
