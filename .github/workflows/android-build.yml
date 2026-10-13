@@ -21,11 +21,8 @@
 name: Android APK
 
 on:
+  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
   workflow_dispatch:
-  # Run one real Android build for this menu revision on the dedicated work branch.
-  push:
-    branches:
-      - arena/aether-gold-black-menu-polish
 
 permissions:
   contents: read
