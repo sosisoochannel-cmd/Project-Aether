@@ -134,7 +134,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "KAYITLI VERİLER",
             "credits.art", "GÖRSEL TASARIM — VARELLON STUDIOS",
             "credits.art.body", "Stüdyonun marka kimliği ve menünün oluşturulmasında kullanılan tüm öğeler onaylı görsel tasarımın parçasıdır.",
-            "credits.code", "KOD — PROJECT AETHER",
+            "credits.code", "KOD — AETHER",
             "credits.code.body", "Android için yatay ekranda, öncelikle mobil cihazlar düşünülerek geliştirildi.",
             "credits.engine", "UNITY İLE YAPILDI",
             "credits.music", "MÜZİK",

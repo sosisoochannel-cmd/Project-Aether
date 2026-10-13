@@ -1,18 +1,16 @@
-using Aether.Gameplay.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Aether.Gameplay.Menus.Panels
 {
     /// <summary>
-    /// The brand block: the approved mark, the game's name, the region it stands in, and a rule.
+    /// The game-title block: AETHER, the region it stands in, and a rule.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the composition the brief asks for at the top of the main menu: the approved logo, at
-    /// a scale that reads at arm's length, with the title under it in tracked capitals, a short line
-    /// saying where the player is, and a single hairline closing the block. Nothing else — no box, no
-    /// gradient panel, no glow behind the type.
+    /// The main menu begins with the game title itself, followed by a short regional subtitle and a
+    /// single hairline. Studio branding is kept out of this screen; the Varellon mark belongs to the
+    /// separate intro. Nothing else — no box, no gradient panel, no glow behind the type.
     /// </para>
     /// <para>
     /// It is a panel like any other so that it takes part in the entrance: the background arrives
@@ -22,35 +20,36 @@ namespace Aether.Gameplay.Menus.Panels
     /// </remarks>
     public sealed class MenuTitlePanel : MenuPanel
     {
-        private MenuLogo _logo;
         private Text _title;
         private Text _subtitle;
         private Image _rule;
 
-        /// <summary>Builds the block with the mark, the game's title and its subtitle.</summary>
+        /// <summary>Builds the title, subtitle and closing rule.</summary>
         public static MenuTitlePanel Create(string name, Transform parent, MenuNav nav,
                                             string titleKey, string subtitleKey)
         {
             MenuTitlePanel panel = Create<MenuTitlePanel>(name, parent, nav);
 
-            panel._logo = MenuLogo.Create(panel.Rect, MenuTheme.Metrics.LogoHeight);
-
             panel._title = MenuUi.CreateTrackedText("Title", panel.Rect, MenuStrings.Get(titleKey),
                                                     MenuTheme.Metrics.TitleSize, MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.TitleTracking);
             panel._title.fontStyle = FontStyle.Bold;
-            panel._title.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._title.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._title.rectTransform.pivot = new Vector2(0f, 1f);
+            panel._title.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+            panel._title.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            panel._title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            panel._title.alignment = TextAnchor.UpperCenter;
 
-            panel._subtitle = MenuUi.CreateTrackedText("Subtitle", panel.Rect,
-                                                       MenuStrings.Get(subtitleKey),
-                                                       MenuTheme.Metrics.SubtitleSize,
-                                                       MenuTheme.Palette.InkMuted,
-                                                       MenuTheme.Metrics.SubtitleTracking);
-            panel._subtitle.rectTransform.anchorMin = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.anchorMax = new Vector2(0f, 1f);
-            panel._subtitle.rectTransform.pivot = new Vector2(0f, 1f);
+            if (!string.IsNullOrEmpty(subtitleKey))
+            {
+                panel._subtitle = MenuUi.CreateTrackedText("Subtitle", panel.Rect,
+                                                           MenuStrings.Get(subtitleKey),
+                                                           MenuTheme.Metrics.SubtitleSize,
+                                                           MenuTheme.Palette.InkMuted,
+                                                           MenuTheme.Metrics.SubtitleTracking);
+                panel._subtitle.rectTransform.anchorMin = new Vector2(0f, 1f);
+                panel._subtitle.rectTransform.anchorMax = new Vector2(0f, 1f);
+                panel._subtitle.rectTransform.pivot = new Vector2(0f, 1f);
+            }
 
             panel._rule = MenuUi.CreateImage("Rule", panel.Rect, MenuArt.Solid, MenuTheme.Palette.Line);
             panel._rule.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -67,40 +66,39 @@ namespace Aether.Gameplay.Menus.Panels
 
             float y = 0f;
 
-            if (_logo != null && _logo.HasMark)
-            {
-                _logo.Rect.anchoredPosition = new Vector2(0f, -y);
-                y += _logo.Rect.sizeDelta.y + MenuTheme.Metrics.LogoGap;
-            }
-
             float titleHeight = MenuTheme.Metrics.TitleSize * 1.2f;
-            // Keep a deliberate inset on both sides: right-aligned RTL text must never sit
-            // against the physical screen edge, and long translations get a real width to fit.
             const float horizontalInset = 24f;
             _title.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f), titleHeight);
-            _title.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+            _title.rectTransform.anchoredPosition = new Vector2(0f, -y);
+            _title.alignment = TextAnchor.UpperCenter;
             _title.resizeTextForBestFit = true;
-            _title.resizeTextMinSize = 22;
+            _title.resizeTextMinSize = 28;
             _title.resizeTextMaxSize = _title.fontSize;
             _title.horizontalOverflow = HorizontalWrapMode.Wrap;
             _title.verticalOverflow = VerticalWrapMode.Truncate;
             y += titleHeight;
 
-            _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f),
-                                                             MenuTheme.Metrics.SubtitleSize * 1.4f);
-            _subtitle.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
-            _subtitle.resizeTextForBestFit = true;
-            _subtitle.resizeTextMinSize = 14;
-            _subtitle.resizeTextMaxSize = _subtitle.fontSize;
-            _subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _subtitle.verticalOverflow = VerticalWrapMode.Truncate;
-            y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
+            if (_subtitle != null)
+            {
+                _subtitle.rectTransform.sizeDelta = new Vector2(Mathf.Max(0f, width - horizontalInset * 2f),
+                                                                 MenuTheme.Metrics.SubtitleSize * 1.4f);
+                _subtitle.rectTransform.anchoredPosition = new Vector2(horizontalInset, -y);
+                _subtitle.resizeTextForBestFit = true;
+                _subtitle.resizeTextMinSize = 14;
+                _subtitle.resizeTextMaxSize = _subtitle.fontSize;
+                _subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _subtitle.verticalOverflow = VerticalWrapMode.Truncate;
+                y += (MenuTheme.Metrics.SubtitleSize * 1.4f) + MenuTheme.Metrics.TitleGapRule;
+            }
+            else
+            {
+                y += MenuTheme.Metrics.TitleGapRule;
+            }
 
             _rule.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.TitleRuleWidth,
                                                        MenuTheme.Metrics.TitleRuleHeight);
-            bool rtl = Aether.Gameplay.Localization.LanguageService.IsRightToLeft;
             _rule.rectTransform.anchoredPosition = new Vector2(
-                rtl ? Mathf.Max(0f, width - MenuTheme.Metrics.TitleRuleWidth) : 0f, -y);
+                Mathf.Max(0f, (width - MenuTheme.Metrics.TitleRuleWidth) * 0.5f), -y);
             y += MenuTheme.Metrics.TitleRuleHeight;
 
             SetPanelSize(width, y);
@@ -109,8 +107,6 @@ namespace Aether.Gameplay.Menus.Panels
         /// <inheritdoc />
         public override void Refresh()
         {
-            if (_logo != null) _logo.Apply();
-
             bool highContrast = MenuPreferences.HighContrast;
             if (_title != null)
             {

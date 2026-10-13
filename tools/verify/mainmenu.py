@@ -370,10 +370,9 @@ def check_screens(gate: Gate) -> None:
                 "menu.quit.confirm", "menu.newGame.confirm", "data.reset.title", "data.reset.body"):
         gate.check(f'"{key}"' in table, f"the string table has no '{key}'")
 
-    # The brief's entry points, each of which has to exist as a row on the main menu.
+    # The compact main-menu entry points. Credits and quit are available from Settings.
     main = read(MAIN_SCREEN)
-    for destination in ("Chapters", "Characters", "Collection", "Achievements", "Settings",
-                        "Credits"):
+    for destination in ("Chapters", "Collection", "Settings"):
         gate.check(f"MenuScreenId.{destination}" in main,
                    f"the main menu has no row for {destination}")
     for key in ("menu.continue", "menu.newGame"):
@@ -881,50 +880,23 @@ def check_composition(gate: Gate) -> None:
     title_source = read(TITLE_PANEL)
 
     footer = number(main, r"FooterHeight\s*=\s*([0-9.]+)f", "MainMenuScreen.FooterHeight")
-    minimum_cell = number(main, r"MinimumSecondaryCell\s*=\s*([0-9.]+)f",
-                          "MainMenuScreen.MinimumSecondaryCell")
     title_factor = number(title_source, r"TitleSize \* ([0-9.]+)f", "the title's line height")
-    subtitle_factor = number(title_source, r"SubtitleSize \* ([0-9.]+)f",
-                             "the subtitle's line height")
-    columns = int(re.findall(r"SecondaryColumns = (\d+)", read(THEME))[0]) if re.search(
-        r"SecondaryColumns = (\d+)", read(THEME)) else int(m.get("SecondaryColumns", 2))
 
-    # The row counts are read out of the screen, not assumed. They were a constant until a ninth
-    # entry was added to a cluster and the composition quietly grew 118 units past the viewport
-    # while this check went on measuring the screen it remembered: an arithmetic check that counts
-    # the wrong rows is worse than no arithmetic, because it reports a fit that is not there.
-    clusters = {}
-    for cluster, panel in (("Play", "_play"), ("Explore", "_explore"), ("System", "_system")):
-        start = main.find(f'{panel} = MenuEntryPanel.Create')
-        if start < 0:
-            gate.check(False, f"the main menu no longer builds a {cluster} cluster")
-            continue
-
-        end = len(main)
-        for other in ("_play", "_explore", "_system"):
-            if other == panel:
-                continue
-            found = main.find(f'{other} = MenuEntryPanel.Create', start + 1)
-            if found > 0:
-                end = min(end, found)
-
-        # The cluster ends where the next method begins: the helper that adds a destination is a
-        # method body, and its own call to AddEntry is not a row of whichever cluster happens to
-        # be last in the file.
-        method = main.find("        private ", start + 1)
-        if method > 0:
-            end = min(end, method)
-
-        block = main[start:end]
-        clusters[cluster] = block.count("AddEntry(") + block.count("AddDestination(")
-
-    for cluster in ("Play", "Explore", "System"):
-        gate.check(clusters.get(cluster, 0) > 0,
-                   f"the {cluster} cluster has no rows, so what it holds cannot be measured")
-
-    primary_rows = clusters.get("Play", 0)
-    secondary_rows = clusters.get("Explore", 0)
-    system_rows = clusters.get("System", 0)
+    # The main menu is one panel, one centered column and five choices in visible top-to-bottom order.
+    start_at = main.find('_play = MenuEntryPanel.Create')
+    gate.check(start_at >= 0, "the main menu no longer builds its single choices panel")
+    panel_block = main[start_at:main.find('            _version =', start_at)]
+    row_count = panel_block.count('AddEntry(') + panel_block.count('AddDestination(')
+    gate.check(row_count == 5,
+               f"the main menu should have five concise choices; found {row_count}")
+    gate.check('_explore' not in main and '_system' not in main,
+               "the main menu should not split the vertical list into separate clusters")
+    gate.check('MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null)' in main,
+               "the main menu should show the large AETHER title without a subtitle")
+    gate.check("One centered vertical axis" in main and "panelX = (width - panelWidth) * 0.5f" in main,
+               "the main-menu wordmark and choices must share one centered vertical axis")
+    gate.check("MenuEntryPanel.Create(" in main and 'Nav, null, 1)' in main,
+               "the main menu must not add noisy section headings")
 
     for name, aspect in ASPECTS:
         canvas_h = REFERENCE_HEIGHT
@@ -932,36 +904,17 @@ def check_composition(gate: Gate) -> None:
         box_w = canvas_w - m["ScreenMarginLeft"] - m["ScreenMarginRight"]
         box_h = canvas_h - m["ScreenMarginTop"] - m["ScreenMarginBottom"]
         viewport = box_h - footer
-
-        title_block = (m["LogoHeight"] + m["LogoGap"] + (m["TitleSize"] * title_factor)
-                       + (m["SubtitleSize"] * subtitle_factor) + m["TitleGapRule"]
-                       + m["TitleRuleHeight"])
-        top = title_block + m["TitleGapBody"]
-
-        right = box_w * m["RightBlockFraction"]
-        left = box_w * m["LeftColumnFraction"]
-        cell = right / columns
-        gate.check(cell >= minimum_cell,
-                   f"{name}: a two-column cell is {cell:.0f} units wide, under the {minimum_cell:.0f} "
-                   "the grid needs before it drops to one column")
-        gate.check(left < right,
-                   f"{name}: the primary column ({left:.0f}) is not narrower than the secondary "
-                   f"block ({right:.0f}), so the composition has no hierarchy")
-
-        section = m["SectionLabelHeight"] + m["SectionLabelGap"]
-        play = section + (primary_rows * m["PrimaryPitch"])
-        explore = section + (_bands(secondary_rows, columns) * m["SecondaryPitch"])
-        system_top = top + explore + m["ClusterGap"]
-        system = section + (_bands(system_rows, columns) * m["SecondaryPitch"])
-        content = max(top + play, system_top + system) + m["ParagraphBlockPadding"]
-
-        gate.check(content <= viewport,
-                   f"{name}: the main menu is {content:.0f} units tall in a {viewport:.0f}-unit "
-                   f"viewport, so it would scroll at the default interface size")
+        title_block = m["TitleSize"] * title_factor + m["TitleGapRule"] + m["TitleRuleHeight"]
+        stack = title_block + m["TitleGapBody"] + row_count * m["SecondaryPitch"]
+        gate.check(stack <= viewport,
+                   f"{name}: the vertical menu stack is {stack:.0f} units tall in a {viewport:.0f}-unit "
+                   "viewport, so it would scroll at the default interface size")
         gate.check(title_block + m["TitleGapBody"] < viewport * 0.6,
-                   f"{name}: the brand block takes {title_block:.0f} of {viewport:.0f} units, "
-                   "leaving the entries too little of the screen")
-        gate.check(box_w > 0 and box_h > 0, f"{name}: the content box is empty")
+                   f"{name}: the AETHER title block leaves too little room for menu entries")
+        gate.check(box_w > 0 and box_h > 0,
+                   f"{name}: the content box is empty")
+        gate.check(min(box_w - 48.0, 760.0) >= 280.0,
+                   f"{name}: the centered menu column is too narrow for readable labels")
 
     # Regression checks for the clipping bug reported on a real screen. These catch the
     # exact anti-pattern (a 10-unit text rect) that can make translated labels look like fragments,
@@ -981,6 +934,35 @@ def check_composition(gate: Gate) -> None:
                and "_body.verticalOverflow = VerticalWrapMode.Truncate;" in warning_source
                and "height * (compact ? 0.70f : 0.68f)" in warning_source,
                "the content advisory must fit its text into a bounded reading column")
+
+    # The game menu must use the game name only; the studio mark belongs to the separate intro.
+    menu_strings = read(f"{MENUS}/MenuStrings.cs")
+    gate.check('"menu.title", "AETHER"' in menu_strings,
+               "the English main-menu title must be AETHER, without the word PROJECT")
+    for code in ("de", "es", "fa", "fr", "it", "pt", "pt-BR", "ru", "tr"):
+        sheet = read(f"tools/localization/strings_{code}.txt")
+        gate.check("menu.title=AETHER" in sheet,
+                   f"{code}: the main-menu title must be AETHER")
+        gate.check("PROJECT AETHER" not in sheet.upper(),
+                   f"{code}: the studio/project prefix must not appear in game-facing text")
+
+    header_source = read(f"{MENUS}/Components/MenuHeader.cs")
+    gate.check("header._title.rectTransform.anchorMax = Vector2.one;" in header_source
+               and "header._title.resizeTextForBestFit = true;" in header_source,
+               "secondary-screen titles must use available width and fit rather than clip")
+    theme_source = read(THEME)
+    gate.check("new Color(0f, 0f, 0f, 1f)" in theme_source
+               and "new Color(0.91f, 0.64f, 0.20f, 1f)" in theme_source,
+               "the shared menu palette must be black and gold")
+    gate.check("MenuLogo.Create" not in title_source,
+               "the main menu must not display the Varellon studio logo")
+    gate.check("Haptics.Tap" not in button_source,
+               "selecting a menu button must not trigger haptic vibration")
+    gate.check("_selectionGlow" not in button_source
+               and "plate = MenuTheme.Palette.AccentWash;" in button_source
+               and "ruleVisible = true;" not in button_source
+               and "PressedScale" not in button_source,
+               "selection must use a restrained gold wash/marker without glow, underline sweep or scale pulse")
 
     # Every interactive row is at least 48dp tall. The menu's canvas is 1080 units over a screen
     # that is about 360dp in landscape, so a unit is a third of a dp.
@@ -1105,6 +1087,48 @@ def check_discipline(gate: Gate) -> None:
                "land on a row that does nothing")
     gate.check("Time.frameCount" in button,
                "MenuButton has no same-frame guard, so one tap could activate a row twice")
+
+    # The game title is simply AETHER in every offered language; studio branding stays in the
+    # separate intro and must not be injected into a corner of the gameplay menu.
+    english_strings = read(f"{MENUS}/MenuStrings.cs")
+    title_match = re.search(r'\{\s*"menu.title"\s*,\s*"([^"]*)"\s*\}', english_strings)
+    gate.check(title_match is not None and title_match.group(1) == "AETHER",
+               "the main-menu title must be AETHER, never 'Project Aether'")
+    title_panel = read(f"{MENUS}/Panels/MenuTitlePanel.cs")
+    main_screen = read(MAIN_SCREEN)
+    gate.check("MenuLogo.Create" not in title_panel and "MenuLogo.Create" not in main_screen,
+               "the main menu must not draw the Varellon logo; keep it for the separate intro")
+    sheet_dir = os.path.join(REPO_ROOT, "tools", "localization")
+    for name in sorted(os.listdir(sheet_dir)):
+        if not name.startswith("strings_") or not name.endswith(".txt"):
+            continue
+        sheet_text = read(os.path.join("tools", "localization", name))
+        title_line = re.search(r"^menu\.title=(.*)$", sheet_text, re.MULTILINE)
+        gate.check(title_line is not None and title_line.group(1).strip() == "AETHER",
+                   f"{name} must display only AETHER as the game title")
+        gate.check(re.search(r"project\s+aether", sheet_text, re.IGNORECASE) is None,
+                   f"{name} still contains 'Project Aether' in player-facing copy")
+
+    # No menu action may invoke device vibration/haptic APIs. Selection feedback is visual only.
+    code_root = os.path.join(REPO_ROOT, "Assets", "Aether", "Code")
+    haptic_calls = []
+    for root, _dirs, names in os.walk(code_root):
+        for name in names:
+            if not name.endswith(".cs"):
+                continue
+            rel = os.path.relpath(os.path.join(root, name), REPO_ROOT).replace(os.sep, "/")
+            source = without_comments(read(rel))
+            if re.search(r"(?:Handheld\\.Vibrate|Vibration\\.|HapticFeedback|PerformHaptic)", source):
+                haptic_calls.append(rel)
+    gate.check(not haptic_calls,
+               f"device vibration/haptic calls remain in {haptic_calls}; menu selection must not vibrate")
+
+    gate.check("MenuTheme.Palette.AccentWash" in button
+               and "accentVisible = true;" in button
+               and "selectionVisible && !_locked && !_informational" in button,
+               "selected rows need the quiet gold focus wash and marker, with no idle caret")
+    gate.check("ruleVisible = true;" not in button,
+               "selected rows must not use the old underline-sweep selection effect")
 
 
 def main() -> int:
