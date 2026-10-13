@@ -35,15 +35,10 @@ namespace Aether.Gameplay.Menus.Screens
         /// <summary>Height reserved at the bottom of the screen for the version line.</summary>
         private const float FooterHeight = 40f;
 
-        /// <summary>The narrowest a grid cell may be before two columns become one.</summary>
-        private const float MinimumSecondaryCell = 300f;
-
         private ScrollRect _scroll;
         private RectTransform _content;
         private MenuTitlePanel _title;
         private MenuEntryPanel _play;
-        private MenuEntryPanel _explore;
-        private MenuEntryPanel _system;
         private MenuButton _continue;
         private Text _version;
         private MenuConfirmPanel _confirm;
@@ -81,24 +76,23 @@ namespace Aether.Gameplay.Menus.Screens
             // of the list, and it should not scroll away when the list is long.
             MenuUi.Stretch(_scroll.GetComponent<RectTransform>(), 0f, 0f, 0f, FooterHeight);
 
+            // AETHER is the large, centered wordmark. All five choices share one vertical list.
+            // Credits and quit remain reachable from Settings instead of occupying separate main-menu rows.
             _title = MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null);
 
-            _play = MenuEntryPanel.Create("Play", _content, Nav, null, 1);
+            _play = MenuEntryPanel.Create("Main Choices", _content, Nav, null, 1);
             _continue = _play.AddEntry("Continue", MenuStrings.Get("menu.continue"),
-                                       MenuButton.Weight.Primary);
+                                       MenuButton.Weight.Secondary);
             MenuButton newGame = _play.AddEntry("New Game", MenuStrings.Get("menu.newGame"),
-                                                MenuButton.Weight.Primary);
+                                                MenuButton.Weight.Secondary);
             _continue.SetMeta(MenuStrings.Get("menu.continue.meta"));
             newGame.SetMeta(MenuStrings.Get("menu.newGame.meta"));
             _continue.Activated = Continue;
             newGame.Activated = NewGame;
 
-            _explore = MenuEntryPanel.Create("Explore", _content, Nav, null, 1);
-            AddDestination(_explore, MenuScreenId.Chapters, "menu.chapters");
-
-            _system = MenuEntryPanel.Create("System", _content, Nav, null, 1);
-            AddDestination(_system, MenuScreenId.Settings, "menu.settings");
-            AddDestination(_system, MenuScreenId.Credits, "menu.credits");
+            AddDestination(_play, MenuScreenId.Chapters, "menu.chapters");
+            AddDestination(_play, MenuScreenId.Collection, "menu.collection");
+            AddDestination(_play, MenuScreenId.Settings, "menu.settings");
 
             _version = MenuUi.CreateText("Version", Rect, string.Empty, MenuTheme.Metrics.VersionSize,
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
@@ -132,33 +126,21 @@ namespace Aether.Gameplay.Menus.Screens
             _title.Layout(width, box);
             float titleHeight = _title.Height;
 
-            // One centered vertical axis. If accessibility sizing or a long translation makes the
-            // stack too tall, it starts at the safe top margin and the existing scroll view handles it.
+            // One centered vertical axis, with no section gaps or duplicate destinations.
+            // Long translations and accessibility sizing can scroll instead of clipping.
             float panelWidth = Mathf.Min(760f, Mathf.Max(280f, width - 48f));
             float panelX = (width - panelWidth) * 0.5f;
             _play.Layout(panelWidth, box);
-            _explore.Layout(panelWidth, box);
-            _system.Layout(panelWidth, box);
-            _explore.SetColumns(1);
-            _system.SetColumns(1);
 
-            float gap = MenuTheme.Metrics.ClusterGap;
-            float stackHeight = titleHeight + MenuTheme.Metrics.TitleGapBody
-                              + _play.Height + gap + _explore.Height + gap + _system.Height;
+            float stackHeight = titleHeight + MenuTheme.Metrics.TitleGapBody + _play.Height;
             bool fits = stackHeight <= box;
             float top = fits ? (box - stackHeight) * 0.5f : 24f;
 
             _title.Rect.anchoredPosition = new Vector2(0f, -top);
             float cursor = top + titleHeight + MenuTheme.Metrics.TitleGapBody;
             _play.Rect.anchoredPosition = new Vector2(panelX, -cursor);
-            cursor += _play.Height + gap;
-            _explore.Rect.anchoredPosition = new Vector2(panelX, -cursor);
-            cursor += _explore.Height + gap;
-            _system.Rect.anchoredPosition = new Vector2(panelX, -cursor);
-            cursor += _system.Height;
+            cursor += _play.Height;
 
-            // A fitting stack uses exactly the viewport height so it remains truly centered without
-            // introducing accidental scroll range. Overflowing translations retain a safe bottom pad.
             float contentHeight = fits ? box : cursor + MenuTheme.Metrics.ScreenMarginBottom;
             MenuUi.SetContentHeight(_content, contentHeight);
             _content.anchoredPosition = Vector2.zero;
@@ -189,11 +171,7 @@ namespace Aether.Gameplay.Menus.Screens
                 : "menu.continue.none"));
             _continue.SetAccented(stored);
 
-            // The clusters redraw themselves in place: a change of contrast has to reach the rows
-            // of every cluster, not only the one under the player's finger.
             _play.Refresh();
-            _explore.Refresh();
-            _system.Refresh();
         }
 
         /// <inheritdoc />
@@ -203,15 +181,10 @@ namespace Aether.Gameplay.Menus.Screens
 
             _title.Show(instant, 0f);
             _play.Show(instant, MenuTheme.Motion.EntranceStagger);
-            _explore.Show(instant, MenuTheme.Motion.EntranceStagger * 2f);
-            _system.Show(instant, MenuTheme.Motion.EntranceStagger * 3f);
 
-            // The order the entries are offered in is the order they are read in: the brand, the two
-            // primary rows, then the two clusters. Rebuilt on every show, never on a refresh.
+            // Navigation order is identical to the visible top-to-bottom order.
             Nav.Clear();
             _play.Register();
-            _explore.Register();
-            _system.Register();
             Nav.SelectFirst();
         }
 
