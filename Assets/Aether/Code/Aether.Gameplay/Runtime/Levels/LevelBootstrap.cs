@@ -5,6 +5,7 @@ using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Interface;
 using Aether.Gameplay.Player;
 using Aether.Gameplay.Progression;
+using Aether.Gameplay.Support;
 using UnityEngine;
 
 namespace Aether.Gameplay.Levels
@@ -237,20 +238,35 @@ namespace Aether.Gameplay.Levels
         private Camera ResolveCamera()
         {
             Camera camera = Camera.main;
-            if (camera != null)
+            if (camera == null)
             {
-                if (camera.orthographicSize <= 0f) camera.orthographicSize = _cameraSize;
-                return camera;
+                var host = new GameObject("MainCamera");
+                host.tag = "MainCamera";
+                camera = host.AddComponent<Camera>();
+                host.transform.position = new Vector3(0f, 0f, -10f);
             }
 
-            var host = new GameObject("MainCamera");
-            host.tag = "MainCamera";
-            camera = host.AddComponent<Camera>();
+            // A scene-authored MainCamera can still carry stale 3D defaults. Runtime-built 2D levels
+            // must not depend on incidental scene settings for clearing, projection, or visibility.
             camera.orthographic = true;
-            camera.orthographicSize = _cameraSize;
+            camera.orthographicSize = Mathf.Max(0.1f, _cameraSize);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = _cameraBackground;
-            host.transform.position = new Vector3(0f, 0f, -10f);
+            camera.nearClipPlane = 0.1f;
+            camera.farClipPlane = Mathf.Max(100f, camera.farClipPlane);
+
+            // Preserve scene-specific layers, but always render each layer used by runtime terrain,
+            // the player, enemies, interactables, and Default-layer decoration.
+            int gameplayMask = 1 << 0;
+            gameplayMask |= GameplayLayers.Ground.value;
+            gameplayMask |= GameplayLayers.Player.value;
+            gameplayMask |= GameplayLayers.Enemy.value;
+            gameplayMask |= GameplayLayers.Interactable.value;
+            camera.cullingMask |= gameplayMask;
+
+            Vector3 position = camera.transform.position;
+            if (position.z > -0.1f) position.z = -10f;
+            camera.transform.position = position;
             return camera;
         }
     }

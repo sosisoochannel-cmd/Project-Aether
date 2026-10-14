@@ -66,7 +66,9 @@ namespace Aether.Gameplay.Menus.Panels
             // A dialog covers the canvas, unlike every other panel, which is a column of a screen.
             MenuUi.Stretch(panel.Rect);
 
-            panel._scrim = MenuUi.Fill("Scrim", panel.Rect, MenuTheme.Palette.Scrim, true);
+            Color modalScrim = new Color(MenuTheme.Palette.Ground.r, MenuTheme.Palette.Ground.g,
+                                           MenuTheme.Palette.Ground.b, 0.80f);
+            panel._scrim = MenuUi.Fill("Scrim", panel.Rect, modalScrim, true);
 
             panel._plate = MenuUi.CreateImage("Dialog", panel.Rect, MenuArt.Solid,
                                               MenuTheme.Palette.Horizon, true);
@@ -132,7 +134,7 @@ namespace Aether.Gameplay.Menus.Panels
             bool highContrast = MenuPreferences.HighContrast;
             if (_title != null)
             {
-                _title.text = MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking);
+                _title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));
                 _title.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink, highContrast);
             }
 
@@ -145,7 +147,7 @@ namespace Aether.Gameplay.Menus.Panels
             _confirm.RefreshColors();
             if (_body != null)
             {
-                _body.text = body;
+                _body.text = MenuUi.PrepareText(body);
                 float lines = Mathf.Max(1f, Mathf.Ceil(_body.preferredHeight / MenuTheme.Metrics.ParagraphLineHeight));
                 float height = lines * MenuTheme.Metrics.ParagraphLineHeight;
 

@@ -115,9 +115,10 @@ namespace Aether.Gameplay.Controls
         private int _cachedHeight;
         private Rect _cachedSafeArea;
         private bool _visible;
+        private bool _gameplayVisible = true;
 
         /// <summary>True when this overlay is showing, which only happens when touch exists.</summary>
-        public bool IsVisible => _visible;
+        public bool IsVisible => _visible && _gameplayVisible;
 
         /// <summary>
         /// Creates the overlay and returns it, or null when the device has no touchscreen. Nothing is
@@ -216,6 +217,10 @@ namespace Aether.Gameplay.Controls
 
         private void Update()
         {
+            // The pause overlay owns the screen while open. Do not claim new touches beneath it:
+            // otherwise a finger held through Resume could become a gameplay action.
+            if (!_gameplayVisible) return;
+
             ReadTouches();
             RefreshLayout(force: false);
             _source.SetMove(_moveValue);
@@ -410,15 +415,35 @@ namespace Aether.Gameplay.Controls
             return renderer;
         }
 
+        /// <summary>
+        /// Hides the control glyphs and stops gameplay input while a modal owns the screen.
+        /// The component remains alive so its visual children cannot be left onscreen when paused.
+        /// </summary>
+        public void SetGameplayVisible(bool visible)
+        {
+            if (_gameplayVisible == visible) return;
+
+            _gameplayVisible = visible;
+            if (!visible) ReleaseEverything();
+            if (_source != null) _source.Enabled = visible;
+            ApplyRendererVisibility();
+        }
+
         private void SetVisible(bool visible)
         {
             _visible = visible;
-            if (_leftRenderer != null) _leftRenderer.enabled = visible;
-            if (_rightRenderer != null) _rightRenderer.enabled = visible;
-            if (_jumpRenderer != null) _jumpRenderer.enabled = visible;
-            if (_attackRenderer != null) _attackRenderer.enabled = visible;
-            if (_dodgeRenderer != null) _dodgeRenderer.enabled = visible;
+            ApplyRendererVisibility();
             if (!visible) ReleaseEverything();
+        }
+
+        private void ApplyRendererVisibility()
+        {
+            bool show = _visible && _gameplayVisible;
+            if (_leftRenderer != null) _leftRenderer.enabled = show;
+            if (_rightRenderer != null) _rightRenderer.enabled = show;
+            if (_jumpRenderer != null) _jumpRenderer.enabled = show;
+            if (_attackRenderer != null) _attackRenderer.enabled = show;
+            if (_dodgeRenderer != null) _dodgeRenderer.enabled = show;
         }
     }
 }

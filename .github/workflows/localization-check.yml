@@ -20,6 +20,11 @@ on:
       - "tools/verify/mainmenu.py"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/**"
       - "Assets/Aether/Code/Aether.Tests.PlayMode/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Cameras/CameraFollow2D.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Controls/TouchControlsView.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/GameplayPause.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Levels/LevelBootstrap.cs"
+      - "tools/verify/gameplay_runtime.py"
       - "tools/localization/**"
       - "tools/verify/localization.py"
       - "tools/verify/content_advisory.py"
@@ -32,6 +37,11 @@ on:
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/MenuScreens.cs"
       - "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/**"
       - "Assets/Aether/Code/Aether.Tests.PlayMode/**"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Cameras/CameraFollow2D.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Controls/TouchControlsView.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/GameplayPause.cs"
+      - "Assets/Aether/Code/Aether.Gameplay/Runtime/Levels/LevelBootstrap.cs"
+      - "tools/verify/gameplay_runtime.py"
       - "tools/localization/**"
       - "tools/verify/localization.py"
       - "tools/verify/content_advisory.py"
@@ -68,3 +78,7 @@ jobs:
         run: python tools/verify/mainmenu.py
       - name: Report coverage for all ten agreed languages
         run: python tools/verify/localization.py --coverage
+      - name: Check runtime regression verifier syntax
+        run: python -m py_compile tools/verify/gameplay_runtime.py
+      - name: Verify gameplay camera, pause controls, and live RTL text contracts
+        run: python tools/verify/gameplay_runtime.py

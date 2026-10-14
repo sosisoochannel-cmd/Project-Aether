@@ -96,8 +96,8 @@ namespace Aether.Gameplay.Menus.Screens
 
             _version = MenuUi.CreateText("Version", Rect, string.Empty, MenuTheme.Metrics.VersionSize,
                                          MenuTheme.Palette.InkFaint, TextAnchor.LowerRight);
-            _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
-                                         MenuTheme.Metrics.VersionTracking);
+            _version.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Format("about.version", Application.version),
+                                         MenuTheme.Metrics.VersionTracking));
             _version.rectTransform.anchorMin = new Vector2(1f, 0f);
             _version.rectTransform.anchorMax = new Vector2(1f, 0f);
             _version.rectTransform.pivot = new Vector2(1f, 0f);
@@ -160,8 +160,8 @@ namespace Aether.Gameplay.Menus.Screens
 
             if (_title != null) _title.Refresh();
             if (_version != null)
-                _version.text = MenuUi.Track(MenuStrings.Format("about.version", Application.version),
-                                             MenuTheme.Metrics.VersionTracking);
+                _version.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Format("about.version", Application.version),
+                                             MenuTheme.Metrics.VersionTracking));
 
             // CONTINUE is a real row only when there is something this build can load. A corrupt or
             // newer-build file is not called an empty slot: it stays visible in the slot manager.

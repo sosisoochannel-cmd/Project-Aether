@@ -118,7 +118,7 @@ namespace Aether.Gameplay.Interface
             // without freezing the interface that is on top of it.
             Time.timeScale = 0f;
 
-            if (_touchControls != null) _touchControls.enabled = false;
+            if (_touchControls != null) _touchControls.SetGameplayVisible(false);
             if (_hud != null) _hud.SetVisible(false);
 
             Refresh();
@@ -140,7 +140,7 @@ namespace Aether.Gameplay.Interface
 
             Time.timeScale = 1f;
 
-            if (_touchControls != null) _touchControls.enabled = true;
+            if (_touchControls != null) _touchControls.SetGameplayVisible(true);
             if (_hud != null) _hud.SetVisible(true);
 
             _overlay.gameObject.SetActive(false);
@@ -181,7 +181,9 @@ namespace Aether.Gameplay.Interface
 
             // The scrim covers the whole display; only readable controls are constrained to the
             // safe area, so notches and gesture bars never cover a pause action.
-            Image scrim = MenuUi.Fill("Scrim", _overlay, MenuTheme.Palette.Scrim, true);
+            Color pauseScrim = new Color(MenuTheme.Palette.Ground.r, MenuTheme.Palette.Ground.g,
+                                           MenuTheme.Palette.Ground.b, 0.76f);
+            Image scrim = MenuUi.Fill("Scrim", _overlay, pauseScrim, true);
             MenuUi.Stretch(scrim.rectTransform);
 
             _safeRoot = MenuUi.CreateNode("Safe", _overlay);

@@ -118,10 +118,13 @@ namespace Aether.Gameplay.Cameras
         /// </summary>
         public void Configure(Transform target, Vector2 boundsMin, Vector2 boundsMax)
         {
-            _target = target;
             _boundsMin = boundsMin;
             _boundsMax = boundsMax;
             _useBounds = true;
+
+            // The first visible frame must already be composed around the spawned player, rather
+            // than easing out of the scene's authored camera origin.
+            SetTarget(target, snap: true);
         }
 
         private Camera _camera;
