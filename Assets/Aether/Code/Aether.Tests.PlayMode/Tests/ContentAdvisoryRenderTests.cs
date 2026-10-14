@@ -140,6 +140,24 @@ namespace Aether.Tests.PlayMode
                 var frame = new Texture2D(_width, _height, TextureFormat.RGB24, false);
                 frame.ReadPixels(new Rect(0, 0, _width, _height), 0, 0);
                 frame.Apply();
+
+                // A warning screen is a safety notice, not a menu page. Measure the actual pixels
+                // at every corner: this catches the regression where the forest backdrop showed
+                // through even though the source contained a nominally black Image.
+                Color32[] renderedPixels = frame.GetPixels32();
+                AssertBlackCorner(renderedPixels[0], "bottom-left", i);
+                AssertBlackCorner(renderedPixels[_width - 1], "bottom-right", i);
+                AssertBlackCorner(renderedPixels[(_height - 1) * _width], "top-left", i);
+                AssertBlackCorner(renderedPixels[(_height * _width) - 1], "top-right", i);
+                int visibleTextPixels = 0;
+                for (int pixelIndex = 0; pixelIndex < renderedPixels.Length; pixelIndex++)
+                {
+                    Color32 pixel = renderedPixels[pixelIndex];
+                    if (pixel.r > 12 || pixel.g > 12 || pixel.b > 12) visibleTextPixels++;
+                }
+                Assert.Greater(visibleTextPixels, 100,
+                    "The warning should draw readable white type over its black background.");
+
                 File.WriteAllBytes(Path.Combine(folder, files[i]), frame.EncodeToPNG());
                 Object.Destroy(frame);
                 RenderTexture.active = previous;
@@ -163,6 +181,17 @@ namespace Aether.Tests.PlayMode
                             "the warning did not automatically advance after seven seconds");
 
             NoteOutput(folder, files.Length);
+        }
+
+        private static void AssertBlackCorner(Color32 pixel, string corner, int frameIndex)
+        {
+            const byte MaximumBlackChannel = 8;
+            Assert.That(pixel.r, Is.LessThanOrEqualTo(MaximumBlackChannel),
+                "Warning frame " + frameIndex + " " + corner + " is not black (red=" + pixel.r + ").");
+            Assert.That(pixel.g, Is.LessThanOrEqualTo(MaximumBlackChannel),
+                "Warning frame " + frameIndex + " " + corner + " is not black (green=" + pixel.g + ").");
+            Assert.That(pixel.b, Is.LessThanOrEqualTo(MaximumBlackChannel),
+                "Warning frame " + frameIndex + " " + corner + " is not black (blue=" + pixel.b + ").");
         }
 
         private static void NoteOutput(string folder, int count)

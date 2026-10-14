@@ -21,6 +21,7 @@ on:
       - arena/01a10203-project-aether
       - arena/aether-gold-black-language-selector
       - arena/aether-warning-persian-default
+      - release/aether-latest-build-retry
     paths:
       - '.github/workflows/intro-render.yml'
       - 'Assets/Aether/Code/Aether.Tests.PlayMode/**'
@@ -170,7 +171,7 @@ jobs:
           }
 
           echo "::notice title=Test command exit::$(cat test-status.txt 2>/dev/null || echo '?')"
-          echo "::notice title=Files::$(ls -lR IntroRender artifacts 2>/dev/null | tr '\n' '|' | head -c 1200)"
+          echo "::notice title=Files::$(ls -lR IntroRender WarningRender GameplayRender artifacts 2>/dev/null | tr '\n' '|' | head -c 1800)"
 
           # The test framework's own results: the message and stack of any failure are attributes on
           # the <test-case> element, so the whole file is what needs reading.
@@ -178,6 +179,7 @@ jobs:
 
           # The test writes what it saw as it goes, so a failure explains itself here.
           [ -f IntroRender/diagnostics.txt ] && emit "Diagnostics" IntroRender/diagnostics.txt 5600
+          [ -f GameplayRender/summary.txt ] && emit "Gameplay runtime" GameplayRender/summary.txt 2600
 
           if [ -f IntroRender/summary.txt ]; then
             emit "Rendered frames" IntroRender/summary.txt 3000
@@ -271,6 +273,7 @@ jobs:
           path: |
             IntroRender/**
             WarningRender/**
+            GameplayRender/**
             AETHER-warning-preview.mp4
             artifacts/**
             intro-render.log
