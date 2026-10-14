@@ -19,9 +19,9 @@ namespace Aether.Gameplay.Controls
     /// units, so the layout is identical on every resolution and aspect ratio.
     /// </para>
     /// <para>
-    /// <b>The stick has no fixed origin.</b> The zone covers the lower-left of the screen, and the
+    /// <b>The stick has a fixed origin.</b> The zone covers the lower-left of the screen, and the
     /// base moves to wherever the thumb lands. A fixed joystick forces the player to look at it;
-    /// a floating one lets them keep their eyes on the level, which is the whole point of a
+    /// a fixed stick gives the thumb a reliable home, which is the whole point of a
     /// two-thumb action game.
     /// </para>
     /// <para>
