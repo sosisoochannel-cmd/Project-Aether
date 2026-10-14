@@ -38,6 +38,8 @@ def main() -> int:
     contains(boot_flow, "runtimeRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);")
     contains(boot_flow, "runtimeRoot.AddComponent<LevelBootstrap>();")
     excludes(boot_flow, "gameObject.AddComponent<LevelBootstrap>();")
+    contains(bootstrap, "transform == camera.transform || transform.IsChildOf(camera.transform)")
+    contains(bootstrap, 'GameplayCurtain.Fail(detail);')
 
     for contract in (
         "camera.orthographic = true;",

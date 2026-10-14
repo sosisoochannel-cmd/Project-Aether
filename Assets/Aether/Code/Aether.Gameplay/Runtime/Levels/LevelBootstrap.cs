@@ -106,6 +106,21 @@ namespace Aether.Gameplay.Levels
                     return;
                 }
 
+                Camera camera = ResolveCamera();
+
+                // Fail visibly rather than build an invisible level if a future scene change attaches
+                // this bootstrap to the camera again. A moving camera and the world it follows must
+                // never share a Transform ancestry; otherwise follow motion translates the world too.
+                if (transform == camera.transform || transform.IsChildOf(camera.transform))
+                {
+                    const string detail =
+                        "LevelBootstrap is parented to MainCamera. The runtime world root must be " +
+                        "independent from the camera transform.";
+                    Debug.LogError("[region] " + detail, this);
+                    GameplayCurtain.Fail(detail);
+                    return;
+                }
+
                 Level = LevelRuntimeBuilder.Build(data, content, transform, _buildGeometry);
                 if (Level.PlayerStartFeet == Vector2.zero && data.PlayerStart == null)
                 {
@@ -115,8 +130,6 @@ namespace Aether.Gameplay.Levels
                         "This is a level data problem, not something the player did.");
                     return;
                 }
-
-                Camera camera = ResolveCamera();
                 CameraFollow2D follow = camera.gameObject.GetComponent<CameraFollow2D>();
                 if (follow == null) follow = camera.gameObject.AddComponent<CameraFollow2D>();
 
