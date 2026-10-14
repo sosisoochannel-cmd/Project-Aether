@@ -70,7 +70,7 @@ namespace Aether.Gameplay.Interface
         /// <summary>Reports a save failure without hiding the completed run's summary or choices.</summary>
         public void ShowSaveFailure()
         {
-            if (_body != null) _body.text = MenuStrings.Get("complete.saveFailed");
+            if (_body != null) _body.text = MenuUi.PrepareText(MenuStrings.Get("complete.saveFailed"));
         }
 
         /// <summary>Whether the panel is on screen.</summary>
@@ -239,14 +239,14 @@ namespace Aether.Gameplay.Interface
         /// <summary>Reads the run's own numbers, which is the only place they can come from.</summary>
         private void Refresh()
         {
-            if (_body != null) _body.text = MenuStrings.Get("complete.body");
+            if (_body != null) _body.text = MenuUi.PrepareText(MenuStrings.Get("complete.body"));
             if (_session == null || _session.Save.Meta == null) return;
 
-            _stats.text = MenuStrings.Format("complete.stats",
+            _stats.text = MenuUi.PrepareText(MenuStrings.Format("complete.stats",
                                              RunSummary.Clock(RunSummary.PlaySeconds(_session)),
                                              RunSummary.Deaths(_session),
                                              RunSummary.Findings(_session),
-                                             RunSummary.FindingsTotal());
+                                             RunSummary.FindingsTotal()));
         }
 
     }

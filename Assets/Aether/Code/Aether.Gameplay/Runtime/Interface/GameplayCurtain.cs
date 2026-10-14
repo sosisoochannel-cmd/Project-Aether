@@ -228,9 +228,9 @@ namespace Aether.Gameplay.Interface
 
         private void SetText(string titleKey, string noteKey)
         {
-            if (_title != null) _title.text = MenuUi.Track(MenuStrings.Get(titleKey),
-                                                           MenuTheme.Metrics.ScreenTitleTracking);
-            if (_note != null) _note.text = MenuStrings.Get(noteKey);
+            if (_title != null) _title.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Get(titleKey),
+                                                           MenuTheme.Metrics.ScreenTitleTracking));
+            if (_note != null) _note.text = MenuUi.PrepareText(MenuStrings.Get(noteKey));
         }
 
         private void SetError(bool failed)

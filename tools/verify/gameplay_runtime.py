@@ -64,7 +64,27 @@ def main() -> int:
     if source(menu).count("_version.text = MenuUi.PrepareText(MenuUi.Track(") != 2:
         raise SystemExit("FAIL: both main-menu version assignments must apply RTL preparation")
 
-    print("PASS: gameplay camera, pause touch visibility/input, and live RTL text contracts")
+    hud = "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/GameplayHud.cs"
+    curtain = "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/GameplayCurtain.cs"
+    complete = "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/RegionCompletePanel.cs"
+
+    for contract in (
+        '_findings.text = MenuUi.PrepareText(MenuStrings.Format("hud.findings"',
+        '_falls.text = MenuUi.PrepareText(MenuStrings.Format("hud.deaths"',
+        "_objective.text = MenuUi.PrepareText(MenuUi.Track(",
+        "_objectiveHelp.text = MenuUi.PrepareText(MenuStrings.Get(",
+        "_toastTitle.text = MenuUi.PrepareText(MenuUi.Track(",
+        "_toastBody.text = MenuUi.PrepareText(",
+    ):
+        contains(hud, contract)
+
+    contains(curtain, "_title.text = MenuUi.PrepareText(MenuUi.Track(")
+    contains(curtain, "_note.text = MenuUi.PrepareText(MenuStrings.Get(noteKey));")
+    contains(complete, 'MenuUi.PrepareText(MenuStrings.Get("complete.saveFailed"))')
+    contains(complete, 'MenuUi.PrepareText(MenuStrings.Get("complete.body"))')
+    contains(complete, '_stats.text = MenuUi.PrepareText(MenuStrings.Format("complete.stats"')
+
+    print("PASS: gameplay camera, pause touch visibility/input, and all live RTL text contracts")
     print("NOTE: Unity compilation, rendering, physics and real-device touch still require runtime validation.")
     return 0
 

@@ -103,12 +103,12 @@ namespace Aether.Gameplay.Interface
 
             if (_findings != null)
             {
-                _findings.text = MenuStrings.Format("hud.findings", _found, _foundTotal);
+                _findings.text = MenuUi.PrepareText(MenuStrings.Format("hud.findings", _found, _foundTotal));
             }
 
             if (_falls != null)
             {
-                _falls.text = MenuStrings.Format("hud.deaths", _deaths);
+                _falls.text = MenuUi.PrepareText(MenuStrings.Format("hud.deaths", _deaths));
             }
         }
 
@@ -122,9 +122,9 @@ namespace Aether.Gameplay.Interface
             if (_objectiveHelp != null) _objectiveHelp.gameObject.SetActive(has);
             if (!has) return;
 
-            _objective.text = MenuUi.Track(MenuStrings.Get(chapter.ObjectiveId),
-                                           MenuTheme.Metrics.SubtitleTracking);
-            if (_objectiveHelp != null) _objectiveHelp.text = MenuStrings.Get(chapter.ObjectiveId + ".body");
+            _objective.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Get(chapter.ObjectiveId),
+                                            MenuTheme.Metrics.SubtitleTracking));
+            if (_objectiveHelp != null) _objectiveHelp.text = MenuUi.PrepareText(MenuStrings.Get(chapter.ObjectiveId + ".body"));
         }
 
         /// <summary>
@@ -140,9 +140,9 @@ namespace Aether.Gameplay.Interface
         {
             if (_toast == null || achievement == null) return;
 
-            _toastTitle.text = MenuUi.Track(MenuStrings.Get("achievements.unlocked"),
-                                            MenuTheme.Metrics.SectionLabelTracking);
-            _toastBody.text = MenuStrings.Get(achievement.TitleKey);
+            _toastTitle.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Get("achievements.unlocked"),
+                                            MenuTheme.Metrics.SectionLabelTracking));
+            _toastBody.text = MenuUi.PrepareText(MenuStrings.Get(achievement.TitleKey));
             _toastUntil = Time.unscaledTime + ToastSeconds;
             _toast.gameObject.SetActive(true);
             _toastGroup.alpha = 0f;
@@ -166,9 +166,9 @@ namespace Aether.Gameplay.Interface
             if (_toast == null || string.IsNullOrEmpty(titleKey)) return;
             if (_toastTitle == null || _toastBody == null) return;
 
-            _toastTitle.text = MenuUi.Track(MenuStrings.Get(titleKey),
-                                            MenuTheme.Metrics.SectionLabelTracking);
-            _toastBody.text = body ?? string.Empty;
+            _toastTitle.text = MenuUi.PrepareText(MenuUi.Track(MenuStrings.Get(titleKey),
+                                            MenuTheme.Metrics.SectionLabelTracking));
+            _toastBody.text = MenuUi.PrepareText(body ?? string.Empty);
             _toastUntil = Time.unscaledTime + ToastSeconds;
             _toast.gameObject.SetActive(true);
             _toastGroup.alpha = 0f;
