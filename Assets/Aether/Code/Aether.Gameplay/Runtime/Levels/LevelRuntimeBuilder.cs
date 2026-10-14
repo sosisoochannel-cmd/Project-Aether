@@ -132,6 +132,12 @@ namespace Aether.Gameplay.Levels
                 GameObject go = CreateRectObject($"Solid_{rect.Col}_{rect.Row}", rect, level,
                     terrain.transform, SortingTerrain, LevelPalette.For(rect.Kind));
 
+                // Assign the layer to each collider object, not only the Terrain parent.
+                // Unity does not inherit a parent's layer when a child is created later. Without
+                // this, solid geometry remains on Default, so the Player's Ground-only probe never
+                // sees it and the character can look embedded, fail to ground, and lose jump control.
+                GameplayLayers.Assign(go, GameplayLayers.GroundName);
+
                 var collider = go.AddComponent<BoxCollider2D>();
                 collider.size = rect.WorldSize(level.TileSize);
                 collider.offset = Vector2.zero;
