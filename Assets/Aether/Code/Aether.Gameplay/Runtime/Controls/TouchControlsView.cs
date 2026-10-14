@@ -428,17 +428,17 @@ namespace Aether.Gameplay.Controls
             _gameplayVisible = visible;
             if (!visible) ReleaseEverything();
             if (_source != null) _source.Enabled = visible;
-            ApplyRendererVisibility();
+            RefreshRendererVisibility();
         }
 
         private void SetVisible(bool visible)
         {
             _visible = visible;
-            ApplyRendererVisibility();
+            RefreshRendererVisibility();
             if (!visible) ReleaseEverything();
         }
 
-        private void ApplyRendererVisibility()
+        private void RefreshRendererVisibility()
         {
             bool show = _visible && _gameplayVisible;
             if (_leftRenderer != null) _leftRenderer.enabled = show;
