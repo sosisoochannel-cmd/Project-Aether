@@ -19,15 +19,13 @@ namespace Aether.Gameplay.Controls
     /// units, so the layout is identical on every resolution and aspect ratio.
     /// </para>
     /// <para>
-    /// <b>The stick has a fixed origin.</b> The zone covers the lower-left of the screen, and the
-    /// base moves to wherever the thumb lands. A fixed joystick forces the player to look at it;
-    /// a fixed stick gives the thumb a reliable home, which is the whole point of a
-    /// two-thumb action game.
+    /// <b>The stick has a fixed origin.</b> The base stays at its configured rest point. The thumb moves the knob relative to that anchor,
+    /// so the touch target remains predictable while the player watches the level.
     /// </para>
     /// <para>
-    /// Layout is in fractions of the screen, so it is tuned by editing numbers, not by dragging in a
-    /// scene. The numbers below are a starting point chosen for a 16:9 landscape phone and are
-    /// expected to be tuned on device; nothing else depends on them.
+    /// Layout is stored as safe-area fractions, with size, opacity and handedness coming from player
+    /// settings. A drag-to-reposition editor is not yet implemented; these values are deliberately
+    /// kept centralized so a future editor can change them without rewriting touch hit-testing.
     /// </para>
     /// </remarks>
     [DisallowMultipleComponent]
