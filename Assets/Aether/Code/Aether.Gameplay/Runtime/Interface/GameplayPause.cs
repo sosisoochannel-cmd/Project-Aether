@@ -357,10 +357,10 @@ namespace Aether.Gameplay.Interface
         {
             if (_stats != null)
             {
-                _stats.text = MenuStrings.Format("pause.stats",
+                _stats.text = MenuUi.PrepareText(MenuStrings.Format("pause.stats",
                                                  RunSummary.Clock(RunSummary.PlaySeconds(_session)),
                                                  RunSummary.Findings(_session),
-                                                 RunSummary.Deaths(_session));
+                                                 RunSummary.Deaths(_session)));
             }
 
             _saveRow.SetMeta(null);

@@ -57,6 +57,7 @@ def main() -> int:
     excludes(pause, "_touchControls.enabled = false")
     excludes(pause, "_touchControls.enabled = true")
     contains(pause, "0.76f")
+    contains(pause, '_stats.text = MenuUi.PrepareText(MenuStrings.Format("pause.stats"')
 
     contains(confirm, "_title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));")
     contains(confirm, "_body.text = MenuUi.PrepareText(body);")
