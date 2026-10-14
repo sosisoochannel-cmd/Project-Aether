@@ -146,16 +146,18 @@ namespace Aether.Gameplay.Controls
             _camera = targetCamera;
             _source = source;
 
+            // Default glyphs are deliberately restrained: distinct enough to learn once, but
+            // translucent enough that the environment remains the visual focus during play.
             _leftRenderer = CreateCircle("MoveLeftButton", PlaceholderVisuals.LeftArrow,
-                new Color(1f, 1f, 1f, 0.72f * Layout.OpacityScale), 900);
+                new Color(1f, 1f, 1f, 0.50f * Layout.OpacityScale), 900);
             _rightRenderer = CreateCircle("MoveRightButton", PlaceholderVisuals.RightArrow,
-                new Color(1f, 1f, 1f, 0.72f * Layout.OpacityScale), 900);
+                new Color(1f, 1f, 1f, 0.50f * Layout.OpacityScale), 900);
             _jumpRenderer = CreateCircle("JumpButton", PlaceholderVisuals.UpArrow,
-                new Color(1f, 1f, 1f, 0.82f * Layout.OpacityScale), 900);
+                new Color(1f, 1f, 1f, 0.58f * Layout.OpacityScale), 900);
             _attackRenderer = CreateCircle("AttackButton", PlaceholderVisuals.Slash,
-                new Color(1f, 1f, 1f, 0.82f * Layout.OpacityScale), 901);
+                new Color(1f, 1f, 1f, 0.58f * Layout.OpacityScale), 901);
             _dodgeRenderer = CreateCircle("DodgeButton", PlaceholderVisuals.Diamond,
-                new Color(0.72f, 0.94f, 1f, 0.78f * Layout.OpacityScale), 899);
+                new Color(0.72f, 0.94f, 1f, 0.52f * Layout.OpacityScale), 899);
 
             _visible = true;
             RefreshLayout(force: true);
@@ -201,11 +203,11 @@ namespace Aether.Gameplay.Controls
         private void Repaint()
         {
             float opacity = Layout.OpacityScale;
-            if (_leftRenderer != null) SetAlpha(_leftRenderer, 0.72f * opacity);
-            if (_rightRenderer != null) SetAlpha(_rightRenderer, 0.72f * opacity);
-            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.82f * opacity);
-            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.82f * opacity);
-            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.78f * opacity);
+            if (_leftRenderer != null) SetAlpha(_leftRenderer, 0.50f * opacity);
+            if (_rightRenderer != null) SetAlpha(_rightRenderer, 0.50f * opacity);
+            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.58f * opacity);
+            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.58f * opacity);
+            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.52f * opacity);
         }
 
         private static void SetAlpha(SpriteRenderer renderer, float alpha)

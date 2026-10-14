@@ -213,7 +213,11 @@ namespace Aether.Gameplay.Levels
         private void AttachTouchControls(Camera camera, PlayerController player)
         {
             var source = new TouchInputSource();
-            TouchControls = TouchControlsView.Create(camera, source, transform);
+            // These glyphs are a screen-space overlay built from SpriteRenderers. They must
+            // move with the view, not stay at the world position where the camera happened to be
+            // when the region booted. Parenting them to the camera makes their camera-relative
+            // positions invariant as the player traverses the level.
+            TouchControls = TouchControlsView.Create(camera, source, camera.transform);
             if (TouchControls == null) return;   // no touchscreen: keyboard and gamepad only
 
             if (player.Input is GameplayInputRouter router) router.AddSource(source);

@@ -53,7 +53,12 @@ def main() -> int:
 
     contains(camera, "SetTarget(target, snap: true);")
     contains(camera, "if (Time.timeScale <= 0f) return;")
+    contains(bootstrap, "TouchControlsView.Create(camera, source, camera.transform);")
+    excludes(bootstrap, "TouchControlsView.Create(camera, source, transform);")
     contains(controls, "public void SetGameplayVisible(bool visible)")
+    contains(controls, "0.50f * Layout.OpacityScale")
+    contains(controls, "0.58f * Layout.OpacityScale")
+    contains(controls, "0.52f * Layout.OpacityScale")
     contains(controls, "if (!_gameplayVisible) return;")
     contains(controls, "bool show = _visible && _gameplayVisible;")
     contains(controls, "if (_source != null) _source.Enabled = visible;")
