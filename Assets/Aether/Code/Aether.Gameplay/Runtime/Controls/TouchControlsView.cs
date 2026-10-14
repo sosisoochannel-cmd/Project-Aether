@@ -52,18 +52,6 @@ namespace Aether.Gameplay.Controls
         /// </remarks>
         public static class Layout
         {
-            /// <summary>Region of the lower left that may claim a touch for the stick.</summary>
-            public static readonly Rect StickZone = new Rect(0f, 0f, 0.45f, 0.75f);
-
-            /// <summary>Distance from the touch origin that means full tilt.</summary>
-            public const float StickRadius = 0.15f;
-
-            /// <summary>Movement below this fraction of the radius is ignored.</summary>
-            public const float StickDeadZone = 0.14f;
-
-            /// <summary>Where the stick rests before it is touched.</summary>
-            public static readonly Vector2 StickRest = new Vector2(0.16f, 0.20f);
-
             public static readonly Vector2 LeftCentre = new Vector2(0.10f, 0.18f);
             public static readonly Vector2 RightCentre = new Vector2(0.27f, 0.18f);
             public const float DirectionRadius = 0.075f;
@@ -94,9 +82,6 @@ namespace Aether.Gameplay.Controls
             /// <summary>Movement under the right thumb, actions under the left.</summary>
             public static bool Mirrored;
 
-            /// <summary>Movement below this fraction of the stick's radius is ignored.</summary>
-            public static float DeadZonePreference = StickDeadZone;
-
             /// <summary>A control's centre after mirroring, in fractions of the safe area.</summary>
             public static Vector2 Centre(Vector2 tuned)
             {
@@ -109,49 +94,26 @@ namespace Aether.Gameplay.Controls
                 return tuned * RadiusScale;
             }
 
-            /// <summary>The stick's claim on the lower third, mirrored with everything else.</summary>
-            public static Rect StickZoneAt
-            {
-                get
-                {
-                    if (!Mirrored) return StickZone;
-                    return new Rect(1f - StickZone.x - StickZone.width, StickZone.y,
-                                    StickZone.width, StickZone.height);
-                }
-            }
-
-            /// <summary>The dead zone the stick actually applies.</summary>
-            public static float DeadZoneAt => Mathf.Clamp(DeadZonePreference, 0f, 0.45f);
         }
 
         private Camera _camera;
         private TouchInputSource _source;
-        private Transform _stickBase;
-        private Transform _stickKnob;
-        private SpriteRenderer _stickBaseRenderer;
-        private SpriteRenderer _stickKnobRenderer;
         private SpriteRenderer _leftRenderer;
         private SpriteRenderer _rightRenderer;
         private SpriteRenderer _jumpRenderer;
         private SpriteRenderer _attackRenderer;
         private SpriteRenderer _dodgeRenderer;
 
-        private int _stickTouch = -1;
         private int _leftTouch = -1;
         private int _rightTouch = -1;
         private int _jumpTouch = -1;
         private int _attackTouch = -1;
         private int _dodgeTouch = -1;
-        private Vector2 _stickOrigin;
-        private Vector2 _stickValue;
-        private bool _stickActive;
+        private Vector2 _moveValue;
 
         private int _cachedWidth;
         private int _cachedHeight;
         private Rect _cachedSafeArea;
-        private Vector2 _placedStickOrigin;
-        private Vector2 _placedStickValue;
-        private bool _placedStickActive;
         private bool _visible;
 
         /// <summary>True when this overlay is showing, which only happens when touch exists.</summary>
@@ -225,7 +187,6 @@ namespace Aether.Gameplay.Controls
             Layout.RadiusScale = wanted.ButtonSize;
             Layout.OpacityScale = wanted.ButtonOpacity;
             Layout.Mirrored = wanted.LeftHanded;
-            Layout.DeadZonePreference = wanted.StickDeadZone;
         }
 
         private void OnSettingsChanged(string id)
@@ -257,7 +218,7 @@ namespace Aether.Gameplay.Controls
         {
             ReadTouches();
             RefreshLayout(force: false);
-            _source.SetMove(_stickValue);
+            _source.SetMove(_moveValue);
         }
 
         private void OnDisable()
@@ -283,11 +244,9 @@ namespace Aether.Gameplay.Controls
         private void ReleaseEverything()
         {
             _source?.Reset();
-            _stickTouch = -1;
             _leftTouch = -1;
             _rightTouch = -1;
-            _stickActive = false;
-            _stickValue = Vector2.zero;
+            _moveValue = Vector2.zero;
             _jumpTouch = -1;
             _attackTouch = -1;
             _dodgeTouch = -1;
@@ -362,7 +321,7 @@ namespace Aether.Gameplay.Controls
 
             if (!sawLeft) _leftTouch = -1;
             if (!sawRight) _rightTouch = -1;
-            _stickValue = new Vector2((_leftTouch >= 0 ? -1f : 0f) + (_rightTouch >= 0 ? 1f : 0f), 0f);
+            _moveValue = new Vector2((_leftTouch >= 0 ? -1f : 0f) + (_rightTouch >= 0 ? 1f : 0f), 0f);
 
             if (!sawJump && _jumpTouch >= 0)
             {
@@ -371,28 +330,6 @@ namespace Aether.Gameplay.Controls
             }
             if (!sawAttack) _attackTouch = -1;
             if (!sawDodge) _dodgeTouch = -1;
-        }
-
-        private void ApplyStick(Vector2 position)
-        {
-            float radius = Layout.Radius(Layout.StickRadius) * Screen.height;
-            Vector2 offset = (position - _stickOrigin) / Mathf.Max(1f, radius);
-            float deadZone = Layout.DeadZoneAt;
-            float magnitude = offset.magnitude;
-            if (magnitude < deadZone) offset = Vector2.zero;
-            else offset = offset.normalized * Mathf.Min(1f, (magnitude - deadZone) / (1f - deadZone));
-
-            // Only horizontal movement exists in this game, but a full stick vector is produced so a
-            // later ability (a crouch, a down-attack) needs no input plumbing.
-            _stickValue = new Vector2(offset.x, offset.y);
-        }
-
-        private static bool InStickZone(Vector2 position)
-        {
-            Vector2 fraction = ToFraction(position);
-            Rect zone = Layout.StickZoneAt;
-            return fraction.x >= zone.xMin && fraction.x <= zone.xMax
-                && fraction.y >= zone.yMin && fraction.y <= zone.yMax;
         }
 
         private static bool CircleHit(Vector2 position, Vector2 centreFraction, float radiusFraction)
@@ -476,14 +413,12 @@ namespace Aether.Gameplay.Controls
         private void SetVisible(bool visible)
         {
             _visible = visible;
-            if (_stickBaseRenderer != null) _stickBaseRenderer.enabled = false;
-            if (_stickKnobRenderer != null) _stickKnobRenderer.enabled = false;
             if (_leftRenderer != null) _leftRenderer.enabled = visible;
             if (_rightRenderer != null) _rightRenderer.enabled = visible;
             if (_jumpRenderer != null) _jumpRenderer.enabled = visible;
             if (_attackRenderer != null) _attackRenderer.enabled = visible;
             if (_dodgeRenderer != null) _dodgeRenderer.enabled = visible;
-            if (!visible) _source?.Reset();
+            if (!visible) ReleaseEverything();
         }
     }
 }

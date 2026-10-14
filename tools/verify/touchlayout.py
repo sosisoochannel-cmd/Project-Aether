@@ -7,8 +7,7 @@ possible to check the things that go wrong on a real phone before anyone holds o
 * two controls overlapping, so the player presses attack and jumps instead;
 * a control hanging off the edge of the screen, or under a notch or a gesture bar;
 * buttons too small to hit with a thumb;
-* the stick's zone stealing touches from a button, or a button's circle reaching into the
-  stick's zone so both respond to one finger.
+* the left/right movement controls or action controls overlapping or becoming too small.
 
 All of it is geometry, so all of it is decidable here. What is *not* decidable here is how the
 layout feels — reach, comfort and fatigue need thumbs. This tool proves the layout is not broken;
@@ -85,12 +84,6 @@ def parse_layout(path: str) -> dict:
                              "the layout moved and this tool would be checking nothing")
         values[key] = cast(match.group(1))
 
-    number(r"StickZone\s*=\s*new Rect\(([^)]*)\)", "StickZone",
-           lambda text: Rect(*[csharp_float(v) for v in text.split(",")]))
-    number(r"StickRadius\s*=\s*([0-9.]+f)", "StickRadius")
-    number(r"StickDeadZone\s*=\s*([0-9.]+f)", "StickDeadZone")
-    number(r"StickRest\s*=\s*new Vector2\(([^)]*)\)", "StickRest",
-           lambda text: tuple(csharp_float(v) for v in text.split(",")))
     number(r"LeftCentre\s*=\s*new Vector2\(([^)]*)\)", "LeftCentre",
            lambda text: tuple(csharp_float(v) for v in text.split(",")))
     number(r"RightCentre\s*=\s*new Vector2\(([^)]*)\)", "RightCentre",
