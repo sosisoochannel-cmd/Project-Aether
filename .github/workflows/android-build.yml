@@ -27,6 +27,7 @@ on:
       - arena/01a10203-project-aether
       - arena/ultimate-visual-polish
       - arena/aether-l10n-cinematic-menu
+      - integration/multicolor-gameplay-controls
     # Documentation cannot change an APK, and a build spends real minutes from the month's free
     # allowance, so a docs-only push should not start one.
     paths-ignore:

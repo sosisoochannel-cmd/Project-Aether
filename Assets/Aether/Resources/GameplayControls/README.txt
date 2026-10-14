@@ -1,0 +1,1 @@
+Aether mobile gameplay controls — original transparent Sprite assets. The fixed joystick base and knob are separate; jump uses cyan/indigo, attack action uses coral/orange, dodge uses mint/blue, and pause uses violet/blue. Runtime controls load these from Resources/GameplayControls.

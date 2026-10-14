@@ -54,7 +54,7 @@ namespace Aether.Gameplay.Controls
         public static class Layout
         {
             /// <summary>Region of the lower left that may claim a touch for the stick.</summary>
-            public static readonly Rect StickZone = new Rect(0f, 0f, 0.45f, 0.75f);
+            public static readonly Rect StickZone = new Rect(0.02f, 0.02f, 0.30f, 0.36f);
 
             /// <summary>Distance from the touch origin that means full tilt.</summary>
             public const float StickRadius = 0.15f;
@@ -176,20 +176,22 @@ namespace Aether.Gameplay.Controls
             _camera = targetCamera;
             _source = source;
 
-            _stickBaseRenderer = CreateCircle("StickBase", PlaceholderVisuals.Ring,
-                new Color(1f, 1f, 1f, 0.25f * Layout.OpacityScale), 900);
+            _stickBaseRenderer = CreateCircle("StickBase",
+                LoadControlSprite("JoystickBase", PlaceholderVisuals.Ring),
+                new Color(1f, 1f, 1f, 0.82f * Layout.OpacityScale), 900);
             _stickBase = _stickBaseRenderer.transform;
 
-            _stickKnobRenderer = CreateCircle("StickKnob", PlaceholderVisuals.Circle,
-                new Color(1f, 1f, 1f, 0.45f * Layout.OpacityScale), 901);
+            _stickKnobRenderer = CreateCircle("StickKnob",
+                LoadControlSprite("JoystickKnob", PlaceholderVisuals.Circle),
+                new Color(1f, 1f, 1f, 0.94f * Layout.OpacityScale), 901);
             _stickKnob = _stickKnobRenderer.transform;
 
-            _jumpRenderer = CreateCircle("JumpButton", PlaceholderVisuals.Circle,
-                new Color(0.55f, 0.85f, 1f, 0.35f * Layout.OpacityScale), 900);
-            _attackRenderer = CreateCircle("AttackButton", PlaceholderVisuals.Circle,
-                new Color(1f, 0.62f, 0.45f, 0.35f * Layout.OpacityScale), 901);
-            _dodgeRenderer = CreateCircle("DodgeButton", PlaceholderVisuals.Circle,
-                new Color(0.8f, 0.8f, 1f, 0.30f * Layout.OpacityScale), 899);
+            _jumpRenderer = CreateCircle("JumpButton", LoadControlSprite("Jump", PlaceholderVisuals.Circle),
+                new Color(1f, 1f, 1f, 0.94f * Layout.OpacityScale), 900);
+            _attackRenderer = CreateCircle("AttackButton", LoadControlSprite("Attack", PlaceholderVisuals.Circle),
+                new Color(1f, 1f, 1f, 0.94f * Layout.OpacityScale), 901);
+            _dodgeRenderer = CreateCircle("DodgeButton", LoadControlSprite("Dodge", PlaceholderVisuals.Circle),
+                new Color(1f, 1f, 1f, 0.94f * Layout.OpacityScale), 899);
 
             _visible = true;
             RefreshLayout(force: true);
@@ -236,11 +238,11 @@ namespace Aether.Gameplay.Controls
         private void Repaint()
         {
             float opacity = Layout.OpacityScale;
-            if (_stickBaseRenderer != null) SetAlpha(_stickBaseRenderer, 0.25f * opacity);
-            if (_stickKnobRenderer != null) SetAlpha(_stickKnobRenderer, 0.45f * opacity);
-            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.35f * opacity);
-            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.35f * opacity);
-            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.30f * opacity);
+            if (_stickBaseRenderer != null) SetAlpha(_stickBaseRenderer, 0.82f * opacity);
+            if (_stickKnobRenderer != null) SetAlpha(_stickKnobRenderer, 0.94f * opacity);
+            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.94f * opacity);
+            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.94f * opacity);
+            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.94f * opacity);
         }
 
         private static void SetAlpha(SpriteRenderer renderer, float alpha)
@@ -338,7 +340,7 @@ namespace Aether.Gameplay.Controls
                     if (_stickTouch < 0 && InStickZone(position))
                     {
                         _stickTouch = id;
-                        _stickOrigin = position;
+                        _stickOrigin = ToScreen(Layout.Centre(Layout.StickRest));
                         _stickActive = true;
                         ApplyStick(position);
                         sawStick = true;
@@ -491,6 +493,12 @@ namespace Aether.Gameplay.Controls
             float worldY = cameraPosition.y + ((fraction.y - 0.5f) * 2f * halfHeight);
             target.position = new Vector3(worldX, worldY, cameraPosition.z + 1f);
             target.localScale = new Vector3(diameterFraction * 2f * halfHeight, diameterFraction * 2f * halfHeight, 1f);
+        }
+
+        private static Sprite LoadControlSprite(string resourceName, Sprite fallback)
+        {
+            Sprite sprite = Resources.Load<Sprite>("GameplayControls/" + resourceName);
+            return sprite != null ? sprite : fallback;
         }
 
         private SpriteRenderer CreateCircle(string name, Sprite sprite, Color colour, int sortingOrder)
