@@ -44,6 +44,7 @@ def main() -> int:
         contains(bootstrap, contract)
 
     contains(camera, "SetTarget(target, snap: true);")
+    contains(camera, "if (Time.timeScale <= 0f) return;")
     contains(controls, "public void SetGameplayVisible(bool visible)")
     contains(controls, "if (!_gameplayVisible) return;")
     contains(controls, "bool show = _visible && _gameplayVisible;")

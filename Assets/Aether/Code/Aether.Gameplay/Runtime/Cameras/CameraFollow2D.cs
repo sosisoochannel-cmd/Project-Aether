@@ -188,6 +188,9 @@ namespace Aether.Gameplay.Cameras
 
         private void LateUpdate()
         {
+            // Camera motion belongs to the simulated world. Unscaled time makes it drift after
+            // pause has frozen the player, which breaks the promise that Pause freezes gameplay.
+            if (Time.timeScale <= 0f) return;
             if (_target == null) return;
 
             Vector2 targetVelocity = ReadTargetVelocity();
