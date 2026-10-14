@@ -91,6 +91,11 @@ def parse_layout(path: str) -> dict:
     number(r"StickDeadZone\s*=\s*([0-9.]+f)", "StickDeadZone")
     number(r"StickRest\s*=\s*new Vector2\(([^)]*)\)", "StickRest",
            lambda text: tuple(csharp_float(v) for v in text.split(",")))
+    number(r"LeftCentre\s*=\s*new Vector2\(([^)]*)\)", "LeftCentre",
+           lambda text: tuple(csharp_float(v) for v in text.split(",")))
+    number(r"RightCentre\s*=\s*new Vector2\(([^)]*)\)", "RightCentre",
+           lambda text: tuple(csharp_float(v) for v in text.split(",")))
+    number(r"DirectionRadius\s*=\s*([0-9.]+f)", "DirectionRadius")
     number(r"JumpCentre\s*=\s*new Vector2\(([^)]*)\)", "JumpCentre",
            lambda text: tuple(csharp_float(v) for v in text.split(",")))
     number(r"JumpRadius\s*=\s*([0-9.]+f)", "JumpRadius")
@@ -122,6 +127,8 @@ def check(values: dict, aspect_name: str, aspect: float, cutout_name: str, cutou
     radius = lambda fraction: fraction * screen_h   # noqa: E731 — radii scale with height
 
     buttons = [
+        ("move-left", values["LeftCentre"], values["DirectionRadius"]),
+        ("move-right", values["RightCentre"], values["DirectionRadius"]),
         ("jump", values["JumpCentre"], values["JumpRadius"]),
         ("attack", values["AttackCentre"], values["AttackRadius"]),
         ("dodge", values["DodgeCentre"], values["DodgeRadius"]),
@@ -162,24 +169,12 @@ def check(values: dict, aspect_name: str, aspect: float, cutout_name: str, cutou
                     f"{(distance - reach) / screen_h:.3f} of screen height apart, so one thumb "
                     "can straddle both")
 
-    # 4. a button never reaches into the stick's zone, or one finger would drive two things
-    zone = values["StickZone"]
-    zone_rect = (zone.x * safe[2] + safe[0], zone.y * safe[3] + safe[1],
-                 zone.w * safe[2], zone.h * safe[3])
-    for name, fraction, radius_fraction in buttons:
-        centre = to_pixels(fraction, safe, screen_w, screen_h)
-        r = radius(radius_fraction)
-        # Closest point of the zone rectangle to the button centre.
-        closest = (min(max(centre[0], zone_rect[0]), zone_rect[0] + zone_rect[2]),
-                   min(max(centre[1], zone_rect[1]), zone_rect[1] + zone_rect[3]))
-        if ((centre[0] - closest[0]) ** 2 + (centre[1] - closest[1]) ** 2) ** 0.5 < r:
-            problems.append(f"{where}: the {name} button reaches into the stick's zone")
-
-    # 5. the stick's resting place is itself usable
-    rest = to_pixels(values["StickRest"], safe, screen_w, screen_h)
-    r = radius(values["StickRadius"])
-    if rest[0] - r < safe[0] - 0.5 or rest[1] - r < safe[1] - 0.5:
-        problems.append(f"{where}: the stick's resting position hangs off the safe area")
+    # 4. Movement is discrete: two independently-held direction buttons, no joystick zone.
+    source = open(os.path.join(REPO_ROOT, VIEW), encoding="utf-8").read()
+    if "MoveLeftButton" not in source or "MoveRightButton" not in source:
+        problems.append(f"{where}: both directional controls must have their own visual glyph")
+    if "_leftTouch >= 0 ? -1f : 0f" not in source or "_rightTouch >= 0 ? 1f : 0f" not in source:
+        problems.append(f"{where}: movement is not composed from independent left/right touch IDs")
 
     return problems
 
@@ -192,8 +187,8 @@ def main() -> int:
 
     values = parse_layout(path)
     print(f"touch layout: {VIEW}")
-    print(f"  stick zone  : x<= {values['StickZone'].w:.2f}, y<= {values['StickZone'].h:.2f}"
-          f"   radius {values['StickRadius']:.3f}  dead zone {values['StickDeadZone']:.2f}")
+    print(f"  move-left   : {values['LeftCentre']}  radius {values['DirectionRadius']:.3f}")
+    print(f"  move-right  : {values['RightCentre']}  radius {values['DirectionRadius']:.3f}")
     print(f"  jump        : {values['JumpCentre']}  radius {values['JumpRadius']:.3f}")
     print(f"  attack      : {values['AttackCentre']}  radius {values['AttackRadius']:.3f}")
     print(f"  dodge       : {values['DodgeCentre']}  radius {values['DodgeRadius']:.3f}")
@@ -214,7 +209,7 @@ def main() -> int:
         print(f"{len(problems)} problem(s) across {checked} device shapes")
         return 1
 
-    print(f"  ok   no overlap, nothing outside the safe area, every button hittable "
+    print(f"  ok   no overlap, nothing outside the safe area, every control hittable "
           f"({checked} device shapes)")
     print(f"{checked}/{checked} device shapes sound, 0 problem(s)")
     return 0
