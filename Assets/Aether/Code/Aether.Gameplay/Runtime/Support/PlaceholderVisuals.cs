@@ -31,6 +31,10 @@ namespace Aether.Gameplay.Support
         private static Sprite _circle;
         private static Sprite _ring;
         private static Sprite _diamond;
+        private static Sprite _leftArrow;
+        private static Sprite _rightArrow;
+        private static Sprite _upArrow;
+        private static Sprite _slash;
 
         /// <summary>A one-unit white square. Scale it to the desired size.</summary>
         public static Sprite Square
@@ -75,6 +79,48 @@ namespace Aether.Gameplay.Support
                 if (_diamond == null) _diamond = Build("AetherPlaceholderDiamond", InsideUnitDiamond);
                 return _diamond;
             }
+        }
+
+        public static Sprite LeftArrow
+        {
+            get { if (_leftArrow == null) _leftArrow = Build("AetherControlLeft", InsideLeftArrow); return _leftArrow; }
+        }
+
+        public static Sprite RightArrow
+        {
+            get { if (_rightArrow == null) _rightArrow = Build("AetherControlRight", InsideRightArrow); return _rightArrow; }
+        }
+
+        public static Sprite UpArrow
+        {
+            get { if (_upArrow == null) _upArrow = Build("AetherControlJump", InsideUpArrow); return _upArrow; }
+        }
+
+        public static Sprite Slash
+        {
+            get { if (_slash == null) _slash = Build("AetherControlAttack", InsideSlash); return _slash; }
+        }
+
+        private static bool InsideLeftArrow(float x, float y)
+        {
+            bool head = x <= 0.48f && Mathf.Abs(y - 0.5f) <= (0.5f - x) * 0.86f;
+            bool shaft = x >= 0.30f && x <= 0.90f && Mathf.Abs(y - 0.5f) <= 0.12f;
+            return head || shaft;
+        }
+
+        private static bool InsideRightArrow(float x, float y) => InsideLeftArrow(1f - x, y);
+
+        private static bool InsideUpArrow(float x, float y)
+        {
+            bool head = y >= 0.50f && Mathf.Abs(x - 0.5f) <= (1f - y) * 0.86f;
+            bool shaft = y >= 0.10f && y <= 0.72f && Mathf.Abs(x - 0.5f) <= 0.12f;
+            return head || shaft;
+        }
+
+        private static bool InsideSlash(float x, float y)
+        {
+            return x >= 0.08f && x <= 0.92f && y >= 0.08f && y <= 0.92f
+                && Mathf.Abs((x + y) - 1f) <= 0.13f;
         }
 
         private static bool InsideUnitCircle(float x, float y)

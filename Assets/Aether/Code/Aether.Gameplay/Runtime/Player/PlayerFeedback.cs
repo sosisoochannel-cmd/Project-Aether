@@ -28,7 +28,7 @@ namespace Aether.Gameplay.Player
         private const float AttackPulseSeconds = 0.12f;
 
         /// <summary>How far the body leans into a swing.</summary>
-        private const float AttackPulseScale = 1.14f;
+        private const float AttackPulseScale = 1.18f;
 
         private SpriteRenderer _renderer;
         private Transform _visual;
@@ -205,12 +205,12 @@ namespace Aether.Gameplay.Player
                     {
                         float strideRate = Mathf.Lerp(8f, 15f, Mathf.Clamp01(speed / 6f));
                         float stride = Mathf.Sin(Time.time * strideRate);
-                        scaleX = 1f + Mathf.Abs(stride) * 0.018f;
-                        scaleY = 1f + stride * 0.028f;
+                        scaleX = 1f + Mathf.Abs(stride) * 0.024f;
+                        scaleY = 1f + stride * 0.036f;
                     }
                     else
                     {
-                        scaleY = 1f + Mathf.Sin(Time.time * 2.2f) * 0.012f;
+                        scaleY = 1f + Mathf.Sin(Time.time * 2.2f) * 0.016f;
                     }
                 }
             }

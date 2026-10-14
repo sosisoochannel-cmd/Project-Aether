@@ -7,8 +7,8 @@ using UnityEngine.InputSystem;
 namespace Aether.Gameplay.Controls
 {
     /// <summary>
-    /// The on-screen stick and buttons: a virtual joystick on the left, jump, attack and dodge on the
-    /// right, sized and placed for thumbs in landscape.
+    /// The on-screen directional and action glyphs. Each button has its own touch ID so movement can
+    /// be held while another finger presses jump, attack or dodge.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -19,10 +19,9 @@ namespace Aether.Gameplay.Controls
     /// units, so the layout is identical on every resolution and aspect ratio.
     /// </para>
     /// <para>
-    /// <b>The stick has no fixed origin.</b> The zone covers the lower-left of the screen, and the
-    /// base moves to wherever the thumb lands. A fixed joystick forces the player to look at it;
-    /// a floating one lets them keep their eyes on the level, which is the whole point of a
-    /// two-thumb action game.
+    /// <b>There is no virtual joystick.</b> Two separate left/right buttons provide predictable
+    /// movement. Jump, attack and dodge each have a distinct low-opacity glyph, with touch targets
+    /// that share the exact same screen-relative geometry.
     /// </para>
     /// <para>
     /// Layout is in fractions of the screen, so it is tuned by editing numbers, not by dragging in a
@@ -65,14 +64,18 @@ namespace Aether.Gameplay.Controls
             /// <summary>Where the stick rests before it is touched.</summary>
             public static readonly Vector2 StickRest = new Vector2(0.16f, 0.20f);
 
-            public static readonly Vector2 JumpCentre = new Vector2(0.62f, 0.15f);
-            public const float JumpRadius = 0.10f;
+            public static readonly Vector2 LeftCentre = new Vector2(0.10f, 0.18f);
+            public static readonly Vector2 RightCentre = new Vector2(0.27f, 0.18f);
+            public const float DirectionRadius = 0.075f;
 
-            public static readonly Vector2 AttackCentre = new Vector2(0.88f, 0.24f);
-            public const float AttackRadius = 0.115f;
+            public static readonly Vector2 JumpCentre = new Vector2(0.63f, 0.15f);
+            public const float JumpRadius = 0.080f;
 
-            public static readonly Vector2 DodgeCentre = new Vector2(0.73f, 0.46f);
-            public const float DodgeRadius = 0.09f;
+            public static readonly Vector2 AttackCentre = new Vector2(0.91f, 0.19f);
+            public const float AttackRadius = 0.082f;
+
+            public static readonly Vector2 DodgeCentre = new Vector2(0.75f, 0.43f);
+            public const float DodgeRadius = 0.070f;
 
             // -- what the player owns --------------------------------------------------------------
             // The four values above are the tuned layout and do not change. Everything below is the
@@ -127,11 +130,15 @@ namespace Aether.Gameplay.Controls
         private Transform _stickKnob;
         private SpriteRenderer _stickBaseRenderer;
         private SpriteRenderer _stickKnobRenderer;
+        private SpriteRenderer _leftRenderer;
+        private SpriteRenderer _rightRenderer;
         private SpriteRenderer _jumpRenderer;
         private SpriteRenderer _attackRenderer;
         private SpriteRenderer _dodgeRenderer;
 
         private int _stickTouch = -1;
+        private int _leftTouch = -1;
+        private int _rightTouch = -1;
         private int _jumpTouch = -1;
         private int _attackTouch = -1;
         private int _dodgeTouch = -1;
@@ -176,20 +183,16 @@ namespace Aether.Gameplay.Controls
             _camera = targetCamera;
             _source = source;
 
-            _stickBaseRenderer = CreateCircle("StickBase", PlaceholderVisuals.Ring,
-                new Color(1f, 1f, 1f, 0.25f * Layout.OpacityScale), 900);
-            _stickBase = _stickBaseRenderer.transform;
-
-            _stickKnobRenderer = CreateCircle("StickKnob", PlaceholderVisuals.Circle,
-                new Color(1f, 1f, 1f, 0.45f * Layout.OpacityScale), 901);
-            _stickKnob = _stickKnobRenderer.transform;
-
-            _jumpRenderer = CreateCircle("JumpButton", PlaceholderVisuals.Circle,
-                new Color(0.55f, 0.85f, 1f, 0.35f * Layout.OpacityScale), 900);
-            _attackRenderer = CreateCircle("AttackButton", PlaceholderVisuals.Circle,
-                new Color(1f, 0.62f, 0.45f, 0.35f * Layout.OpacityScale), 901);
-            _dodgeRenderer = CreateCircle("DodgeButton", PlaceholderVisuals.Circle,
-                new Color(0.8f, 0.8f, 1f, 0.30f * Layout.OpacityScale), 899);
+            _leftRenderer = CreateCircle("MoveLeftButton", PlaceholderVisuals.LeftArrow,
+                new Color(1f, 1f, 1f, 0.72f * Layout.OpacityScale), 900);
+            _rightRenderer = CreateCircle("MoveRightButton", PlaceholderVisuals.RightArrow,
+                new Color(1f, 1f, 1f, 0.72f * Layout.OpacityScale), 900);
+            _jumpRenderer = CreateCircle("JumpButton", PlaceholderVisuals.UpArrow,
+                new Color(1f, 1f, 1f, 0.82f * Layout.OpacityScale), 900);
+            _attackRenderer = CreateCircle("AttackButton", PlaceholderVisuals.Slash,
+                new Color(1f, 1f, 1f, 0.82f * Layout.OpacityScale), 901);
+            _dodgeRenderer = CreateCircle("DodgeButton", PlaceholderVisuals.Diamond,
+                new Color(0.72f, 0.94f, 1f, 0.78f * Layout.OpacityScale), 899);
 
             _visible = true;
             RefreshLayout(force: true);
@@ -236,11 +239,11 @@ namespace Aether.Gameplay.Controls
         private void Repaint()
         {
             float opacity = Layout.OpacityScale;
-            if (_stickBaseRenderer != null) SetAlpha(_stickBaseRenderer, 0.25f * opacity);
-            if (_stickKnobRenderer != null) SetAlpha(_stickKnobRenderer, 0.45f * opacity);
-            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.35f * opacity);
-            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.35f * opacity);
-            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.30f * opacity);
+            if (_leftRenderer != null) SetAlpha(_leftRenderer, 0.72f * opacity);
+            if (_rightRenderer != null) SetAlpha(_rightRenderer, 0.72f * opacity);
+            if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.82f * opacity);
+            if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.82f * opacity);
+            if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.78f * opacity);
         }
 
         private static void SetAlpha(SpriteRenderer renderer, float alpha)
@@ -281,6 +284,8 @@ namespace Aether.Gameplay.Controls
         {
             _source?.Reset();
             _stickTouch = -1;
+            _leftTouch = -1;
+            _rightTouch = -1;
             _stickActive = false;
             _stickValue = Vector2.zero;
             _jumpTouch = -1;
@@ -300,7 +305,8 @@ namespace Aether.Gameplay.Controls
             }
             if (!_visible) SetVisible(true);
 
-            bool sawStick = false;
+            bool sawLeft = false;
+            bool sawRight = false;
             bool sawJump = false;
             bool sawAttack = false;
             bool sawDodge = false;
@@ -315,33 +321,23 @@ namespace Aether.Gameplay.Controls
                 Vector2 position = touch.position.ReadValue();
                 bool began = touch.phase.ReadValue() == UnityEngine.InputSystem.TouchPhase.Began;
 
-                if (id == _stickTouch)
-                {
-                    ApplyStick(position);
-                    sawStick = true;
-                }
-                else if (id == _jumpTouch)
-                {
-                    sawJump = true;
-                }
-                else if (id == _attackTouch)
-                {
-                    sawAttack = true;
-                }
-                else if (id == _dodgeTouch)
-                {
-                    sawDodge = true;
-                }
+                if (id == _leftTouch) sawLeft = true;
+                else if (id == _rightTouch) sawRight = true;
+                else if (id == _jumpTouch) sawJump = true;
+                else if (id == _attackTouch) sawAttack = true;
+                else if (id == _dodgeTouch) sawDodge = true;
                 else if (began)
                 {
-                    // An unclaimed new touch: give it to whatever zone it landed in, if any.
-                    if (_stickTouch < 0 && InStickZone(position))
+                    // Each new finger is claimed by one control and stays there until release.
+                    if (_leftTouch < 0 && CircleHit(position, Layout.Centre(Layout.LeftCentre), Layout.Radius(Layout.DirectionRadius)))
                     {
-                        _stickTouch = id;
-                        _stickOrigin = position;
-                        _stickActive = true;
-                        ApplyStick(position);
-                        sawStick = true;
+                        _leftTouch = id;
+                        sawLeft = true;
+                    }
+                    else if (_rightTouch < 0 && CircleHit(position, Layout.Centre(Layout.RightCentre), Layout.Radius(Layout.DirectionRadius)))
+                    {
+                        _rightTouch = id;
+                        sawRight = true;
                     }
                     else if (_jumpTouch < 0 && CircleHit(position, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius)))
                     {
@@ -364,16 +360,12 @@ namespace Aether.Gameplay.Controls
                 }
             }
 
-            if (!sawStick)
-            {
-                _stickTouch = -1;
-                _stickActive = false;
-                _stickValue = Vector2.zero;
-            }
+            if (!sawLeft) _leftTouch = -1;
+            if (!sawRight) _rightTouch = -1;
+            _stickValue = new Vector2((_leftTouch >= 0 ? -1f : 0f) + (_rightTouch >= 0 ? 1f : 0f), 0f);
+
             if (!sawJump && _jumpTouch >= 0)
             {
-                // Releasing the jump control matters as much as pressing it: it is what ends the
-                // variable-height part of a jump.
                 _jumpTouch = -1;
                 _source.ReleaseJump();
             }
@@ -417,40 +409,17 @@ namespace Aether.Gameplay.Controls
             bool resized = Screen.width != _cachedWidth
                 || Screen.height != _cachedHeight
                 || Screen.safeArea != _cachedSafeArea;
-            bool stickMoved = _stickActive != _placedStickActive
-                || _stickOrigin != _placedStickOrigin
-                || _stickValue != _placedStickValue;
+            if (!force && !resized) return;
 
-            if (!force && !resized && !stickMoved) return;
+            _cachedWidth = Screen.width;
+            _cachedHeight = Screen.height;
+            _cachedSafeArea = Screen.safeArea;
 
-            if (force || resized)
-            {
-                _cachedWidth = Screen.width;
-                _cachedHeight = Screen.height;
-                _cachedSafeArea = Screen.safeArea;
-
-                Place(_jumpRenderer.transform, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius) * 2f);
-                Place(_attackRenderer.transform, Layout.Centre(Layout.AttackCentre), Layout.Radius(Layout.AttackRadius) * 2f);
-                Place(_dodgeRenderer.transform, Layout.Centre(Layout.DodgeCentre), Layout.Radius(Layout.DodgeRadius) * 2f);
-            }
-
-            // The stick is placed whenever it moves, not only when the screen changes: a floating
-            // stick that never follows the thumb is a stick the player cannot aim with, and the
-            // player's own input would be the only thing working.
-            _placedStickActive = _stickActive;
-            _placedStickOrigin = _stickOrigin;
-            _placedStickValue = _stickValue;
-
-            float stickRadius = Layout.Radius(Layout.StickRadius);
-            Vector2 baseFraction = _stickActive
-                ? ToFraction(_stickOrigin)
-                : Layout.Centre(Layout.StickRest);
-            Place(_stickBase, baseFraction, stickRadius * 2f);
-
-            Vector2 knobFraction = _stickActive
-                ? ToFraction(_stickOrigin + _stickValue * (stickRadius * Screen.height))
-                : Layout.Centre(Layout.StickRest);
-            Place(_stickKnob, knobFraction, stickRadius * 0.9f);
+            Place(_leftRenderer.transform, Layout.Centre(Layout.LeftCentre), Layout.Radius(Layout.DirectionRadius) * 2f);
+            Place(_rightRenderer.transform, Layout.Centre(Layout.RightCentre), Layout.Radius(Layout.DirectionRadius) * 2f);
+            Place(_jumpRenderer.transform, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius) * 2f);
+            Place(_attackRenderer.transform, Layout.Centre(Layout.AttackCentre), Layout.Radius(Layout.AttackRadius) * 2f);
+            Place(_dodgeRenderer.transform, Layout.Centre(Layout.DodgeCentre), Layout.Radius(Layout.DodgeRadius) * 2f);
         }
 
         /// <summary>Screen pixels to fractions of the safe area.</summary>
@@ -507,8 +476,10 @@ namespace Aether.Gameplay.Controls
         private void SetVisible(bool visible)
         {
             _visible = visible;
-            if (_stickBaseRenderer != null) _stickBaseRenderer.enabled = visible;
-            if (_stickKnobRenderer != null) _stickKnobRenderer.enabled = visible;
+            if (_stickBaseRenderer != null) _stickBaseRenderer.enabled = false;
+            if (_stickKnobRenderer != null) _stickKnobRenderer.enabled = false;
+            if (_leftRenderer != null) _leftRenderer.enabled = visible;
+            if (_rightRenderer != null) _rightRenderer.enabled = visible;
             if (_jumpRenderer != null) _jumpRenderer.enabled = visible;
             if (_attackRenderer != null) _attackRenderer.enabled = visible;
             if (_dodgeRenderer != null) _dodgeRenderer.enabled = visible;

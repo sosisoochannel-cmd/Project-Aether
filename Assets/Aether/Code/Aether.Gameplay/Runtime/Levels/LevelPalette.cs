@@ -14,11 +14,11 @@ namespace Aether.Gameplay.Levels
     /// </remarks>
     public static class LevelPalette
     {
-        public static readonly Color Ground = new Color(0.44f, 0.36f, 0.26f, 1f);
-        public static readonly Color DeepRock = new Color(0.27f, 0.24f, 0.22f, 1f);
-        public static readonly Color Platform = new Color(0.46f, 0.53f, 0.34f, 1f);
-        public static readonly Color CanopyBack = new Color(0.14f, 0.27f, 0.17f, 0.9f);
-        public static readonly Color CanopyFront = new Color(0.20f, 0.40f, 0.20f, 0.65f);
+        public static readonly Color Ground = new Color(0.16f, 0.25f, 0.29f, 1f);
+        public static readonly Color DeepRock = new Color(0.075f, 0.12f, 0.16f, 1f);
+        public static readonly Color Platform = new Color(0.32f, 0.47f, 0.52f, 1f);
+        public static readonly Color CanopyBack = new Color(0.08f, 0.21f, 0.24f, 0.9f);
+        public static readonly Color CanopyFront = new Color(0.14f, 0.32f, 0.38f, 0.62f);
 
         // -- entities ---------------------------------------------------------------------------
         //
@@ -40,9 +40,9 @@ namespace Aether.Gameplay.Levels
 
         public static readonly Color CheckpointIdle = new Color(0.55f, 0.9f, 1f, 0.85f);
         public static readonly Color CheckpointActive = new Color(0.78f, 1f, 1f, 1f);
-        public static readonly Color Secret = new Color(0.98f, 0.86f, 0.42f, 0.95f);
+        public static readonly Color Secret = new Color(0.82f, 0.92f, 1f, 0.95f);
         public static readonly Color Exit = new Color(0.5f, 1f, 0.6f, 0.6f);
-        public static readonly Color StoryMarker = new Color(0.86f, 0.80f, 0.62f, 0.5f);
+        public static readonly Color StoryMarker = new Color(0.82f, 0.90f, 0.94f, 0.5f);
 
         /// <summary>Colour used for a tile kind.</summary>
         public static Color For(LevelTileKind kind)

@@ -242,13 +242,14 @@ namespace Aether.Gameplay.Interface
 
             _objective = MenuUi.CreateTrackedText("Title", block, string.Empty,
                                                   MenuTheme.Metrics.ParagraphSize,
-                                                  MenuTheme.Palette.Ink,
-                                                  MenuTheme.Metrics.SubtitleTracking, TextAnchor.UpperLeft);
+                                                  Color.white, 1f, TextAnchor.UpperLeft);
+            _objective.fontStyle = FontStyle.Bold;
             MenuUi.Row(_objective.rectTransform, 0f, 46f);
 
             _objectiveHelp = MenuUi.CreateText("Help", block, string.Empty,
                                                MenuTheme.Metrics.SettingHelpSize,
-                                               MenuTheme.Palette.InkMuted, TextAnchor.UpperLeft);
+                                               new Color(1f, 1f, 1f, 0.78f), TextAnchor.UpperLeft);
+            _objectiveHelp.fontStyle = FontStyle.Bold;
             MenuUi.Row(_objectiveHelp.rectTransform, 50f, 60f);
         }
 
@@ -264,12 +265,13 @@ namespace Aether.Gameplay.Interface
 
             _findings = MenuUi.CreateTrackedText("Findings", block, string.Empty,
                                                  MenuTheme.Metrics.SettingHelpSize,
-                                                 MenuTheme.Palette.Accent,
-                                                 MenuTheme.Metrics.SubtitleTracking, TextAnchor.LowerLeft);
+                                                 Color.white, 1f, TextAnchor.LowerLeft);
+            _findings.fontStyle = FontStyle.Bold;
             MenuUi.Row(_findings.rectTransform, 0f, 40f);
 
             _falls = MenuUi.CreateText("Falls", block, string.Empty, MenuTheme.Metrics.SettingHelpSize,
-                                       MenuTheme.Palette.InkFaint, TextAnchor.LowerLeft);
+                                       new Color(1f, 1f, 1f, 0.52f), TextAnchor.LowerLeft);
+            _falls.fontStyle = FontStyle.Bold;
             MenuUi.Row(_falls.rectTransform, 44f, 40f);
         }
 
@@ -318,12 +320,13 @@ namespace Aether.Gameplay.Interface
 
             _toastTitle = MenuUi.CreateTrackedText("Label", _toast, string.Empty,
                                                    MenuTheme.Metrics.SectionLabelSize,
-                                                   MenuTheme.Palette.Accent,
-                                                   MenuTheme.Metrics.SectionLabelTracking, TextAnchor.UpperCenter);
+                                                   Color.white, 1f, TextAnchor.UpperCenter);
+            _toastTitle.fontStyle = FontStyle.Bold;
             MenuUi.Row(_toastTitle.rectTransform, 12f, 34f);
 
             _toastBody = MenuUi.CreateText("Title", _toast, string.Empty, MenuTheme.Metrics.ParagraphSize,
-                                           MenuTheme.Palette.Ink, TextAnchor.UpperCenter);
+                                           Color.white, TextAnchor.UpperCenter);
+            _toastBody.fontStyle = FontStyle.Bold;
             MenuUi.Row(_toastBody.rectTransform, 50f, 50f);
 
             _toast.gameObject.SetActive(false);

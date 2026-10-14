@@ -35,12 +35,12 @@ namespace Aether.Gameplay.Cameras
 
         [Tooltip("Framing offset from the target, in world units. Raise it to show more of what is ahead of the player.")]
         [SerializeField]
-        private Vector2 _offset = new Vector2(0f, 0.9f);
+        private Vector2 _offset = new Vector2(0f, 0.75f);
 
         [Header("Follow")]
         [Tooltip("Approximate time to catch up with the target. Larger is softer and more cinematic; smaller is tighter.")]
         [SerializeField, Range(0.02f, 1f)]
-        private float _smoothTime = 0.16f;
+        private float _smoothTime = 0.14f;
 
         [Tooltip("Maximum follow speed. Caps the camera during long falls and Rootbind launches.")]
         [SerializeField, Min(0f)]
@@ -49,11 +49,11 @@ namespace Aether.Gameplay.Cameras
         [Header("Look ahead")]
         [Tooltip("How far the camera leads the target when moving, in world units.")]
         [SerializeField]
-        private Vector2 _lookAhead = new Vector2(1.7f, 0.8f);
+        private Vector2 _lookAhead = new Vector2(1.35f, 0.5f);
 
         [Tooltip("Rate at which look-ahead catches up. Lower values stop the camera swinging during direction changes.")]
         [SerializeField, Range(0.02f, 1f)]
-        private float _lookAheadSmoothTime = 0.35f;
+        private float _lookAheadSmoothTime = 0.26f;
 
         [Tooltip("Threshold below which target speed is treated as standing still, in units/second.")]
         [SerializeField, Min(0f)]
