@@ -21,7 +21,10 @@
 name: Android APK
 
 on:
-  # APK builds are manual only; do not spend Actions minutes during ongoing UI iteration.
+  # Build the selected release-candidate branch when its workflow trigger is committed.
+  push:
+    branches:
+      - release/aether-latest-coherent-build
   workflow_dispatch:
 
 permissions:
