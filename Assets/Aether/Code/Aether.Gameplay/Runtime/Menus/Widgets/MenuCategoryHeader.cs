@@ -37,8 +37,10 @@ namespace Aether.Gameplay.Menus.Widgets
 
             header._label = MenuUi.CreateTrackedText("Label", host.transform, text,
                                                      MenuTheme.Metrics.CategoryLabelSize,
-                                                     MenuTheme.Palette.Accent,
-                                                     MenuTheme.Metrics.CategoryLabelTracking);
+                                                     MenuTheme.Palette.Ink,
+                                                     MenuTheme.Metrics.CategoryLabelTracking,
+                                                     TextAnchor.MiddleLeft,
+                                                     FontStyle.Bold);
             header._label.rectTransform.anchorMin = new Vector2(0f, 1f);
             header._label.rectTransform.anchorMax = new Vector2(0f, 1f);
             header._label.rectTransform.pivot = new Vector2(0f, 1f);
@@ -80,7 +82,7 @@ namespace Aether.Gameplay.Menus.Widgets
         {
             if (_label == null) return;
 
-            _label.color = dimmed ? MenuTheme.Palette.InkFaint : MenuTheme.Palette.Accent;
+            _label.color = dimmed ? MenuTheme.Palette.InkFaint : MenuTheme.Palette.Ink;
             if (_rule != null) _rule.color = dimmed ? MenuTheme.Palette.Locked : MenuTheme.Palette.Line;
         }
     }

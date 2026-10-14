@@ -188,6 +188,10 @@ namespace Aether.Gameplay.Menus
             }
             else
             {
+                Font modern = Font.CreateDynamicFontFromOSFont(
+                    new[] { "Roboto", "Noto Sans", "Arial" }, 72);
+                if (modern != null) return modern;
+
                 Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 if (builtin != null) return builtin;
             }

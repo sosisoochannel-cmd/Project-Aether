@@ -24,45 +24,45 @@ namespace Aether.Gameplay.Menus
     {
         /// <summary>The colour of the interface, and the one accent it is allowed.</summary>
         /// <remarks>
-        /// True black, warm gold type, and one restrained gold accent. The accent
+        /// A mist-lit forest, clean white type, and one restrained ice-cyan focus accent. The accent
         /// appears only where the interface needs to direct the eye: a selected row, a section mark,
         /// or an enabled control. Everything else stays quiet, so the menu feels like part of the
         /// world rather than a separate blue-tinted template.
         /// </remarks>
         public static class Palette
         {
-            /// <summary>True black: the interface has no forest tint or lifted-black panel.</summary>
-            public static readonly Color Ground = new Color(0f, 0f, 0f, 1f);
+            /// <summary>Deep blue-green fallback for the frame before the forest artwork is ready.</summary>
+            public static readonly Color Ground = new Color(0.035f, 0.075f, 0.09f, 1f);
 
-            /// <summary>A near-black secondary tone, reserved for any subtle depth.</summary>
-            public static readonly Color Horizon = new Color(0.015f, 0.012f, 0.006f, 1f);
+            /// <summary>Deep teal-blue used only for atmospheric depth, never for text.</summary>
+            public static readonly Color Horizon = new Color(0.055f, 0.13f, 0.17f, 0.82f);
 
-            /// <summary>Disabled atmospheric wash; the menu remains a clean black field.</summary>
-            public static readonly Color Atmosphere = new Color(0.72f, 0.48f, 0.12f, 0f);
+            /// <summary>Soft glacial-blue haze, kept translucent so the forest remains the hero.</summary>
+            public static readonly Color Atmosphere = new Color(0.30f, 0.78f, 0.92f, 0.10f);
 
-            /// <summary>Primary type: warm gold for the title and the important choices.</summary>
-            public static readonly Color Ink = new Color(0.96f, 0.79f, 0.43f, 1f);
+            /// <summary>Primary type: pure white for the title and the important choices.</summary>
+            public static readonly Color Ink = new Color(1f, 1f, 1f, 1f);
 
-            /// <summary>Secondary type: muted gold for subtitles, values and help lines.</summary>
-            public static readonly Color InkMuted = new Color(0.78f, 0.64f, 0.38f, 1f);
+            /// <summary>Secondary type: white at reduced opacity for subtitles, values and help lines.</summary>
+            public static readonly Color InkMuted = new Color(1f, 1f, 1f, 0.78f);
 
-            /// <summary>Tertiary type: subdued gold for footnotes and version details.</summary>
-            public static readonly Color InkFaint = new Color(0.53f, 0.42f, 0.24f, 1f);
+            /// <summary>Tertiary type: softer white for footnotes and version details.</summary>
+            public static readonly Color InkFaint = new Color(1f, 1f, 1f, 0.52f);
 
-            /// <summary>Dark gold hairlines, separators and slider tracks.</summary>
-            public static readonly Color Line = new Color(0.42f, 0.29f, 0.11f, 0.72f);
+            /// <summary>Fine cool-white separators and slider tracks.</summary>
+            public static readonly Color Line = new Color(0.76f, 0.92f, 0.95f, 0.30f);
 
-            /// <summary>The one accent: warm gold for focus and enabled controls.</summary>
-            public static readonly Color Accent = new Color(0.91f, 0.64f, 0.20f, 1f);
+            /// <summary>The one accent: ice cyan for non-text focus cues and enabled controls.</summary>
+            public static readonly Color Accent = new Color(0.40f, 0.91f, 0.94f, 1f);
 
-            /// <summary>A restrained gold wash beneath the focused row; never a glow or bloom.</summary>
-            public static readonly Color AccentWash = new Color(0.91f, 0.64f, 0.20f, 0.085f);
+            /// <summary>A restrained cyan wash beneath the focused row; never a glow or bloom.</summary>
+            public static readonly Color AccentWash = new Color(0.30f, 0.86f, 0.93f, 0.10f);
 
-            /// <summary>Locked rows stay distinct, but their label and reason remain legible.</summary>
-            public static readonly Color Locked = new Color(0.40f, 0.34f, 0.22f, 1f);
+            /// <summary>Locked rows stay distinct through reduced white opacity, not a different text hue.</summary>
+            public static readonly Color Locked = new Color(1f, 1f, 1f, 0.42f);
 
-            /// <summary>The near-black scrim used by modal and scene transitions.</summary>
-            public static readonly Color Scrim = new Color(0f, 0f, 0f, 0.96f);
+            /// <summary>The deep blue-green scrim used by modal and scene transitions.</summary>
+            public static readonly Color Scrim = new Color(0.012f, 0.03f, 0.043f, 0.94f);
 
             /// <summary>Raise every text colour for the high-contrast accessibility setting.</summary>
             public static Color WithContrast(Color colour, bool highContrast)
@@ -102,8 +102,8 @@ namespace Aether.Gameplay.Menus
         /// a comfortable-looking row becomes a miss under a thumb.
         /// </para>
         /// <para>
-        /// Type sizes are small on purpose. A menu with 60-unit row text looks like a form; 40-unit
-        /// capitals with wide tracking, plenty of space and one accent looks like a title screen.
+        /// Type should read clearly at hand-held distance. Stronger weights and restrained tracking create
+        /// a confident title screen without turning the menu into a wall of oversized text.
         /// </para>
         /// </remarks>
         public static class Metrics
@@ -134,22 +134,22 @@ namespace Aether.Gameplay.Menus
             /// <summary>Distance from the brand block to the title.</summary>
             public const float LogoGap = 18f;
 
-            public const float TitleSize = 76f;
-            public const float TitleTracking = 14f;
+            public const float TitleSize = 84f;
+            public const float TitleTracking = 3f;
 
             /// <summary>The line under the title: which region the game is standing in.</summary>
-            public const float SubtitleSize = 22f;
-            public const float SubtitleTracking = 12f;
-            public const float TitleGapRule = 8f;
+            public const float SubtitleSize = 24f;
+            public const float SubtitleTracking = 2f;
+            public const float TitleGapRule = 11f;
             public const float TitleRuleWidth = 300f;
             public const float TitleRuleHeight = 2f;
 
             /// <summary>Distance from the brand block down to the entry clusters.</summary>
-            public const float TitleGapBody = 10f;
+            public const float TitleGapBody = 20f;
 
             // -- section labels
-            public const float SectionLabelSize = 22f;
-            public const float SectionLabelTracking = 14f;
+            public const float SectionLabelSize = 23f;
+            public const float SectionLabelTracking = 2f;
 
             /// <summary>Height of a section label's own line.</summary>
             public const float SectionLabelHeight = 30f;
@@ -162,13 +162,13 @@ namespace Aether.Gameplay.Menus
 
             // -- the rows
             /// <summary>Primary rows: CONTINUE, NEW GAME.</summary>
-            public const float PrimarySize = 38f;
-            public const float PrimaryTracking = 8f;
+            public const float PrimarySize = 42f;
+            public const float PrimaryTracking = 1f;
             public const float PrimaryPitch = 144f;
 
             /// <summary>Secondary and system rows: the explore grid and the two system entries.</summary>
-            public const float SecondarySize = 30f;
-            public const float SecondaryTracking = 6f;
+            public const float SecondarySize = 36f;
+            public const float SecondaryTracking = 1f;
             public const float SecondaryPitch = 144f;
 
             /// <summary>The fewest columns the two entry clusters are ever given.</summary>
@@ -199,11 +199,11 @@ namespace Aether.Gameplay.Menus
 
             /// <summary>The version line, bottom right, in units from the content box corner.</summary>
             public const float VersionSize = 20f;
-            public const float VersionTracking = 10f;
+            public const float VersionTracking = 1f;
 
             // -- the other screens
-            public const float ScreenTitleSize = 56f;
-            public const float ScreenTitleTracking = 14f;
+            public const float ScreenTitleSize = 62f;
+            public const float ScreenTitleTracking = 2f;
 
             /// <summary>Height of a screen's header, which is also its Back button's hit rect.</summary>
             public const float ScreenHeaderPitch = 176f;
@@ -219,18 +219,18 @@ namespace Aether.Gameplay.Menus
             /// <summary>The label column of a setting row, as a fraction of the content width.</summary>
             public const float SettingLabelFraction = 0.46f;
 
-            public const float SettingLabelSize = 28f;
-            public const float SettingHelpSize = 22f;
+            public const float SettingLabelSize = 30f;
+            public const float SettingHelpSize = 24f;
 
             /// <summary>A category header: the tracked label and the rule that opens the group.</summary>
             public const float CategoryLabelHeight = 104f;
 
-            public const float CategoryLabelSize = 22f;
-            public const float CategoryLabelTracking = 14f;
+            public const float CategoryLabelSize = 23f;
+            public const float CategoryLabelTracking = 2f;
 
             /// <summary>One paragraph line: a category's note, or a credits block.</summary>
-            public const float ParagraphSize = 26f;
-            public const float ParagraphLineHeight = 42f;
+            public const float ParagraphSize = 28f;
+            public const float ParagraphLineHeight = 46f;
 
             /// <summary>Height of a block of prose, per line, including its leading.</summary>
             public const float ParagraphBlockPadding = 16f;

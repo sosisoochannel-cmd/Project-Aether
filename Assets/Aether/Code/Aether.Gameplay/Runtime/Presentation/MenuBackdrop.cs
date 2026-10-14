@@ -12,7 +12,7 @@ namespace Aether.Gameplay.Presentation
     /// <para>
     /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the approved forest
     /// image, sized to cover the canvas without stretching. <i>Midground</i> is the horizon — three
-    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of muted leaf-green washes
+    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of cool cyan-blue washes
     /// that drift slowly. <i>Foreground</i> is the vignette and the darkening along the bottom edge
     /// that the entry rows sit on. Keeping them apart lets the artwork support the interface without
     /// changing the approved mark, typography or composition.
@@ -48,6 +48,9 @@ namespace Aether.Gameplay.Presentation
         private float _width = 1920f;
         private float _height = 1080f;
         private float _phase;
+        private RectTransform[] _motes = new RectTransform[0];
+        private float[] _motePhaseOffsets = new float[0];
+        private float[] _moteSpeeds = new float[0];
 
         /// <summary>Whether the backdrop is allowed to move, as the player set it.</summary>
         public bool AtmosphereMotion { get; private set; } = true;
@@ -73,9 +76,10 @@ namespace Aether.Gameplay.Presentation
             // -- background: the supplied forest artwork, with a solid fallback if it is unavailable.
             Image ground = MenuUi.Fill("Background", root, MenuTheme.Palette.Ground);
             backdrop._background = ground.rectTransform;
-            // AETHER's menu now uses a true black field: no forest artwork or image backdrop.
-            backdrop._backgroundSprite = null;
-            ground.color = Color.black;
+            // Let the approved forest artwork carry the scene. If missing, keep a dark-teal fallback.
+            backdrop._backgroundSprite = MenuArt.Forest;
+            ground.sprite = backdrop._backgroundSprite;
+            ground.color = backdrop._backgroundSprite != null ? Color.white : MenuTheme.Palette.Ground;
             ground.transform.SetAsFirstSibling();
 
             // -- midground: the horizon. A wash, and three soft bands of decreasing width and strength.
@@ -83,7 +87,7 @@ namespace Aether.Gameplay.Presentation
             RectTransform midground = MenuUi.CreateNode("Midground", root);
             MenuUi.Stretch(midground);
             backdrop._midground = midground;
-            midground.gameObject.SetActive(false);
+            midground.gameObject.SetActive(true);
 
             Image horizon = MenuUi.CreateImage("Horizon Wash", midground, MenuArt.Band,
                                                MenuTheme.Palette.Horizon);
@@ -96,8 +100,9 @@ namespace Aether.Gameplay.Presentation
             // -- atmosphere: two blooms, far apart, moving at different speeds.
             backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
             backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
-            backdrop._bloomFar.gameObject.SetActive(false);
-            backdrop._bloomNear.gameObject.SetActive(false);
+            backdrop._bloomFar.gameObject.SetActive(true);
+            backdrop._bloomNear.gameObject.SetActive(true);
+            backdrop.CreateMotes(root);
 
             // -- foreground: the shade along the bottom edge, and the vignette over everything.
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
@@ -111,13 +116,41 @@ namespace Aether.Gameplay.Presentation
 
             Image vignette = MenuUi.Fill("Vignette", root, MenuTheme.Palette.Scrim);
             vignette.sprite = MenuArt.Vignette;
-            vignette.color = new Color(0f, 0f, 0f, 0.75f);
+            vignette.color = new Color(0.02f, 0.055f, 0.07f, 0.72f);
 
+            // The art remains present when motion is reduced; only the drift is removed.
             backdrop.ApplySettings();
-            // Static black means there is no atmosphere to animate, regardless of graphics settings.
-            backdrop.MotionEnabled = false;
-            backdrop.enabled = false;
             return backdrop;
+        }
+
+        /// <summary>Creates subtle screen-relative ambient dust. All motes are tiny and translucent.</summary>
+        private void CreateMotes(Transform parent)
+        {
+            float[] xs = { 0.06f, 0.15f, 0.24f, 0.34f, 0.42f, 0.59f, 0.68f, 0.78f, 0.89f, 0.96f, 0.28f, 0.82f };
+            float[] ys = { 0.16f, 0.34f, 0.82f, 0.56f, 0.22f, 0.78f, 0.44f, 0.13f, 0.66f, 0.35f, 0.92f, 0.88f };
+            float[] sizes = { 4f, 5f, 3f, 6f, 4f, 5f, 3f, 7f, 4f, 3f, 5f, 4f };
+            const int count = 12;
+            _motes = new RectTransform[count];
+            _motePhaseOffsets = new float[count];
+            _moteSpeeds = new float[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                float opacity = 0.085f + ((i % 4) * 0.018f);
+                Image mote = MenuUi.CreateImage(
+                    "Forest Dust " + (i + 1).ToString("00"), parent, MenuArt.Circle,
+                    new Color(0.86f, 0.97f, 1f, opacity));
+                RectTransform rect = mote.rectTransform;
+                Vector2 point = new Vector2(xs[i], ys[i]);
+                rect.anchorMin = point;
+                rect.anchorMax = point;
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(sizes[i], sizes[i]);
+                rect.anchoredPosition = Vector2.zero;
+                _motes[i] = rect;
+                _motePhaseOffsets[i] = i * 1.618f;
+                _moteSpeeds[i] = 0.075f + ((i % 4) * 0.018f);
+            }
         }
 
         /// <summary>Sizes the layers against the canvas, in reference units.</summary>
@@ -200,6 +233,16 @@ namespace Aether.Gameplay.Presentation
                                          + new Vector2(far * amplitude * 0.6f, far * amplitude * 0.25f);
             _midground.anchoredPosition = _midgroundRest
                                           + new Vector2(horizon * amplitude * 0.18f, 0f);
+
+            // Motes drift independently at low amplitude for parallax-like depth.
+            for (int i = 0; i < _motes.Length; i++)
+            {
+                if (_motes[i] == null) continue;
+                float motePhase = (_phase * _moteSpeeds[i]) + _motePhaseOffsets[i];
+                _motes[i].anchoredPosition = new Vector2(
+                    Mathf.Sin(motePhase) * 10f,
+                    Mathf.Cos(motePhase * 0.71f) * 6f);
+            }
         }
 
         private Vector2 _bloomNearRest;
@@ -211,6 +254,8 @@ namespace Aether.Gameplay.Presentation
             if (_bloomNear != null) _bloomNear.anchoredPosition = _bloomNearRest;
             if (_bloomFar != null) _bloomFar.anchoredPosition = _bloomFarRest;
             if (_midground != null) _midground.anchoredPosition = _midgroundRest;
+            for (int i = 0; i < _motes.Length; i++)
+                if (_motes[i] != null) _motes[i].anchoredPosition = Vector2.zero;
         }
 
         /// <summary>

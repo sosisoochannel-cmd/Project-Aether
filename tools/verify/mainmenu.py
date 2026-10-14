@@ -951,9 +951,21 @@ def check_composition(gate: Gate) -> None:
                and "header._title.resizeTextForBestFit = true;" in header_source,
                "secondary-screen titles must use available width and fit rather than clip")
     theme_source = read(THEME)
-    gate.check("new Color(0f, 0f, 0f, 1f)" in theme_source
-               and "new Color(0.91f, 0.64f, 0.20f, 1f)" in theme_source,
-               "the shared menu palette must be black and gold")
+    gate.check("new Color(0.035f, 0.075f, 0.09f, 1f)" in theme_source
+               and "new Color(0.40f, 0.91f, 0.94f, 1f)" in theme_source,
+               "the shared menu palette must use deep teal and a cool-cyan interaction accent")
+    gate.check("new Color(1f, 1f, 1f, 1f)" in theme_source
+               and "new Color(1f, 1f, 1f, 0.78f)" in theme_source
+               and "new Color(1f, 1f, 1f, 0.52f)" in theme_source,
+               "all menu text levels must remain white, using opacity for hierarchy")
+    backdrop_source = read(f"{PRESENTATION}/MenuBackdrop.cs")
+    gate.check("backdrop._backgroundSprite = MenuArt.Forest;" in backdrop_source
+               and "ground.sprite = backdrop._backgroundSprite;" in backdrop_source
+               and "backdrop.CreateMotes(root);" in backdrop_source,
+               "the menu must use its forest art and restrained ambient depth")
+    gate.check("label = MenuTheme.Palette.Accent;" not in button_source
+               and "FontStyle.Bold" in button_source,
+               "selected row labels must stay white and the choice type must be bold")
     gate.check("MenuLogo.Create" not in title_source,
                "the main menu must not display the Varellon studio logo")
     gate.check("Haptics.Tap" not in button_source,
@@ -962,7 +974,7 @@ def check_composition(gate: Gate) -> None:
                and "plate = MenuTheme.Palette.AccentWash;" in button_source
                and "ruleVisible = true;" not in button_source
                and "PressedScale" not in button_source,
-               "selection must use a restrained gold wash/marker without glow, underline sweep or scale pulse")
+               "selection must use a restrained ice-cyan wash/marker without glow, underline sweep or scale pulse")
 
     # Every interactive row is at least 48dp tall. The menu's canvas is 1080 units over a screen
     # that is about 360dp in landscape, so a unit is a third of a dp.
@@ -1126,7 +1138,7 @@ def check_discipline(gate: Gate) -> None:
     gate.check("MenuTheme.Palette.AccentWash" in button
                and "accentVisible = true;" in button
                and "selectionVisible && !_locked && !_informational" in button,
-               "selected rows need the quiet gold focus wash and marker, with no idle caret")
+               "selected rows need the quiet ice-cyan focus wash and marker, with no idle caret")
     gate.check("ruleVisible = true;" not in button,
                "selected rows must not use the old underline-sweep selection effect")
 

@@ -55,8 +55,10 @@ namespace Aether.Gameplay.Menus.Panels
                 panel._labelText = MenuUi.CreateTrackedText("Label", panel._label,
                                                             MenuStrings.Get(sectionKey),
                                                             MenuTheme.Metrics.SectionLabelSize,
-                                                            MenuTheme.Palette.Accent,
-                                                            MenuTheme.Metrics.SectionLabelTracking);
+                                                            MenuTheme.Palette.Ink,
+                                                            MenuTheme.Metrics.SectionLabelTracking,
+                                                            TextAnchor.MiddleLeft,
+                                                            FontStyle.Bold);
                 MenuUi.Stretch(panel._labelText.rectTransform);
             }
 
@@ -136,7 +138,7 @@ namespace Aether.Gameplay.Menus.Panels
             // contrast reach the rows of every cluster rather than only the one on screen.
             if (_labelText != null)
             {
-                _labelText.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Accent,
+                _labelText.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink,
                                                                   MenuPreferences.HighContrast);
             }
 

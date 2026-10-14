@@ -17,7 +17,7 @@ namespace Aether.Gameplay.Menus.Components
     /// menu's own navigation rather than by an editor-authored <c>Navigation</c> graph.
     /// </para>
     /// <para>
-    /// <b>Quiet selection, faded colour.</b> The selected row uses gold type, a fine gold rule and
+    /// <b>Quiet selection, faded colour.</b> The selected row keeps white type, a fine ice-cyan rule and
     /// a small caret; the row never jumps, pulses, fills with a glow, or vibrates. Colour changes
     /// fade through <c>Graphic.CrossFadeColor</c>, which the engine animates without this class
     /// needing an <c>Update</c>. Nothing here is per-frame, and nothing allocates after construction.
@@ -374,7 +374,7 @@ namespace Aether.Gameplay.Menus.Components
 
             _label = MenuUi.CreateTrackedText("Label", _textBlock, text, size, MenuTheme.Palette.Ink,
                                              Tracking, TextAnchor.MiddleLeft,
-                                             _weight == Weight.Primary ? FontStyle.Bold : FontStyle.Normal);
+                                             FontStyle.Bold);
             // Stretch the label across the row. A fixed 10-unit width silently clips translated
             // labels; the old layout only looked correct for a few short strings.
             _label.rectTransform.anchorMin = Vector2.zero;
@@ -483,10 +483,10 @@ namespace Aether.Gameplay.Menus.Components
                     case SelectionState.Pressed:
                     case SelectionState.Highlighted:
                     case SelectionState.Selected:
-                        // A PoP-inspired, black-and-gold focus treatment: a quiet gold wash,
-                        // a narrow angular-side marker and a gold caret. No glow, underline sweep,
+                        // A restrained high-contrast focus treatment: white type, a quiet cyan wash,
+                        // a narrow angular-side marker and a cyan caret. No glow, underline sweep,
                         // sliding label, scaling, pulse or haptic feedback.
-                        label = MenuTheme.Palette.Accent;
+                        label = ink;
                         caret = MenuTheme.Palette.Accent;
                         plate = MenuTheme.Palette.AccentWash;
                         accentVisible = true;
@@ -532,7 +532,7 @@ namespace Aether.Gameplay.Menus.Components
             if (_help != null) _help.color = faint;
             _label.color = label;
 
-            // No transform animation: focus changes only colour and the narrow gold marker.
+            // No transform animation: focus changes only colour and the narrow cyan marker.
             // Idle rows do not carry a stray caret, so the list remains clean at rest.
             if (_caret != null) _caret.gameObject.SetActive(selectionVisible && !_locked && !_informational);
             if (_icon != null)
