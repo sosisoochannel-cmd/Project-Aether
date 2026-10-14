@@ -70,6 +70,11 @@ def main() -> int:
 
     contains(confirm, "_title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));")
     contains(confirm, "_body.text = MenuUi.PrepareText(body);")
+    contains(confirm, "_title.horizontalOverflow = HorizontalWrapMode.Wrap;")
+    contains(confirm, "plateColour.a = 1f;")
+    contains(confirm, "Canvas.ForceUpdateCanvases();")
+    contains(confirm, "titleHeight + titleBodyGap")
+    excludes(confirm, "MenuTheme.Palette.Horizon, true")
     contains(confirm, "0.80f")
     if source(menu).count("_version.text = MenuUi.PrepareText(MenuUi.Track(") != 2:
         raise SystemExit("FAIL: both main-menu version assignments must apply RTL preparation")

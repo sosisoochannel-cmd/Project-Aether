@@ -70,8 +70,13 @@ namespace Aether.Gameplay.Menus.Panels
                                            MenuTheme.Palette.Ground.b, 0.80f);
             panel._scrim = MenuUi.Fill("Scrim", panel.Rect, modalScrim, true);
 
+            // The dialog must be an opaque surface. The previous translucent plate let
+            // the pause screen's labels show through the question, which read as duplicated and
+            // broken RTL text on a phone. Keep the same hue, but never composite live UI beneath it.
+            Color plateColour = MenuTheme.Palette.Horizon;
+            plateColour.a = 1f;
             panel._plate = MenuUi.CreateImage("Dialog", panel.Rect, MenuArt.Solid,
-                                              MenuTheme.Palette.Horizon, true);
+                                              plateColour, true);
             panel._plate.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
             panel._plate.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             panel._plate.rectTransform.pivot = new Vector2(0.5f, 0.5f);
@@ -82,9 +87,11 @@ namespace Aether.Gameplay.Menus.Panels
                                                     MenuTheme.Metrics.ScreenTitleSize,
                                                     MenuTheme.Palette.Ink,
                                                     MenuTheme.Metrics.ScreenTitleTracking);
+            panel._title.horizontalOverflow = HorizontalWrapMode.Wrap;
+            panel._title.verticalOverflow = VerticalWrapMode.Overflow;
             MenuUi.Corner(panel._title.rectTransform, new Vector2(0f, 1f),
                           new Vector2(MenuTheme.Metrics.DialogPadding, -MenuTheme.Metrics.DialogPadding),
-                          new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 64f),
+                          new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), 80f),
                           new Vector2(0f, 1f));
 
             panel._body = MenuUi.CreateParagraph("Body", panel._plate.rectTransform, string.Empty,
@@ -132,32 +139,62 @@ namespace Aether.Gameplay.Menus.Panels
             // wording. Colours come from the palette now, which is what makes a contrast change
             // from the settings screen land on the next question as well as the last one.
             bool highContrast = MenuPreferences.HighContrast;
+            float contentWidth = MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f);
+            const float titleLineHeight = 76f;
+            const float titleBodyGap = 22f;
+            const float bodyFooterGap = 24f;
+
             if (_title != null)
             {
                 _title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));
                 _title.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink, highContrast);
+                _title.horizontalOverflow = HorizontalWrapMode.Wrap;
+                // Give Unity the final line width before asking it how tall this title actually is.
+                _title.rectTransform.sizeDelta = new Vector2(contentWidth, titleLineHeight * 3f);
             }
 
             if (_body != null)
             {
                 _body.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.InkMuted, highContrast);
+                _body.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _body.verticalOverflow = VerticalWrapMode.Overflow;
+                _body.text = MenuUi.PrepareText(body);
+                _body.rectTransform.sizeDelta = new Vector2(contentWidth, 1200f);
             }
 
             _cancel.RefreshColors();
             _confirm.RefreshColors();
+
+            // Force text generators to calculate their wrapping at the dialog's real width before
+            // sizing the plate. Long localized titles and paragraphs must grow the dialog instead of
+            // overlapping each other or the fixed-size answer buttons.
+            Canvas.ForceUpdateCanvases();
+
+            float titleHeight = titleLineHeight;
+            if (_title != null)
+            {
+                titleHeight = Mathf.Max(titleLineHeight,
+                    Mathf.Ceil(_title.preferredHeight / titleLineHeight) * titleLineHeight);
+                _title.rectTransform.sizeDelta = new Vector2(contentWidth, titleHeight);
+            }
+
+            float bodyHeight = MenuTheme.Metrics.ParagraphLineHeight;
             if (_body != null)
             {
-                _body.text = MenuUi.PrepareText(body);
-                float lines = Mathf.Max(1f, Mathf.Ceil(_body.preferredHeight / MenuTheme.Metrics.ParagraphLineHeight));
-                float height = lines * MenuTheme.Metrics.ParagraphLineHeight;
-
-                float dialogHeight = Mathf.Max(MenuTheme.Metrics.DialogMinHeight,
-                                               150f + height + MenuTheme.Metrics.DialogPadding * 2f
-                                               + MenuTheme.Metrics.SettingRowHeight);
-                _plate.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.DialogWidth, dialogHeight);
-                _body.rectTransform.sizeDelta =
-                    new Vector2(MenuTheme.Metrics.DialogWidth - (MenuTheme.Metrics.DialogPadding * 2f), height);
+                bodyHeight = Mathf.Max(MenuTheme.Metrics.ParagraphLineHeight,
+                    Mathf.Ceil(_body.preferredHeight / MenuTheme.Metrics.ParagraphLineHeight)
+                    * MenuTheme.Metrics.ParagraphLineHeight);
+                _body.rectTransform.sizeDelta = new Vector2(contentWidth, bodyHeight);
+                MenuUi.Corner(_body.rectTransform, new Vector2(0f, 1f),
+                    new Vector2(MenuTheme.Metrics.DialogPadding, 
+                        -(MenuTheme.Metrics.DialogPadding + titleHeight + titleBodyGap)),
+                    new Vector2(contentWidth, bodyHeight), new Vector2(0f, 1f));
             }
+
+            float dialogHeight = Mathf.Max(MenuTheme.Metrics.DialogMinHeight,
+                (MenuTheme.Metrics.DialogPadding * 2f) + titleHeight + titleBodyGap
+                + bodyHeight + bodyFooterGap + MenuTheme.Metrics.SettingRowHeight);
+            _plate.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.DialogWidth, dialogHeight);
 
             BringToFront();
 
