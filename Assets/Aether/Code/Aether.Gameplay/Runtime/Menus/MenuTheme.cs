@@ -22,7 +22,7 @@ namespace Aether.Gameplay.Menus
     /// </remarks>
     public static class MenuTheme
     {
-        /// <summary>The colour of the interface, and the one accent it is allowed.</summary>
+        /// <summary>White text hierarchy with one non-text ice-cyan focus accent.</summary>
         /// <remarks>
         /// A mist-lit forest, clean white type, and one restrained ice-cyan focus accent. The accent
         /// appears only where the interface needs to direct the eye: a selected row, a section mark,
