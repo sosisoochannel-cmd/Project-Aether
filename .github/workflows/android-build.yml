@@ -24,7 +24,7 @@ on:
   # Build the selected release-candidate branch when its workflow trigger is committed.
   push:
     branches:
-      - release/aether-latest-coherent-build
+      - release/aether-latest-build-retry
   workflow_dispatch:
 
 permissions:
