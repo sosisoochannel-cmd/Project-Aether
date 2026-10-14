@@ -70,8 +70,12 @@ def main() -> int:
 
     contains(pause, "_touchControls.SetGameplayVisible(false);")
     contains(pause, "_touchControls.SetGameplayVisible(true);")
-    excludes(pause, "_touchControls.enabled = false")
-    excludes(pause, "_touchControls.enabled = true")
+    contains(pause, "_touchControls.enabled = false;")
+    contains(pause, "_touchControls.enabled = true;")
+    contains(controls, "settings.Changed -= OnSettingsChanged;")
+    contains(controls, "settings.Changed += OnSettingsChanged;")
+    contains(controls, "AetherSettings.Current.Changed -= OnSettingsChanged;")
+    contains(controls, "private void OnDisable()")
     contains(pause, "0.76f")
     contains(pause, '_stats.text = MenuUi.PrepareText(MenuStrings.Format("pause.stats"')
 

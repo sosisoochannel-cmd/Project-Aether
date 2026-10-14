@@ -165,14 +165,18 @@ namespace Aether.Gameplay.Controls
 
         private void OnEnable()
         {
-            AetherSettings.Ensure().Changed += OnSettingsChanged;
+            // Pause disables this component to stop polling. Re-enable must not subscribe a second
+            // time: duplicate delegates multiply every settings change and can keep this instance
+            // referenced after it is no longer part of gameplay.
+            var settings = AetherSettings.Ensure();
+            settings.Changed -= OnSettingsChanged;
+            settings.Changed += OnSettingsChanged;
         }
 
         private void OnDestroy()
         {
             AetherSettings.Current.Changed -= OnSettingsChanged;
-            if (_source == null) return;
-            _source.Reset();
+            ReleaseEverything();
         }
 
         /// <summary>
@@ -230,6 +234,9 @@ namespace Aether.Gameplay.Controls
 
         private void OnDisable()
         {
+            // A paused/disabled overlay must leave no event subscription behind. OnEnable safely
+            // restores exactly one subscription when play resumes.
+            AetherSettings.Current.Changed -= OnSettingsChanged;
             ReleaseEverything();
         }
 
