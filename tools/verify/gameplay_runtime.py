@@ -30,6 +30,14 @@ def main() -> int:
     pause = "Assets/Aether/Code/Aether.Gameplay/Runtime/Interface/GameplayPause.cs"
     confirm = "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Panels/MenuConfirmPanel.cs"
     menu = "Assets/Aether/Code/Aether.Gameplay/Runtime/Menus/Screens/MainMenuScreen.cs"
+    boot_flow = "Assets/Aether/Code/Aether.Gameplay/Runtime/Flow/BootFlow.cs"
+
+    # The BootFlow component is on Main Camera in Boot.unity. The world must be parented
+    # under an origin root, never under the moving camera transform.
+    contains(boot_flow, 'var runtimeRoot = new GameObject("LevelBootstrap");')
+    contains(boot_flow, "runtimeRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);")
+    contains(boot_flow, "runtimeRoot.AddComponent<LevelBootstrap>();")
+    excludes(boot_flow, "gameObject.AddComponent<LevelBootstrap>();")
 
     for contract in (
         "camera.orthographic = true;",

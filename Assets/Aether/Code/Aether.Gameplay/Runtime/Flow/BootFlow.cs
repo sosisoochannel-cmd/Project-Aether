@@ -46,7 +46,16 @@ namespace Aether.Gameplay.Flow
                     SaveHost.Ensure();
                     if (FindAnyObjectByType<LevelBootstrap>() == null)
                     {
-                        gameObject.AddComponent<LevelBootstrap>();
+                        // BootFlow lives on the Main Camera in Boot.unity. Never attach the region
+                        // bootstrap to that object: the bootstrap parents the level, player, enemies
+                        // and HUD beneath its own transform, while CameraFollow2D moves the camera.
+                        // Sharing one transform makes the entire world move with the camera, pushes
+                        // the spawn out of frame, and prevents the camera from actually traversing.
+                        // A dedicated origin root keeps simulation/world coordinates independent of
+                        // the view and makes the camera free to follow the player.
+                        var runtimeRoot = new GameObject("LevelBootstrap");
+                        runtimeRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                        runtimeRoot.AddComponent<LevelBootstrap>();
                     }
 
                     return;
