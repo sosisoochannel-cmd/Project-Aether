@@ -446,14 +446,10 @@ jobs:
           done
           echo "::notice title=Check runs posted::$posted piece(s) accepted by the API"
 
-      - name: Save Library cache
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 10
-        uses: actions/cache/save@v4
-        with:
-          path: Library
-          key: Library-Android-${{ github.sha }}
+      # Intentionally do not save the Unity Library cache in this job. The explicit cache-save
+      # action has stalled after a successful APK build on hosted runners, preventing artifact upload
+      # and release publication. Restore remains enabled above, so any previously saved cache can
+      # still speed up the next build; cache persistence is optional, a deliverable is not.
 
       # Which Unity image actually ran, and what the job cost in disk, are the two facts a failed
       # run otherwise buries in a very long log. Annotations are cheap and survive where the log is
