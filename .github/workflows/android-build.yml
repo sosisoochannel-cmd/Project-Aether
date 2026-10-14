@@ -25,6 +25,7 @@ on:
   push:
     branches:
       - release/aether-latest-build-retry
+      - release/aether-unblocked-build
   workflow_dispatch:
 
 permissions:
