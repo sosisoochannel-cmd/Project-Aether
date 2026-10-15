@@ -160,7 +160,7 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator JumpBuffering_FiresWhenGrounded()
         {
-            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            PlayerController player = SpawnPlayer(new Vector2(0f, 5f));
             yield return new WaitForFixedUpdate();
 
             // In mid-air with coyote expired
@@ -172,6 +172,9 @@ namespace Aether.Tests.PlayMode
             Assert.IsFalse(jumpedInAir, "Cannot jump while airborne without air jumps.");
 
             // Buffer still valid; now ground the player
+            player.Motor.TeleportTo(new Vector2(0f, 0.7f));
+            Physics2D.SyncTransforms();
+            player.Motor.RefreshGrounded();
             SetPrivateField(player, "_lastGroundedAt", Time.time);
             bool jumpedOnTouchdown = (bool)InvokePrivateMethod(player, "TryJump");
             Assert.IsTrue(jumpedOnTouchdown,
