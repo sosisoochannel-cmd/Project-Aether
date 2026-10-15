@@ -147,6 +147,16 @@ namespace Aether.Tests.PlayMode
             Assert.IsTrue(player.transform.IsChildOf(bootstrap.transform),
                 "The player must be parented to the independent world root.");
 
+            // The player is built at runtime from components added in code, so "how many" is a real
+            // question: a second controller, added by a component requirement, has no tuning asset and
+            // throws once per physics step.
+            Assert.AreEqual(1, player.GetComponents<PlayerController>().Length,
+                "The spawned player must have exactly one controller.");
+            Assert.AreEqual(1, player.GetComponents<PlayerHealth>().Length,
+                "The spawned player must have exactly one health component.");
+            Assert.IsTrue(player.IsInitialized,
+                "The spawned player's controller must be initialized with the shipped tuning asset.");
+
             SpriteRenderer playerRenderer = player.GetComponentInChildren<SpriteRenderer>(true);
             Assert.IsNotNull(playerRenderer, "The player has no visual renderer.");
             Assert.IsNotNull(playerRenderer.sprite, "The player renderer has no sprite.");

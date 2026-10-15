@@ -6,6 +6,7 @@
         "UnityEditor.TestRunner",
         "Aether.Gameplay",
         "Aether.Core",
+        "Aether.Data",
         "UnityEngine.UI",
         "Unity.InputSystem"
     ],
