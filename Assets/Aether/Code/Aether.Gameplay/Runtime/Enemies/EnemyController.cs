@@ -317,7 +317,13 @@ namespace Aether.Gameplay.Enemies
                 if (blocked.collider != null) return false;
             }
 
-            return Physics2D.OverlapBox(center, size, 0f, _targetLayers) != null;
+            if (_playerCollider != null)
+            {
+                var boxBounds = new Bounds(center, new Vector3(size.x, size.y, 1f));
+                if (_playerCollider.bounds.Intersects(boxBounds)) return true;
+            }
+
+            return _targetLayers.value != 0 && Physics2D.OverlapBox(center, size, 0f, _targetLayers) != null;
         }
 
         /// <summary>True when the player is close enough to be worth attacking.</summary>
