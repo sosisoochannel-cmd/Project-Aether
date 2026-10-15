@@ -155,8 +155,20 @@ namespace Aether.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.IsNotNull(canSee);
 
+            Vector2 self = enemy.Motor.Position;
+            Vector2 target = player.transform.position;
+            float dx = target.x - self.x;
+            var sightLayers = (LayerMask)typeof(EnemyController).GetField("_sightBlockingLayers",
+                BindingFlags.Instance | BindingFlags.NonPublic).GetValue(enemy);
+            Vector2 eyePos = self + Vector2.up * 0.2f;
+            Vector2 targetPos = target + Vector2.up * 0.2f;
+            RaycastHit2D hit = Physics2D.Linecast(eyePos, targetPos, sightLayers);
+
             bool spotted = (bool)canSee.Invoke(enemy, null);
-            Assert.IsTrue(spotted, "Enemy facing the player within detection range must see the player.");
+            Assert.IsTrue(spotted,
+                $"Enemy must see player. self={self}, target={target}, dx={dx}, facing={enemy.Motor.FacingSign}, " +
+                $"hitCollider={(hit.collider != null ? hit.collider.name : "null")}, " +
+                $"hitPoint={(hit.collider != null ? hit.point.ToString() : "none")}");
         }
 
         /// <summary>

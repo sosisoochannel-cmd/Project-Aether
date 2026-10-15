@@ -35,9 +35,12 @@ namespace Aether.Gameplay.Enemies
             var host = new GameObject($"Enemy_{definition.TypeId}");
             host.SetActive(false);
             host.transform.SetParent(parent, false);
+            Vector2 centre = feet + new Vector2(0f, BodyHeight * 0.5f);
+            host.transform.position = centre;
             GameplayLayers.Assign(host, GameplayLayers.EnemyName);
 
             var body = host.AddComponent<Rigidbody2D>();
+            body.position = centre;
             body.gravityScale = 0f;
             body.freezeRotation = true;
             body.interpolation = RigidbodyInterpolation2D.Interpolate;

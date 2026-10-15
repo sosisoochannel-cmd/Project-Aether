@@ -142,6 +142,7 @@ namespace Aether.Gameplay.Enemies
         /// </remarks>
         public void SnapToGround()
         {
+            Physics2D.SyncTransforms();
             if (_collider == null) _collider = GetComponent<Collider2D>();
             if (_body == null) _body = GetComponent<Rigidbody2D>();
 
@@ -164,6 +165,7 @@ namespace Aether.Gameplay.Enemies
                 _body.linearVelocity = Vector2.zero;
             }
             transform.position = target;
+            Physics2D.SyncTransforms();
         }
 
         /// <summary>Recomputes grounding. Call once per physics step, before AI logic.</summary>

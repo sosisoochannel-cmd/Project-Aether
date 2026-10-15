@@ -317,7 +317,7 @@ namespace Aether.Gameplay.Enemies
                 Vector2 eyePos = self + Vector2.up * 0.2f;
                 Vector2 targetPos = target + Vector2.up * 0.2f;
                 RaycastHit2D blocked = Physics2D.Linecast(eyePos, targetPos, _sightBlockingLayers);
-                if (blocked.collider != null && blocked.collider != _playerCollider) return false;
+                if (blocked.collider != null && blocked.collider.transform != _player && blocked.collider != _playerCollider) return false;
             }
 
             if (_player != null) return true;
