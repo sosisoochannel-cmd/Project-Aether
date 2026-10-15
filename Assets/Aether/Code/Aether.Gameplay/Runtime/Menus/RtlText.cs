@@ -25,6 +25,9 @@ namespace Aether.Gameplay.Menus
 
         private static readonly Dictionary<char, Forms> Map = BuildMap();
 
+        /// <summary>The lam that begins a lam-alef ligature.</summary>
+        private const char Lam = 'ل';
+
         public static string Visualize(string input)
         {
             if (string.IsNullOrEmpty(input)) return input;
@@ -96,7 +99,6 @@ namespace Aether.Gameplay.Menus
                 }
 
                 int p = PreviousLetter(run, i - 1);
-                int n = NextLetter(run, i + 1);
 
                 // A letter can join to the following logical letter when it has an initial form;
                 // the following letter can accept that join when it has a final form. This matters
@@ -108,6 +110,33 @@ namespace Aether.Gameplay.Menus
                     Forms pf;
                     previousCanJoinForward = Map.TryGetValue(run[p], out pf) && pf.Dual;
                 }
+
+                // Lam followed by alef is one glyph, not two letters, and it is resolved before the
+                // per-letter table below because the pair has no separate lam and alef forms. Drawing
+                // an initial lam and a final alef next to each other instead leaves the lam's
+                // connector running into the alef's stroke. The bundled Vazirmatn ships all four
+                // ligature families, so every pair in the shipped copy has a real glyph.
+                char isolatedLigature;
+                char finalLigature;
+                int alefIndex;
+                if (c == Lam && TryLamAlef(run, i + 1, out isolatedLigature, out finalLigature,
+                                           out alefIndex))
+                {
+                    // The ligature connects to the letter before it exactly as a lone lam would: it
+                    // takes the final form when the previous letter can join forward. Its own alef
+                    // can never accept a join, which is why the pair needs this glyph in the first
+                    // place rather than a lam in its medial form.
+                    shaped.Append(previousCanJoinForward ? finalLigature : isolatedLigature);
+
+                    // Combining marks written between the two letters belong to the pair, so they
+                    // follow the ligature and stay attached to it as one cluster.
+                    for (int mark = i + 1; mark < alefIndex; mark++) shaped.Append(run[mark]);
+
+                    i = alefIndex;
+                    continue;
+                }
+
+                int n = NextLetter(run, i + 1);
 
                 bool nextCanAcceptJoin = false;
                 if (n >= 0)
@@ -129,6 +158,38 @@ namespace Aether.Gameplay.Menus
             // so reversing the visual RTL run gives the correct glyph order without touching
             // whitespace-separated Latin/number runs. ZWNJ stays in the output and blocks joining.
             return ReverseKeepingMarks(shaped.ToString());
+        }
+
+        /// <summary>
+        /// Resolves the lam-alef pair that starts at <paramref name="index"/>, if there is one.
+        /// </summary>
+        /// <remarks>
+        /// The four pairs are plain alef, alef with madda, and alef with hamza above or below. Each is
+        /// one precomposed ligature with an isolated and a final form; there is no initial or medial
+        /// form because the alef never joins forward. Combining marks may sit between the two letters
+        /// and are skipped here, then re-emitted after the ligature.
+        /// </remarks>
+        private static bool TryLamAlef(string run, int index, out char isolated, out char final,
+                                       out int alefIndex)
+        {
+            isolated = '\0';
+            final = '\0';
+            alefIndex = -1;
+
+            int next = NextLetter(run, index);
+            if (next < 0) return false;
+
+            switch (run[next])
+            {
+                case 'ا': isolated = (char)0xFEFB; final = (char)0xFEFC; break;
+                case 'آ': isolated = (char)0xFEF5; final = (char)0xFEF6; break;
+                case 'أ': isolated = (char)0xFEF7; final = (char)0xFEF8; break;
+                case 'إ': isolated = (char)0xFEF9; final = (char)0xFEFA; break;
+                default: return false;
+            }
+
+            alefIndex = next;
+            return true;
         }
 
         private static string ReverseKeepingMarks(string text)
