@@ -160,6 +160,28 @@ namespace Aether.Tests.PlayMode
         }
 
         /// <summary>
+        /// A solid wall between the enemy and player blocks line of sight.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Enemy_WallBlocksLineOfSight()
+        {
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            EnemyController enemy = SpawnEnemy(new Vector2(2f, 0f));
+            CreateGround(new Vector2(1f, 1f), new Vector2(0.5f, 2f));
+            yield return new WaitForFixedUpdate();
+
+            enemy.SetTarget(player.transform);
+            enemy.Motor.FacingSign = -1;
+
+            MethodInfo canSee = enemy.GetType().GetMethod("CanSeePlayer",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(canSee);
+
+            bool spotted = (bool)canSee.Invoke(enemy, null);
+            Assert.IsFalse(spotted, "Solid wall between enemy and player must block perception.");
+        }
+
+        /// <summary>
         /// In ChaseState, when within attack range, enemy brakes to settle before attacking
         /// instead of continuously running through the player.
         /// </summary>

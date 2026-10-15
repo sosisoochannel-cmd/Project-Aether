@@ -42,6 +42,7 @@ namespace Aether.Gameplay.Player
             GameplayLayers.Assign(host, GameplayLayers.PlayerName);
 
             var body = host.AddComponent<Rigidbody2D>();
+            body.position = centre;
             body.gravityScale = 0f;
             body.freezeRotation = true;
             body.interpolation = RigidbodyInterpolation2D.Interpolate;
