@@ -184,11 +184,11 @@ namespace Aether.Gameplay.Menus
             /// <summary>How far a highlighted row's text slides, in units. Small on purpose.</summary>
             public const float HighlightNudge = 10f;
 
-            // -- the two clusters, as fractions of the content box
-            /// <summary>Width of the primary column (the spine on the left).</summary>
+            // -- the content column
+            /// <summary>Width of the centered choices panel.</summary>
             public const float LeftColumnFraction = 0.40f;
 
-            /// <summary>Width of the right block (the explore grid and the system pair).</summary>
+            /// <summary>Width of secondary blocks where split layouts are used.</summary>
             public const float RightBlockFraction = 0.54f;
 
             // -- the frame

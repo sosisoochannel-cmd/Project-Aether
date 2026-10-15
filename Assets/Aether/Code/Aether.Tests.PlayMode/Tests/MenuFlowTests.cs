@@ -1007,6 +1007,41 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator MainMenu_environment_backdrop_loads_master_artwork_and_configures_cinematic_atmosphere()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var backdrop = root.GetComponentInChildren<MenuBackdrop>();
+            Assert.IsNotNull(backdrop, "menu has no MenuBackdrop component");
+            Assert.IsNotNull(MenuArt.Forest, "MenuArt.Forest failed to load master artwork");
+            Assert.AreEqual(2560f, MenuArt.Forest.rect.width, 1f, "master artwork width is not 2560");
+            Assert.AreEqual(1440f, MenuArt.Forest.rect.height, 1f, "master artwork height is not 1440");
+            Assert.IsTrue(backdrop.AtmosphereMotion, "backdrop atmosphere motion should be enabled by default");
+        }
+
+        [UnityTest]
+        public IEnumerator MainMenu_touch_targets_and_destinations_preserve_mobile_standards()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            Assert.AreEqual(5, menu.Play.Rows.Count, "main menu must have exactly 5 destinations");
+
+            for (int i = 0; i < menu.Play.Rows.Count; i++)
+            {
+                MenuButton row = menu.Play.Rows[i];
+                Assert.GreaterOrEqual(row.Rect.rect.height, 112f,
+                                     $"row {row.name} touch height is below accessibility requirements");
+            }
+
+            // Verify Continue row save dependency
+            MenuButton continueBtn = menu.Play.Rows[0];
+            Assert.IsTrue(continueBtn.Locked, "Continue must be locked when no save exists");
+            Assert.IsFalse(continueBtn.Usable, "Locked Continue button must not be usable");
+        }
+
         private sealed class MemorySettingsStore : ISettingsStore
         {
             public GameSettings Stored;

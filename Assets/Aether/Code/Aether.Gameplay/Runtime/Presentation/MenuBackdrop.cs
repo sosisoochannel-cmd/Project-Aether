@@ -10,25 +10,20 @@ namespace Aether.Gameplay.Presentation
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the approved forest
-    /// image, sized to cover the canvas without stretching. <i>Midground</i> is the horizon — three
-    /// faint ridges and the wash under them. <i>Atmosphere</i> is a pair of cool cyan-blue washes
-    /// that drift slowly. <i>Foreground</i> is the vignette and the darkening along the bottom edge
-    /// that the entry rows sit on. Keeping them apart lets the artwork support the interface without
-    /// changing the approved mark, typography or composition.
+    /// <b>The layers are named, and each has one job.</b> <i>Background</i> is the master hand-painted
+    /// environment artwork, cover-fitted to the canvas without stretching or distortion. <i>Midground</i>
+    /// provides subtle atmospheric horizon mist. <i>Atmosphere</i> layers provide gentle crepuscular warmth
+    /// over the ancient sanctuary and cool valley mist with floating golden motes. <i>Foreground</i> provides
+    /// restrained grounding along the bottom edge and cinematic vignette framing.
     /// </para>
     /// <para>
-    /// <b>Rich, but never moving much.</b> Three sines at 26, 31 and 43 seconds, each moving its own
-    /// layer by a different fraction of 26 units. The periods are coprime, so the drift has no
-    /// perceptible loop, and the amplitudes are small enough that the movement is only noticed when
-    /// it is taken away — which is the whole point of an atmospheric background.
+    /// <b>Rich, but never moving much.</b> Three coprime oscillation periods drive slow ambient drift so
+    /// the environment feels living and deep without drawing the eye away from interface interaction.
     /// </para>
     /// <para>
     /// <b>It costs nothing when it is off.</b> Reduced motion, or the low graphics tier, switches the
     /// motion off and this component switches its own <c>Update</c> off with it, so a phone that
-    /// asked for less is not paying for a sine it does not draw. The artwork stays as one imported
-    /// texture; the remaining atmosphere uses small procedural sprites, with no added materials or
-    /// shaders and only restrained translucent overlays for readability.
+    /// asked for less is not paying for a sine it does not draw.
     /// </para>
     /// </remarks>
     public sealed class MenuBackdrop : MonoBehaviour
@@ -90,25 +85,29 @@ namespace Aether.Gameplay.Presentation
             midground.gameObject.SetActive(true);
 
             Image horizon = MenuUi.CreateImage("Horizon Wash", midground, MenuArt.Band,
-                                               MenuTheme.Palette.Horizon);
+                                               new Color(MenuTheme.Palette.Horizon.r,
+                                                         MenuTheme.Palette.Horizon.g,
+                                                         MenuTheme.Palette.Horizon.b, 0.14f));
             backdrop._wash = horizon.rectTransform;
 
-            Ridge(midground, "Ridge Far", 0.318f, 1.00f, 18f, 0.055f);
-            Ridge(midground, "Ridge Mid", 0.286f, 0.82f, 12f, 0.040f);
-            Ridge(midground, "Ridge Near", 0.252f, 0.62f, 8f, 0.030f);
+            Ridge(midground, "Ridge Far", 0.318f, 1.00f, 16f, 0.035f);
+            Ridge(midground, "Ridge Mid", 0.286f, 0.82f, 10f, 0.025f);
+            Ridge(midground, "Ridge Near", 0.252f, 0.62f, 6f, 0.015f);
 
-            // -- atmosphere: two blooms, far apart, moving at different speeds.
-            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
-            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
+            // -- atmosphere: warm crepuscular sunlight over the temple and cool valley mist.
+            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.28f, 0.75f), 1400f,
+                                       new Color(0.30f, 0.78f, 0.92f, 0.06f));
+            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.72f, 0.80f), 1600f,
+                                        new Color(0.96f, 0.88f, 0.65f, 0.08f));
             backdrop._bloomFar.gameObject.SetActive(true);
             backdrop._bloomNear.gameObject.SetActive(true);
             backdrop.CreateMotes(root);
 
-            // -- foreground: the shade along the bottom edge, and the vignette over everything.
+            // -- foreground: subtle grounding along the bottom edge, and cinematic vignette framing.
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
                                              new Color(MenuTheme.Palette.Ground.r,
                                                        MenuTheme.Palette.Ground.g,
-                                                       MenuTheme.Palette.Ground.b, 0.85f));
+                                                       MenuTheme.Palette.Ground.b, 0.45f));
             shade.rectTransform.anchorMin = new Vector2(0f, 0f);
             shade.rectTransform.anchorMax = new Vector2(1f, 0f);
             shade.rectTransform.pivot = new Vector2(0.5f, 0f);
@@ -116,7 +115,7 @@ namespace Aether.Gameplay.Presentation
 
             Image vignette = MenuUi.Fill("Vignette", root, MenuTheme.Palette.Scrim);
             vignette.sprite = MenuArt.Vignette;
-            vignette.color = new Color(0.02f, 0.055f, 0.07f, 0.72f);
+            vignette.color = new Color(0.015f, 0.035f, 0.045f, 0.42f);
 
             // The art remains present when motion is reduced; only the drift is removed.
             backdrop.ApplySettings();
@@ -139,7 +138,7 @@ namespace Aether.Gameplay.Presentation
                 float opacity = 0.085f + ((i % 4) * 0.018f);
                 Image mote = MenuUi.CreateImage(
                     "Forest Dust " + (i + 1).ToString("00"), parent, MenuArt.Circle,
-                    new Color(0.86f, 0.97f, 1f, opacity));
+                    new Color(0.96f, 0.94f, 0.82f, opacity));
                 RectTransform rect = mote.rectTransform;
                 Vector2 point = new Vector2(xs[i], ys[i]);
                 rect.anchorMin = point;
@@ -161,9 +160,9 @@ namespace Aether.Gameplay.Presentation
             CoverBackground();
 
             // The horizon wash settles the artwork through the entry band without adding a panel.
-            BandWash(0.30f, _height * 0.42f);
+            BandWash(0.30f, _height * 0.36f);
             _midgroundRest = Vector2.zero;
-            Band(_foregroundShade, 0f, _height * 0.44f);
+            Band(_foregroundShade, 0f, _height * 0.26f);
 
             // The blooms are large on purpose: a small bright blob reads as a lens flare, a large
             // dim one reads as air.
@@ -327,9 +326,10 @@ namespace Aether.Gameplay.Presentation
             else if (bloom == _bloomFar) _bloomFarRest = Vector2.zero;
         }
 
-        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size)
+        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size,
+                                           Color colour)
         {
-            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, MenuTheme.Palette.Atmosphere);
+            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, colour);
             RectTransform rect = bloom.rectTransform;
             rect.anchorMin = at;
             rect.anchorMax = at;

@@ -12,10 +12,11 @@ namespace Aether.Gameplay.Menus.Screens
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The composition is deliberately uneven.</b> Two large entries on the left — CONTINUE and NEW
-    /// GAME, the two things a player actually came to do — and two clusters of smaller ones on the
-    /// right, under headings. A screen of eight equal buttons is the thing the brief rules out, and
-    /// the fix is not decoration: it is deciding which entries matter and letting the layout say so.
+    /// <b>Deliberate mobile hierarchy.</b> Five clear destinations sharing a single centered vertical
+    /// column: CONTINUE and NEW GAME lead as primary player actions, followed by CHAPTERS,
+    /// COLLECTION, and SETTINGS. The centered alignment ensures comfortable two-thumb reachability
+    /// across wide landscape mobile viewports while giving the surrounding environment artwork
+    /// room to establish mood and scale.
     /// </para>
     /// <para>
     /// <b>The content scrolls only when it has to.</b> At the standard interface size the whole menu
@@ -26,8 +27,8 @@ namespace Aether.Gameplay.Menus.Screens
     /// </para>
     /// <para>
     /// <b>What is not here.</b> No invented entries. CONTINUE is only usable when a run is stored,
-    /// QUIT is only asked for where closing the game is a real action, and the three destinations
-    /// that have no system behind them open a screen that says so.
+    /// QUIT is only asked for where closing the game is a real action, and the destinations
+    /// lead to their real screens.
     /// </para>
     /// </remarks>
     public sealed class MainMenuScreen : MenuScreen
