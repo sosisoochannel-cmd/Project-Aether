@@ -17,10 +17,10 @@ namespace Aether.Gameplay.Menus.Components
     /// menu's own navigation rather than by an editor-authored <c>Navigation</c> graph.
     /// </para>
     /// <para>
-    /// <b>Quiet selection, faded colour.</b> The selected row keeps white type, a fine ice-cyan rule and
-    /// a small caret; the row never jumps, pulses, fills with a glow, or vibrates. Colour changes
-    /// fade through <c>Graphic.CrossFadeColor</c>, which the engine animates without this class
-    /// needing an <c>Update</c>. Nothing here is per-frame, and nothing allocates after construction.
+    /// <b>Console-grade focus elevation.</b> The selected row smoothly rises above the resting interface
+    /// layer with controlled vertical elevation, restrained scale expansion and a soft ambient depth shadow.
+    /// The focused item becomes unmistakably distinct without gaudy glow, cartoon bounce or drift.
+    /// Stable resting references prevent accumulated offsets or multiplying scale drift across rapid inputs.
     /// </para>
     /// <para>
     /// <b>The whole row is the target.</b> A row's rect is its pitch — 208 units for a primary entry,
@@ -41,6 +41,14 @@ namespace Aether.Gameplay.Menus.Components
             Secondary = 1,
         }
 
+        private const float FocusElevationUnits = 6f;
+        private const float PressElevationUnits = 2f;
+        private const float FocusScaleFactor = 1.035f;
+        private const float PressScaleFactor = 1.018f;
+        private const float FocusMotionDuration = 0.16f;
+        private const float PressMotionDuration = 0.07f;
+        private const float ReturnMotionDuration = 0.14f;
+
         /// <summary>Raised on activation: a tap, a click, or Submit from a keyboard or gamepad.</summary>
         public System.Action Activated;
 
@@ -51,6 +59,8 @@ namespace Aether.Gameplay.Menus.Components
         public MenuNav Nav;
 
         private Image _plate;
+        private Image _shadow;
+        private RectTransform _visualRoot;
         private Text _label;
         private Text _help;
         private Text _meta;
@@ -69,6 +79,7 @@ namespace Aether.Gameplay.Menus.Components
         private float _textBaseX;
         private float _labelY;
         private int _lastActivationFrame = -1;
+        private Coroutine _motionRoutine;
 
         /// <summary>
         /// The row's own rect. A Selectable hands out a Transform, and every caller wants the rect,
@@ -77,6 +88,14 @@ namespace Aether.Gameplay.Menus.Components
         public RectTransform Rect
         {
             get { return (RectTransform)transform; }
+        }
+
+        /// <summary>
+        /// The elevated visual root container that rises and scales during focus.
+        /// </summary>
+        public RectTransform VisualRoot
+        {
+            get { return _visualRoot; }
         }
 
         /// <summary>Where a row's control (a switch, a slider, a value) is placed.</summary>
@@ -316,19 +335,31 @@ namespace Aether.Gameplay.Menus.Components
         {
             MenuArt.EnsureBuilt();
 
-            _plate = GetComponent<Image>();
+            // The host keeps an unrendered plate so the entire pitch serves as the stable raycast hit area.
+            GetComponent<Image>();
 
-            // This component owns every pixel of its own transition — the plate, the label, the caret
-            // and the rule each answer the state on their own schedule — so Selectable's built-in
-            // tinting is switched off rather than fought with. Navigation is solved by
-            // MenuNav, so no Navigation links are wanted either.
             transition = Transition.None;
             navigation = new Navigation { mode = Navigation.Mode.None };
 
-            _textBlock = MenuUi.CreateNode("Text", transform);
+            // The elevated visual layer: centered pivot allows clean, symmetrical scaling and vertical lift.
+            _visualRoot = MenuUi.CreateNode("Visual", transform);
+            MenuUi.Stretch(_visualRoot);
+            _visualRoot.pivot = new Vector2(0.5f, 0.5f);
+
+            // Subtle depth shadow beneath the elevated layer, providing tactile visual separation.
+            _shadow = MenuUi.CreateImage("Shadow", _visualRoot, MenuArt.Solid, new Color(0f, 0f, 0f, 0f));
+            MenuUi.Stretch(_shadow.rectTransform);
+            _shadow.rectTransform.anchoredPosition = new Vector2(0f, -4f);
+            _shadow.gameObject.SetActive(false);
+
+            // Visual surface plate on the elevated layer.
+            _plate = MenuUi.CreateImage("Plate", _visualRoot, MenuArt.Solid, new Color(1f, 1f, 1f, 0f));
+            MenuUi.Stretch(_plate.rectTransform);
+
+            _textBlock = MenuUi.CreateNode("Text", _visualRoot);
             MenuUi.Stretch(_textBlock);
 
-            _rule = MenuUi.CreateHairline("Rule", transform, new Color(1f, 1f, 1f, 0f),
+            _rule = MenuUi.CreateHairline("Rule", _visualRoot, new Color(1f, 1f, 1f, 0f),
                                           MenuTheme.Metrics.TitleRuleHeight);
             _rule.rectTransform.anchorMin = new Vector2(0f, 0f);
             _rule.rectTransform.anchorMax = new Vector2(0f, 0f);
@@ -336,7 +367,7 @@ namespace Aether.Gameplay.Menus.Components
             _rule.rectTransform.anchoredPosition = Vector2.zero;
             _rule.rectTransform.sizeDelta = new Vector2(0f, MenuTheme.Metrics.TitleRuleHeight);
 
-            _accent = MenuUi.CreateImage("Accent", transform, MenuArt.Solid, MenuTheme.Palette.Accent);
+            _accent = MenuUi.CreateImage("Accent", _visualRoot, MenuArt.Solid, MenuTheme.Palette.Accent);
             _accent.rectTransform.anchorMin = new Vector2(0f, 0f);
             _accent.rectTransform.anchorMax = new Vector2(0f, 1f);
             _accent.rectTransform.pivot = new Vector2(1f, 0.5f);
@@ -344,7 +375,7 @@ namespace Aether.Gameplay.Menus.Components
             _accent.rectTransform.anchoredPosition = new Vector2(-8f, 0f);
             _accent.gameObject.SetActive(false);
 
-            _caret = MenuUi.CreateImage("Caret", transform, MenuArt.Triangle,
+            _caret = MenuUi.CreateImage("Caret", _visualRoot, MenuArt.Triangle,
                                         MenuTheme.Palette.InkFaint);
             _caret.rectTransform.anchorMin = new Vector2(0f, 0.5f);
             _caret.rectTransform.anchorMax = new Vector2(0f, 0.5f);
@@ -352,7 +383,7 @@ namespace Aether.Gameplay.Menus.Components
             _caret.rectTransform.sizeDelta = new Vector2(MenuTheme.Metrics.CaretWidth,
                                                         MenuTheme.Metrics.CaretHeight);
 
-            _icon = MenuUi.CreateImage("Locked", transform, MenuArt.Padlock, MenuTheme.Palette.Locked);
+            _icon = MenuUi.CreateImage("Locked", _visualRoot, MenuArt.Padlock, MenuTheme.Palette.Locked);
             _icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
             _icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
             _icon.rectTransform.pivot = new Vector2(0f, 0.5f);
@@ -360,7 +391,7 @@ namespace Aether.Gameplay.Menus.Components
                                                        MenuTheme.Metrics.CaretHeight);
             _icon.gameObject.SetActive(false);
 
-            _control = MenuUi.CreateNode("Control", transform);
+            _control = MenuUi.CreateNode("Control", _visualRoot);
             _control.anchorMin = new Vector2(1f, 0.5f);
             _control.anchorMax = new Vector2(1f, 0.5f);
             _control.pivot = new Vector2(1f, 0.5f);
@@ -471,26 +502,56 @@ namespace Aether.Gameplay.Menus.Components
             bool accentVisible = false;
             bool selectionVisible = false;
 
+            Vector2 targetPos = Vector2.zero;
+            Vector3 targetScale = Vector3.one;
+            float motionDuration = ReturnMotionDuration;
+            bool shadowVisible = false;
+            Color shadowColor = new Color(0f, 0f, 0f, 0f);
+
             if (_locked)
             {
                 label = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
                 caret = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Locked, highContrast);
+            }
+            else if (_informational)
+            {
+                // A fact has no state of its own: whatever the row would draw for a highlight is
+                // dropped, so a reader cannot mistake it for something they can press.
+                plate = new Color(1f, 1f, 1f, 0f);
+                label = muted;
+                caret = faint;
             }
             else
             {
                 switch (state)
                 {
                     case SelectionState.Pressed:
+                        label = ink;
+                        caret = MenuTheme.Palette.Accent;
+                        plate = new Color(0.35f, 0.88f, 0.94f, 0.18f);
+                        accentVisible = true;
+                        selectionVisible = true;
+                        targetPos = new Vector2(0f, PressElevationUnits);
+                        targetScale = new Vector3(PressScaleFactor, PressScaleFactor, 1f);
+                        motionDuration = PressMotionDuration;
+                        shadowVisible = true;
+                        shadowColor = new Color(0.015f, 0.045f, 0.06f, 0.22f);
+                        break;
+
                     case SelectionState.Highlighted:
                     case SelectionState.Selected:
-                        // A restrained high-contrast focus treatment: white type, a quiet cyan wash,
-                        // a narrow angular-side marker and a cyan caret. No glow, underline sweep,
-                        // sliding label, scaling, pulse or haptic feedback.
+                        // High-contrast focus treatment: white type, a quiet cyan wash,
+                        // a narrow angular-side marker, a cyan caret, and smooth vertical elevation.
                         label = ink;
                         caret = MenuTheme.Palette.Accent;
                         plate = MenuTheme.Palette.AccentWash;
                         accentVisible = true;
                         selectionVisible = true;
+                        targetPos = new Vector2(0f, FocusElevationUnits);
+                        targetScale = new Vector3(FocusScaleFactor, FocusScaleFactor, 1f);
+                        motionDuration = FocusMotionDuration;
+                        shadowVisible = true;
+                        shadowColor = new Color(0.015f, 0.045f, 0.06f, 0.35f);
                         break;
 
                     case SelectionState.Disabled:
@@ -500,27 +561,30 @@ namespace Aether.Gameplay.Menus.Components
                 }
             }
 
-            if (_informational)
-            {
-                // A fact has no state of its own: whatever the row would draw for a highlight is
-                // dropped, so a reader cannot mistake it for something they can press.
-                plate = new Color(1f, 1f, 1f, 0f);
-                ruleVisible = false;
-                accentVisible = false;
-                selectionVisible = false;
-                label = muted;
-                caret = faint;
-            }
-            else if (_accented && !_locked && state != SelectionState.Highlighted
-                     && state != SelectionState.Pressed)
+            if (_accented && !_locked && !_informational && state != SelectionState.Highlighted
+                     && state != SelectionState.Pressed && state != SelectionState.Selected)
             {
                 label = ink;
                 caret = MenuTheme.Palette.Accent;
             }
 
+            if (MenuPreferences.ReducedMotion)
+            {
+                if (targetPos.y > 0f) targetPos = new Vector2(0f, 2f);
+                targetScale = Vector3.one;
+                motionDuration = Mathf.Min(motionDuration, 0.08f);
+            }
+
+            ApplyMotion(targetPos, targetScale, motionDuration, instant);
+
             CrossFade(_plate, plate, fade);
             CrossFade(_caret, caret, fade);
             CrossFade(_rule, ruleVisible ? new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g, MenuTheme.Palette.Accent.b, 0.72f) : new Color(1f, 1f, 1f, 0f), fade);
+            if (_shadow != null)
+            {
+                if (_shadow.gameObject.activeSelf != shadowVisible) _shadow.gameObject.SetActive(shadowVisible);
+                if (shadowVisible) CrossFade(_shadow, shadowColor, fade);
+            }
             if (_accent != null)
             {
                 _accent.color = MenuTheme.Palette.Accent;
@@ -532,7 +596,6 @@ namespace Aether.Gameplay.Menus.Components
             if (_help != null) _help.color = faint;
             _label.color = label;
 
-            // No transform animation: focus changes only colour and the narrow cyan marker.
             // Idle rows do not carry a stray caret, so the list remains clean at rest.
             if (_caret != null) _caret.gameObject.SetActive(selectionVisible && !_locked && !_informational);
             if (_icon != null)
@@ -542,6 +605,58 @@ namespace Aether.Gameplay.Menus.Components
             }
 
             _label.rectTransform.anchoredPosition = new Vector2(0f, _labelY);
+        }
+
+        private void ApplyMotion(Vector2 targetPos, Vector3 targetScale, float duration, bool instant)
+        {
+            if (_visualRoot == null) return;
+
+            if (_motionRoutine != null)
+            {
+                StopCoroutine(_motionRoutine);
+                _motionRoutine = null;
+            }
+
+            if (instant || duration <= 0f || !isActiveAndEnabled || !gameObject.activeInHierarchy)
+            {
+                _visualRoot.anchoredPosition = targetPos;
+                _visualRoot.localScale = targetScale;
+                return;
+            }
+
+            _motionRoutine = StartCoroutine(AnimateMotion(targetPos, targetScale, duration));
+        }
+
+        private System.Collections.IEnumerator AnimateMotion(Vector2 targetPos, Vector3 targetScale, float duration)
+        {
+            if (_visualRoot == null) yield break;
+
+            Vector2 startPos = _visualRoot.anchoredPosition;
+            Vector3 startScale = _visualRoot.localScale;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float p = 1f - t;
+                float ease = 1f - (p * p * p);
+
+                if (_visualRoot == null) yield break;
+
+                _visualRoot.anchoredPosition = Vector2.LerpUnclamped(startPos, targetPos, ease);
+                _visualRoot.localScale = Vector3.LerpUnclamped(startScale, targetScale, ease);
+
+                yield return null;
+            }
+
+            if (_visualRoot != null)
+            {
+                _visualRoot.anchoredPosition = targetPos;
+                _visualRoot.localScale = targetScale;
+            }
+
+            _motionRoutine = null;
         }
 
         private static void CrossFade(Graphic graphic, Color colour, float duration)
@@ -572,6 +687,35 @@ namespace Aether.Gameplay.Menus.Components
         }
 
         // -- pointer and keyboard --------------------------------------------------------------
+
+        /// <inheritdoc />
+        public override void OnPointerDown(PointerEventData eventData)
+        {
+            if (eventData != null && eventData.button != PointerEventData.InputButton.Left) return;
+
+            base.OnPointerDown(eventData);
+
+            if (!interactable) return;
+
+            // Establish focus immediately on touch down so the focus elevation begins at once.
+            if (Nav != null && Nav.Current != this)
+            {
+                Nav.Select(this);
+            }
+        }
+
+        /// <inheritdoc />
+        public override void OnSelect(BaseEventData eventData)
+        {
+            base.OnSelect(eventData);
+
+            if (!interactable) return;
+
+            if (Nav != null && Nav.Current != this)
+            {
+                Nav.Select(this, notify: false);
+            }
+        }
 
         /// <inheritdoc />
         public override void OnPointerEnter(PointerEventData eventData)
@@ -628,9 +772,49 @@ namespace Aether.Gameplay.Menus.Components
 
             _lastActivationFrame = Time.frameCount;
 
+            TriggerActivationFeedback();
 
             System.Action handler = Activated;
             if (handler != null) handler();
+        }
+
+        private void TriggerActivationFeedback()
+        {
+            if (_plate != null && _plate.isActiveAndEnabled)
+            {
+                // A brief deliberate confirmation response before completing the action.
+                _plate.color = new Color(MenuTheme.Palette.Accent.r, MenuTheme.Palette.Accent.g,
+                                         MenuTheme.Palette.Accent.b, 0.30f);
+                _plate.CrossFadeColor(MenuTheme.Palette.AccentWash, 0.10f, true, true);
+            }
+        }
+
+        protected override void OnDisable()
+        {
+            if (_motionRoutine != null)
+            {
+                StopCoroutine(_motionRoutine);
+                _motionRoutine = null;
+            }
+
+            if (_visualRoot != null)
+            {
+                _visualRoot.anchoredPosition = Vector2.zero;
+                _visualRoot.localScale = Vector3.one;
+            }
+
+            base.OnDisable();
+        }
+
+        protected override void OnDestroy()
+        {
+            if (_motionRoutine != null)
+            {
+                StopCoroutine(_motionRoutine);
+                _motionRoutine = null;
+            }
+
+            base.OnDestroy();
         }
     }
 }

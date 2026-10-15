@@ -874,6 +874,139 @@ namespace Aether.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator Focused_option_elevates_and_scales_above_resting_plane()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            // Wait for entrance and focus motion to settle
+            yield return new WaitForSecondsRealtime(0.25f);
+
+            MenuButton current = menu.ActiveNav.Current as MenuButton;
+            Assert.IsNotNull(current, "no row is currently focused");
+            Assert.IsNotNull(current.VisualRoot, "focused row has no VisualRoot");
+
+            // The focused option must rise vertically above 0 and scale above 1.0
+            Assert.GreaterOrEqual(current.VisualRoot.anchoredPosition.y, 5.5f,
+                                 "focused row did not elevate above resting position");
+            Assert.GreaterOrEqual(current.VisualRoot.localScale.x, 1.03f,
+                                 "focused row did not scale above resting scale");
+        }
+
+        [UnityTest]
+        public IEnumerator Focus_movement_smoothly_elevates_target_and_returns_previous_to_exact_resting_state()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            yield return new WaitForSecondsRealtime(0.25f);
+            MenuButton first = menu.ActiveNav.Current as MenuButton;
+            Assert.IsNotNull(first, "first focused row is null");
+
+            // Move down to next row
+            root.System.Move(MenuNav.Move.Down);
+            yield return new WaitForSecondsRealtime(0.25f);
+
+            MenuButton second = menu.ActiveNav.Current as MenuButton;
+            Assert.IsNotNull(second, "second focused row is null");
+            Assert.AreNotSame(first, second, "selection did not move to a different row");
+
+            // Second row must be elevated and scaled
+            Assert.GreaterOrEqual(second.VisualRoot.anchoredPosition.y, 5.5f,
+                                 "newly focused row did not elevate");
+            Assert.GreaterOrEqual(second.VisualRoot.localScale.x, 1.03f,
+                                 "newly focused row did not scale");
+
+            // First row must return precisely to resting position (0, 0) and scale 1.0
+            Assert.AreEqual(0f, first.VisualRoot.anchoredPosition.y, 0.05f,
+                            "previously focused row did not return to resting position 0");
+            Assert.AreEqual(1f, first.VisualRoot.localScale.x, 0.005f,
+                            "previously focused row did not return to resting scale 1");
+        }
+
+        [UnityTest]
+        public IEnumerator Touch_down_establishes_immediate_focus_and_pressed_response()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            yield return new WaitForSecondsRealtime(0.25f);
+
+            // Find a non-focused row
+            MenuButton target = null;
+            for (int i = 0; i < menu.Play.Rows.Count; i++)
+            {
+                if (menu.Play.Rows[i] != menu.ActiveNav.Current && menu.Play.Rows[i].Usable)
+                {
+                    target = menu.Play.Rows[i];
+                    break;
+                }
+            }
+
+            Assert.IsNotNull(target, "no usable alternative row found");
+
+            // Simulate pointer down
+            var pointerData = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left
+            };
+            target.OnPointerDown(pointerData);
+
+            // Nav must immediately focus target
+            Assert.AreEqual(target, menu.ActiveNav.Current,
+                            "pointer down did not immediately establish navigation focus");
+
+            // Target must show pressed response (elevation between 0 and 6, scale above 1)
+            yield return new WaitForSecondsRealtime(0.1f);
+            Assert.Greater(target.VisualRoot.anchoredPosition.y, 0.5f,
+                           "pressed target did not show elevation response");
+        }
+
+        [UnityTest]
+        public IEnumerator Rapid_navigation_never_accumulates_position_or_scale_drift()
+        {
+            yield return BuildMenu();
+            MenuRoot root = CurrentMenu();
+            var menu = (MainMenuScreen)root.System.Current;
+
+            yield return new WaitForSecondsRealtime(0.25f);
+
+            // Rapid directional changes across 20 steps
+            for (int i = 0; i < 20; i++)
+            {
+                root.System.Move(i % 2 == 0 ? MenuNav.Move.Down : MenuNav.Move.Up);
+                yield return null;
+            }
+
+            // Settle motion
+            yield return new WaitForSecondsRealtime(0.3f);
+
+            MenuButton active = menu.ActiveNav.Current as MenuButton;
+            Assert.IsNotNull(active, "no active row after rapid input");
+
+            // Check every row in the menu
+            for (int i = 0; i < menu.Play.Rows.Count; i++)
+            {
+                MenuButton row = menu.Play.Rows[i];
+                if (row == active)
+                {
+                    Assert.GreaterOrEqual(row.VisualRoot.anchoredPosition.y, 5.5f,
+                                         "final active row is not elevated");
+                }
+                else
+                {
+                    Assert.AreEqual(0f, row.VisualRoot.anchoredPosition.y, 0.05f,
+                                    $"inactive row {row.name} has accumulated position drift");
+                    Assert.AreEqual(1f, row.VisualRoot.localScale.x, 0.005f,
+                                    $"inactive row {row.name} has accumulated scale drift");
+                }
+            }
+        }
+
         private sealed class MemorySettingsStore : ISettingsStore
         {
             public GameSettings Stored;
