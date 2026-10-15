@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using Aether.Core.Combat;
 using Aether.Data.Config;
+using Aether.Gameplay;
 using Aether.Gameplay.Combat;
 using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Levels;
@@ -23,6 +24,14 @@ namespace Aether.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            AetherBoot.AutoBootEnabled = false;
+            var boot = Object.FindObjectsByType<LevelBootstrap>(FindObjectsSortMode.None);
+            for (int i = 0; i < boot.Length; i++)
+            {
+                if (boot[i] != null) Object.DestroyImmediate(boot[i].gameObject);
+            }
+            Physics2D.SyncTransforms();
+
             _world = new GameObject("CombatPipelineTests World");
             CreateGround(new Vector2(0f, -0.6f), new Vector2(20f, 1f));
             yield return null;
@@ -31,7 +40,8 @@ namespace Aether.Tests.PlayMode
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            if (_world != null) Object.Destroy(_world);
+            AetherBoot.AutoBootEnabled = true;
+            if (_world != null) Object.DestroyImmediate(_world);
             _world = null;
             yield return null;
         }
