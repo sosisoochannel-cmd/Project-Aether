@@ -729,6 +729,30 @@ INHERITED_FIELDS = {
 }
 
 
+def parameter_names(text: str, open_paren: int) -> "list[str]":
+    """Every name a parameter list declares, `out` and `ref` parameters included.
+
+    These are read from the declaration's own parentheses rather than by the general scan in
+    `declared_names`, because a comma-separated list does not reliably leave each name the separator
+    that scan needs in front of it: it was missing every second parameter of a signature, and an
+    `out` parameter that the body then assigns was reported as an unknown name.
+    """
+    if open_paren < 0:
+        return []
+    close = text.find(")", open_paren)
+    if close < 0:
+        return []
+
+    names = []
+    for part in text[open_paren + 1:close].split(","):
+        # Drop a default value, then take the last word: `TextAnchor alignment = TextAnchor.Top` is
+        # one parameter named `alignment`.
+        tokens = part.split("=")[0].replace("\n", " ").split()
+        if len(tokens) >= 2:
+            names.append(tokens[-1])
+    return names
+
+
 def member_regions(text: str) -> "list[tuple[int, int, int, int]]":
     """Every member with a body: the span of its name, its signature end, and its body.
 
@@ -832,7 +856,11 @@ def check_identifiers(gate: Gate) -> None:
                 return True
             for _n, _s, body, end in regions:
                 if body <= position < end:
-                    return name in declared_names(text[body:end])
+                    if name in declared_names(text[body:end]):
+                        return True
+                    # A parameter is a declaration too, and an `out`/`ref` parameter is assigned
+                    # inside the body.
+                    return name in parameter_names(text, text.find("(", _n, body))
             return False
 
         for match in re.finditer(r"(?<![\w.])([A-Z]\w*)\s*\(", text):

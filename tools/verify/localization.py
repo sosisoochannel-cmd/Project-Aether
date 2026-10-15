@@ -383,6 +383,13 @@ def main() -> int:
     if "FBFC, 0xFBFD, 0xFBFE, 0xFBFF" not in rtl_source:
         failures.append("RtlText.cs must use the correct Persian yeh presentation forms")
 
+    # Lam followed by alef is a single ligature, not two letters side by side. The shipped Persian
+    # copy contains the pair in two strings, and drawing a lam next to an alef leaves the lam's
+    # connector running into the alef's stroke.
+    for key in ("pause.restart.body", "character.precursor.body"):
+        if "\u0644\u0627" not in persian.get(key, ""):
+            failures.append("fa: %s must keep a lam-alef pair for the shaping layer to join" % key)
+
     # The language picker uses these keys to name each language in the language currently shown.
     # Keep the entire catalogue label set present in the English reference, and call out a missing
     # label explicitly instead of leaving it buried among hundreds of ordinary translation keys.
@@ -514,6 +521,12 @@ def main() -> int:
         failures.append("RtlText.cs does not check directional joining to the next letter")
     if "Add(m, 'ی', 0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF, true);" not in rtl_source:
         failures.append("RtlText.cs has an incorrect Persian Yeh medial presentation form")
+    if "TryLamAlef" not in rtl_source:
+        failures.append("RtlText.cs must resolve lam-alef before the per-letter forms")
+    if "0xFEFB" not in rtl_source or "0xFEFC" not in rtl_source:
+        failures.append("RtlText.cs must form the lam-alef ligature instead of two letters")
+    if "0xFEF5" not in rtl_source or "0xFEF9" not in rtl_source:
+        failures.append("RtlText.cs must cover the lam-alef madda and hamza ligature families")
 
     if failures:
         for failure in failures:
