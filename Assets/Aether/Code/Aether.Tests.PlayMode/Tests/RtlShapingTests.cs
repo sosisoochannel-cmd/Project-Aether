@@ -71,7 +71,7 @@ namespace Aether.Tests.PlayMode
                 "علامتی must be drawn with the joined lam-alef ligature, not a lam next to an alef.");
 
             // A lam with nothing to its right that can join takes the isolated ligature instead.
-            Assert.AreEqual(LamAlefIsolated, RtlText.Visualize("لا"),
+            Assert.AreEqual(LamAlefIsolated.ToString(), RtlText.Visualize("لا"),
                 "A lam-alef pair with no joining letter before it must use the isolated ligature.");
             Assert.AreEqual(LamAlefFinal + "\uFE91", RtlText.Visualize("بلا"),
                 "A lam-alef pair reached from a joining letter must use the final ligature.");
@@ -90,7 +90,7 @@ namespace Aether.Tests.PlayMode
         [Test]
         public void LamAlefLigatureFamiliesCoverEveryAlefVariant()
         {
-            Assert.AreEqual(LamAlefMaddaIsolated, RtlText.Visualize("لآ"),
+            Assert.AreEqual(LamAlefMaddaIsolated.ToString(), RtlText.Visualize("لآ"),
                 "Lam followed by alef-madda needs its own ligature glyph.");
             Assert.AreEqual(LamAlefMaddaFinal + "\uFE91", RtlText.Visualize("بلآ"),
                 "Lam-alef-madda must take its final form after a joining letter.");
@@ -98,7 +98,7 @@ namespace Aether.Tests.PlayMode
                 "Lam followed by alef-hamza-above needs its own ligature glyph.");
             Assert.AreEqual(LamAlefHamzaBelowFinal + "\uFED7", RtlText.Visualize("قلإ"),
                 "Lam followed by alef-hamza-below needs its own ligature glyph.");
-            Assert.AreEqual(LamAlefHamzaAboveIsolated, RtlText.Visualize("لأ"),
+            Assert.AreEqual(LamAlefHamzaAboveIsolated.ToString(), RtlText.Visualize("لأ"),
                 "An unjoined lam-alef-hamza pair must use the isolated ligature.");
 
             // A combining mark written between the two letters stays with the pair, so it cannot be

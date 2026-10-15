@@ -161,6 +161,7 @@ namespace Aether.Tests.PlayMode
             host.AddComponent<PlayerMotor>();
             host.AddComponent<PlayerHealth>();
             host.AddComponent<PlayerCombat>();
+            host.AddComponent<PlayerInputReader>();
             PlayerController controller = host.AddComponent<PlayerController>();
 
             LogAssert.Expect(LogType.Error, new Regex(
