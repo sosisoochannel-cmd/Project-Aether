@@ -20,8 +20,8 @@ namespace Aether.Gameplay.Player
     /// <see cref="IsInvulnerable"/>, which removes the most common source of double-hit bugs.
     /// </para>
     /// </remarks>
+    [DisallowMultipleComponent]
     [RequireComponent(typeof(PlayerMotor))]
-    [RequireComponent(typeof(PlayerController))]
     public sealed class PlayerHealth : MonoBehaviour, IDamageable
     {
         [Header("Health")]
@@ -39,6 +39,18 @@ namespace Aether.Gameplay.Player
         private float _invulnerabilityAfterHit = 0.75f;
 
         private PlayerMotor _motor;
+
+        /// <summary>
+        /// The controller that owns the state machine, if this object has one.
+        /// </summary>
+        /// <remarks>
+        /// Looked up rather than <c>RequireComponent</c>-d. Requiring it here (and in
+        /// <see cref="PlayerCombat"/>) closed a cycle — the controller requires both of them back —
+        /// and Unity satisfies a requirement by <b>adding</b> the missing component, so building the
+        /// player in the factory's order produced a second controller that never received its tuning
+        /// asset and threw once per physics step. The controller requires its parts; the parts do not
+        /// require it, and every use below is null-checked.
+        /// </remarks>
         private PlayerController _controller;
         private float _currentHealth;
         private float _invulnerableUntil = float.NegativeInfinity;
@@ -122,7 +134,9 @@ namespace Aether.Gameplay.Player
                 direction.x * damage.KnockbackSpeed,
                 Mathf.Max(_motor.VelocityY, damage.LiftSpeed));
 
-            _controller.EnterHurt(_hurtLockout);
+            // Damage is real whether or not this object has a controller; only the hit reaction needs
+            // one, so it is the reaction that is skipped rather than the damage.
+            if (_controller != null) _controller.EnterHurt(_hurtLockout);
         }
 
         /// <summary>

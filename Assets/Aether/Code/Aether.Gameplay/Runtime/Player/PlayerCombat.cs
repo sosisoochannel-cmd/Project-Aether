@@ -22,8 +22,8 @@ namespace Aether.Gameplay.Player
     /// hit query is a physics overlap, which is valid outside the fixed step.
     /// </para>
     /// </remarks>
+    [DisallowMultipleComponent]
     [RequireComponent(typeof(PlayerMotor))]
-    [RequireComponent(typeof(PlayerController))]
     public sealed class PlayerCombat : MonoBehaviour
     {
         [Header("Attacks")]
@@ -48,6 +48,12 @@ namespace Aether.Gameplay.Player
         }
 
         private PlayerMotor _motor;
+
+        /// <summary>
+        /// The controller that owns movement, if this object has one. Only used to shape attack
+        /// speed, and only through null-checked lookups — see <see cref="PlayerHealth"/> for why the
+        /// controller is not a required component here.
+        /// </summary>
         private PlayerController _controller;
 
         /// <summary>Raised when an attack begins, including chained follow-ups.</summary>

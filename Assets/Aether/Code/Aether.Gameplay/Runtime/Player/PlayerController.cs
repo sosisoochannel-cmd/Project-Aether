@@ -52,6 +52,7 @@ namespace Aether.Gameplay.Player
     /// runs in <c>Update</c> through <see cref="PlayerCombat"/> so it stays visually sharp.
     /// </para>
     /// </remarks>
+    [DisallowMultipleComponent]
     [RequireComponent(typeof(PlayerMotor))]
     [RequireComponent(typeof(PlayerHealth))]
     [RequireComponent(typeof(PlayerCombat))]
@@ -73,6 +74,7 @@ namespace Aether.Gameplay.Player
         private float _dodgeEndsAt;
         private float _hurtEndsAt;
         private int _airJumpsUsed;
+        private bool _initialized;
 
         /// <summary>Raised after the player enters a new state, with (previous, current).</summary>
         public event Action<PlayerStateId, PlayerStateId> StateChanged;
@@ -108,9 +110,24 @@ namespace Aether.Gameplay.Player
         public IGameplayInput Input => _input;
 
         /// <summary>
+        /// True when the controller was built with the tuning asset it needs.
+        /// </summary>
+        /// <remarks>
+        /// False means the player cannot move at all: body size, the jump arc and every forgiveness
+        /// window come from <see cref="PlayerTuningData"/>. A controller in that state <b>disables
+        /// itself</b> rather than running a movement loop it cannot execute — see
+        /// <see cref="ValidateTuning"/>.
+        /// </remarks>
+        public bool IsInitialized => _initialized;
+
+        /// <summary>
         /// Supplies the tuning asset. Objects built at runtime have no inspector to assign it in, so
         /// the player factory calls this before the first frame.
         /// </summary>
+        /// <remarks>
+        /// Must be called before the object is activated, which is what the factory does: the value is
+        /// validated in <c>Awake</c>, the moment Unity first runs this component.
+        /// </remarks>
         public void Configure(PlayerTuningData tuning)
         {
             _tuning = tuning;
@@ -126,14 +143,6 @@ namespace Aether.Gameplay.Player
             _input = GetComponent<GameplayInputRouter>();
             if (_input == null) _input = GetComponent<PlayerInputReader>();
 
-            if (_tuning == null)
-            {
-                Debug.LogError(
-                    $"{nameof(PlayerController)} on '{name}' has no PlayerTuningData assigned. " +
-                    "The player will not move. Assign a tuning asset in the inspector.",
-                    this);
-            }
-
             if (_input == null)
             {
                 Debug.LogWarning(
@@ -145,6 +154,38 @@ namespace Aether.Gameplay.Player
             BuildStateMachine();
 
             _health.Died += OnDied;
+
+            ValidateTuning();
+        }
+
+        /// <summary>
+        /// Refuses to run without tuning instead of throwing once per physics step.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every movement decision reads the tuning asset, so a controller without one has nothing it
+        /// can legally do. Reporting that and staying switched off is the honest answer; the previous
+        /// behaviour — log the problem and keep running — threw a <c>NullReferenceException</c> from
+        /// <c>FixedUpdate</c> on <b>every physics step</b>, which buried the real message under
+        /// thousands of copies of itself and stopped the state machine from ticking at all.
+        /// </para>
+        /// <para>
+        /// Disabling the component is safe for the rest of the object: the motor, health and combat
+        /// all degrade on their own, and damage taken in this state simply does not push the player
+        /// into a hurt state there is no movement loop to leave.
+        /// </para>
+        /// </remarks>
+        private void ValidateTuning()
+        {
+            _initialized = _tuning != null;
+            if (_initialized) return;
+
+            enabled = false;
+            Debug.LogError(
+                $"{nameof(PlayerController)} on '{name}' has no PlayerTuningData assigned, so the " +
+                "player cannot move and this component has switched itself off. Configure it before " +
+                "the object is activated (" + nameof(PlayerFactory) + " does) or assign a tuning " +
+                "asset in the inspector.", this);
         }
 
         private void OnDestroy()
@@ -154,6 +195,15 @@ namespace Aether.Gameplay.Player
 
         private void OnEnable()
         {
+            // Nothing is ticking while the component is switched off, but a caller that re-enables a
+            // controller without tuning (wrongly configured in the inspector, or hand-built in a test)
+            // must not be able to reach a movement step that cannot run.
+            if (!_initialized)
+            {
+                enabled = false;
+                return;
+            }
+
             _machine.Start(this, PlayerStateId.Grounded);
         }
 
@@ -164,6 +214,8 @@ namespace Aether.Gameplay.Player
 
         private void Update()
         {
+            if (!_initialized) return;
+
             // Attack timing lives on the render clock so wind-up frames land where the animator
             // expects them even when the physics rate and frame rate disagree.
             _combat.Tick(Time.deltaTime);
@@ -191,6 +243,10 @@ namespace Aether.Gameplay.Player
 
         private void FixedUpdate()
         {
+            // The guard that stops a misconfigured player from throwing once per physics step. Every
+            // state below reads the tuning asset, so there is no legal movement step without one.
+            if (!_initialized) return;
+
             float dt = Time.fixedDeltaTime;
 
             _motor.RefreshGrounded();
