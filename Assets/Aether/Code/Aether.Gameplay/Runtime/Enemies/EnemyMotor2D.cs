@@ -142,18 +142,20 @@ namespace Aether.Gameplay.Enemies
         /// </remarks>
         public void SnapToGround()
         {
-            Bounds bounds = _collider.bounds;
-            Vector2 origin = new Vector2(bounds.center.x, bounds.max.y);
+            float halfHeight = _collider != null ? _collider.size.y * 0.5f : 0.55f;
+            Vector2 origin = new Vector2(transform.position.x, transform.position.y + halfHeight);
 
             RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, 8f, _solidLayers);
             if (hit.collider == null) return;
 
-            float halfHeight = bounds.extents.y;
-            Vector2 target = new Vector2(bounds.center.x, hit.point.y + halfHeight);
+            Vector2 target = new Vector2(transform.position.x, hit.point.y + halfHeight);
 
-            _body.position = target;
+            if (_body != null)
+            {
+                _body.position = target;
+                _body.linearVelocity = Vector2.zero;
+            }
             transform.position = target;
-            _body.linearVelocity = Vector2.zero;
         }
 
         /// <summary>Recomputes grounding. Call once per physics step, before AI logic.</summary>

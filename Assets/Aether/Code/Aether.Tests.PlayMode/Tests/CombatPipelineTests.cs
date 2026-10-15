@@ -93,10 +93,14 @@ namespace Aether.Tests.PlayMode
             Assert.AreEqual(strike.LungeSpeed, player.Motor.VelocityX, 0.01f,
                 "First strike must apply initial lunge impulse.");
 
-            // Advance through Startup and Active into Recovery
-            float advance = strike.Startup + strike.Active + 0.01f;
-            player.Combat.Tick(advance);
-            Assert.AreEqual(AttackPhase.Recovery, player.Combat.Phase);
+            // Advance through Startup into Active, then through Active into Recovery
+            player.Combat.Tick(strike.Startup + 0.01f);
+            Assert.AreEqual(AttackPhase.Active, player.Combat.Phase,
+                "First strike must reach Active phase.");
+
+            player.Combat.Tick(strike.Active + 0.01f);
+            Assert.AreEqual(AttackPhase.Recovery, player.Combat.Phase,
+                "First strike must reach Recovery phase.");
 
             // Queue the combo follow-up
             player.Combat.TryStartAttack();

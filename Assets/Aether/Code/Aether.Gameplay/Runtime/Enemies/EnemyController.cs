@@ -238,8 +238,14 @@ namespace Aether.Gameplay.Enemies
             _runner.Cancel();
             _health.ResetToFull();
 
-            transform.position = position;
-            if (_motor.Body != null) _motor.Body.linearVelocity = Vector2.zero;
+            float halfHeight = _definition != null ? 0.55f : 0.5f;
+            Vector2 centered = position + new Vector2(0f, halfHeight);
+            transform.position = centered;
+            if (_motor != null && _motor.Body != null)
+            {
+                _motor.Body.position = centered;
+                _motor.Body.linearVelocity = Vector2.zero;
+            }
             _motor.SnapToGround();
 
             _postPosition = _motor.Position;
