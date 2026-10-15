@@ -52,7 +52,7 @@ namespace Aether.Tests.PlayMode
             return tuning;
         }
 
-        private static PlayerController SpawnTunedPlayer()
+        private PlayerController SpawnTunedPlayer()
         {
             return PlayerFactory.Create(
                 Vector2.zero,

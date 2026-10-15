@@ -60,8 +60,8 @@ namespace Aether.Tests.PlayMode
         /// <summary>
         /// Lam followed by alef is one ligature glyph, in the form the surrounding letters require.
         /// </summary>
-        [UnityTest]
-        public IEnumerator LamAlefIsWrittenAsOneLigature()
+        [Test]
+        public void LamAlefIsWrittenAsOneLigature()
         {
             // The two words the shipped Persian copy is built around: "سلامتی" ("safety", from
             // pause.restart.body) and "علامتی" ("a marker", from character.precursor.body).
@@ -87,8 +87,8 @@ namespace Aether.Tests.PlayMode
         /// <summary>
         /// The alef-hamza and alef-madda ligature families are covered too, in both their forms.
         /// </summary>
-        [UnityTest]
-        public IEnumerator LamAlefLigatureFamiliesCoverEveryAlefVariant()
+        [Test]
+        public void LamAlefLigatureFamiliesCoverEveryAlefVariant()
         {
             Assert.AreEqual(LamAlefMaddaIsolated, RtlText.Visualize("لآ"),
                 "Lam followed by alef-madda needs its own ligature glyph.");
@@ -110,8 +110,8 @@ namespace Aether.Tests.PlayMode
         /// <summary>
         /// Latin words and numbers are left exactly as written, including inside Persian sentences.
         /// </summary>
-        [UnityTest]
-        public IEnumerator LatinAndNumberRunsAreNotReshaped()
+        [Test]
+        public void LatinAndNumberRunsAreNotReshaped()
         {
             Assert.AreEqual("AETHER", RtlText.Visualize("AETHER"),
                 "A string with no right-to-left letters must come back untouched.");
@@ -131,8 +131,8 @@ namespace Aether.Tests.PlayMode
         /// <summary>
         /// Arabic joining, and the Persian non-joiner that deliberately breaks it, are unchanged.
         /// </summary>
-        [UnityTest]
-        public IEnumerator ArabicJoiningAndTheZeroWidthNonJoinerAreUnchanged()
+        [Test]
+        public void ArabicJoiningAndTheZeroWidthNonJoinerAreUnchanged()
         {
             Assert.AreEqual("\uFEAA\uFEE4\uFEA4\uFEE3", RtlText.Visualize("محمد"),
                 "Ordinary Arabic joining must be unaffected by the lam-alef ligature work.");
