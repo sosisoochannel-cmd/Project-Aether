@@ -142,7 +142,15 @@ namespace Aether.Gameplay.Enemies
         /// </remarks>
         public void SnapToGround()
         {
-            float halfHeight = _collider != null ? _collider.size.y * 0.5f : 0.55f;
+            if (_collider == null) _collider = GetComponent<Collider2D>();
+            if (_body == null) _body = GetComponent<Rigidbody2D>();
+
+            float halfHeight = 0.55f;
+            if (_collider != null && _collider.bounds.size.y > 0f)
+            {
+                halfHeight = _collider.bounds.size.y * 0.5f;
+            }
+
             Vector2 origin = new Vector2(transform.position.x, transform.position.y + halfHeight);
 
             RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, 8f, _solidLayers);
