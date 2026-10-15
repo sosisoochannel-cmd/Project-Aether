@@ -481,9 +481,7 @@ jobs:
         if: always()
         run: |
           echo "### APK" >> "$GITHUB_STEP_SUMMARY"
-          # Spelled true/false, not 1/0: the release job's guard compares this against the string
-          # 'true', and an integer 1 never matched it, so a real APK was built and then never
-          # published. The comparison is string-typed either way.
+          sudo chown -R "$(id -u):$(id -g)" Builds 2>/dev/null || true
           found=false
           while IFS= read -r apk; do
             [ -z "$apk" ] && continue
@@ -510,7 +508,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Aether-dev-apk
-          path: Builds/**/*.apk
+          path: |
+            Builds/**/*.apk
+            Builds/SHA256SUMS.txt
           if-no-files-found: warn
           retention-days: 30
 
