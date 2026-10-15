@@ -87,7 +87,7 @@ namespace Aether.Gameplay.Player
         public event Action Landed;
 
         /// <summary>Current state. Read-only; transitions happen through gameplay code only.</summary>
-        public PlayerStateId State => _machine.Current;
+        public PlayerStateId State => _machine != null && _machine.IsRunning ? _machine.Current : PlayerStateId.Grounded;
 
         /// <summary>Movement and combat tuning asset.</summary>
         public PlayerTuningData Tuning => _tuning;

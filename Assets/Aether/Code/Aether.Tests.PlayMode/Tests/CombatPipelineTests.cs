@@ -6,6 +6,7 @@ using Aether.Gameplay.Combat;
 using Aether.Gameplay.Enemies;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Player;
+using Aether.Gameplay.Support;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -23,6 +24,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator SetUp()
         {
             _world = new GameObject("CombatPipelineTests World");
+            CreateGround(new Vector2(0f, -0.6f), new Vector2(20f, 1f));
             yield return null;
         }
 
@@ -34,6 +36,17 @@ namespace Aether.Tests.PlayMode
             yield return null;
         }
 
+        private GameObject CreateGround(Vector2 position, Vector2 size)
+        {
+            var ground = new GameObject("Ground");
+            ground.transform.SetParent(_world.transform, false);
+            ground.transform.position = position;
+            GameplayLayers.Assign(ground, GameplayLayers.GroundName);
+            var col = ground.AddComponent<BoxCollider2D>();
+            col.size = size;
+            return ground;
+        }
+
         private PlayerController SpawnPlayer(Vector2 position)
         {
             PlayerTuningData tuning = Resources.Load<PlayerTuningData>("Content/PlayerTuning");
@@ -43,16 +56,23 @@ namespace Aether.Tests.PlayMode
 
         private EnemyController SpawnEnemy(Vector2 feet)
         {
-            EnemyDefinition definition = Resources.Load<EnemyDefinition>("Content/Enemies/ForestStalker");
-            return EnemyFactory.Create(definition, feet, _world.transform, 3);
-        }
+            EnemyDefinition definition = null;
+            EnemyDefinition[] all = Resources.LoadAll<EnemyDefinition>("Content/Enemies");
+            if (all != null && all.Length > 0)
+            {
+                for (int i = 0; i < all.Length; i++)
+                {
+                    if (all[i] != null && all[i].TypeId == "forest_stalker")
+                    {
+                        definition = all[i];
+                        break;
+                    }
+                }
+                if (definition == null && all.Length > 0) definition = all[0];
+            }
 
-        private static void SetPrivateField(object target, string fieldName, object value)
-        {
-            FieldInfo field = target.GetType().GetField(fieldName,
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field, $"Field '{fieldName}' not found on {target.GetType().Name}");
-            field.SetValue(target, value);
+            Assert.IsNotNull(definition, "An EnemyDefinition is required to spawn an enemy.");
+            return EnemyFactory.Create(definition, feet, _world.transform, 3);
         }
 
         /// <summary>
@@ -61,13 +81,13 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator CombatComboChain_AppliesFollowUpLunge()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             AttackDefinition strike = Resources.Load<AttackDefinition>("Content/Attack.Strike");
             Assert.IsNotNull(strike.NextInCombo, "Strike must have a follow-up in combo.");
 
-            // Start first attack
+            // Start first attack while grounded
             bool firstStarted = player.Combat.TryStartAttack();
             Assert.IsTrue(firstStarted, "First strike must start.");
             Assert.AreEqual(strike.LungeSpeed, player.Motor.VelocityX, 0.01f,
@@ -97,7 +117,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator EnemyDamage_AppliesVerticalLiftSpeed()
         {
             EnemyController enemy = SpawnEnemy(new Vector2(5f, 0f));
-            yield return null;
+            yield return new WaitForFixedUpdate();
 
             var damage = new DamageInfo(
                 1f,
@@ -120,11 +140,10 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator Enemy_ReceivesPlayerTarget_CanPerceivePlayer()
         {
-            PlayerController player = SpawnPlayer(new Vector2(0f, 0f));
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
             EnemyController enemy = SpawnEnemy(new Vector2(2f, 0f));
-            yield return null;
+            yield return new WaitForFixedUpdate();
 
-            // Initially target is null when created from EnemyFactory alone
             enemy.SetTarget(player.transform);
             enemy.Motor.FacingSign = -1; // Face left towards player at x = 0
 
@@ -143,9 +162,9 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator Enemy_ChaseBrakesWhenInAttackRange()
         {
-            PlayerController player = SpawnPlayer(new Vector2(0f, 0f));
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
             EnemyController enemy = SpawnEnemy(new Vector2(1f, 0f));
-            yield return null;
+            yield return new WaitForFixedUpdate();
 
             enemy.SetTarget(player.transform);
             enemy.Motor.FacingSign = -1;

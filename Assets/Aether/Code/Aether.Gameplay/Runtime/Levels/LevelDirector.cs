@@ -65,20 +65,23 @@ namespace Aether.Gameplay.Levels
 
             _enemies.Clear();
             _enemyFeet.Clear();
-            for (int i = 0; i < built.Enemies.Count; i++)
+            if (built != null && built.Enemies != null)
             {
-                EnemyController enemy = built.Enemies[i].Controller;
-                _enemies.Add(enemy);
-                _enemyFeet.Add(built.Enemies[i].Feet);
-                if (enemy != null && player != null)
+                for (int i = 0; i < built.Enemies.Count; i++)
                 {
-                    enemy.SetTarget(player.transform);
+                    EnemyController enemy = built.Enemies[i].Controller;
+                    _enemies.Add(enemy);
+                    _enemyFeet.Add(built.Enemies[i].Feet);
+                    if (enemy != null && player != null)
+                    {
+                        enemy.SetTarget(player.transform);
+                    }
                 }
             }
 
             RespawnFeet = ResolveRespawnFeet();
 
-            if (_player != null)
+            if (_player != null && _player.Health != null)
             {
                 _player.Health.Died += OnPlayerDied;
             }

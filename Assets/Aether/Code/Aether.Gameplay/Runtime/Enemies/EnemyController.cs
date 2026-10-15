@@ -118,7 +118,7 @@ namespace Aether.Gameplay.Enemies
         public EnemyDefinition Definition => _definition;
 
         /// <summary>Current AI state.</summary>
-        public EnemyStateId State => _machine.Current;
+        public EnemyStateId State => _machine != null && _machine.IsRunning ? _machine.Current : EnemyStateId.Idle;
 
         /// <summary>The physics body wrapper.</summary>
         public EnemyMotor2D Motor => _motor;

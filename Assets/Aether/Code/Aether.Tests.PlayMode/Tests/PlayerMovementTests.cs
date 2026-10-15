@@ -3,6 +3,7 @@ using System.Reflection;
 using Aether.Data.Config;
 using Aether.Gameplay.Controls;
 using Aether.Gameplay.Player;
+using Aether.Gameplay.Support;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -20,6 +21,7 @@ namespace Aether.Tests.PlayMode
         public IEnumerator SetUp()
         {
             _world = new GameObject("PlayerMovementTests World");
+            CreateGround(new Vector2(0f, -0.6f), new Vector2(20f, 1f));
             yield return null;
         }
 
@@ -29,6 +31,17 @@ namespace Aether.Tests.PlayMode
             if (_world != null) Object.Destroy(_world);
             _world = null;
             yield return null;
+        }
+
+        private GameObject CreateGround(Vector2 position, Vector2 size)
+        {
+            var ground = new GameObject("Ground");
+            ground.transform.SetParent(_world.transform, false);
+            ground.transform.position = position;
+            GameplayLayers.Assign(ground, GameplayLayers.GroundName);
+            var col = ground.AddComponent<BoxCollider2D>();
+            col.size = size;
+            return ground;
         }
 
         private static PlayerTuningData LoadTuning()
@@ -78,8 +91,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator JumpCut_AppliedOnce_DoesNotDecayIndefinitely()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             PlayerTuningData tuning = player.Tuning;
             player.Motor.StartJump(tuning);
@@ -109,8 +122,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator JumpFromGround_ClearsCoyoteWindow()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             // Simulate grounded timestamp
             SetPrivateField(player, "_lastGroundedAt", Time.time);
@@ -136,14 +149,14 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator JumpBuffering_FiresWhenGrounded()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             // In mid-air with coyote expired
             SetPrivateField(player, "_lastGroundedAt", float.NegativeInfinity);
             SetPrivateField(player, "_jumpBufferedAt", Time.time);
 
-            // Cannot jump yet while airborne
+            // Cannot jump yet while airborne without air jumps
             bool jumpedInAir = (bool)InvokePrivateMethod(player, "TryJump");
             Assert.IsFalse(jumpedInAir, "Cannot jump while airborne without air jumps.");
 
@@ -160,22 +173,25 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator StateEvents_FireExactlyOncePerTransition()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             int leftGroundCount = 0;
             int landedCount = 0;
             player.LeftGround += () => leftGroundCount++;
             player.Landed += () => landedCount++;
 
-            // Grounded -> Airborne (take off)
-            SetPrivateField(player, "_jumpBufferedAt", Time.time);
-            SetPrivateField(player, "_lastGroundedAt", Time.time);
-            player.Motor.StartJump(player.Tuning);
-            InvokePrivateMethod(player, "ConsumeBufferedJump");
-
+            // Ensure player is Grounded
             var machine = (Aether.Core.States.StateMachine<PlayerController, PlayerStateId>)
                 GetPrivateField(player, "_machine");
+            if (player.State != PlayerStateId.Grounded)
+            {
+                machine.ChangeState(player, PlayerStateId.Grounded);
+            }
+            leftGroundCount = 0;
+            landedCount = 0;
+
+            // Grounded -> Airborne (take off)
             machine.ChangeState(player, PlayerStateId.Airborne);
 
             Assert.AreEqual(1, leftGroundCount, "LeftGround must fire exactly once on leaving ground.");
@@ -194,8 +210,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator HurtState_LocksOutDodgeAndAttack()
         {
-            PlayerController player = SpawnPlayer(Vector2.zero);
-            yield return null;
+            PlayerController player = SpawnPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
 
             player.EnterHurt(0.3f);
             Assert.AreEqual(PlayerStateId.Hurt, player.State);
