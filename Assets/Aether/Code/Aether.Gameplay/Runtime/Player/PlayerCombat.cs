@@ -106,10 +106,32 @@ namespace Aether.Gameplay.Player
             _motor = GetComponent<PlayerMotor>();
             _controller = GetComponent<PlayerController>();
 
-            _runner.AttackStarted += attack => AttackStarted?.Invoke(attack);
+            _runner.AttackStarted += OnAttackStarted;
             _runner.HitboxActivated += attack => HitboxActivated?.Invoke(attack);
             _runner.AttackFinished += attack => AttackFinished?.Invoke(attack);
-            _runner.HitLanded += collider => HitLanded?.Invoke(collider);
+            _runner.HitLanded += OnHitLanded;
+        }
+
+        private void OnAttackStarted(AttackDefinition attack)
+        {
+            // The lunge is a grounded move. In the air the player keeps their momentum, which stops
+            // attacks being used as a free dash and keeps air control predictable.
+            if (_motor != null && _motor.IsGrounded && attack != null && attack.LungeSpeed > 0f)
+            {
+                _motor.VelocityX = _motor.FacingSign * attack.LungeSpeed;
+            }
+
+            AttackStarted?.Invoke(attack);
+        }
+
+        private void OnHitLanded(Collider2D collider)
+        {
+            if (_motor != null && _motor.IsGrounded)
+            {
+                _motor.VelocityX *= 0.5f;
+            }
+
+            HitLanded?.Invoke(collider);
         }
 
         /// <summary>Advances the attack timeline. Called once per frame by <see cref="PlayerController"/>.</summary>
@@ -129,19 +151,13 @@ namespace Aether.Gameplay.Player
         /// </summary>
         public bool TryStartAttack()
         {
-            if (_controller != null && !_controller.Health.IsAlive) return false;
+            if (_controller != null && (!_controller.Health.IsAlive
+                || _controller.State == PlayerStateId.Hurt
+                || _controller.State == PlayerStateId.Dodge
+                || _controller.State == PlayerStateId.Dead)) return false;
             if (_firstAttack == null) return false;
 
-            bool started = _runner.RequestAttack(_firstAttack);
-
-            // The lunge is a grounded move. In the air the player keeps their momentum, which stops
-            // attacks being used as a free dash and keeps air control predictable.
-            if (started && _motor.IsGrounded && _runner.Current != null && _runner.Current.LungeSpeed > 0f)
-            {
-                _motor.VelocityX = _motor.FacingSign * _runner.Current.LungeSpeed;
-            }
-
-            return started;
+            return _runner.RequestAttack(_firstAttack);
         }
 
         /// <summary>Aborts any attack in progress and clears buffered input.</summary>

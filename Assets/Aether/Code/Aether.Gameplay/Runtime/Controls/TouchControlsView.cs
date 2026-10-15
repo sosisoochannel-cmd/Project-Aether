@@ -407,8 +407,11 @@ namespace Aether.Gameplay.Controls
             float halfWidth = halfHeight * _camera.aspect;
             Vector3 cameraPosition = _camera.transform.position;
 
-            float worldX = cameraPosition.x + ((fraction.x - 0.5f) * 2f * halfWidth);
-            float worldY = cameraPosition.y + ((fraction.y - 0.5f) * 2f * halfHeight);
+            Vector2 screenPx = ToScreen(fraction);
+            float viewportX = screenPx.x / Mathf.Max(1f, Screen.width);
+            float viewportY = screenPx.y / Mathf.Max(1f, Screen.height);
+            float worldX = cameraPosition.x + ((viewportX - 0.5f) * 2f * halfWidth);
+            float worldY = cameraPosition.y + ((viewportY - 0.5f) * 2f * halfHeight);
             target.position = new Vector3(worldX, worldY, cameraPosition.z + 1f);
             target.localScale = new Vector3(diameterFraction * 2f * halfHeight, diameterFraction * 2f * halfHeight, 1f);
         }

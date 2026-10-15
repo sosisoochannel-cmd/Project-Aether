@@ -92,6 +92,24 @@ namespace Aether.Gameplay.Enemies
             }
         }
 
+        /// <summary>Vertical speed, signed.</summary>
+        public float VelocityY
+        {
+            get => _body.linearVelocity.y;
+            set
+            {
+                Vector2 v = _body.linearVelocity;
+                v.y = value;
+                _body.linearVelocity = v;
+            }
+        }
+
+        /// <summary>Sets both velocity components at once.</summary>
+        public void SetVelocity(float x, float y)
+        {
+            _body.linearVelocity = new Vector2(x, y);
+        }
+
         private void Awake()
         {
             _body = GetComponent<Rigidbody2D>();
@@ -141,10 +159,8 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Recomputes grounding. Call once per physics step, before AI logic.</summary>
         public void RefreshGrounded()
         {
-            float offset = _definition != null ? _definition.GroundProbeOffset : 0.5f;
-
             Bounds bounds = _collider.bounds;
-            Vector2 probeCenter = new Vector2(bounds.center.x, bounds.min.y - offset + 0.06f);
+            Vector2 probeCenter = new Vector2(bounds.center.x, bounds.min.y + 0.05f);
             var probeSize = new Vector2(Mathf.Max(0.1f, bounds.size.x * 0.7f), 0.14f);
 
             IsGrounded = Physics2DQuery.OverlapsBox(probeCenter, probeSize, 0f, _solidLayers);

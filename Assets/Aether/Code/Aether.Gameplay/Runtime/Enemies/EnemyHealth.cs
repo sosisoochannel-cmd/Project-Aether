@@ -133,10 +133,9 @@ namespace Aether.Gameplay.Enemies
                 // Knockback is direction-correct even for a hit from above or below, because the
                 // direction is derived from the damage source rather than assumed to be horizontal.
                 Vector2 direction = damage.KnockbackDirection(_motor.Position);
-                if (damage.KnockbackSpeed > 0f)
-                {
-                    _motor.VelocityX = direction.x * damage.KnockbackSpeed;
-                }
+                float vx = damage.KnockbackSpeed > 0f ? direction.x * damage.KnockbackSpeed : _motor.VelocityX;
+                float vy = damage.LiftSpeed > 0f ? Mathf.Max(_motor.VelocityY, damage.LiftSpeed) : _motor.VelocityY;
+                _motor.SetVelocity(vx, vy);
             }
 
             Staggered?.Invoke(_definition != null ? _definition.StaggerDuration : 0.2f);

@@ -74,6 +74,7 @@ namespace Aether.Gameplay.Player
         private float _dodgeEndsAt;
         private float _hurtEndsAt;
         private int _airJumpsUsed;
+        private bool _jumpCutApplied;
         private bool _initialized;
 
         /// <summary>Raised after the player enters a new state, with (previous, current).</summary>
@@ -251,19 +252,10 @@ namespace Aether.Gameplay.Player
 
             _motor.RefreshGrounded();
 
-            bool wasGrounded = _lastGroundedAt > float.NegativeInfinity &&
-                               Time.time - _lastGroundedAt <= _tuning.CoyoteTime;
-
             if (_motor.IsGrounded)
             {
                 _lastGroundedAt = Time.time;
                 _airJumpsUsed = 0;
-
-                if (!wasGrounded && _machine.Current == PlayerStateId.Airborne) Landed?.Invoke();
-            }
-            else if (wasGrounded)
-            {
-                LeftGround?.Invoke();
             }
 
             _machine.FixedTick(this, dt);
@@ -272,13 +264,28 @@ namespace Aether.Gameplay.Player
         private void BuildStateMachine()
         {
             _machine = new StateMachine<PlayerController, PlayerStateId>(5);
-            _machine.Changed += (from, to) => StateChanged?.Invoke(from, to);
+            _machine.Changed += OnMachineStateChanged;
 
             _machine.Add(PlayerStateId.Grounded, new GroundedState());
             _machine.Add(PlayerStateId.Airborne, new AirborneState());
             _machine.Add(PlayerStateId.Dodge, new DodgeState());
             _machine.Add(PlayerStateId.Hurt, new HurtState());
             _machine.Add(PlayerStateId.Dead, new DeadState());
+        }
+
+        private void OnMachineStateChanged(PlayerStateId from, PlayerStateId to)
+        {
+            StateChanged?.Invoke(from, to);
+
+            if (from == PlayerStateId.Grounded && to == PlayerStateId.Airborne)
+            {
+                LeftGround?.Invoke();
+            }
+            else if ((from == PlayerStateId.Airborne || from == PlayerStateId.Dodge || from == PlayerStateId.Hurt)
+                     && to == PlayerStateId.Grounded)
+            {
+                Landed?.Invoke();
+            }
         }
 
         // ---- Shared conditions --------------------------------------------------------------
@@ -298,7 +305,7 @@ namespace Aether.Gameplay.Player
             _tuning != null && Time.time >= _nextDodgeAt;
 
         private bool CanDodge =>
-            _tuning != null && DodgeReady && (_motor.IsGrounded || _tuning.AllowAirDodge);
+            _tuning != null && DodgeReady && (_motor.IsGrounded || InCoyoteWindow || _tuning.AllowAirDodge);
 
         /// <summary>Consumes the buffered jump so one press produces exactly one jump.</summary>
         private void ConsumeBufferedJump()
@@ -311,7 +318,7 @@ namespace Aether.Gameplay.Player
             if (_tuning == null) return;
             if (!_health.IsAlive) return;
             if (!CanDodge) return;
-            if (_machine.Current == PlayerStateId.Dodge) return;
+            if (_machine.Current == PlayerStateId.Dodge || _machine.Current == PlayerStateId.Hurt || _machine.Current == PlayerStateId.Dead) return;
 
             _dodgeEndsAt = Time.time + _tuning.DodgeDuration;
             _nextDodgeAt = _dodgeEndsAt + _tuning.DodgeCooldown;
@@ -343,6 +350,7 @@ namespace Aether.Gameplay.Player
             _jumpBufferedAt = float.NegativeInfinity;
             _nextDodgeAt = float.NegativeInfinity;
             _airJumpsUsed = 0;
+            _jumpCutApplied = false;
 
             _combat.Cancel();
             _health.ResetToFull();
@@ -386,7 +394,12 @@ namespace Aether.Gameplay.Player
             {
                 c.ApplyStandardMotion();
 
-                if (c.CanDodge && c._input != null && c._input.DodgePressed) return;
+                if (c.CanDodge && c._input != null && c._input.DodgePressed)
+                {
+                    c._input.ConsumeDodge();
+                    c.TryStartDodge();
+                    return;
+                }
 
                 if (c.TryJump()) return;
 
@@ -415,6 +428,7 @@ namespace Aether.Gameplay.Player
 
                 if (c._motor.IsGrounded)
                 {
+                    c._jumpCutApplied = false;
                     c._machine.ChangeState(c, PlayerStateId.Grounded);
                 }
             }
@@ -529,6 +543,8 @@ namespace Aether.Gameplay.Player
             {
                 _motor.StartJump(_tuning);
                 ConsumeBufferedJump();
+                _lastGroundedAt = float.NegativeInfinity;
+                _jumpCutApplied = false;
                 _machine.ChangeState(this, PlayerStateId.Airborne);
                 return true;
             }
@@ -538,6 +554,8 @@ namespace Aether.Gameplay.Player
             _airJumpsUsed++;
             _motor.StartJump(_tuning);
             ConsumeBufferedJump();
+            _lastGroundedAt = float.NegativeInfinity;
+            _jumpCutApplied = false;
             _machine.ChangeState(this, PlayerStateId.Airborne);
             return true;
         }
@@ -545,11 +563,13 @@ namespace Aether.Gameplay.Player
         /// <summary>Cuts the jump short when the button is released before the apex.</summary>
         private void HandleJumpCut()
         {
+            if (_jumpCutApplied) return;
             if (_input == null) return;
             if (_input.JumpHeld) return;
             if (!_motor.IsRising) return;
 
             _motor.CutJump(_tuning);
+            _jumpCutApplied = true;
         }
     }
 }

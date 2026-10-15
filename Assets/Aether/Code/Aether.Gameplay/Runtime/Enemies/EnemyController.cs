@@ -225,6 +225,13 @@ namespace Aether.Gameplay.Enemies
             if (_motor != null) _motor.Initialize(definition);
         }
 
+        /// <summary>Updates the target being tracked and perceived by this enemy.</summary>
+        public void SetTarget(Transform player)
+        {
+            _player = player;
+            _playerCollider = player != null ? player.GetComponent<Collider2D>() : null;
+        }
+
         /// <summary>Returns the enemy to its spawn state. Used when a pooled instance is recycled.</summary>
         public void ResetForSpawn(Vector2 position)
         {
@@ -536,13 +543,15 @@ namespace Aether.Gameplay.Enemies
 
                 if (c.InAttackRange())
                 {
-                    // Only commit once the approach has settled, so an enemy does not attack from
+                    // Brake to settle the approach before committing, so an enemy does not attack from
                     // mid-stride with its telegraph half-hidden by its own movement.
+                    c._motor.Move(0f, dt);
                     if (Mathf.Abs(c._motor.VelocityX) < c._definition.MoveSpeed * 0.5f)
                     {
                         c.TryBeginAttack();
                         return;
                     }
+                    return;
                 }
 
                 c.MoveWithTerrainChecks(direction, dt);
@@ -666,18 +675,13 @@ namespace Aether.Gameplay.Enemies
             {
                 c._stateTimer = 0f;
                 c._motor.StopHorizontal();
-
-                // Perched enemies ignore gravity so they hold their position until triggered.
-                if (c._motor.Body != null) c._motor.Body.gravityScale = 0f;
-                c._motor.Body.linearVelocity = Vector2.zero;
+                if (c._motor.Body != null) c._motor.Body.linearVelocity = Vector2.zero;
             }
 
             public void Tick(EnemyController c, float dt) { }
 
             public void FixedTick(EnemyController c, float dt)
             {
-                if (c._motor.Body.gravityScale != 0f) c._motor.Body.gravityScale = 0f;
-
                 // Triggered from directly below, which is the direction the player is travelling and
                 // the only one where a drop is a fair surprise rather than an arbitrary hit.
                 bool below = c._player != null &&
@@ -695,14 +699,10 @@ namespace Aether.Gameplay.Enemies
                 if (c._stateTimer < c._definition.DropDelay) return;
 
                 c.FireCue(c._definition.AlertCueId);
-                c._motor.Body.gravityScale = 1f;
                 c._machine.ChangeState(c, EnemyStateId.Chase);
             }
 
-            public void Exit(EnemyController c)
-            {
-                if (c._motor.Body != null) c._motor.Body.gravityScale = 1f;
-            }
+            public void Exit(EnemyController c) { }
         }
 
         /// <summary>Dead. All behaviour stops; the spawner handles removal and pooling.</summary>

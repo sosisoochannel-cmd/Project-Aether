@@ -67,8 +67,13 @@ namespace Aether.Gameplay.Levels
             _enemyFeet.Clear();
             for (int i = 0; i < built.Enemies.Count; i++)
             {
-                _enemies.Add(built.Enemies[i].Controller);
+                EnemyController enemy = built.Enemies[i].Controller;
+                _enemies.Add(enemy);
                 _enemyFeet.Add(built.Enemies[i].Feet);
+                if (enemy != null && player != null)
+                {
+                    enemy.SetTarget(player.transform);
+                }
             }
 
             RespawnFeet = ResolveRespawnFeet();
@@ -124,7 +129,11 @@ namespace Aether.Gameplay.Levels
 
             for (int i = 0; i < _enemies.Count; i++)
             {
-                if (_enemies[i] != null) _enemies[i].ResetForSpawn(_enemyFeet[i]);
+                if (_enemies[i] != null)
+                {
+                    _enemies[i].ResetForSpawn(_enemyFeet[i]);
+                    if (_player != null) _enemies[i].SetTarget(_player.transform);
+                }
             }
 
             for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();
@@ -157,7 +166,11 @@ namespace Aether.Gameplay.Levels
 
             for (int i = 0; i < _enemies.Count; i++)
             {
-                if (_enemies[i] != null) _enemies[i].ResetForSpawn(_enemyFeet[i]);
+                if (_enemies[i] != null)
+                {
+                    _enemies[i].ResetForSpawn(_enemyFeet[i]);
+                    if (_player != null) _enemies[i].SetTarget(_player.transform);
+                }
             }
 
             for (int i = 0; i < _built.Checkpoints.Count; i++) _built.Checkpoints[i].Rearm();

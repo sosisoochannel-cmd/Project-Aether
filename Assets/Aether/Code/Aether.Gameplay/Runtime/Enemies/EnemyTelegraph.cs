@@ -54,10 +54,23 @@ namespace Aether.Gameplay.Enemies
         /// <summary>Supplies the visual. Called by the factory before the object is activated.</summary>
         public void Configure(SpriteRenderer renderer, EnemyController controller)
         {
+            if (_controller != null)
+            {
+                _controller.StateChanged -= OnStateChanged;
+                _controller.PlayerSpotted -= OnSpotted;
+            }
+
             _renderer = renderer;
             _controller = controller;
             _visual = renderer != null ? renderer.transform : null;
             _baseScale = _visual != null ? _visual.localScale : Vector3.one;
+
+            if (_controller != null)
+            {
+                _controller.StateChanged += OnStateChanged;
+                _controller.PlayerSpotted += OnSpotted;
+                ApplyState(_controller.State);
+            }
         }
 
         private void Awake()

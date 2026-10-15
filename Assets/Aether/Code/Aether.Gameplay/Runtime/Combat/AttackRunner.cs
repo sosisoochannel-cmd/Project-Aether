@@ -53,6 +53,7 @@ namespace Aether.Gameplay.Combat
         private AttackDefinition _current;
         private AttackPhase _phase = AttackPhase.None;
         private float _phaseElapsed;
+        private float _hitstopRemaining;
         private bool _comboQueued;
 
         /// <summary>Raised when an attack begins, including a chained follow-up.</summary>
@@ -78,6 +79,9 @@ namespace Aether.Gameplay.Combat
 
         /// <summary>True while any phase is running.</summary>
         public bool IsRunning => _phase != AttackPhase.None;
+
+        /// <summary>Remaining duration of the hitstop pause in seconds.</summary>
+        public float HitstopRemaining => _hitstopRemaining;
 
         /// <summary>
         /// How far through the wind-up the attack is, on [0, 1]. Exposed so a telegraph can be
@@ -148,6 +152,12 @@ namespace Aether.Gameplay.Combat
                 return;
             }
 
+            if (_hitstopRemaining > 0f)
+            {
+                _hitstopRemaining -= deltaTime;
+                if (_hitstopRemaining > 0f) return;
+            }
+
             _phaseElapsed += deltaTime;
 
             switch (_phase)
@@ -185,6 +195,7 @@ namespace Aether.Gameplay.Combat
             AttackDefinition finished = _current;
             _phase = AttackPhase.None;
             _phaseElapsed = 0f;
+            _hitstopRemaining = 0f;
             _comboQueued = false;
             _current = null;
             _targetsHit.Clear();
@@ -206,6 +217,7 @@ namespace Aether.Gameplay.Combat
             _current = attack;
             _phase = AttackPhase.Startup;
             _phaseElapsed = 0f;
+            _hitstopRemaining = 0f;
             _comboQueued = false;
             _targetsHit.Clear();
 
@@ -264,7 +276,11 @@ namespace Aether.Gameplay.Combat
                 if (selfBody != null && hit.attachedRigidbody == selfBody) continue;
                 if (!_targetsHit.Add(hit)) continue;
 
-                if (DamageResolver.TryDamage(hit, damage)) HitLanded?.Invoke(hit);
+                if (DamageResolver.TryDamage(hit, damage))
+                {
+                    HitLanded?.Invoke(hit);
+                    _hitstopRemaining = 0.05f;
+                }
             }
         }
     }
