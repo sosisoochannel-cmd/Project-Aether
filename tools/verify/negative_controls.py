@@ -866,12 +866,12 @@ def controls() -> list[Control]:
             ["is not in the build order"]),
         Control(
             "mainmenu: a taller row pitch pushes the main menu off the screen",
-            # The composition is arithmetic, and this is the arithmetic failing: two bands of
-            # secondary rows a hundred units taller each do not fit a 1080-unit canvas.
+            # The composition is arithmetic, and this is the arithmetic failing: five rows a hundred
+            # units taller each do not fit a 1080-unit canvas. Retuned by constant *name*, not by
+            # value, so a legitimate retune of the pitch cannot turn the control into a no-op that
+            # still reports a fault it never injected.
             menu,
-            lambda root: edit(root, THEME,
-                              "            public const float SecondaryPitch = 148f;",
-                              "            public const float SecondaryPitch = 248f;"),
+            lambda root: retune(root, THEME, "SecondaryPitch", "248"),
             ["would scroll at the default interface size"]),
         Control(
             "mainmenu: a screen shows a literal instead of a string key",
@@ -883,12 +883,13 @@ def controls() -> list[Control]:
             ["shows the literal"]),
         Control(
             "mainmenu: the main menu drops one of its entry points",
+            # The single choices panel carries Chapters, Collection and Settings. Removing one of
+            # those rows is a menu whose entry point no longer exists.
             menu,
             lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
-                              "AddDestination(_explore, MenuScreenId.Achievements, "
-                              "\"menu.achievements\");",
+                              'AddDestination(_play, MenuScreenId.Collection, "menu.collection");',
                               ""),
-            ["no row for Achievements"]),
+            ["no row for Collection"]),
         Control(
             "mainmenu: a setting row names a value the string table does not hold",
             menu,
@@ -946,8 +947,8 @@ def controls() -> list[Control]:
             "localization: a sheet invents a key English does not have",
             strings,
             lambda root: edit(root, "tools/localization/strings_es.txt",
-                              "menu.title=PROJECT AETHER",
-                              "menu.title=PROJECT AETHER\nmenu.titulo=PROYECTO AETHER"),
+                              "menu.title=AETHER",
+                              "menu.title=AETHER\nmenu.titulo=PROYECTO AETHER"),
             ["key(s) that English does not have"]),
         Control(
             "localization: a sheet is left incomplete",
@@ -981,8 +982,8 @@ def controls() -> list[Control]:
             "mainmenu: a builder called with its arguments out of order is caught",
             menu,
             lambda root: edit(root, f"{INTERFACE_HUD}",
-                              "MenuTheme.Metrics.SubtitleTracking, TextAnchor.UpperLeft",
-                              "TextAnchor.UpperLeft, MenuTheme.Metrics.SubtitleTracking"),
+                              "Color.white, 1f, TextAnchor.UpperLeft",
+                              "Color.white, TextAnchor.UpperLeft, 1f"),
             ["argument 6"]),
         Control(
             "mainmenu: a format call with the wrong number of arguments is caught",
@@ -991,15 +992,15 @@ def controls() -> list[Control]:
                               'MenuStrings.Format("about.version", Application.version)',
                               'MenuStrings.Format("about.version", Application.version, 1)'),
             ["placeholder(s)"]),
-        # A ninth row: the composition was designed for eight, and the arithmetic that proves it fits
+        # A sixth row: the composition is designed for five, and the arithmetic that proves it fits
         # counts the rows the screen builds. Adding one has to fail here rather than on a phone.
         Control(
             "mainmenu: one row too many for the composition is caught",
             menu,
             lambda root: edit(root, f"{MENUS}/Screens/MainMenuScreen.cs",
-                              'AddDestination(_system, MenuScreenId.Credits, "menu.credits")',
-                              'AddDestination(_system, MenuScreenId.Credits, "menu.credits")\n'
-                              '            AddDestination(_system, MenuScreenId.Chapters, "menu.chapters")'),
+                              'AddDestination(_play, MenuScreenId.Settings, "menu.settings");',
+                              'AddDestination(_play, MenuScreenId.Settings, "menu.settings");\n'
+                              '            AddDestination(_play, MenuScreenId.Collection, "menu.collection");'),
             ["would scroll at the default interface size"]),
         # The two faults that reached CI in the save-slot screen: a call to a method that was never
         # written, and an assignment to a name that was never declared. Both parse, both balance, and
