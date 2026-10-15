@@ -21,6 +21,7 @@ on:
       - arena/01a10203-project-aether
       - arena/aether-gold-black-language-selector
       - arena/aether-warning-persian-default
+      - arena/b1259ee6-project-aether
       - release/aether-latest-build-retry
     paths:
       - '.github/workflows/intro-render.yml'
