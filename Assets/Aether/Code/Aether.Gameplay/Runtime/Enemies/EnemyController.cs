@@ -313,8 +313,11 @@ namespace Aether.Gameplay.Enemies
             if (_sightBlockingLayers.value != 0)
             {
                 // A wall between the two means no sight, even if the box overlaps.
-                RaycastHit2D blocked = Physics2D.Linecast(self, target, _sightBlockingLayers);
-                if (blocked.collider != null) return false;
+                // Cast from eye height so the ray does not graze the ground plane beneath their feet.
+                Vector2 eyePos = self + Vector2.up * 0.2f;
+                Vector2 targetPos = target + Vector2.up * 0.2f;
+                RaycastHit2D blocked = Physics2D.Linecast(eyePos, targetPos, _sightBlockingLayers);
+                if (blocked.collider != null && blocked.collider != _playerCollider) return false;
             }
 
             if (_playerCollider != null)
