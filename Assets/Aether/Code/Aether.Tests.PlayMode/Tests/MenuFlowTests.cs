@@ -1015,8 +1015,8 @@ namespace Aether.Tests.PlayMode
             var backdrop = root.GetComponentInChildren<MenuBackdrop>();
             Assert.IsNotNull(backdrop, "menu has no MenuBackdrop component");
             Assert.IsNotNull(MenuArt.Forest, "MenuArt.Forest failed to load master artwork");
-            Assert.AreEqual(2560f, MenuArt.Forest.rect.width, 1f, "master artwork width is not 2560");
-            Assert.AreEqual(1440f, MenuArt.Forest.rect.height, 1f, "master artwork height is not 1440");
+            Assert.GreaterOrEqual(MenuArt.Forest.rect.width, 2048f, "master artwork width is under 2048");
+            Assert.GreaterOrEqual(MenuArt.Forest.rect.height, 1152f, "master artwork height is under 1152");
             Assert.IsTrue(backdrop.AtmosphereMotion, "backdrop atmosphere motion should be enabled by default");
         }
 

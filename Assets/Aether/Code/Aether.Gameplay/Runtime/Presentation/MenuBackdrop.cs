@@ -94,11 +94,9 @@ namespace Aether.Gameplay.Presentation
             Ridge(midground, "Ridge Mid", 0.286f, 0.82f, 10f, 0.025f);
             Ridge(midground, "Ridge Near", 0.252f, 0.62f, 6f, 0.015f);
 
-            // -- atmosphere: warm crepuscular sunlight over the temple and cool valley mist.
-            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.28f, 0.75f), 1400f,
-                                       new Color(0.30f, 0.78f, 0.92f, 0.06f));
-            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.72f, 0.80f), 1600f,
-                                        new Color(0.96f, 0.88f, 0.65f, 0.08f));
+            // -- atmosphere: two blooms, far apart, moving at different speeds.
+            backdrop._bloomFar = Bloom(root, "Atmosphere Far", new Vector2(0.30f, 0.86f), 1500f);
+            backdrop._bloomNear = Bloom(root, "Atmosphere Near", new Vector2(0.86f, 0.20f), 1900f);
             backdrop._bloomFar.gameObject.SetActive(true);
             backdrop._bloomNear.gameObject.SetActive(true);
             backdrop.CreateMotes(root);
@@ -107,7 +105,7 @@ namespace Aether.Gameplay.Presentation
             Image shade = MenuUi.CreateImage("Foreground Shade", root, MenuArt.Band,
                                              new Color(MenuTheme.Palette.Ground.r,
                                                        MenuTheme.Palette.Ground.g,
-                                                       MenuTheme.Palette.Ground.b, 0.45f));
+                                                       MenuTheme.Palette.Ground.b, 0.65f));
             shade.rectTransform.anchorMin = new Vector2(0f, 0f);
             shade.rectTransform.anchorMax = new Vector2(1f, 0f);
             shade.rectTransform.pivot = new Vector2(0.5f, 0f);
@@ -115,7 +113,7 @@ namespace Aether.Gameplay.Presentation
 
             Image vignette = MenuUi.Fill("Vignette", root, MenuTheme.Palette.Scrim);
             vignette.sprite = MenuArt.Vignette;
-            vignette.color = new Color(0.015f, 0.035f, 0.045f, 0.42f);
+            vignette.color = new Color(0.02f, 0.055f, 0.07f, 0.72f);
 
             // The art remains present when motion is reduced; only the drift is removed.
             backdrop.ApplySettings();
@@ -326,10 +324,9 @@ namespace Aether.Gameplay.Presentation
             else if (bloom == _bloomFar) _bloomFarRest = Vector2.zero;
         }
 
-        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size,
-                                           Color colour)
+        private static RectTransform Bloom(RectTransform parent, string name, Vector2 at, float size)
         {
-            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, colour);
+            Image bloom = MenuUi.CreateImage(name, parent, MenuArt.Glow, MenuTheme.Palette.Atmosphere);
             RectTransform rect = bloom.rectTransform;
             rect.anchorMin = at;
             rect.anchorMax = at;
