@@ -31,7 +31,7 @@ namespace Aether.Tests.PlayMode
             Physics2D.SyncTransforms();
 
             _world = new GameObject("PlayerMovementTests World");
-            CreateGround(new Vector2(0f, -0.6f), new Vector2(20f, 1f));
+            CreateGround(new Vector2(0f, -0.5f), new Vector2(20f, 1f));
             yield return null;
         }
 
