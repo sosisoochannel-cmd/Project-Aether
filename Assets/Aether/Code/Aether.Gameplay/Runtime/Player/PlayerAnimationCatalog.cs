@@ -65,8 +65,9 @@ namespace Aether.Gameplay.Player
     {
         private const int Cols = 16;
         private const int Rows = 13;
-        private const int FrameSize = 96;
+        private const int FrameSize = 256;
         private const int TotalFrames = 204;
+        private const float PixelsPerUnit = 160f;
         private const string ResourcePath = "Characters/Player/Aether_Hero_SpriteSheet";
 
         private static readonly Dictionary<PlayerAnimationId, PlayerAnimationClip> _clips =
@@ -103,7 +104,7 @@ namespace Aether.Gameplay.Player
                     int unityY = (Rows - 1 - r) * FrameSize;
                     int unityX = c * FrameSize;
                     var rect = new Rect(unityX, unityY, FrameSize, FrameSize);
-                    var sprite = Sprite.Create(sheet, rect, new Vector2(0.5f, 0.5f), FrameSize);
+                    var sprite = Sprite.Create(sheet, rect, new Vector2(0.5f, 0.5f), PixelsPerUnit);
                     sprite.name = $"Hero_Frame_{i:000}";
                     sprite.hideFlags = HideFlags.HideAndDontSave;
                     allFrames[i] = sprite;

@@ -60,7 +60,7 @@ namespace Aether.Gameplay.Player
             // the level was designed around.
             var visual = new GameObject("Visual");
             visual.transform.SetParent(host.transform, false);
-            visual.transform.localScale = new Vector3(width, height, 1f);
+            visual.transform.localScale = Vector3.one;
             var renderer = visual.AddComponent<SpriteRenderer>();
             renderer.sprite = CharacterSpriteLibrary.Player;
             renderer.color = Color.white;

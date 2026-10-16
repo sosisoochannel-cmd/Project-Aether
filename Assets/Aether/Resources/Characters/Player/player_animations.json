@@ -1,5 +1,5 @@
 {
-  "frame_size": 96,
+  "frame_size": 256,
   "total_frames": 204,
   "cols": 16,
   "rows": 13,
