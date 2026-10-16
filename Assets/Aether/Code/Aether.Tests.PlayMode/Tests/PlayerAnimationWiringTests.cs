@@ -121,6 +121,9 @@ namespace Aether.Tests.PlayMode
             PlayerAnimator animator = player.GetComponent<PlayerAnimator>();
             PlayerMotor motor = player.Motor;
 
+            // Disable player controller's physics loop so FixedUpdate doesn't apply deceleration in test
+            player.enabled = false;
+
             // Moderate speed -> Walk
             motor.VelocityX = 1.0f;
             yield return null;
@@ -138,6 +141,8 @@ namespace Aether.Tests.PlayMode
             yield return new WaitForSeconds(0.2f);
             Assert.AreEqual(PlayerAnimationId.Idle, animator.CurrentAnimation,
                 "Settled player must return to Idle.");
+
+            player.enabled = true;
         }
 
         [UnityTest]
