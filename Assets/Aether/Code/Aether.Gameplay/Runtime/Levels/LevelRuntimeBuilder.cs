@@ -61,23 +61,9 @@ namespace Aether.Gameplay.Levels
     }
 
     /// <summary>
-    /// Turns parsed level data into colliders, placeholders and gameplay objects.
+    /// Turns parsed level data into colliders, layered environment art and gameplay objects.
+    /// Builds rich visual depth with distinct background, terrain, canopy, foreground and atmospheric motes.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Nothing here is saved.</b> The scene is a view of the data, rebuilt on every load, so a
-    /// hand-edit to a baked scene cannot survive and cannot become a second source of truth. The
-    /// Editor bake tool produces a Tilemap version of the same grid for artists; this produces the
-    /// version the game runs.
-    /// </para>
-    /// <para>
-    /// Solid tiles are merged into maximal rectangles before anything is created, which is why The
-    /// Greenway's roughly two thousand solid cells become a few dozen objects instead of a few
-    /// thousand. Fewer objects is not a guess about performance: it is a measurement-free choice made
-    /// because it is also the simpler thing to reason about, and it is the one thing the mobile
-    /// budget actually forbids (one GameObject per tile).
-    /// </para>
-    /// </remarks>
     public static class LevelRuntimeBuilder
     {
         private const int SortingCanopyBack = -20;
@@ -88,11 +74,6 @@ namespace Aether.Gameplay.Levels
         /// <summary>
         /// Builds the level under a new root object.
         /// </summary>
-        /// <param name="includeGeometry">
-        /// False when the scene already contains baked Tilemaps for this level, as happens when
-        /// playing a baked scene. Entities are built either way: they are behaviour, not geometry,
-        /// and a scene must never be the only place an encounter exists.
-        /// </param>
         public static BuiltLevel Build(LevelData level, LevelContent content, Transform parent,
                                        bool includeGeometry = true)
         {
@@ -101,8 +82,11 @@ namespace Aether.Gameplay.Levels
 
             if (includeGeometry)
             {
+                BuildBackdrop(level, root.transform);
                 BuildTerrain(level, root.transform);
                 BuildCanopy(level, root.transform);
+                BuildForeground(level, root.transform);
+                BuildAtmosphere(level, root.transform);
             }
 
             var built = new BuiltLevel(root, level);
@@ -119,6 +103,52 @@ namespace Aether.Gameplay.Levels
             return built;
         }
 
+        private static void BuildBackdrop(LevelData level, Transform parent)
+        {
+            var backdropHost = new GameObject("EnvironmentBackdrop");
+            backdropHost.transform.SetParent(parent, false);
+
+            float totalWidth = level.Width * level.TileSize;
+            float totalHeight = level.Height * level.TileSize;
+            Vector2 levelCenter = new Vector2(totalWidth * 0.5f, totalHeight * 0.5f);
+
+            // Layer 1: Distant Sky (Sorting -100)
+            var skyGo = new GameObject("SkyBackdrop");
+            skyGo.transform.SetParent(backdropHost.transform, false);
+            skyGo.transform.position = new Vector3(levelCenter.x, levelCenter.y + 4f, 0f);
+            var skyRenderer = skyGo.AddComponent<SpriteRenderer>();
+            skyRenderer.sprite = EnvironmentSpriteLibrary.SkyBackdrop;
+            skyRenderer.sortingOrder = -100;
+            skyRenderer.drawMode = SpriteDrawMode.Tiled;
+            skyRenderer.size = new Vector2(totalWidth * 1.5f, totalHeight * 1.6f);
+
+            // Layer 2: Distant Mountains (Sorting -70)
+            var mountainGo = new GameObject("MountainRidge");
+            mountainGo.transform.SetParent(backdropHost.transform, false);
+            mountainGo.transform.position = new Vector3(levelCenter.x, 8f, 0f);
+            var mountainRenderer = mountainGo.AddComponent<SpriteRenderer>();
+            mountainRenderer.sprite = EnvironmentSpriteLibrary.MountainRidge;
+            mountainRenderer.sortingOrder = -70;
+            mountainRenderer.drawMode = SpriteDrawMode.Tiled;
+            mountainRenderer.size = new Vector2(totalWidth * 1.4f, 14f);
+
+            // Layer 3: Forest Midground (Sorting -40)
+            var forestGo = new GameObject("ForestMidground");
+            forestGo.transform.SetParent(backdropHost.transform, false);
+            forestGo.transform.position = new Vector3(levelCenter.x, 6f, 0f);
+            var forestRenderer = forestGo.AddComponent<SpriteRenderer>();
+            forestRenderer.sprite = EnvironmentSpriteLibrary.ForestMidground;
+            forestRenderer.sortingOrder = -40;
+            forestRenderer.drawMode = SpriteDrawMode.Tiled;
+            forestRenderer.size = new Vector2(totalWidth * 1.3f, 16f);
+
+            var foregroundHost = new GameObject("EnvironmentForeground");
+            foregroundHost.transform.SetParent(parent, false);
+
+            var parallax = backdropHost.AddComponent<ParallaxBackdrop2D>();
+            parallax.Configure(skyGo.transform, mountainGo.transform, forestGo.transform, foregroundHost.transform);
+        }
+
         private static void BuildTerrain(LevelData level, Transform parent)
         {
             var terrain = new GameObject("Terrain");
@@ -132,20 +162,12 @@ namespace Aether.Gameplay.Levels
                 GameObject go = CreateRectObject($"Solid_{rect.Col}_{rect.Row}", rect, level,
                     terrain.transform, SortingTerrain, LevelPalette.For(rect.Kind));
 
-                // Assign the layer to each collider object, not only the Terrain parent.
-                // Unity does not inherit a parent's layer when a child is created later. Without
-                // this, solid geometry remains on Default, so the Player's Ground-only probe never
-                // sees it and the character can look embedded, fail to ground, and lose jump control.
                 GameplayLayers.Assign(go, GameplayLayers.GroundName);
 
                 var collider = go.AddComponent<BoxCollider2D>();
                 collider.size = rect.WorldSize(level.TileSize);
                 collider.offset = Vector2.zero;
             }
-
-            // One collider for the whole terrain would be cheaper still, but a box that spans a gap
-            // would be a lie about where the ground is; rectangles are the honest minimum. The
-            // wrapper object stays because it is what the layer assignment and the hierarchy use.
         }
 
         private static void BuildCanopy(LevelData level, Transform parent)
@@ -155,6 +177,35 @@ namespace Aether.Gameplay.Levels
 
             CreateKind(level, canopy.transform, LevelTileKind.CanopyBack, LevelPalette.CanopyBack, SortingCanopyBack);
             CreateKind(level, canopy.transform, LevelTileKind.CanopyFront, LevelPalette.CanopyFront, SortingCanopyFront);
+        }
+
+        private static void BuildForeground(LevelData level, Transform parent)
+        {
+            Transform foregroundHost = parent.Find("EnvironmentForeground");
+            if (foregroundHost == null)
+            {
+                var go = new GameObject("EnvironmentForeground");
+                go.transform.SetParent(parent, false);
+                foregroundHost = go.transform;
+            }
+
+            float totalWidth = level.Width * level.TileSize;
+            float totalHeight = level.Height * level.TileSize;
+            Vector2 levelCenter = new Vector2(totalWidth * 0.5f, totalHeight * 0.5f);
+
+            var foliageGo = new GameObject("ForegroundFoliage");
+            foliageGo.transform.SetParent(foregroundHost, false);
+            foliageGo.transform.position = new Vector3(levelCenter.x, totalHeight - 2f, 0f);
+            var foliageRenderer = foliageGo.AddComponent<SpriteRenderer>();
+            foliageRenderer.sprite = EnvironmentSpriteLibrary.ForegroundFoliage;
+            foliageRenderer.sortingOrder = 25;
+            foliageRenderer.drawMode = SpriteDrawMode.Tiled;
+            foliageRenderer.size = new Vector2(totalWidth * 1.3f, 6f);
+        }
+
+        private static void BuildAtmosphere(LevelData level, Transform parent)
+        {
+            GameplayAtmosphere.Attach(parent, level);
         }
 
         private static void CreateKind(LevelData level, Transform parent, LevelTileKind kind, Color colour, int sorting)
@@ -174,7 +225,6 @@ namespace Aether.Gameplay.Levels
             go.transform.position = rect.WorldCenter(level.TileSize, level.Height);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.color = colour;
             renderer.sortingOrder = sortingOrder;
 
             Vector2 size = rect.WorldSize(level.TileSize);
@@ -190,20 +240,26 @@ namespace Aether.Gameplay.Levels
                 case LevelTileKind.Platform:
                     tiledSurface = EnvironmentSpriteLibrary.Platform;
                     break;
+                case LevelTileKind.CanopyBack:
+                    tiledSurface = EnvironmentSpriteLibrary.CanopyBack;
+                    break;
+                case LevelTileKind.CanopyFront:
+                    tiledSurface = EnvironmentSpriteLibrary.CanopyFront;
+                    break;
             }
 
             if (tiledSurface != null)
             {
-                // Merged colliders stay merged, while their art repeats at one world unit per tile.
-                // This prevents surface cracks and highlights from stretching across long platforms.
                 renderer.sprite = tiledSurface;
                 renderer.drawMode = SpriteDrawMode.Tiled;
                 renderer.size = size;
+                renderer.color = Color.white;
                 go.transform.localScale = Vector3.one;
             }
             else
             {
                 renderer.sprite = PlaceholderVisuals.Square;
+                renderer.color = colour;
                 go.transform.localScale = new Vector3(size.x, size.y, 1f);
             }
             return go;
@@ -238,10 +294,6 @@ namespace Aether.Gameplay.Levels
                         break;
 
                     case LevelEntityKind.StoryMarker:
-                        // Story markers have no behaviour by design: they are things the level says
-                        // are there, and the art that shows them comes from the bake. A marker that
-                        // popped a message on screen would turn environmental storytelling into a
-                        // text box, which is the one thing it must not be.
                         CreateStoryMarker(entities.transform, entity, feet);
                         break;
                 }
@@ -272,10 +324,10 @@ namespace Aether.Gameplay.Levels
             GameplayLayers.Assign(go, GameplayLayers.InteractableName);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Ring;
+            renderer.sprite = EnvironmentSpriteLibrary.Checkpoint;
             renderer.color = LevelPalette.CheckpointIdle;
             renderer.sortingOrder = SortingEntity;
-            go.transform.localScale = new Vector3(1.4f, 1.4f, 1f);
+            go.transform.localScale = new Vector3(1.6f, 1.6f, 1f);
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
@@ -284,8 +336,6 @@ namespace Aether.Gameplay.Levels
             var trigger = go.AddComponent<CheckpointTrigger>();
             trigger.Configure(entity, feet);
 
-            // The ring changes colour when the checkpoint takes, so the player can see that dying
-            // has stopped being expensive.
             var view = go.AddComponent<CheckpointView>();
             view.Configure(renderer, trigger);
             return trigger;
@@ -299,10 +349,10 @@ namespace Aether.Gameplay.Levels
             GameplayLayers.Assign(go, GameplayLayers.InteractableName);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Diamond;
+            renderer.sprite = EnvironmentSpriteLibrary.Discovery;
             renderer.color = LevelPalette.Secret;
             renderer.sortingOrder = SortingEntity;
-            go.transform.localScale = new Vector3(0.8f, 0.8f, 1f);
+            go.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
@@ -321,10 +371,10 @@ namespace Aether.Gameplay.Levels
             GameplayLayers.Assign(go, GameplayLayers.InteractableName);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = LevelPalette.Exit;
+            renderer.sprite = EnvironmentSpriteLibrary.Exit;
+            renderer.color = Color.white;
             renderer.sortingOrder = SortingEntity - 1;
-            go.transform.localScale = new Vector3(1.6f, 3.2f, 1f);
+            go.transform.localScale = new Vector3(2.0f, 3.2f, 1f);
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
@@ -339,13 +389,13 @@ namespace Aether.Gameplay.Levels
         {
             var go = new GameObject($"Story_{entity.Id}");
             go.transform.SetParent(parent, false);
-            go.transform.position = feet + new Vector2(0f, 0.25f);
+            go.transform.position = feet + new Vector2(0f, 0.8f);
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = PlaceholderVisuals.Square;
-            renderer.color = LevelPalette.StoryMarker;
+            renderer.sprite = EnvironmentSpriteLibrary.StoryMarker;
+            renderer.color = Color.white;
             renderer.sortingOrder = SortingEntity - 2;
-            go.transform.localScale = new Vector3(0.9f, 0.14f, 1f);
+            go.transform.localScale = new Vector3(1.0f, 1.6f, 1f);
         }
     }
 }

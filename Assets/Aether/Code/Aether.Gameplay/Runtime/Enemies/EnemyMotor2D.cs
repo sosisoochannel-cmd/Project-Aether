@@ -146,12 +146,8 @@ namespace Aether.Gameplay.Enemies
             if (_collider == null) _collider = GetComponent<Collider2D>();
             if (_body == null) _body = GetComponent<Rigidbody2D>();
 
-            float halfHeight = 0.55f;
-            if (_collider != null && _collider.bounds.size.y > 0f)
-            {
-                halfHeight = _collider.bounds.size.y * 0.5f;
-            }
-
+            Bounds bounds = _collider != null ? _collider.bounds : new Bounds(transform.position, Vector3.one * 1.1f);
+            float halfHeight = bounds.extents.y;
             Vector2 origin = new Vector2(transform.position.x, transform.position.y + halfHeight);
 
             RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, 8f, _solidLayers);
