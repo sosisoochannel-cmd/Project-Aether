@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Aether — Rigged 2D Character Animation Generator & Model Sheet Builder.
 
-Generates the complete production animation set (204 distinct, mathematically rigged frames),
+Generates the authoritative production animation set (204 distinct, mathematically rigged frames),
 contact sheets, model sheets, and packed runtime sprite sheets for the Aether protagonist.
 
-Palette:
-  Cloak: Midnight Navy (#142236) with Cyan trim (#288CA0)
-  Armor: Silver-Steel Plate (#5A7288, #8CA4B8, #B2C8D8) with Dark Ink joints (#1A2430)
-  Aether Core & Visor: Luminous Electric Cyan (#3AF0F8, #B0F8FC)
-  Leather & Bronze: Weathered Straps (#3C2C20) and Gilded Fittings (#D8A438, #F0C458)
+Reference Palette & Attributes (Authoritative Design Reference):
+  - Cloak & Cowl: Midnight Navy (#162438, #0E1622) with ragged tattered hem and cyan runes
+  - Mask & Eyes: Deep face shadow with sharp slanted cyan eyes (#3AF0F8, #D4EEFF) and white hair tufts
+  - Cuirass & Greaves: Silver-steel armor plates (#5C768C, #94B2CA, #D4EEFF) with diagonal sash
+  - Accessories: Circular gilded solar buckle (#E2AC36), leather pouch & riding boots (#402E20)
+  - The Aetherblade: Notched crystalline energy short-claymore with luminous branching fuller runes (#3AF0F8)
 """
 
 from __future__ import annotations
@@ -22,16 +23,17 @@ FRAME_SIZE = 96
 GROUND_Y = 82
 ROOT_X = 46
 
-# Color Palette Constants (RGBA)
-C_INK = (12, 16, 24, 255)
+# Authoritative Color Palette Constants (RGBA)
+C_INK = (14, 22, 34, 255)
 C_SHADOW = (10, 14, 20, 255)
 C_NAVY_DEEP = (14, 22, 34, 255)
 C_NAVY = (22, 36, 56, 255)
-C_NAVY_LIGHT = (34, 54, 82, 255)
+C_NAVY_LIGHT = (40, 64, 96, 255)
 C_STEEL_DARK = (52, 68, 84, 255)
 C_STEEL = (92, 118, 140, 255)
 C_STEEL_LIGHT = (148, 178, 202, 255)
 C_ICE = (212, 238, 255, 255)
+C_WHITE = (255, 255, 255, 255)
 C_GOLD_DARK = (160, 112, 32, 255)
 C_GOLD = (226, 172, 54, 255)
 C_GOLD_LIGHT = (252, 216, 108, 255)
@@ -56,7 +58,6 @@ def draw_capsule(draw: ImageDraw.ImageDraw, p1: tuple[float, float], p2: tuple[f
     nx = -dy / length
     ny = dx / length
 
-    # Outer outline polygon
     out_r1 = r1 + 1.0
     out_r2 = r2 + 1.0
     c1 = (p1[0] + nx * out_r1, p1[1] + ny * out_r1)
@@ -67,7 +68,6 @@ def draw_capsule(draw: ImageDraw.ImageDraw, p1: tuple[float, float], p2: tuple[f
     draw.ellipse([p1[0] - out_r1, p1[1] - out_r1, p1[0] + out_r1, p1[1] + out_r1], fill=outline)
     draw.ellipse([p2[0] - out_r2, p2[1] - out_r2, p2[0] + out_r2, p2[1] + out_r2], fill=outline)
 
-    # Inner fill polygon
     i1 = (p1[0] + nx * r1, p1[1] + ny * r1)
     i2 = (p2[0] + nx * r2, p2[1] + ny * r2)
     i3 = (p2[0] - nx * r2, p2[1] - ny * r2)
@@ -95,7 +95,7 @@ def render_character_pose(
     cloak_lift: float = 0.0,      # vertical lift for cloak
     visor_intensity: float = 1.0,
     slash_progress: float = 0.0,  # 0: none, >0: draw crescent arc
-    slash_radius: float = 28.0,
+    slash_radius: float = 30.0,
     slash_center_offset: tuple[float, float] = (16.0, -8.0),
     is_dead: bool = False
 ) -> Image.Image:
@@ -147,7 +147,7 @@ def render_character_pose(
                  fill=C_LEATHER_DARK, outline=C_INK)
 
     # -------------------------------------------------------------------------------------
-    # 3. Trailing Cloak (volumetric, multi-layered drape)
+    # 3. Trailing Tattered Cloak with Cyan Trim & Runic Star
     # -------------------------------------------------------------------------------------
     c_root_x = chest_x - 4.5
     c_root_y = chest_y + 1.0
@@ -158,20 +158,24 @@ def render_character_pose(
     c_tip2_x = pelvis_x - 2.0
     c_tip2_y = pelvis_y + 6.0
 
-    # Inner cloak shadow
+    # Multi-pointed tattered cape hem (inner shadow)
     draw.polygon([(c_root_x, c_root_y), (c_tip1_x - 2, c_tip1_y),
-                  (c_mid_x, c_mid_y), (c_tip2_x, c_tip2_y)],
-                 fill=C_NAVY_DEEP, outline=C_INK)
+                  (c_mid_x - 2, c_mid_y - 4), (c_mid_x, c_mid_y),
+                  (c_tip2_x, c_tip2_y)], fill=C_NAVY_DEEP, outline=C_INK)
     # Outer cloak body
     draw.polygon([(c_root_x, c_root_y), (c_tip1_x, c_tip1_y),
-                  (c_mid_x + 1, c_mid_y), (c_tip2_x + 2, c_tip2_y)],
-                 fill=C_NAVY, outline=C_INK)
-    # Luminous cyan trim along hem
-    draw.line([(c_tip1_x, c_tip1_y), (c_mid_x + 1, c_mid_y)], fill=C_CYAN, width=2)
-    draw.line([(c_mid_x + 1, c_mid_y), (c_tip2_x + 2, c_tip2_y)], fill=C_CYAN_DIM, width=1)
+                  (c_mid_x, c_mid_y - 3), (c_mid_x + 2, c_mid_y),
+                  (c_tip2_x + 2, c_tip2_y)], fill=C_NAVY, outline=C_INK)
+    # Cyan trim along ragged hem
+    draw.line([(c_tip1_x, c_tip1_y), (c_mid_x, c_mid_y - 3)], fill=C_CYAN, width=2)
+    draw.line([(c_mid_x, c_mid_y - 3), (c_mid_x + 2, c_mid_y)], fill=C_CYAN_DIM, width=1)
+
+    # Back cloak runic diamond-cross emblem
+    draw.polygon([(c_root_x - 4, c_root_y + 7), (c_root_x - 2, c_root_y + 5),
+                  (c_root_x, c_root_y + 7), (c_root_x - 2, c_root_y + 9)], fill=C_CYAN)
 
     # -------------------------------------------------------------------------------------
-    # 4. Front Leg (right) — heroic values with steel armor plates
+    # 4. Front Leg (right) with Cyan Diamond Knee Plate
     # -------------------------------------------------------------------------------------
     hip_r_x = pelvis_x + 3.0
     hip_r_y = pelvis_y
@@ -186,11 +190,14 @@ def render_character_pose(
     # Thigh
     draw_capsule(draw, (hip_r_x, hip_r_y), (knee_r_x, knee_r_y), 5.4, 4.4, C_NAVY)
     # Shin / Greave
-    draw_capsule(draw, (knee_r_x, knee_r_y), (ank_r_x, foot_r_y), 4.6, 3.8, C_STEEL)
-    # Knee-cop armor plate & highlight
-    draw.ellipse([knee_r_x - 3.5, knee_r_y - 3.5, knee_r_x + 3.5, knee_r_y + 3.5],
+    draw_capsule(draw, (knee_r_x, knee_r_y), (ank_r_x, foot_r_y), 4.6, 3.8, C_STEEL_LIGHT)
+
+    # Knee-cop with gold trim and cyan diamond crest
+    draw.ellipse([knee_r_x - 4.0, knee_r_y - 4.0, knee_r_x + 4.0, knee_r_y + 4.0],
                  fill=C_STEEL_LIGHT, outline=C_INK)
-    draw.line([(knee_r_x - 1, knee_r_y - 2), (knee_r_x + 2, knee_r_y - 1)], fill=C_ICE, width=1)
+    draw.polygon([(knee_r_x, knee_r_y - 3), (knee_r_x + 3, knee_r_y),
+                  (knee_r_x, knee_r_y + 3), (knee_r_x - 3, knee_r_y)],
+                 fill=C_CYAN, outline=C_GOLD)
 
     # Front Boot with reinforced toe and leather cuff
     b_pts = [
@@ -206,42 +213,42 @@ def render_character_pose(
                   (ank_r_x + 3.0, foot_r_y)], fill=C_STEEL_LIGHT, outline=C_INK)
 
     # -------------------------------------------------------------------------------------
-    # 5. Torso / Cuirass (sculpted steel armor plate & gold aether crest)
+    # 5. Torso / Cuirass with Diagonal Silver Sash & Gold Solar Buckle
     # -------------------------------------------------------------------------------------
     tx_min = chest_x - 6.5
     tx_max = chest_x + 6.5
     ty_min = chest_y - 3.0
     ty_max = pelvis_y + 3.0
 
-    # Base tunic/under-armor
+    # Base undergarment
     draw.rounded_rectangle([tx_min - 1, ty_min, tx_max + 1, ty_max + 2], radius=4,
                            fill=C_NAVY_DEEP, outline=C_INK)
     # Steel Breastplate
     draw.rounded_rectangle([tx_min, ty_min, tx_max, ty_max - 2], radius=4,
                            fill=C_STEEL, outline=C_INK)
-    # Light specular edge on right breastplate
-    draw.line([(tx_max - 1, ty_min + 3), (tx_max - 1, ty_max - 4)], fill=C_STEEL_LIGHT, width=1)
 
-    # Central Gilded Aether Core
-    core_cx = (tx_min + tx_max) * 0.5
-    core_cy = ty_min + 6.5
-    draw.ellipse([core_cx - 3.5, core_cy - 3.5, core_cx + 3.5, core_cy + 3.5],
-                 fill=C_GOLD, outline=C_INK)
-    draw.ellipse([core_cx - 2.0, core_cy - 2.0, core_cx + 2.0, core_cy + 2.0],
-                 fill=C_CYAN, outline=C_GOLD_DARK)
-    draw.ellipse([core_cx - 0.8, core_cy - 0.8, core_cx + 0.8, core_cy + 0.8], fill=C_ICE)
+    # Diagonal white/silver sash plate across chest
+    draw.polygon([(tx_min + 1, ty_min), (tx_max - 1, ty_min + 5),
+                  (tx_max, ty_max - 4), (tx_min + 2, ty_min + 2)], fill=C_ICE)
 
-    # Leather Waist Belt & Buckle
+    # Leather Waist Belt & Circular Gold Solar Buckle
     belt_y1 = ty_max - 4.0
     belt_y2 = ty_max
     draw.rectangle([tx_min - 0.5, belt_y1, tx_max + 0.5, belt_y2], fill=C_LEATHER, outline=C_INK)
-    draw.rectangle([core_cx - 2.5, belt_y1 - 0.5, core_cx + 2.5, belt_y2 + 0.5],
-                   fill=C_GOLD, outline=C_INK)
+    core_cx = (tx_min + tx_max) * 0.5
+    draw.ellipse([core_cx - 3.5, belt_y1 - 1.5, core_cx + 3.5, belt_y2 + 1.5],
+                 fill=C_GOLD, outline=C_INK)
+    draw.ellipse([core_cx - 1.5, belt_y1 + 0.5, core_cx + 1.5, belt_y2 - 0.5], fill=C_CYAN)
+
+    # Leather hip pouch on side
+    draw.rounded_rectangle([tx_max - 1.5, belt_y1, tx_max + 3.5, belt_y2 + 3],
+                           radius=1, fill=C_LEATHER_DARK, outline=C_INK)
+    draw.ellipse([tx_max + 0.5, belt_y2 - 0.5, tx_max + 1.5, belt_y2 + 0.5], fill=C_GOLD)
 
     # -------------------------------------------------------------------------------------
-    # 6. Head, Hooded Cowl & Luminous Aether Visor
+    # 6. Head, Hooded Cowl, White Hair Locks & Sharp Angled Cyan Visor
     # -------------------------------------------------------------------------------------
-    head_r = 9.2
+    head_r = 9.5
     # Outer Hood silhouette
     draw.ellipse([head_x - head_r, head_y - head_r - 2, head_x + head_r, head_y + head_r],
                  fill=C_NAVY, outline=C_INK)
@@ -250,30 +257,28 @@ def render_character_pose(
                   (head_x + 5, head_y - head_r - 7),
                   (head_x + 1, head_y - head_r)],
                  fill=C_NAVY_LIGHT, outline=C_INK)
-    # Winged Silver Crest
-    draw.polygon([(head_x - 4, head_y - head_r + 1),
-                  (head_x + 4, head_y - head_r - 5),
-                  (head_x + 2, head_y - head_r + 1)],
-                 fill=C_STEEL_LIGHT, outline=C_INK)
-    # Brow cowl fold
-    draw.ellipse([head_x - head_r + 2, head_y - 2, head_x + head_r - 1, head_y + head_r - 1],
-                 fill=C_NAVY_LIGHT)
+
+    # White hair locks spilling out from under the hood
+    draw.polygon([(head_x - 8, head_y - 1), (head_x - 11, head_y + 7), (head_x - 6, head_y + 4)],
+                 fill=C_ICE, outline=C_INK)
+    draw.polygon([(head_x + 5, head_y - 2), (head_x + 9, head_y + 8), (head_x + 4, head_y + 5)],
+                 fill=C_ICE, outline=C_INK)
+    draw.polygon([(head_x - 5, head_y - 5), (head_x - 2, head_y + 1), (head_x - 3, head_y - 4)],
+                 fill=C_WHITE)
 
     # Deep shadow face cavity
-    draw.ellipse([head_x - 4, head_y - 3.5, head_x + 6.5, head_y + 4.5], fill=C_INK)
+    draw.ellipse([head_x - 4.5, head_y - 3, head_x + 5.5, head_y + 5], fill=C_INK)
 
-    # Glowing Aether Visor (piercing horizontal slit)
+    # Glowing Angled Cyan Visor (sharp slanted eyes)
     if not is_dead and visor_intensity > 0.04:
         v_alpha = int(255 * min(1.0, visor_intensity))
-        # Cyan aura glow
-        draw.line([(head_x - 1, head_y), (head_x + 6, head_y)],
+        draw.line([(head_x - 1, head_y), (head_x + 4, head_y - 1)],
                   fill=(58, 240, 248, v_alpha), width=2)
-        # Intense white/ice energy core
-        draw.line([(head_x + 2, head_y), (head_x + 5.5, head_y)],
-                  fill=(216, 245, 255, v_alpha), width=1)
+        draw.ellipse([head_x + 2.5, head_y - 2, head_x + 4.5, head_y],
+                     fill=(255, 255, 255, v_alpha))
 
     # -------------------------------------------------------------------------------------
-    # 7. Front Arm (right) & Shoulder Pauldron
+    # 7. Front Arm (right) with Cyan Diamond Bracer
     # -------------------------------------------------------------------------------------
     sh_r_x = chest_x + math.cos(torso_rad) * 4.2
     sh_r_y = chest_y + math.sin(torso_rad) * 2.5
@@ -294,12 +299,17 @@ def render_character_pose(
     draw_capsule(draw, (sh_r_x, sh_r_y), (el_r_x, el_r_y), 4.8, 4.0, C_STEEL)
     draw_capsule(draw, (el_r_x, el_r_y), (wr_r_x, wr_r_y), 4.0, 3.2, C_STEEL_LIGHT)
 
+    # Forearm cyan diamond bracer plate
+    draw.polygon([(el_r_x + 1, el_r_y + 2), (el_r_x + 4, el_r_y + 5),
+                  (el_r_x + 1, el_r_y + 8), (el_r_x - 2, el_r_y + 5)],
+                 fill=C_CYAN, outline=C_GOLD)
+
     # Gauntlet Hand
     draw.ellipse([wr_r_x - 2.8, wr_r_y - 2.8, wr_r_x + 2.8, wr_r_y + 2.8],
                  fill=C_GOLD, outline=C_INK)
 
     # -------------------------------------------------------------------------------------
-    # 8. The Aetherblade (Majestic Runic Melee Weapon)
+    # 8. Crystalline Aetherblade with Branching Runes
     # -------------------------------------------------------------------------------------
     sw_rad = math.radians(sword_angle)
     blade_len = 26.0
@@ -310,9 +320,8 @@ def render_character_pose(
     blade_tip_x = wr_r_x + math.cos(sw_rad) * blade_len
     blade_tip_y = wr_r_y + math.sin(sw_rad) * blade_len
 
-    # Leather-wrapped Grip
+    # Leather Grip & Gilded Pommel
     draw.line([(hilt_back_x, hilt_back_y), (wr_r_x, wr_r_y)], fill=C_LEATHER_DARK, width=3)
-    # Gilded Pommel
     draw.ellipse([hilt_back_x - 2.0, hilt_back_y - 2.0, hilt_back_x + 2.0, hilt_back_y + 2.0],
                  fill=C_GOLD, outline=C_INK)
 
@@ -324,24 +333,25 @@ def render_character_pose(
     draw.line([(cg_x1, cg_y1), (cg_x2, cg_y2)], fill=C_INK, width=4)
     draw.line([(cg_x1, cg_y1), (cg_x2, cg_y2)], fill=C_GOLD, width=3)
 
-    # Solid Tapered Blade Outline & Silver Body
+    # Notched crystalline blade body
     blade_pts = [
         (wr_r_x + math.sin(sw_rad) * 2.5, wr_r_y - math.cos(sw_rad) * 2.5),
+        (wr_r_x + math.cos(sw_rad) * 14.0 + math.sin(sw_rad) * 3.5,
+         wr_r_y + math.sin(sw_rad) * 14.0 - math.cos(sw_rad) * 3.5),
         (blade_tip_x, blade_tip_y),
+        (wr_r_x + math.cos(sw_rad) * 14.0 - math.sin(sw_rad) * 3.5,
+         wr_r_y + math.sin(sw_rad) * 14.0 + math.cos(sw_rad) * 3.5),
         (wr_r_x - math.sin(sw_rad) * 2.5, wr_r_y + math.cos(sw_rad) * 2.5)
     ]
-    draw.polygon(blade_pts, fill=C_STEEL_LIGHT, outline=C_INK)
-    # Silver Cutting Edge highlight
-    draw.line([(wr_r_x + math.sin(sw_rad) * 2.0, wr_r_y - math.cos(sw_rad) * 2.0),
-               (blade_tip_x, blade_tip_y)], fill=C_ICE, width=1)
+    draw.polygon(blade_pts, fill=C_ICE, outline=C_INK)
 
-    # Luminous Cyan Runic Fuller Channel
+    # Luminous branching fuller runes
     f_start_x = wr_r_x + math.cos(sw_rad) * 3.0
     f_start_y = wr_r_y + math.sin(sw_rad) * 3.0
-    f_end_x = blade_tip_x - math.cos(sw_rad) * 4.0
-    f_end_y = blade_tip_y - math.sin(sw_rad) * 4.0
+    f_end_x = blade_tip_x - math.cos(sw_rad) * 3.0
+    f_end_y = blade_tip_y - math.sin(sw_rad) * 3.0
     draw.line([(f_start_x, f_start_y), (f_end_x, f_end_y)], fill=C_CYAN, width=2)
-    draw.line([(f_start_x, f_start_y), (f_end_x, f_end_y)], fill=C_ICE, width=1)
+    draw.line([(f_start_x, f_start_y), (f_end_x, f_end_y)], fill=C_WHITE, width=1)
 
     # -------------------------------------------------------------------------------------
     # 9. Attack Crescent Slash VFX (during active combat frames)
@@ -803,16 +813,15 @@ def build_model_sheet(output_path: str):
     """Builds a comprehensive visual model sheet for the protagonist."""
     width = 1024
     height = 512
-    img = Image.new("RGBA", (width, height), (16, 24, 36, 255))
+    img = Image.new("RGBA", (width, height), (14, 22, 34, 255))
     draw = ImageDraw.Draw(img)
 
     # Title & Headers
-    draw.rectangle([0, 0, width, 48], fill=(12, 18, 28, 255))
+    draw.rectangle([0, 0, width, 48], fill=(10, 16, 26, 255))
     draw.line([(0, 48), (width, 48)], fill=C_CYAN, width=2)
 
-    # Clean text rendering (pure ASCII without unicode box glyph issues)
     draw.text((24, 14), "AETHER - PROTAGONIST MODEL SHEET (AETHON / THE AETHER RANGER)", fill=(255, 255, 255, 255))
-    draw.text((width - 240, 14), "PRODUCTION ASSET REF", fill=C_CYAN)
+    draw.text((width - 240, 14), "AUTHORITATIVE DESIGN REF", fill=C_CYAN)
 
     # Turnaround Views
     views = [
@@ -826,7 +835,7 @@ def build_model_sheet(output_path: str):
         bx = 40 + idx * 240
         by = 80
         # Background card
-        draw.rounded_rectangle([bx, by, bx + 210, by + 280], radius=8, fill=(22, 34, 50, 255), outline=C_STEEL_DARK)
+        draw.rounded_rectangle([bx, by, bx + 210, by + 280], radius=8, fill=(18, 28, 44, 255), outline=C_STEEL_DARK)
         # Scaled frame
         scaled = frame_img.resize((192, 192), Image.Resampling.NEAREST)
         img.paste(scaled, (bx + 9, by + 30), scaled)
@@ -834,16 +843,16 @@ def build_model_sheet(output_path: str):
         draw.text((bx + 16, by + 245), label, fill=C_ICE)
 
     # Color Swatches Bar
-    draw.rectangle([40, 390, width - 40, 480], fill=(22, 34, 50, 255), outline=C_STEEL_DARK)
-    draw.text((56, 402), "PALETTE ASSIGNMENTS:", fill=C_ICE)
+    draw.rectangle([40, 390, width - 40, 480], fill=(18, 28, 44, 255), outline=C_STEEL_DARK)
+    draw.text((56, 402), "AUTHORITATIVE COLOR PALETTE:", fill=C_ICE)
 
     swatches = [
-        ("Midnight Navy", C_NAVY, "Cloak / Cowl"),
-        ("Cyan Aether", C_CYAN, "Visor / Fuller"),
-        ("Steel Armor", C_STEEL, "Cuirass / Greaves"),
-        ("Silver Edge", C_ICE, "Blade Highlights"),
-        ("Gilded Bronze", C_GOLD, "Crest Buckle"),
-        ("Dark Ink", C_INK, "Joints / Outlines")
+        ("Midnight Navy", C_NAVY, "#162438 (Cowl/Cloak)"),
+        ("Cyan Aether", C_CYAN, "#3AF0F8 (Visor/Runes)"),
+        ("Steel Armor", C_STEEL, "#5C768C (Plates/Greaves)"),
+        ("Ice Highlight", C_ICE, "#D4EEFF (Hair/Sash)"),
+        ("Gilded Bronze", C_GOLD, "#E2AC36 (Solar Buckle)"),
+        ("Leather Boots", C_LEATHER, "#402E20 (Boots/Pouch)")
     ]
 
     for s_idx, (name, col, role) in enumerate(swatches):
@@ -884,7 +893,7 @@ def build_contact_sheet(frames: list[Image.Image], title: str, output_path: str,
         # Checkerboard background for transparency proof
         for cb_y in range(0, FRAME_SIZE, 12):
             for cb_x in range(0, FRAME_SIZE, 12):
-                col = (28, 38, 52, 255) if ((cb_x // 12 + cb_y // 12) % 2 == 0) else (34, 46, 62, 255)
+                col = (24, 34, 48, 255) if ((cb_x // 12 + cb_y // 12) % 2 == 0) else (30, 42, 58, 255)
                 draw.rectangle([x + cb_x, y + cb_y, x + cb_x + 12, y + cb_y + 12], fill=col)
 
         # Border
@@ -915,7 +924,7 @@ def main():
     os.makedirs(frames_dir, exist_ok=True)
     os.makedirs(res_dir, exist_ok=True)
 
-    print("Generating Aether Hero Animation Suites...")
+    print("Generating Authoritative Aether Hero Animation Suites...")
 
     suites = [
         ("idle", "Hero Breathing Idle", generate_idle_frames(24)),
