@@ -4,6 +4,7 @@ using Aether.Data.Config;
 using Aether.Gameplay;
 using Aether.Gameplay.Levels;
 using Aether.Gameplay.Player;
+using Aether.Gameplay.Support;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -28,6 +29,8 @@ namespace Aether.Tests.PlayMode
             }
 
             _world = new GameObject("PlayerAnimationWiringTests World");
+            CreateGround(new Vector2(0f, -0.5f), new Vector2(40f, 1f));
+            Physics2D.SyncTransforms();
             yield return null;
         }
 
@@ -38,6 +41,17 @@ namespace Aether.Tests.PlayMode
             if (_world != null) Object.Destroy(_world);
             _world = null;
             yield return null;
+        }
+
+        private GameObject CreateGround(Vector2 position, Vector2 size)
+        {
+            var ground = new GameObject("Ground");
+            ground.transform.SetParent(_world.transform, false);
+            ground.transform.position = position;
+            GameplayLayers.Assign(ground, GameplayLayers.GroundName);
+            var col = ground.AddComponent<BoxCollider2D>();
+            col.size = size;
+            return ground;
         }
 
         private PlayerController SpawnTunedPlayer(Vector2 position)
@@ -82,7 +96,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator PlayerSpawnsInIdleAnimationAndWiredCorrectly()
         {
-            PlayerController player = SpawnTunedPlayer(Vector2.zero);
+            PlayerController player = SpawnTunedPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
             yield return null;
 
             PlayerAnimator animator = player.GetComponent<PlayerAnimator>();
@@ -99,7 +114,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator PlayerTransitionsBetweenWalkAndRunBasedOnSpeed()
         {
-            PlayerController player = SpawnTunedPlayer(Vector2.zero);
+            PlayerController player = SpawnTunedPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
             yield return null;
 
             PlayerAnimator animator = player.GetComponent<PlayerAnimator>();
@@ -156,7 +172,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator PlayerTransitionsToAttackWhenCombatStarts()
         {
-            PlayerController player = SpawnTunedPlayer(Vector2.zero);
+            PlayerController player = SpawnTunedPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
             yield return null;
 
             PlayerAnimator animator = player.GetComponent<PlayerAnimator>();
@@ -173,7 +190,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator PlayerTransitionsToDeadOnDefeat()
         {
-            PlayerController player = SpawnTunedPlayer(Vector2.zero);
+            PlayerController player = SpawnTunedPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
             yield return null;
 
             PlayerAnimator animator = player.GetComponent<PlayerAnimator>();
@@ -191,7 +209,8 @@ namespace Aether.Tests.PlayMode
         [UnityTest]
         public IEnumerator FacingSignCorrectlyFlipsSpriteRenderer()
         {
-            PlayerController player = SpawnTunedPlayer(Vector2.zero);
+            PlayerController player = SpawnTunedPlayer(new Vector2(0f, 0.7f));
+            yield return new WaitForFixedUpdate();
             yield return null;
 
             SpriteRenderer renderer = player.GetComponentInChildren<SpriteRenderer>();
