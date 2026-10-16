@@ -80,6 +80,8 @@ namespace Aether.Tests.PlayMode
                 "A player with two combat components can run two attack timelines at once.");
             Assert.AreEqual(1, host.GetComponents<PlayerMotor>().Length,
                 "A player with two motors has two sources of truth for its velocity.");
+            Assert.AreEqual(1, host.GetComponents<PlayerAnimator>().Length,
+                "A player with two animators would fight over sprite playback.");
             Assert.AreSame(controller, host.GetComponent<PlayerController>(),
                 "The controller the factory returned must be the one on the object.");
             Assert.IsTrue(host.activeInHierarchy,

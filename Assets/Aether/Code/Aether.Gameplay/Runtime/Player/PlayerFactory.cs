@@ -82,6 +82,9 @@ namespace Aether.Gameplay.Player
             var feedback = host.AddComponent<PlayerFeedback>();
             feedback.Configure(renderer);
 
+            var animator = host.AddComponent<PlayerAnimator>();
+            animator.Configure(controller, motor, combat, health, renderer);
+
             var slashObject = new GameObject("AttackSlash");
             slashObject.transform.SetParent(host.transform, false);
             var slashRenderer = slashObject.AddComponent<SpriteRenderer>();
@@ -103,6 +106,7 @@ namespace Aether.Gameplay.Player
             RequireSingle<PlayerHealth>(host);
             RequireSingle<PlayerCombat>(host);
             RequireSingle<PlayerMotor>(host);
+            RequireSingle<PlayerAnimator>(host);
 
             host.SetActive(true);
 

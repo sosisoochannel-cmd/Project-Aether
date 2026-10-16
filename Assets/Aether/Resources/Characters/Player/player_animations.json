@@ -1,0 +1,98 @@
+{
+  "frame_size": 96,
+  "total_frames": 204,
+  "cols": 16,
+  "rows": 13,
+  "sequences": {
+    "idle": {
+      "title": "Hero Breathing Idle",
+      "start_frame": 0,
+      "frame_count": 24,
+      "fps": 12
+    },
+    "idle_alt": {
+      "title": "Hero Idle Alert Variation",
+      "start_frame": 24,
+      "frame_count": 24,
+      "fps": 12
+    },
+    "walk": {
+      "title": "Hero Walk Cycle",
+      "start_frame": 48,
+      "frame_count": 16,
+      "fps": 16
+    },
+    "run": {
+      "title": "Hero Run Sprint Cycle",
+      "start_frame": 64,
+      "frame_count": 20,
+      "fps": 18
+    },
+    "run_stop": {
+      "title": "Hero Run Deceleration Brake",
+      "start_frame": 84,
+      "frame_count": 8,
+      "fps": 18
+    },
+    "jump_anticipation": {
+      "title": "Hero Jump Anticipation",
+      "start_frame": 92,
+      "frame_count": 6,
+      "fps": 20
+    },
+    "jump_rise": {
+      "title": "Hero Jump Upward Propulsion",
+      "start_frame": 98,
+      "frame_count": 10,
+      "fps": 20
+    },
+    "jump_apex": {
+      "title": "Hero Jump Apex Crest",
+      "start_frame": 108,
+      "frame_count": 8,
+      "fps": 20
+    },
+    "jump_fall": {
+      "title": "Hero Jump Downward Descent",
+      "start_frame": 116,
+      "frame_count": 10,
+      "fps": 20
+    },
+    "jump_land": {
+      "title": "Hero Jump Landing Recovery",
+      "start_frame": 126,
+      "frame_count": 8,
+      "fps": 20
+    },
+    "attack1": {
+      "title": "Hero Horizontal Cleave Strike",
+      "start_frame": 134,
+      "frame_count": 16,
+      "fps": 20
+    },
+    "attack2": {
+      "title": "Hero Rising Crescent Combo Finisher",
+      "start_frame": 150,
+      "frame_count": 16,
+      "fps": 20
+    },
+    "dodge": {
+      "title": "Hero Phase Dash Dodge",
+      "start_frame": 166,
+      "frame_count": 12,
+      "fps": 20
+    },
+    "hurt": {
+      "title": "Hero Impact Recoil Stagger",
+      "start_frame": 178,
+      "frame_count": 10,
+      "fps": 20
+    },
+    "dead": {
+      "title": "Hero Defeat Collapse",
+      "start_frame": 188,
+      "frame_count": 16,
+      "fps": 20
+    }
+  }
+}
