@@ -97,7 +97,7 @@ namespace Aether.Gameplay.Menus.Components
         public void SetTitle(string title)
         {
             if (_title == null) return;
-            _title.text = MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking);
+            _title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));
         }
 
         /// <summary>Dims the title, for a screen that has nothing to show yet.</summary>

@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsFa
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "پروژه AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "مسیر سبز — منطقه یک",
             "menu.playSection", "بازی",
             "menu.exploreSection", "کاوش",
@@ -130,7 +130,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "داده ذخیره",
             "credits.art", "هنر — استودیو VARELLON",
             "credits.art.body", "نشان استودیو و تمام عناصر منو، آثار هنری تأییدشده پروژه هستند.",
-            "credits.code", "کدنویسی — پروژه AETHER",
+            "credits.code", "کدنویسی — AETHER",
             "credits.code.body", "برای اندروید و حالت افقی، با اولویت اجرای موبایل نوشته شده است.",
             "credits.engine", "ساخته‌شده با UNITY",
             "credits.music", "موسیقی",
@@ -229,7 +229,7 @@ namespace Aether.Gameplay.Localization.Tables
             "collection.locked.notInBuild", "در این نسخه نیست",
             "entry.secret.greenway.overhang", "نشان بریده‌شده",
             "entry.secret.greenway.overhang.body", "نشانی روی تنه بالای مسیر. سازنده آن انتظار داشته دوباره برگردد.",
-            "entry.ability.rootbind", "ROOTBIND",
+            "entry.ability.rootbind", "مهار ریشه",
             "entry.ability.rootbind.body", "بازیکن را به یک نقطه ریشه متصل می‌کند و مسیرهای عمودی را باز می‌کند. نگهبان منطقه‌ای آن را در اختیار دارد که هنوز در این نسخه نیست.",
             "achievements.title", "دستاوردها",
             "achievements.body", "تمام دستاوردهای این فهرست در این نسخه قابل کسب‌اند. هیچ‌کدام نمایشی نیست.",

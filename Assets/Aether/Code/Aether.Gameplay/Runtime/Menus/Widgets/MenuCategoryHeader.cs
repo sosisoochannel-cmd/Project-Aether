@@ -64,7 +64,7 @@ namespace Aether.Gameplay.Menus.Widgets
         /// <summary>Sets the group's name.</summary>
         public void SetLabel(string text)
         {
-            if (_label != null) _label.text = MenuUi.Track(text, MenuTheme.Metrics.CategoryLabelTracking);
+            if (_label != null) _label.text = MenuUi.PrepareText(MenuUi.Track(text, MenuTheme.Metrics.CategoryLabelTracking));
         }
 
         /// <summary>Gives the rule its width, in units: how far out of the label it runs.</summary>

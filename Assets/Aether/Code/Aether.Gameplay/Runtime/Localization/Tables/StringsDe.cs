@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsDe
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "PROJECT AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "DER GRÜNE WEG — REGION EINS",
             "menu.playSection", "SPIELEN",
             "menu.exploreSection", "ERKUNDEN",
@@ -130,7 +130,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "SPEICHERDATEN",
             "credits.art", "GRAFIK — VARELLON STUDIOS",
             "credits.art.body", "Das Studiosymbol und alle Elemente des Menüs verwenden die freigegebenen Grafiken.",
-            "credits.code", "CODE — PROJECT AETHER",
+            "credits.code", "CODE — AETHER",
             "credits.code.body", "Für Android im Querformat entwickelt, zuerst für Smartphones.",
             "credits.engine", "ERSTELLT MIT UNITY",
             "credits.music", "MUSIK",
