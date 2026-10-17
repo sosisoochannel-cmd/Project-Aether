@@ -129,7 +129,7 @@ namespace Aether.Core.Localization
         /// European Portuguese.
         /// </para>
         /// </remarks>
-        public static readonly string[] Offered = { "en", "es", "fa", "fr", "de" };
+        public static readonly string[] Offered = { "en", "es", "fa", "fr", "de", "it", "pt", "pt-BR", "ru", "tr" };
 
         /// <summary>Whether the build offers a language right now.</summary>
         public static bool IsOffered(string code)
