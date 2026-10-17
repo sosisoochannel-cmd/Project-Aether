@@ -181,7 +181,7 @@ namespace Aether.Gameplay.Menus.Panels
 
             if (_note != null)
             {
-                _note.text = MenuStrings.Get(MenuSettingsPanel.CategoryNoteKey(category));
+                _note.text = MenuUi.PrepareText(MenuStrings.Get(MenuSettingsPanel.CategoryNoteKey(category)));
             }
 
             Refresh();
