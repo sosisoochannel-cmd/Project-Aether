@@ -247,11 +247,11 @@ namespace Aether.Gameplay.Menus.Screens
             {
                 if (SaveHost.BeginNewGameIn(replacement, chapter.Id, true) == null)
                 {
-                    _body.text = MenuStrings.Get("slots.new.failed");
+                    _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.new.failed"));
                     return;
                 }
 
-                if (!Host.PlayRegion()) _body.text = MenuStrings.Get("slots.transition.failed");
+                if (!Host.PlayRegion()) _body.text = MenuUi.PrepareText(MenuStrings.Get("slots.transition.failed"));
             });
         }
     }
