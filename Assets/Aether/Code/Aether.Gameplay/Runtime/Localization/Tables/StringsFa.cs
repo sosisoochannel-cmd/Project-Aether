@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsFa
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "پروژه AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "مسیر سبز — منطقه یک",
             "menu.playSection", "بازی",
             "menu.exploreSection", "کاوش",
@@ -130,7 +130,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "داده ذخیره",
             "credits.art", "هنر — استودیو VARELLON",
             "credits.art.body", "نشان استودیو و تمام عناصر منو، آثار هنری تأییدشده پروژه هستند.",
-            "credits.code", "کدنویسی — پروژه AETHER",
+            "credits.code", "کدنویسی — AETHER",
             "credits.code.body", "برای اندروید و حالت افقی، با اولویت اجرای موبایل نوشته شده است.",
             "credits.engine", "ساخته‌شده با UNITY",
             "credits.music", "موسیقی",
