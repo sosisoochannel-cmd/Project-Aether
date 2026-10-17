@@ -29,41 +29,81 @@ namespace Aether.Gameplay.Menus
         {
             if (string.IsNullOrEmpty(input)) return input;
 
-            // Work a sentence as whitespace-separated visual runs. Consecutive RTL words are
-            // emitted from right to left, while Latin/number tokens remain in their original
-            // order. This is deliberately small and deterministic for the menu's known strings.
-            string[] tokens = input.Split(new[] { ' ' }, System.StringSplitOptions.None);
-            var prepared = new string[tokens.Length];
-            for (int i = 0; i < tokens.Length; i++)
-                prepared[i] = ContainsRtl(tokens[i]) ? ShapeRun(tokens[i]) : tokens[i];
+            // Unity's legacy Text has no bidi engine. Convert logical word order to visual order,
+            // but keep each contiguous Latin/number run in its natural order. In particular, a
+            // placeholder such as {0}, a version number, or an English word must not be reversed
+            // merely because it appears inside a Persian sentence.
+            string[] words = input.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length == 0) return input;
 
-            var output = new StringBuilder(input.Length + 8);
+            var starts = new List<int>();
+            var ends = new List<int>();
+            var directions = new List<bool>();
             int index = 0;
-            while (index < prepared.Length)
+            while (index < words.Length)
             {
-                if (!ContainsRtl(tokens[index]))
-                {
-                    output.Append(prepared[index]);
-                    if (index + 1 < prepared.Length) output.Append(' ');
-                    index++;
-                    continue;
-                }
-
+                bool rtl = ContainsRtl(words[index]);
                 int end = index;
-                while (end + 1 < prepared.Length && ContainsRtl(tokens[end + 1])) end++;
-
-                for (int i = end; i >= index; i--)
-                {
-                    output.Append(prepared[i]);
-                    if (i != index || end != prepared.Length - 1) output.Append(' ');
-                }
-
+                while (end + 1 < words.Length && ContainsRtl(words[end + 1]) == rtl) end++;
+                starts.Add(index);
+                ends.Add(end);
+                directions.Add(rtl);
                 index = end + 1;
-                if (index < prepared.Length && output.Length > 0 && output[output.Length - 1] != ' ')
-                    output.Append(' ');
             }
 
-            return output.ToString().TrimEnd();
+            var output = new StringBuilder(input.Length + 8);
+            bool first = true;
+            for (int group = starts.Count - 1; group >= 0; group--)
+            {
+                if (directions[group])
+                {
+                    for (int word = ends[group]; word >= starts[group]; word--)
+                    {
+                        if (!first) output.Append(' ');
+                        output.Append(PrepareMixedToken(words[word]));
+                        first = false;
+                    }
+                }
+                else
+                {
+                    for (int word = starts[group]; word <= ends[group]; word++)
+                    {
+                        if (!first) output.Append(' ');
+                        output.Append(words[word]);
+                        first = false;
+                    }
+                }
+            }
+
+            return output.ToString();
+        }
+
+        /// <summary>
+        /// Reorders the directional runs inside a single word without reversing Latin, digits,
+        /// punctuation groups, or placeholders. RTL runs are shaped before their visual reversal.
+        /// </summary>
+        private static string PrepareMixedToken(string token)
+        {
+            var runs = new List<string>();
+            var rtlRuns = new List<bool>();
+            int start = 0;
+            bool currentRtl = IsRtlChar(token[0]) || IsRtlMark(token[0]);
+            for (int i = 1; i < token.Length; i++)
+            {
+                bool rtl = IsRtlChar(token[i]) || IsRtlMark(token[i]);
+                if (rtl == currentRtl) continue;
+                runs.Add(token.Substring(start, i - start));
+                rtlRuns.Add(currentRtl);
+                start = i;
+                currentRtl = rtl;
+            }
+            runs.Add(token.Substring(start));
+            rtlRuns.Add(currentRtl);
+
+            var result = new StringBuilder(token.Length + 4);
+            for (int i = runs.Count - 1; i >= 0; i--)
+                result.Append(rtlRuns[i] ? ShapeRun(runs[i]) : runs[i]);
+            return result.ToString();
         }
 
         private static bool ContainsRtl(string text)
