@@ -195,7 +195,7 @@ namespace Aether.Gameplay.Localization.Tables
             "slots.delete.title", "APAGAR ESTE JOGO?",
             "slots.delete.body", "O jogo no espaço {0} será apagado. Tudo o que foi descoberto será perdido, e esta ação não pode ser desfeita.",
             "slots.continue.title", "CONTINUAR?",
-            "slots.continue.body", "Carrega o espaço {0} e retoma a região em que você parou.",
+            "slots.continue.body", "Selecione o espaço {0} para voltar à região em que você parou.",
             "menu.slots.used", "{0} DE {1} ESPAÇOS UTILIZADOS",
             "menu.slots.free", "NOVOS JOGOS SERÃO SALVOS NO ESPAÇO {0}",
             "menu.slots.damaged", "NÃO FOI POSSÍVEL LER UM JOGO SALVO",
