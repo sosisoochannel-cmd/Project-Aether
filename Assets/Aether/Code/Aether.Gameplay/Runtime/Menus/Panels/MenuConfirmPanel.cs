@@ -132,7 +132,7 @@ namespace Aether.Gameplay.Menus.Panels
             bool highContrast = MenuPreferences.HighContrast;
             if (_title != null)
             {
-                _title.text = MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking);
+                _title.text = MenuUi.PrepareText(MenuUi.Track(title, MenuTheme.Metrics.ScreenTitleTracking));
                 _title.color = MenuTheme.Palette.WithContrast(MenuTheme.Palette.Ink, highContrast);
             }
 
@@ -145,7 +145,7 @@ namespace Aether.Gameplay.Menus.Panels
             _confirm.RefreshColors();
             if (_body != null)
             {
-                _body.text = body;
+                _body.text = MenuUi.PrepareText(body);
                 float lines = Mathf.Max(1f, Mathf.Ceil(_body.preferredHeight / MenuTheme.Metrics.ParagraphLineHeight));
                 float height = lines * MenuTheme.Metrics.ParagraphLineHeight;
 
