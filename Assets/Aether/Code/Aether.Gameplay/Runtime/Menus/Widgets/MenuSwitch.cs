@@ -102,7 +102,7 @@ namespace Aether.Gameplay.Menus.Widgets
                 on ? inset + travel : inset,
                 0f);
 
-            _state.text = MenuStrings.Get(on ? "common.on" : "common.off");
+            _state.text = Aether.Gameplay.Menus.MenuUi.PrepareText(MenuStrings.Get(on ? "common.on" : "common.off"));
             _state.color = on
                 ? MenuTheme.Palette.WithContrast(MenuTheme.Palette.InkMuted, MenuPreferences.HighContrast)
                 : MenuTheme.Palette.InkFaint;
