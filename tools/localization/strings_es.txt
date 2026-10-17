@@ -2,7 +2,7 @@
 # House style: menu labels in capitals, the second person singular throughout, and the region's
 # proper name kept as a name ("el Sendero Verde") rather than translated word for word.
 
-menu.title=PROJECT AETHER
+menu.title=AETHER
 menu.subtitle=EL SENDERO VERDE — REGIÓN UNO
 menu.playSection=JUGAR
 menu.exploreSection=EXPLORAR
@@ -126,7 +126,7 @@ about.credits=CRÉDITOS
 about.storage=DATOS GUARDADOS
 credits.art=ARTE — VARELLON STUDIOS
 credits.art.body=La marca del estudio, y todo aquello con lo que se construye el menú, es el arte aprobado.
-credits.code=CÓDIGO — PROJECT AETHER
+credits.code=CÓDIGO — AETHER
 credits.code.body=Escrito para Android, en horizontal y pensando primero en el móvil.
 credits.engine=HECHO CON UNITY
 credits.music=MÚSICA
