@@ -55,7 +55,7 @@ namespace Aether.Gameplay.Menus.Widgets
         /// <summary>Shows the value's name.</summary>
         public void SetValue(string text)
         {
-            if (_readout != null) _readout.text = text;
+            if (_readout != null) _readout.text = Aether.Gameplay.Menus.MenuUi.PrepareText(text);
         }
 
         /// <summary>
