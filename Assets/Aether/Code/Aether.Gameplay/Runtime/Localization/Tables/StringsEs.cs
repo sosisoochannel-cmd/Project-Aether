@@ -9,7 +9,7 @@ namespace Aether.Gameplay.Localization.Tables
     internal static class StringsEs
     {
         internal static readonly Strings Table = Strings.Of(
-            "menu.title", "PROJECT AETHER",
+            "menu.title", "AETHER",
             "menu.subtitle", "EL SENDERO VERDE — REGIÓN UNO",
             "menu.playSection", "JUGAR",
             "menu.exploreSection", "EXPLORAR",
@@ -130,7 +130,7 @@ namespace Aether.Gameplay.Localization.Tables
             "about.storage", "DATOS GUARDADOS",
             "credits.art", "ARTE — VARELLON STUDIOS",
             "credits.art.body", "La marca del estudio, y todo aquello con lo que se construye el menú, es el arte aprobado.",
-            "credits.code", "CÓDIGO — PROJECT AETHER",
+            "credits.code", "CÓDIGO — AETHER",
             "credits.code.body", "Escrito para Android, en horizontal y pensando primero en el móvil.",
             "credits.engine", "HECHO CON UNITY",
             "credits.music", "MÚSICA",
