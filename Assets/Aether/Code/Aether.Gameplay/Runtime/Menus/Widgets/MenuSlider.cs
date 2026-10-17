@@ -175,7 +175,7 @@ namespace Aether.Gameplay.Menus.Widgets
         /// </remarks>
         public void SetReadout(string text)
         {
-            if (_readout != null) _readout.text = text;
+            if (_readout != null) _readout.text = Aether.Gameplay.Menus.MenuUi.PrepareText(text);
         }
 
         /// <summary>Enables or disables the drag, for a setting that is not available.</summary>
