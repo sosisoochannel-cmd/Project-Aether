@@ -43,6 +43,7 @@ namespace Aether.Gameplay.Interface
         private CanvasGroup _group;
         private Text _title;
         private Text _note;
+        private Text _detail;
         private RectTransform _errorBlock;
         private MenuNav _nav;
 
@@ -101,6 +102,7 @@ namespace Aether.Gameplay.Interface
         {
             GameplayCurtain curtain = Instance;
             curtain.SetText(titleKey, bodyKey);
+            curtain.SetDetail(detail);
             curtain.SetError(true);
             curtain.Show();
 
@@ -166,6 +168,13 @@ namespace Aether.Gameplay.Interface
                                       MenuTheme.Palette.InkMuted, TextAnchor.UpperCenter);
             MenuUi.Row(_note.rectTransform, 96f, 120f);
 
+            _detail = MenuUi.CreateText("Detail", block, string.Empty, 20f,
+                                        MenuTheme.Palette.InkFaint, TextAnchor.UpperCenter);
+            MenuUi.Row(_detail.rectTransform, 220f, 90f);
+            _detail.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _detail.verticalOverflow = VerticalWrapMode.Truncate;
+            _detail.gameObject.SetActive(false);
+
             BuildErrorBlock(block);
 
             _nav = new MenuNav();
@@ -183,7 +192,7 @@ namespace Aether.Gameplay.Interface
         private void BuildErrorBlock(RectTransform parent)
         {
             _errorBlock = MenuUi.CreateNode("Error", parent);
-            MenuUi.Row(_errorBlock, 220f, 200f);
+            MenuUi.Row(_errorBlock, 320f, 200f);
 
             MenuButton row = MenuButton.Create("ReturnToMenu", _errorBlock,
                                                MenuStrings.Get("error.menu"), MenuButton.Weight.Primary);
@@ -233,13 +242,29 @@ namespace Aether.Gameplay.Interface
             if (_note != null) _note.text = MenuUi.PrepareText(MenuStrings.Get(noteKey));
         }
 
+        private void SetDetail(string detail)
+        {
+            if (_detail == null) return;
+            if (string.IsNullOrEmpty(detail))
+            {
+                _detail.text = string.Empty;
+                _detail.gameObject.SetActive(false);
+            }
+            else
+            {
+                string snippet = detail.Length > 200 ? detail.Substring(0, 197) + "..." : detail;
+                _detail.text = snippet;
+                _detail.gameObject.SetActive(true);
+            }
+        }
+
         private void SetError(bool failed)
         {
             if (_errorBlock != null) _errorBlock.gameObject.SetActive(failed);
 
-            // The loading note sits under the title while the region builds and is replaced by the
-            // error sentence when it cannot: two different things, never both at once.
-            if (_note != null) _note.gameObject.SetActive(!failed);
+            // When failing, both the note and detail become visible or formatted
+            if (_note != null) _note.gameObject.SetActive(true);
+            if (!failed && _detail != null) _detail.gameObject.SetActive(false);
 
             if (failed && _nav != null && _errorBlock != null)
             {

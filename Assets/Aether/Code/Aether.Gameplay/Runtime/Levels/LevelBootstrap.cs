@@ -98,11 +98,9 @@ namespace Aether.Gameplay.Levels
                 LevelData data = LoadLevelData();
                 if (data == null || content.PlayerTuning == null)
                 {
-                    // Nothing to play, and saying so is the whole job now. The curtain becomes the
-                    // failure screen with a real way back to the menu on it.
-                    GameplayCurtain.Fail(
-                        "The region could not start: the level data or the content catalogue did not " +
-                        "load. There is no playable level in this build configuration.");
+                    string missing = data == null ? "LevelData is null" : "PlayerTuning is null";
+                    Debug.LogError($"[bootstrap] Cannot boot: {missing}", this);
+                    GameplayCurtain.Fail($"The region could not start: {missing} in this build configuration.");
                     return;
                 }
 
@@ -163,8 +161,8 @@ namespace Aether.Gameplay.Levels
                 // Runtime content/build errors must become the same actionable curtain as parser
                 // failures. Leaving the cover up without a message would be an empty-screen dead end.
                 Debug.LogException(ex, this);
-                GameplayCurtain.Fail(
-                    "The region could not be assembled by this build. Return to the menu and try again.");
+                string detail = $"{ex.GetType().Name}: {ex.Message}";
+                GameplayCurtain.Fail($"Assembly failed: {detail}");
             }
         }
 
@@ -201,11 +199,44 @@ namespace Aether.Gameplay.Levels
 
         private LevelData LoadLevelData()
         {
-            var asset = Resources.Load<TextAsset>(_levelPath);
+            TextAsset asset = null;
+            string triedPaths = _levelPath;
+
+            // Attempt primary configured path
+            if (!string.IsNullOrEmpty(_levelPath))
+            {
+                asset = Resources.Load<TextAsset>(_levelPath);
+            }
+
+            // Fallback candidates to prevent extension or path naming mismatches across platforms
+            if (asset == null)
+            {
+                string[] candidates =
+                {
+                    "Levels/region1.greenway.level",
+                    "Levels/region1.greenway",
+                    "region1.greenway.level",
+                    "region1.greenway"
+                };
+
+                for (int i = 0; i < candidates.Length; i++)
+                {
+                    string candidate = candidates[i];
+                    if (candidate == _levelPath) continue;
+                    asset = Resources.Load<TextAsset>(candidate);
+                    if (asset != null)
+                    {
+                        Debug.LogWarning($"[bootstrap] Level data resolved via fallback path '{candidate}' (configured was '{_levelPath}').", this);
+                        break;
+                    }
+                    triedPaths += ", " + candidate;
+                }
+            }
+
             if (asset == null)
             {
                 Debug.LogError(
-                    $"Level '{_levelPath}' was not found under Assets/Aether/Resources. " +
+                    $"Level was not found under Assets/Aether/Resources. Tried paths: [{triedPaths}]. " +
                     "The level data is the source of truth; without it there is nothing to play.", this);
                 return null;
             }
@@ -219,7 +250,7 @@ namespace Aether.Gameplay.Levels
                 // A level that does not parse is a build-time mistake that reached runtime. Say so
                 // loudly with the exact line, and do not attempt to play a partial level.
                 Debug.LogError($"The Greenway level data could not be read. {ex.Message}", this);
-                return null;
+                throw;
             }
         }
 

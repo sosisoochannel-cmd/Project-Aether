@@ -92,6 +92,17 @@ namespace Aether.Gameplay.Levels
             T asset = Resources.Load<T>(path);
             if (asset == null)
             {
+                // Fallback attempt without folder prefix if passed with subfolder
+                int slash = path.LastIndexOf('/');
+                if (slash >= 0 && slash < path.Length - 1)
+                {
+                    string leaf = path.Substring(slash + 1);
+                    asset = Resources.Load<T>(leaf);
+                }
+            }
+
+            if (asset == null)
+            {
                 Debug.LogError(
                     $"Content asset 'Resources/{path}' was not found. The level cannot be built " +
                     "without it. Re-run Aether > Bake Region 1 (Greenway) to recreate missing " +
