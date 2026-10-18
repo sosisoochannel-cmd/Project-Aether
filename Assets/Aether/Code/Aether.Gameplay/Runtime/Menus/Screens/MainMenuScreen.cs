@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace Aether.Gameplay.Menus.Screens
 {
     /// <summary>
-    /// A centered, single-column main menu: AETHER first, then five clear destinations.
+    /// A centered, single-column main menu: Aether first, then five clear destinations.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -76,9 +76,10 @@ namespace Aether.Gameplay.Menus.Screens
             // of the list, and it should not scroll away when the list is long.
             MenuUi.Stretch(_scroll.GetComponent<RectTransform>(), 0f, 0f, 0f, FooterHeight);
 
-            // AETHER is the large, centered wordmark. All five choices share one vertical list.
+            // Aether is the large, centered wordmark. All five choices share one vertical list.
             // Credits and quit remain reachable from Settings instead of occupying separate main-menu rows.
             _title = MenuTitlePanel.Create("Brand", _content, Nav, "menu.title", null);
+            _title.SetText("Aether", string.Empty);
 
             _play = MenuEntryPanel.Create("Main Choices", _content, Nav, null, 1);
             _continue = _play.AddEntry("Continue", MenuStrings.Get("menu.continue"),
