@@ -25,6 +25,7 @@ on:
   push:
     branches:
       - arena/b1259ee6-project-aether
+      - arena/dbbe598e-project-aether
   workflow_dispatch:
 
 permissions:
@@ -110,7 +111,7 @@ jobs:
 
       - name: Verify checked-out commit and branch
         run: |
-          echo "Expected ref: refs/heads/arena/b1259ee6-project-aether"
+          echo "Expected ref: ${{ github.ref }}"
           echo "Current ref: ${{ github.ref }}"
           echo "Current SHA: ${{ github.sha }}"
           commit=$(git rev-parse HEAD)
