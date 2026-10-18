@@ -64,7 +64,7 @@ def main() -> int:
     contains(controls, "if (!_gameplayVisible) return;")
     contains(controls, "bool show = _visible && _gameplayVisible;")
     contains(controls, "if (_source != null) _source.Enabled = visible;")
-    for renderer in ("_leftRenderer", "_rightRenderer", "_jumpRenderer",
+    for renderer in ("_joystickBaseRenderer", "_joystickHandleRenderer", "_jumpRenderer",
                      "_attackRenderer", "_dodgeRenderer"):
         contains(controls, f"if ({renderer} != null) {renderer}.enabled = show;")
 

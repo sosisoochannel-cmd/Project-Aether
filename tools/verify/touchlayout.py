@@ -4,10 +4,10 @@
 The layout in TouchControlsView is a set of numbers in fractions of the safe area. That makes it
 possible to check the things that go wrong on a real phone before anyone holds one:
 
-* two controls overlapping, so the player presses attack and jumps instead;
+* controls overlapping, so the player presses attack and jumps instead;
 * a control hanging off the edge of the screen, or under a notch or a gesture bar;
-* buttons too small to hit with a thumb;
-* the left/right movement controls or action controls overlapping or becoming too small.
+* controls too small to hit with a thumb;
+* the virtual joystick or action controls overlapping or becoming too small.
 
 All of it is geometry, so all of it is decidable here. What is *not* decidable here is how the
 layout feels — reach, comfort and fatigue need thumbs. This tool proves the layout is not broken;
@@ -50,24 +50,6 @@ MIN_BUTTON_RADIUS = 0.07      # of screen height; below this a thumb misses unde
 MIN_BUTTON_GAP = 0.02         # of screen height between two circles, so a thumb cannot straddle
 
 
-class Rect:
-    def __init__(self, x, y, w, h):
-        self.x, self.y, self.w, self.h = x, y, w, h
-
-    def contains(self, point):
-        return self.x <= point[0] <= self.x + self.w and self.y <= point[1] <= self.y + self.h
-
-
-class Probe:
-    """One control, expressed in fractions of the safe area."""
-
-    def __init__(self, name, centre, radius=None, zone=None):
-        self.name = name
-        self.centre = centre
-        self.radius = radius
-        self.zone = zone
-
-
 def csharp_float(text: str) -> float:
     """C# float literals carry an 'f' suffix: '0.45f'."""
     return float(text.strip().rstrip("fF"))
@@ -84,11 +66,9 @@ def parse_layout(path: str) -> dict:
                              "the layout moved and this tool would be checking nothing")
         values[key] = cast(match.group(1))
 
-    number(r"LeftCentre\s*=\s*new Vector2\(([^)]*)\)", "LeftCentre",
+    number(r"DefaultJoystickCentre\s*=\s*new Vector2\(([^)]*)\)", "JoystickCentre",
            lambda text: tuple(csharp_float(v) for v in text.split(",")))
-    number(r"RightCentre\s*=\s*new Vector2\(([^)]*)\)", "RightCentre",
-           lambda text: tuple(csharp_float(v) for v in text.split(",")))
-    number(r"DirectionRadius\s*=\s*([0-9.]+f)", "DirectionRadius")
+    number(r"JoystickBaseRadius\s*=\s*([0-9.]+f)", "JoystickBaseRadius")
     number(r"JumpCentre\s*=\s*new Vector2\(([^)]*)\)", "JumpCentre",
            lambda text: tuple(csharp_float(v) for v in text.split(",")))
     number(r"JumpRadius\s*=\s*([0-9.]+f)", "JumpRadius")
@@ -117,57 +97,58 @@ def check(values: dict, aspect_name: str, aspect: float, cutout_name: str, cutou
             screen_w - inset_left - inset_right, screen_h - inset_bottom - inset_top)
 
     where = f"{aspect_name} / {cutout_name}"
-    radius = lambda fraction: fraction * screen_h   # noqa: E731 — radii scale with height
+    radius = lambda fraction: fraction * screen_h   # radii scale with height
 
-    buttons = [
-        ("move-left", values["LeftCentre"], values["DirectionRadius"]),
-        ("move-right", values["RightCentre"], values["DirectionRadius"]),
+    controls = [
+        ("joystick-base", values["JoystickCentre"], values["JoystickBaseRadius"]),
         ("jump", values["JumpCentre"], values["JumpRadius"]),
         ("attack", values["AttackCentre"], values["AttackRadius"]),
         ("dodge", values["DodgeCentre"], values["DodgeRadius"]),
     ]
 
     # 1. every control is inside the safe area
-    for name, fraction, radius_fraction in buttons:
+    for name, fraction, radius_fraction in controls:
         centre = to_pixels(fraction, safe, screen_w, screen_h)
         r = radius(radius_fraction)
         if (centre[0] - r < safe[0] - 0.5 or centre[1] - r < safe[1] - 0.5
                 or centre[0] + r > safe[0] + safe[2] + 0.5
                 or centre[1] + r > safe[1] + safe[3] + 0.5):
-            problems.append(f"{where}: the {name} button is not fully inside the safe area")
+            problems.append(f"{where}: the {name} control is not fully inside the safe area")
 
-    # 2. buttons are big enough to hit
-    for name, _fraction, radius_fraction in buttons:
+    # 2. interactive controls are big enough to hit
+    for name, _fraction, radius_fraction in controls:
         if radius_fraction < MIN_BUTTON_RADIUS:
             problems.append(
-                f"{where}: the {name} button radius is {radius_fraction:.3f} of screen height, "
+                f"{where}: the {name} radius is {radius_fraction:.3f} of screen height, "
                 f"below the {MIN_BUTTON_RADIUS} this tool treats as hittable")
 
-    # 3. no two buttons overlap, and none is so close that one thumb straddles both
-    for i in range(len(buttons)):
-        for j in range(i + 1, len(buttons)):
-            name_a, centre_a, radius_a = buttons[i]
-            name_b, centre_b, radius_b = buttons[j]
+    # 3. no two controls overlap, and none is so close that one thumb straddles both
+    for i in range(len(controls)):
+        for j in range(i + 1, len(controls)):
+            name_a, centre_a, radius_a = controls[i]
+            name_b, centre_b, radius_b = controls[j]
             a = to_pixels(centre_a, safe, screen_w, screen_h)
             b = to_pixels(centre_b, safe, screen_w, screen_h)
             distance = ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
             reach = radius(radius_a) + radius(radius_b)
             if distance < reach:
                 problems.append(
-                    f"{where}: the {name_a} and {name_b} buttons overlap "
+                    f"{where}: the {name_a} and {name_b} controls overlap "
                     f"({distance:.0f}px apart, {reach:.0f}px of radius between them)")
             elif distance - reach < MIN_BUTTON_GAP * screen_h:
                 problems.append(
-                    f"{where}: the {name_a} and {name_b} buttons are only "
+                    f"{where}: the {name_a} and {name_b} controls are only "
                     f"{(distance - reach) / screen_h:.3f} of screen height apart, so one thumb "
                     "can straddle both")
 
-    # 4. Movement is discrete: two independently-held direction buttons, no joystick zone.
+    # 4. Joystick architecture: static base, handle, independent touch ID, and dead zone processing
     source = open(os.path.join(REPO_ROOT, VIEW), encoding="utf-8").read()
-    if "MoveLeftButton" not in source or "MoveRightButton" not in source:
-        problems.append(f"{where}: both directional controls must have their own visual glyph")
-    if "_leftTouch >= 0 ? -1f : 0f" not in source or "_rightTouch >= 0 ? 1f : 0f" not in source:
-        problems.append(f"{where}: movement is not composed from independent left/right touch IDs")
+    if "JoystickBase" not in source or "JoystickHandle" not in source:
+        problems.append(f"{where}: virtual joystick must instantiate both base and handle visual elements")
+    if "_stickTouch" not in source or "UpdateJoystickMovement" not in source:
+        problems.append(f"{where}: joystick must manage dedicated touch tracking and vector calculation")
+    if "StickDeadZone" not in source:
+        problems.append(f"{where}: joystick must respect dead zone threshold to prevent accidental drift")
 
     return problems
 
@@ -180,8 +161,7 @@ def main() -> int:
 
     values = parse_layout(path)
     print(f"touch layout: {VIEW}")
-    print(f"  move-left   : {values['LeftCentre']}  radius {values['DirectionRadius']:.3f}")
-    print(f"  move-right  : {values['RightCentre']}  radius {values['DirectionRadius']:.3f}")
+    print(f"  joystick    : {values['JoystickCentre']}  radius {values['JoystickBaseRadius']:.3f}")
     print(f"  jump        : {values['JumpCentre']}  radius {values['JumpRadius']:.3f}")
     print(f"  attack      : {values['AttackCentre']}  radius {values['AttackRadius']:.3f}")
     print(f"  dodge       : {values['DodgeCentre']}  radius {values['DodgeRadius']:.3f}")

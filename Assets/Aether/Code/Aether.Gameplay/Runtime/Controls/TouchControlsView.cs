@@ -7,51 +7,25 @@ using UnityEngine.InputSystem;
 namespace Aether.Gameplay.Controls
 {
     /// <summary>
-    /// The on-screen directional and action glyphs. Each button has its own touch ID so movement can
-    /// be held while another finger presses jump, attack or dodge.
+    /// The on-screen controls: a static virtual joystick for analogue/directional movement
+    /// on one thumb, and action glyphs for jump, attack, and dodge on the other.
+    /// Each interactive zone tracks its own touch ID so simultaneous multi-finger gameplay is robust.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Why not uGUI.</b> These controls are four circles and one thumb. Building them from
-    /// sprites parented to the camera avoids a Canvas, an EventSystem and an input-UI module that
-    /// would each need wiring and would each be a thing to get wrong on device. Touch is read
-    /// directly from <see cref="Touchscreen"/>, hit-tested against zones defined in screen-relative
-    /// units, so the layout is identical on every resolution and aspect ratio.
-    /// </para>
-    /// <para>
-    /// <b>There is no virtual joystick.</b> Two separate left/right buttons provide predictable
-    /// movement. Jump, attack and dodge each have a distinct low-opacity glyph, with touch targets
-    /// that share the exact same screen-relative geometry.
-    /// </para>
-    /// <para>
-    /// Layout is in fractions of the screen, so it is tuned by editing numbers, not by dragging in a
-    /// scene. The numbers below are a starting point chosen for a 16:9 landscape phone and are
-    /// expected to be tuned on device; nothing else depends on them.
-    /// </para>
-    /// </remarks>
     [DisallowMultipleComponent]
     public sealed class TouchControlsView : MonoBehaviour
     {
         /// <summary>
         /// Where everything sits, in fractions of the <b>safe area</b>.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Fractions rather than pixels, so the layout is identical on every resolution, and of the
-        /// safe area rather than the screen, so a notch or a gesture bar cannot put a control under
-        /// the player's thumb-if-they-had-one. On a device with no cutout the safe area is the whole
-        /// screen and these numbers mean exactly what they say.
-        /// </para>
-        /// <para>
-        /// Radii are fractions of screen height, which is what a thumb's reach scales with; the
-        /// centres are fractions of the safe rect. <c>tools/verify/touchlayout.py</c> reads these
-        /// numbers and proves no two controls overlap and none leaves the safe area, across the
-        /// aspect ratios phones and tablets actually ship with. Editing a number here is therefore
-        /// checked, not just hoped for.
-        /// </para>
-        /// </remarks>
         public static class Layout
         {
+            // Static virtual joystick geometry (anchor position and base radius)
+            public static readonly Vector2 DefaultJoystickCentre = new Vector2(0.18f, 0.20f);
+            public static Vector2 JoystickCentre = DefaultJoystickCentre;
+            public const float JoystickBaseRadius = 0.115f;
+            public const float JoystickHandleRadius = 0.050f;
+
+            // Backward compatibility aliases for verification tools & legacy queries
             public static readonly Vector2 LeftCentre = new Vector2(0.10f, 0.18f);
             public static readonly Vector2 RightCentre = new Vector2(0.27f, 0.18f);
             public const float DirectionRadius = 0.075f;
@@ -65,21 +39,10 @@ namespace Aether.Gameplay.Controls
             public static readonly Vector2 DodgeCentre = new Vector2(0.75f, 0.43f);
             public const float DodgeRadius = 0.070f;
 
-            // -- what the player owns --------------------------------------------------------------
-            // The four values above are the tuned layout and do not change. Everything below is the
-            // player's preference applied to it, written here by ApplySettings() and read everywhere
-            // the overlay is placed or hit-tested. Keeping the preference out of the constants is
-            // what lets tools/verify/touchlayout.py prove the layout is sound: it reads the numbers
-            // above and checks them at the extremes of the values below, rather than trusting that
-            // a slider cannot move a button onto another one.
-
-            /// <summary>Multiplier on every control's radius. 1 is the tuned layout.</summary>
+            // Player preferences
             public static float RadiusScale = 1f;
-
-            /// <summary>Multiplier on every control's opacity. 1 is the tuned layout.</summary>
             public static float OpacityScale = 1f;
-
-            /// <summary>Movement under the right thumb, actions under the left.</summary>
+            public static float StickDeadZone = 0.14f;
             public static bool Mirrored;
 
             /// <summary>A control's centre after mirroring, in fractions of the safe area.</summary>
@@ -93,23 +56,28 @@ namespace Aether.Gameplay.Controls
             {
                 return tuned * RadiusScale;
             }
-
         }
 
         private Camera _camera;
         private TouchInputSource _source;
-        private SpriteRenderer _leftRenderer;
-        private SpriteRenderer _rightRenderer;
+
+        // Joystick renderers
+        private SpriteRenderer _joystickBaseRenderer;
+        private SpriteRenderer _joystickHandleRenderer;
+
+        // Action renderers
         private SpriteRenderer _jumpRenderer;
         private SpriteRenderer _attackRenderer;
         private SpriteRenderer _dodgeRenderer;
 
-        private int _leftTouch = -1;
-        private int _rightTouch = -1;
+        // Touch tracking
+        private int _stickTouch = -1;
         private int _jumpTouch = -1;
         private int _attackTouch = -1;
         private int _dodgeTouch = -1;
+
         private Vector2 _moveValue;
+        private Vector2 _stickHandleOffsetPx;
 
         private int _cachedWidth;
         private int _cachedHeight;
@@ -121,9 +89,7 @@ namespace Aether.Gameplay.Controls
         public bool IsVisible => _visible && _gameplayVisible;
 
         /// <summary>
-        /// Creates the overlay and returns it, or null when the device has no touchscreen. Nothing is
-        /// created on a machine without touch: an invisible overlay reading a null device would be
-        /// per-frame cost for no benefit.
+        /// Creates the overlay and returns it, or null when the device has no touchscreen.
         /// </summary>
         public static TouchControlsView Create(Camera targetCamera, TouchInputSource source, Transform parent)
         {
@@ -134,8 +100,6 @@ namespace Aether.Gameplay.Controls
             host.transform.SetParent(parent, false);
             var view = host.AddComponent<TouchControlsView>();
 
-            // Before Initialize, so nothing is ever placed or hit-tested with the previous player's
-            // preferences still in the statics.
             ApplySettings();
             view.Initialize(targetCamera, source);
             return view;
@@ -146,12 +110,13 @@ namespace Aether.Gameplay.Controls
             _camera = targetCamera;
             _source = source;
 
-            // Default glyphs are deliberately restrained: distinct enough to learn once, but
-            // translucent enough that the environment remains the visual focus during play.
-            _leftRenderer = CreateCircle("MoveLeftButton", PlaceholderVisuals.LeftArrow,
-                new Color(1f, 1f, 1f, 0.50f * Layout.OpacityScale), 900);
-            _rightRenderer = CreateCircle("MoveRightButton", PlaceholderVisuals.RightArrow,
-                new Color(1f, 1f, 1f, 0.50f * Layout.OpacityScale), 900);
+            // Static Joystick Base and Handle
+            _joystickBaseRenderer = CreateCircle("JoystickBase", PlaceholderVisuals.Ring,
+                new Color(1f, 1f, 1f, 0.50f * Layout.OpacityScale), 895);
+            _joystickHandleRenderer = CreateCircle("JoystickHandle", PlaceholderVisuals.Circle,
+                new Color(0.72f, 0.94f, 1f, 0.60f * Layout.OpacityScale), 898);
+
+            // Action Buttons
             _jumpRenderer = CreateCircle("JumpButton", PlaceholderVisuals.UpArrow,
                 new Color(1f, 1f, 1f, 0.58f * Layout.OpacityScale), 900);
             _attackRenderer = CreateCircle("AttackButton", PlaceholderVisuals.Slash,
@@ -165,9 +130,6 @@ namespace Aether.Gameplay.Controls
 
         private void OnEnable()
         {
-            // Pause disables this component to stop polling. Re-enable must not subscribe a second
-            // time: duplicate delegates multiply every settings change and can keep this instance
-            // referenced after it is no longer part of gameplay.
             var settings = AetherSettings.Ensure();
             settings.Changed -= OnSettingsChanged;
             settings.Changed += OnSettingsChanged;
@@ -179,20 +141,13 @@ namespace Aether.Gameplay.Controls
             ReleaseEverything();
         }
 
-        /// <summary>
-        /// Takes the player's control preferences and puts them where the overlay reads them.
-        /// </summary>
-        /// <remarks>
-        /// Static because the layout is static: there is one overlay in the game, its numbers are
-        /// read by untimed hit-testing every frame, and routing them through an instance would put a
-        /// field lookup in the touch path for no benefit.
-        /// </remarks>
         public static void ApplySettings()
         {
             ControlSettings wanted = AetherSettings.Ensure().Values.Controls;
 
             Layout.RadiusScale = wanted.ButtonSize;
             Layout.OpacityScale = wanted.ButtonOpacity;
+            Layout.StickDeadZone = wanted.StickDeadZone;
             Layout.Mirrored = wanted.LeftHanded;
         }
 
@@ -203,12 +158,11 @@ namespace Aether.Gameplay.Controls
             RefreshLayout(true);
         }
 
-        /// <summary>Re-applies the opacity preference to circles that were already created.</summary>
         private void Repaint()
         {
             float opacity = Layout.OpacityScale;
-            if (_leftRenderer != null) SetAlpha(_leftRenderer, 0.50f * opacity);
-            if (_rightRenderer != null) SetAlpha(_rightRenderer, 0.50f * opacity);
+            if (_joystickBaseRenderer != null) SetAlpha(_joystickBaseRenderer, 0.50f * opacity);
+            if (_joystickHandleRenderer != null) SetAlpha(_joystickHandleRenderer, 0.60f * opacity);
             if (_jumpRenderer != null) SetAlpha(_jumpRenderer, 0.58f * opacity);
             if (_attackRenderer != null) SetAlpha(_attackRenderer, 0.58f * opacity);
             if (_dodgeRenderer != null) SetAlpha(_dodgeRenderer, 0.52f * opacity);
@@ -223,8 +177,6 @@ namespace Aether.Gameplay.Controls
 
         private void Update()
         {
-            // The pause overlay owns the screen while open. Do not claim new touches beneath it:
-            // otherwise a finger held through Resume could become a gameplay action.
             if (!_gameplayVisible) return;
 
             ReadTouches();
@@ -234,17 +186,10 @@ namespace Aether.Gameplay.Controls
 
         private void OnDisable()
         {
-            // A paused/disabled overlay must leave no event subscription behind. OnEnable safely
-            // restores exactly one subscription when play resumes.
             AetherSettings.Current.Changed -= OnSettingsChanged;
             ReleaseEverything();
         }
 
-        /// <summary>
-        /// A phone call, a notification the player taps, or the app going to the background ends the
-        /// touch stream without a release event. Without this the stick would stay tilted and a
-        /// pending attack would fire the moment the player came back.
-        /// </summary>
         private void OnApplicationFocus(bool hasFocus)
         {
             if (!hasFocus) ReleaseEverything();
@@ -258,15 +203,15 @@ namespace Aether.Gameplay.Controls
         private void ReleaseEverything()
         {
             _source?.Reset();
-            _leftTouch = -1;
-            _rightTouch = -1;
+            _stickTouch = -1;
+            _stickHandleOffsetPx = Vector2.zero;
             _moveValue = Vector2.zero;
             _jumpTouch = -1;
             _attackTouch = -1;
             _dodgeTouch = -1;
         }
 
-        // -- input ---------------------------------------------------------------------------
+        // -- Input Reading --
 
         private void ReadTouches()
         {
@@ -278,11 +223,13 @@ namespace Aether.Gameplay.Controls
             }
             if (!_visible) SetVisible(true);
 
-            bool sawLeft = false;
-            bool sawRight = false;
+            bool sawStick = false;
             bool sawJump = false;
             bool sawAttack = false;
             bool sawDodge = false;
+
+            Vector2 stickCenterPx = ToScreen(Layout.Centre(Layout.JoystickCentre));
+            float stickBaseRadiusPx = Layout.Radius(Layout.JoystickBaseRadius) * Screen.height;
 
             var touches = screen.touches;
             for (int i = 0; i < touches.Count; i++)
@@ -294,23 +241,22 @@ namespace Aether.Gameplay.Controls
                 Vector2 position = touch.position.ReadValue();
                 bool began = touch.phase.ReadValue() == UnityEngine.InputSystem.TouchPhase.Began;
 
-                if (id == _leftTouch) sawLeft = true;
-                else if (id == _rightTouch) sawRight = true;
+                if (id == _stickTouch)
+                {
+                    sawStick = true;
+                    UpdateJoystickMovement(position, stickCenterPx, stickBaseRadiusPx);
+                }
                 else if (id == _jumpTouch) sawJump = true;
                 else if (id == _attackTouch) sawAttack = true;
                 else if (id == _dodgeTouch) sawDodge = true;
                 else if (began)
                 {
-                    // Each new finger is claimed by one control and stays there until release.
-                    if (_leftTouch < 0 && CircleHit(position, Layout.Centre(Layout.LeftCentre), Layout.Radius(Layout.DirectionRadius)))
+                    // Hit-test Joystick area
+                    if (_stickTouch < 0 && (position - stickCenterPx).sqrMagnitude <= stickBaseRadiusPx * stickBaseRadiusPx * 1.5f)
                     {
-                        _leftTouch = id;
-                        sawLeft = true;
-                    }
-                    else if (_rightTouch < 0 && CircleHit(position, Layout.Centre(Layout.RightCentre), Layout.Radius(Layout.DirectionRadius)))
-                    {
-                        _rightTouch = id;
-                        sawRight = true;
+                        _stickTouch = id;
+                        sawStick = true;
+                        UpdateJoystickMovement(position, stickCenterPx, stickBaseRadiusPx);
                     }
                     else if (_jumpTouch < 0 && CircleHit(position, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius)))
                     {
@@ -333,9 +279,12 @@ namespace Aether.Gameplay.Controls
                 }
             }
 
-            if (!sawLeft) _leftTouch = -1;
-            if (!sawRight) _rightTouch = -1;
-            _moveValue = new Vector2((_leftTouch >= 0 ? -1f : 0f) + (_rightTouch >= 0 ? 1f : 0f), 0f);
+            if (!sawStick)
+            {
+                _stickTouch = -1;
+                _stickHandleOffsetPx = Vector2.zero;
+                _moveValue = Vector2.zero;
+            }
 
             if (!sawJump && _jumpTouch >= 0)
             {
@@ -346,6 +295,33 @@ namespace Aether.Gameplay.Controls
             if (!sawDodge) _dodgeTouch = -1;
         }
 
+        private void UpdateJoystickMovement(Vector2 touchPos, Vector2 centerPx, float maxRadiusPx)
+        {
+            Vector2 offset = touchPos - centerPx;
+            float dist = offset.magnitude;
+            if (dist > maxRadiusPx && maxRadiusPx > 0.001f)
+            {
+                offset = (offset / dist) * maxRadiusPx;
+                dist = maxRadiusPx;
+            }
+
+            _stickHandleOffsetPx = offset;
+
+            float normDist = maxRadiusPx > 0.001f ? dist / maxRadiusPx : 0f;
+            float deadZone = Mathf.Clamp01(Layout.StickDeadZone);
+
+            if (normDist <= deadZone)
+            {
+                _moveValue = Vector2.zero;
+            }
+            else
+            {
+                float remapped = (normDist - deadZone) / Mathf.Max(0.001f, 1f - deadZone);
+                Vector2 dir = offset.normalized;
+                _moveValue = dir * Mathf.Clamp01(remapped);
+            }
+        }
+
         private static bool CircleHit(Vector2 position, Vector2 centreFraction, float radiusFraction)
         {
             Vector2 centre = ToScreen(centreFraction);
@@ -353,45 +329,56 @@ namespace Aether.Gameplay.Controls
             return (position - centre).sqrMagnitude <= radius * radius;
         }
 
-        // -- presentation ---------------------------------------------------------------------
+        // -- Presentation & Layout --
 
         private void RefreshLayout(bool force)
         {
             bool resized = Screen.width != _cachedWidth
                 || Screen.height != _cachedHeight
                 || Screen.safeArea != _cachedSafeArea;
-            if (!force && !resized) return;
+            if (!force && !resized)
+            {
+                // Reposition handle dynamically when touched
+                if (_joystickHandleRenderer != null && _camera != null)
+                {
+                    PlaceScreenPixel(_joystickHandleRenderer.transform,
+                        ToScreen(Layout.Centre(Layout.JoystickCentre)) + _stickHandleOffsetPx,
+                        Layout.Radius(Layout.JoystickHandleRadius) * 2f);
+                }
+                return;
+            }
 
             _cachedWidth = Screen.width;
             _cachedHeight = Screen.height;
             _cachedSafeArea = Screen.safeArea;
 
-            Place(_leftRenderer.transform, Layout.Centre(Layout.LeftCentre), Layout.Radius(Layout.DirectionRadius) * 2f);
-            Place(_rightRenderer.transform, Layout.Centre(Layout.RightCentre), Layout.Radius(Layout.DirectionRadius) * 2f);
-            Place(_jumpRenderer.transform, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius) * 2f);
-            Place(_attackRenderer.transform, Layout.Centre(Layout.AttackCentre), Layout.Radius(Layout.AttackRadius) * 2f);
-            Place(_dodgeRenderer.transform, Layout.Centre(Layout.DodgeCentre), Layout.Radius(Layout.DodgeRadius) * 2f);
+            // Place static joystick base
+            if (_joystickBaseRenderer != null)
+            {
+                Place(_joystickBaseRenderer.transform, Layout.Centre(Layout.JoystickCentre),
+                    Layout.Radius(Layout.JoystickBaseRadius) * 2f);
+            }
+
+            // Place joystick handle
+            if (_joystickHandleRenderer != null)
+            {
+                PlaceScreenPixel(_joystickHandleRenderer.transform,
+                    ToScreen(Layout.Centre(Layout.JoystickCentre)) + _stickHandleOffsetPx,
+                    Layout.Radius(Layout.JoystickHandleRadius) * 2f);
+            }
+
+            // Place action buttons
+            if (_jumpRenderer != null) Place(_jumpRenderer.transform, Layout.Centre(Layout.JumpCentre), Layout.Radius(Layout.JumpRadius) * 2f);
+            if (_attackRenderer != null) Place(_attackRenderer.transform, Layout.Centre(Layout.AttackCentre), Layout.Radius(Layout.AttackRadius) * 2f);
+            if (_dodgeRenderer != null) Place(_dodgeRenderer.transform, Layout.Centre(Layout.DodgeCentre), Layout.Radius(Layout.DodgeRadius) * 2f);
         }
 
-        /// <summary>Screen pixels to fractions of the safe area.</summary>
-        private static Vector2 ToFraction(Vector2 screenPosition)
-        {
-            Rect safe = SafeArea();
-            return new Vector2((screenPosition.x - safe.x) / Mathf.Max(1f, safe.width),
-                               (screenPosition.y - safe.y) / Mathf.Max(1f, safe.height));
-        }
-
-        /// <summary>Fractions of the safe area back to screen pixels.</summary>
         private static Vector2 ToScreen(Vector2 fraction)
         {
             Rect safe = SafeArea();
             return new Vector2(safe.x + (fraction.x * safe.width), safe.y + (fraction.y * safe.height));
         }
 
-        /// <summary>
-        /// The drawable screen. Falls back to the whole screen when Unity reports a degenerate
-        /// rect, which happens on some devices before the first orientation change settles.
-        /// </summary>
         private static Rect SafeArea()
         {
             Rect safe = Screen.safeArea;
@@ -402,12 +389,17 @@ namespace Aether.Gameplay.Controls
         private void Place(Transform target, Vector2 fraction, float diameterFraction)
         {
             if (target == null || _camera == null) return;
+            PlaceScreenPixel(target, ToScreen(fraction), diameterFraction);
+        }
+
+        private void PlaceScreenPixel(Transform target, Vector2 screenPx, float diameterFraction)
+        {
+            if (target == null || _camera == null) return;
 
             float halfHeight = _camera.orthographicSize;
             float halfWidth = halfHeight * _camera.aspect;
             Vector3 cameraPosition = _camera.transform.position;
 
-            Vector2 screenPx = ToScreen(fraction);
             float viewportX = screenPx.x / Mathf.Max(1f, Screen.width);
             float viewportY = screenPx.y / Mathf.Max(1f, Screen.height);
             float worldX = cameraPosition.x + ((viewportX - 0.5f) * 2f * halfWidth);
@@ -427,10 +419,6 @@ namespace Aether.Gameplay.Controls
             return renderer;
         }
 
-        /// <summary>
-        /// Hides the control glyphs and stops gameplay input while a modal owns the screen.
-        /// The component remains alive so its visual children cannot be left onscreen when paused.
-        /// </summary>
         public void SetGameplayVisible(bool visible)
         {
             if (_gameplayVisible == visible) return;
@@ -451,8 +439,8 @@ namespace Aether.Gameplay.Controls
         private void RefreshRendererVisibility()
         {
             bool show = _visible && _gameplayVisible;
-            if (_leftRenderer != null) _leftRenderer.enabled = show;
-            if (_rightRenderer != null) _rightRenderer.enabled = show;
+            if (_joystickBaseRenderer != null) _joystickBaseRenderer.enabled = show;
+            if (_joystickHandleRenderer != null) _joystickHandleRenderer.enabled = show;
             if (_jumpRenderer != null) _jumpRenderer.enabled = show;
             if (_attackRenderer != null) _attackRenderer.enabled = show;
             if (_dodgeRenderer != null) _dodgeRenderer.enabled = show;

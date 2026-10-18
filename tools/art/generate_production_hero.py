@@ -39,6 +39,81 @@ class HeroRig:
         self.cloak = Image.open(cloak_p).convert("RGBA")
         self.slash = Image.open(slash_p).convert("RGBA")
 
+        # Articulated anatomical segments for dynamic attack kinematics
+        self.upper_body = self.hero_base.crop((0, 0, self.hero_base.width, 140))
+        self.lower_body = self.hero_base.crop((0, 120, self.hero_base.width, 230))
+
+    @staticmethod
+    def rotate_at_pivot(img: Image.Image, angle_deg: float, pivot: tuple[float, float]) -> tuple[Image.Image, int]:
+        """Rotates an image around an arbitrary pivot point (px, py)."""
+        px, py = pivot
+        w, h = img.size
+        d = int(math.hypot(max(px, w - px), max(py, h - py))) + 5
+        padded = Image.new("RGBA", (d * 2, d * 2), (0, 0, 0, 0))
+        padded.paste(img, (int(d - px), int(d - py)))
+        rot = padded.rotate(angle_deg, resample=Image.Resampling.BICUBIC)
+        return rot, d
+
+    def compose_articulated_attack(
+        self,
+        torso_rot: float = 0.0,
+        torso_dx: float = 0.0,
+        leg_squash: float = 1.0,
+        leg_dx: float = 0.0,
+        sword_angle: float = 0.0,
+        sword_pos: tuple[float, float] = (145, 140),
+        slash_progress: float = 0.0,
+        cloak_angle: float = 0.0,
+        cloak_dx: float = 0.0,
+        cloak_dy: float = 0.0
+    ) -> Image.Image:
+        """Composes an articulated attack frame with true torso/hip rotation, leg flex, and blade acceleration."""
+        frame = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
+
+        # 1. Dynamic secondary motion for trailing cloak
+        if abs(cloak_angle) > 1.0 or abs(cloak_dx) > 1.0 or abs(cloak_dy) > 1.0:
+            rot_clk = self.cloak.rotate(cloak_angle, resample=Image.Resampling.BICUBIC, expand=True)
+            cx = int(CENTER_X - self.hero_base.width // 2 - 12 + cloak_dx + torso_dx * 0.4)
+            cy = int(GROUND_Y - self.hero_base.height + 25 + cloak_dy)
+            frame.paste(rot_clk, (cx, cy), rot_clk)
+
+        # 2. Lower body (legs, knees, boots) in grounded combat stance
+        lw = int(self.lower_body.width * (1.0 + (1.0 - leg_squash) * 0.7))
+        lh = int(self.lower_body.height * leg_squash)
+        m_lower = self.lower_body.resize((lw, lh), Image.Resampling.LANCZOS)
+        lx = int(CENTER_X - self.hero_base.width // 2 + leg_dx - (lw - self.lower_body.width) // 2)
+        ly = int(GROUND_Y - lh)
+        frame.paste(m_lower, (lx, ly), m_lower)
+
+        # 3. Upper body (torso, shoulders, head) rotated around the hip joint
+        rot_upper, d_u = self.rotate_at_pivot(self.upper_body, torso_rot, (36.0, 135.0))
+        hip_joint_x = int(CENTER_X + leg_dx + torso_dx * 0.4)
+        hip_joint_y = ly + 14
+        frame.paste(rot_upper, (hip_joint_x - d_u, hip_joint_y - d_u), rot_upper)
+
+        # 4. Hand-Held Crystalline Aetherblade
+        rot_sword = self.blade.rotate(sword_angle, resample=Image.Resampling.BICUBIC, expand=True)
+        sx = int(sword_pos[0]) - rot_sword.width // 2
+        sy = int(sword_pos[1]) - rot_sword.height // 2
+        frame.paste(rot_sword, (sx, sy), rot_sword)
+
+        # 5. Hand-Painted Luminous Slash Effects
+        if slash_progress > 0.0:
+            scale_fac = 0.95 + slash_progress * 0.65
+            cur_slash = self.slash.resize(
+                (int(self.slash.width * scale_fac), int(self.slash.height * scale_fac)),
+                Image.Resampling.BICUBIC
+            )
+            s_arr = np.array(cur_slash, dtype=np.float32)
+            alpha_mult = min(1.0, slash_progress * 1.6) if slash_progress < 0.6 else max(0.0, (1.0 - slash_progress) * 2.2)
+            s_arr[:, :, 3] = s_arr[:, :, 3] * alpha_mult
+            faded_slash = Image.fromarray(s_arr.astype(np.uint8))
+
+            rot_slash = faded_slash.rotate(14 - (1.0 - slash_progress) * 22, resample=Image.Resampling.BICUBIC, expand=True)
+            frame.paste(rot_slash, (int(sword_pos[0] - 32), int(sword_pos[1] - 88)), rot_slash)
+
+        return frame
+
     def compose_frame(
         self,
         torso_dy: float = 0.0,
@@ -309,48 +384,41 @@ def generate_all_suites(rig: HeroRig) -> dict[str, tuple[str, list[Image.Image]]
     suites["jump_land"] = ("Hero Jump Landing Recovery", jump_land_frames)
 
     # 11. Attack 1 - Horizontal Cleave (16 frames, 20 FPS)
+    # Refined articulated kinematics:
+    # Anticipation (0..4) -> Explosive Strike (5..8) -> Follow-through (9..11) -> Recovery (12..15)
+    attack1_params = [
+        # (torso_rot, torso_dx, leg_squash, leg_dx, b_ang, b_pos, slash_t, clk_ang, clk_dx, clk_dy)
+        (  2.0,  -2.0, 1.00,  0.0,  25.0, (CENTER_X - 10, GROUND_Y - 110), 0.00,   0.0,   0.0,  0.0), # 0: Guard stance
+        (  6.0,  -6.0, 0.98, -2.0,  45.0, (CENTER_X - 22, GROUND_Y - 118), 0.00,   5.0,  -4.0,  2.0), # 1: Startup
+        ( 10.0, -12.0, 0.95, -5.0,  68.0, (CENTER_X - 32, GROUND_Y - 124), 0.00,  10.0,  -8.0,  4.0), # 2: Torso coil
+        ( 15.0, -18.0, 0.91, -8.0,  92.0, (CENTER_X - 42, GROUND_Y - 130), 0.00,  18.0, -12.0,  6.0), # 3: Peak windup anticipation
+        (  8.0, -10.0, 0.94, -4.0,  60.0, (CENTER_X - 26, GROUND_Y - 120), 0.00,  12.0,  -8.0,  4.0), # 4: Release trigger
+        (-10.0,   8.0, 0.95,  4.0, -15.0, (CENTER_X + 24, GROUND_Y -  96), 0.35, -10.0, -14.0, -2.0), # 5: Explosive forward drive
+        (-22.0,  20.0, 0.90, 10.0, -65.0, (CENTER_X + 58, GROUND_Y -  86), 0.80, -22.0, -18.0, -4.0), # 6: Cleave apex / impact
+        (-20.0,  24.0, 0.92, 12.0, -90.0, (CENTER_X + 70, GROUND_Y -  80), 1.00, -26.0, -16.0, -3.0), # 7: Full extension follow-through
+        (-15.0,  18.0, 0.94, 10.0,-108.0, (CENTER_X + 64, GROUND_Y -  76), 0.75, -18.0, -12.0, -1.0), # 8: Blade deceleration
+        (-10.0,  14.0, 0.96,  8.0, -95.0, (CENTER_X + 52, GROUND_Y -  82), 0.45, -12.0,  -6.0,  0.0), # 9: Low lunge settling
+        ( -6.0,  10.0, 0.98,  6.0, -75.0, (CENTER_X + 42, GROUND_Y -  90), 0.15,  -7.0,  -3.0,  0.0), # 10: Recoil initiated
+        ( -3.0,   6.0, 0.99,  4.0, -50.0, (CENTER_X + 32, GROUND_Y -  98), 0.00,  -3.0,  -1.0,  0.0), # 11: Torso rising
+        ( -1.0,   3.0, 1.00,  2.0, -25.0, (CENTER_X + 22, GROUND_Y - 105), 0.00,  -1.0,   0.0,  0.0), # 12: Recovery guard
+        (  0.0,   1.5, 1.00,  1.0,  -5.0, (CENTER_X + 12, GROUND_Y - 110), 0.00,   0.0,   0.0,  0.0), # 13: Stride reset
+        (  0.0,   0.5, 1.00,  0.0,  12.0, (CENTER_X +  4, GROUND_Y - 113), 0.00,   0.0,   0.0,  0.0), # 14: Cloak settling
+        (  0.0,   0.0, 1.00,  0.0,  22.0, (CENTER_X -  4, GROUND_Y - 110), 0.00,   0.0,   0.0,  0.0)  # 15: Rest
+    ]
     attack1_frames = []
-    for i in range(16):
-        if i < 5:
-            # Startup windup
-            t = i / 4.0
-            sw_ang = 45.0 - t * 50.0
-            sw_pos = (CENTER_X - 10 + t * 15, GROUND_Y - 110 + t * 10)
-            frame = rig.compose_frame(
-                torso_dy=t * 3.0,
-                torso_lean=-t * 5.0,
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang
-            )
-        elif i < 9:
-            # Active strike
-            t = (i - 5) / 3.0
-            sw_ang = -20.0 - t * 50.0
-            sw_pos = (CENTER_X + 25 + t * 30, GROUND_Y - 95 - t * 10)
-            frame = rig.compose_frame(
-                torso_dy=3.0,
-                torso_lean=-8.0,
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang,
-                slash_progress=0.4 + t * 0.6,
-                slash_type=1
-            )
-        else:
-            # Recovery
-            t = (i - 9) / 6.0
-            sw_ang = -70.0 + t * 55.0
-            sw_pos = (CENTER_X + 45 - t * 20, GROUND_Y - 100 + t * 15)
-            frame = rig.compose_frame(
-                torso_dy=3.0 * (1.0 - t),
-                torso_lean=-8.0 * (1.0 - t),
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang,
-                slash_progress=max(0.0, 1.0 - t * 1.5),
-                slash_type=1
-            )
+    for p in attack1_params:
+        frame = rig.compose_articulated_attack(
+            torso_rot=p[0],
+            torso_dx=p[1],
+            leg_squash=p[2],
+            leg_dx=p[3],
+            sword_angle=p[4],
+            sword_pos=p[5],
+            slash_progress=p[6],
+            cloak_angle=p[7],
+            cloak_dx=p[8],
+            cloak_dy=p[9]
+        )
         attack1_frames.append(frame)
     suites["attack1"] = ("Hero Horizontal Cleave Strike", attack1_frames)
 
@@ -546,9 +614,12 @@ def main():
 
     print(f"\nTotal Frames Rendered: {total_frames} across {len(suites)} distinct animations.")
     
-    # Build Model Sheet
+    # Build Model Sheet if reference artwork exists
     model_sheet_path = os.path.join(art_dir, "Aether_Hero_ModelSheet.png")
-    build_model_sheet(REF_PATH, model_sheet_path)
+    if os.path.exists(REF_PATH):
+        build_model_sheet(REF_PATH, model_sheet_path)
+    else:
+        print(f"  [model-sheet] Preserving existing {model_sheet_path}")
     
     # Master Packed Sprite Sheet:
     # 204 frames: 16 columns x 13 rows @ 256x256 = 4096 x 3328 pixels!
