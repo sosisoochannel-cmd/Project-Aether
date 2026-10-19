@@ -262,6 +262,15 @@ namespace Aether.Core.Settings
         /// <summary>Multiplier on every on-screen control's opacity.</summary>
         public float ButtonOpacity = 1f;
 
+        /// <summary>Custom horizontal anchor fraction for joystick centre [0.10, 0.35].</summary>
+        public float JoystickPosX = 0.18f;
+
+        /// <summary>Custom vertical anchor fraction for joystick centre [0.12, 0.40].</summary>
+        public float JoystickPosY = 0.20f;
+
+        /// <summary>Scale multiplier specifically for the virtual joystick [0.80, 1.30].</summary>
+        public float JoystickScale = 1.0f;
+
         /// <summary>Whether the device is allowed to buzz on hits and confirmations.</summary>
         public bool Haptics = true;
 
@@ -280,6 +289,9 @@ namespace Aether.Core.Settings
             StickDeadZone = 0.14f;
             ButtonSize = 1f;
             ButtonOpacity = 1f;
+            JoystickPosX = 0.18f;
+            JoystickPosY = 0.20f;
+            JoystickScale = 1.0f;
             Haptics = true;
             LeftHanded = false;
         }
@@ -289,6 +301,9 @@ namespace Aether.Core.Settings
             StickDeadZone = other.StickDeadZone;
             ButtonSize = other.ButtonSize;
             ButtonOpacity = other.ButtonOpacity;
+            JoystickPosX = other.JoystickPosX;
+            JoystickPosY = other.JoystickPosY;
+            JoystickScale = other.JoystickScale;
             Haptics = other.Haptics;
             LeftHanded = other.LeftHanded;
         }
@@ -301,6 +316,9 @@ namespace Aether.Core.Settings
             // tools/verify/touchlayout.py proves at both ends of this range.
             ButtonSize = Mathf.Clamp(ButtonSize, 0.85f, 1.15f);
             ButtonOpacity = Mathf.Clamp(ButtonOpacity, 0.3f, 1f);
+            JoystickPosX = Mathf.Clamp(JoystickPosX, 0.10f, 0.35f);
+            JoystickPosY = Mathf.Clamp(JoystickPosY, 0.12f, 0.40f);
+            JoystickScale = Mathf.Clamp(JoystickScale, 0.80f, 1.30f);
         }
     }
 

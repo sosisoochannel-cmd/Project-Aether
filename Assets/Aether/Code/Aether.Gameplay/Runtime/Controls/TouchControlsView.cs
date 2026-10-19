@@ -41,6 +41,7 @@ namespace Aether.Gameplay.Controls
 
             // Player preferences
             public static float RadiusScale = 1f;
+            public static float JoystickScale = 1f;
             public static float OpacityScale = 1f;
             public static float StickDeadZone = 0.14f;
             public static bool Mirrored;
@@ -146,9 +147,11 @@ namespace Aether.Gameplay.Controls
             ControlSettings wanted = AetherSettings.Ensure().Values.Controls;
 
             Layout.RadiusScale = wanted.ButtonSize;
+            Layout.JoystickScale = wanted.JoystickScale;
             Layout.OpacityScale = wanted.ButtonOpacity;
             Layout.StickDeadZone = wanted.StickDeadZone;
             Layout.Mirrored = wanted.LeftHanded;
+            Layout.JoystickCentre = new Vector2(wanted.JoystickPosX, wanted.JoystickPosY);
         }
 
         private void OnSettingsChanged(string id)
@@ -229,7 +232,7 @@ namespace Aether.Gameplay.Controls
             bool sawDodge = false;
 
             Vector2 stickCenterPx = ToScreen(Layout.Centre(Layout.JoystickCentre));
-            float stickBaseRadiusPx = Layout.Radius(Layout.JoystickBaseRadius) * Screen.height;
+            float stickBaseRadiusPx = Layout.Radius(Layout.JoystickBaseRadius * Layout.JoystickScale) * Screen.height;
 
             var touches = screen.touches;
             for (int i = 0; i < touches.Count; i++)
@@ -252,7 +255,7 @@ namespace Aether.Gameplay.Controls
                 else if (began)
                 {
                     // Hit-test Joystick area
-                    if (_stickTouch < 0 && (position - stickCenterPx).sqrMagnitude <= stickBaseRadiusPx * stickBaseRadiusPx * 1.5f)
+                    if (_stickTouch < 0 && (position - stickCenterPx).sqrMagnitude <= stickBaseRadiusPx * stickBaseRadiusPx)
                     {
                         _stickTouch = id;
                         sawStick = true;
@@ -343,7 +346,7 @@ namespace Aether.Gameplay.Controls
                 {
                     PlaceScreenPixel(_joystickHandleRenderer.transform,
                         ToScreen(Layout.Centre(Layout.JoystickCentre)) + _stickHandleOffsetPx,
-                        Layout.Radius(Layout.JoystickHandleRadius) * 2f);
+                        Layout.Radius(Layout.JoystickHandleRadius * Layout.JoystickScale) * 2f);
                 }
                 return;
             }
@@ -356,7 +359,7 @@ namespace Aether.Gameplay.Controls
             if (_joystickBaseRenderer != null)
             {
                 Place(_joystickBaseRenderer.transform, Layout.Centre(Layout.JoystickCentre),
-                    Layout.Radius(Layout.JoystickBaseRadius) * 2f);
+                    Layout.Radius(Layout.JoystickBaseRadius * Layout.JoystickScale) * 2f);
             }
 
             // Place joystick handle
@@ -364,7 +367,7 @@ namespace Aether.Gameplay.Controls
             {
                 PlaceScreenPixel(_joystickHandleRenderer.transform,
                     ToScreen(Layout.Centre(Layout.JoystickCentre)) + _stickHandleOffsetPx,
-                    Layout.Radius(Layout.JoystickHandleRadius) * 2f);
+                    Layout.Radius(Layout.JoystickHandleRadius * Layout.JoystickScale) * 2f);
             }
 
             // Place action buttons
