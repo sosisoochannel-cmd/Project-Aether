@@ -65,7 +65,8 @@ class HeroRig:
         slash_progress: float = 0.0,
         cloak_angle: float = 0.0,
         cloak_dx: float = 0.0,
-        cloak_dy: float = 0.0
+        cloak_dy: float = 0.0,
+        slash_type: int = 1
     ) -> Image.Image:
         """Composes an articulated attack frame with true torso/hip rotation, leg flex, and blade acceleration."""
         frame = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
@@ -109,8 +110,12 @@ class HeroRig:
             s_arr[:, :, 3] = s_arr[:, :, 3] * alpha_mult
             faded_slash = Image.fromarray(s_arr.astype(np.uint8))
 
-            rot_slash = faded_slash.rotate(14 - (1.0 - slash_progress) * 22, resample=Image.Resampling.BICUBIC, expand=True)
-            frame.paste(rot_slash, (int(sword_pos[0] - 32), int(sword_pos[1] - 88)), rot_slash)
+            if slash_type == 1:
+                rot_slash = faded_slash.rotate(14 - (1.0 - slash_progress) * 22, resample=Image.Resampling.BICUBIC, expand=True)
+                frame.paste(rot_slash, (int(sword_pos[0] - 32), int(sword_pos[1] - 88)), rot_slash)
+            else:
+                rot_slash = faded_slash.rotate(-35 + slash_progress * 45, resample=Image.Resampling.BICUBIC, expand=True)
+                frame.paste(rot_slash, (int(sword_pos[0] - 25), int(sword_pos[1] - 92)), rot_slash)
 
         return frame
 
@@ -423,45 +428,42 @@ def generate_all_suites(rig: HeroRig) -> dict[str, tuple[str, list[Image.Image]]
     suites["attack1"] = ("Hero Horizontal Cleave Strike", attack1_frames)
 
     # 12. Attack 2 - Rising Crescent Finisher (16 frames, 20 FPS)
+    # Refined articulated kinematics:
+    # Anticipation coil (0..4) -> Explosive upward strike (5..8) -> Apex follow-through (9..11) -> Recovery (12..15)
+    attack2_params = [
+        # (torso_rot, torso_dx, leg_squash, leg_dx, b_ang, b_pos, slash_t, clk_ang, clk_dx, clk_dy)
+        (  2.0,  -1.0, 0.98, -1.0, -50.0, (CENTER_X -  6, GROUND_Y -  72), 0.00,   2.0,  -2.0,  0.0), # 0: Guard transition
+        (  5.0,  -4.0, 0.94, -3.0, -60.0, (CENTER_X - 12, GROUND_Y -  66), 0.00,   5.0,  -4.0,  1.0), # 1: Low dip
+        (  8.0,  -8.0, 0.90, -5.0, -70.0, (CENTER_X - 18, GROUND_Y -  60), 0.00,   9.0,  -6.0,  2.0), # 2: Deep crouch coil
+        ( 11.0, -12.0, 0.86, -7.0, -78.0, (CENTER_X - 22, GROUND_Y -  55), 0.00,  14.0,  -8.0,  3.0), # 3: Maximum anticipation
+        (  4.0,  -6.0, 0.92, -3.0, -55.0, (CENTER_X - 10, GROUND_Y -  68), 0.00,   8.0,  -5.0,  1.0), # 4: Launch trigger
+        ( -6.0,   4.0, 1.02,  2.0, -15.0, (CENTER_X + 10, GROUND_Y -  95), 0.35,  -6.0,  -8.0, -2.0), # 5: Explosive lift takeoff
+        (-14.0,  12.0, 1.08,  6.0,  25.0, (CENTER_X + 26, GROUND_Y - 125), 0.75, -16.0, -14.0, -4.0), # 6: Upward slash impact
+        (-18.0,  16.0, 1.10,  8.0,  65.0, (CENTER_X + 38, GROUND_Y - 148), 1.00, -24.0, -18.0, -6.0), # 7: Crescent apex
+        (-15.0,  14.0, 1.06,  7.0,  85.0, (CENTER_X + 36, GROUND_Y - 142), 0.70, -20.0, -14.0, -4.0), # 8: Blade deceleration
+        (-10.0,  10.0, 1.02,  5.0,  70.0, (CENTER_X + 30, GROUND_Y - 126), 0.40, -14.0,  -8.0, -2.0), # 9: Follow-through descent
+        ( -6.0,   6.0, 0.99,  3.0,  50.0, (CENTER_X + 22, GROUND_Y - 110), 0.15,  -8.0,  -4.0,  0.0), # 10: Downward settling
+        ( -3.0,   4.0, 0.98,  2.0,  30.0, (CENTER_X + 16, GROUND_Y - 102), 0.00,  -4.0,  -2.0,  0.0), # 11: Deceleration
+        ( -1.0,   2.0, 1.00,  1.0,  10.0, (CENTER_X + 10, GROUND_Y - 102), 0.00,  -1.0,   0.0,  0.0), # 12: Recovery guard
+        (  0.0,   1.0, 1.00,  0.0,  -5.0, (CENTER_X +  5, GROUND_Y - 105), 0.00,   0.0,   0.0,  0.0), # 13: Stance reset
+        (  0.0,   0.5, 1.00,  0.0, -12.0, (CENTER_X +  2, GROUND_Y - 108), 0.00,   0.0,   0.0,  0.0), # 14: Cloak settling
+        (  0.0,   0.0, 1.00,  0.0, -18.0, (CENTER_X -  2, GROUND_Y - 110), 0.00,   0.0,   0.0,  0.0)  # 15: Rest
+    ]
     attack2_frames = []
-    for i in range(16):
-        if i < 5:
-            t = i / 4.0
-            sw_ang = -55.0 + t * 25.0
-            sw_pos = (CENTER_X - 5 + t * 10, GROUND_Y - 70 - t * 15)
-            frame = rig.compose_frame(
-                torso_dy=t * 4.0,
-                torso_lean=t * 3.0,
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang
-            )
-        elif i < 9:
-            t = (i - 5) / 3.0
-            sw_ang = -30.0 + t * 90.0
-            sw_pos = (CENTER_X + 15 + t * 20, GROUND_Y - 95 - t * 30)
-            frame = rig.compose_frame(
-                torso_dy=-t * 10.0,
-                torso_lean=-5.0,
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang,
-                slash_progress=0.4 + t * 0.6,
-                slash_type=2
-            )
-        else:
-            t = (i - 9) / 6.0
-            sw_ang = 60.0 - t * 45.0
-            sw_pos = (CENTER_X + 35 - t * 15, GROUND_Y - 125 + t * 30)
-            frame = rig.compose_frame(
-                torso_dy=-10.0 * (1.0 - t),
-                torso_lean=-5.0 * (1.0 - t),
-                sword_visible=True,
-                sword_pos=sw_pos,
-                sword_angle=sw_ang,
-                slash_progress=max(0.0, 1.0 - t * 1.5),
-                slash_type=2
-            )
+    for p in attack2_params:
+        frame = rig.compose_articulated_attack(
+            torso_rot=p[0],
+            torso_dx=p[1],
+            leg_squash=p[2],
+            leg_dx=p[3],
+            sword_angle=p[4],
+            sword_pos=p[5],
+            slash_progress=p[6],
+            cloak_angle=p[7],
+            cloak_dx=p[8],
+            cloak_dy=p[9],
+            slash_type=2
+        )
         attack2_frames.append(frame)
     suites["attack2"] = ("Hero Rising Crescent Combo Finisher", attack2_frames)
 

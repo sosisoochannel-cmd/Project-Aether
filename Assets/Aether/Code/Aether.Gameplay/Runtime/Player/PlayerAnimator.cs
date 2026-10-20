@@ -25,6 +25,8 @@ namespace Aether.Gameplay.Player
         private PlayerAnimationId _currentId = PlayerAnimationId.Idle;
         private float _frameTimer;
         private int _frameIndex;
+        private AttackPhase _lastAttackPhase = AttackPhase.None;
+        private float _attackPhaseElapsed;
 
         private float _landTimer;
         private float _stopTimer;
@@ -157,9 +159,8 @@ namespace Aether.Gameplay.Player
             // 4. Melee Combat Attacking
             if (_combat != null && _combat.IsAttacking)
             {
-                // Chain / combo detection
-                bool isCombo = _combat.CurrentAttack != null && _combat.CurrentAttack.NextInCombo == null
-                               && _combat.StartupProgress > 0f;
+                // Chain / combo detection: StrikeFollowUp has no next attack in chain
+                bool isCombo = _combat.CurrentAttack != null && _combat.CurrentAttack.NextInCombo == null;
                 return isCombo ? PlayerAnimationId.Attack2 : PlayerAnimationId.Attack1;
             }
 
@@ -241,6 +242,8 @@ namespace Aether.Gameplay.Player
             _currentClip = PlayerAnimationCatalog.GetClip(id);
             _frameIndex = 0;
             _frameTimer = 0f;
+            _attackPhaseElapsed = 0f;
+            _lastAttackPhase = AttackPhase.None;
 
             if (_currentClip != null)
             {
@@ -252,25 +255,46 @@ namespace Aether.Gameplay.Player
         {
             if (_currentClip == null || _currentClip.FrameCount == 0) return;
 
-            // Attack animation timing locks to combat timeline
+            // Attack animation timing locks to combat timeline with full interpolation
             if ((_currentId == PlayerAnimationId.Attack1 || _currentId == PlayerAnimationId.Attack2) && _combat != null)
             {
-                switch (_combat.Phase)
+                AttackPhase currentPhase = _combat.Phase;
+                if (currentPhase != _lastAttackPhase)
+                {
+                    _lastAttackPhase = currentPhase;
+                    _attackPhaseElapsed = 0f;
+                }
+                else
+                {
+                    _attackPhaseElapsed += dt;
+                }
+
+                var def = _combat.CurrentAttack;
+                switch (currentPhase)
                 {
                     case AttackPhase.Startup:
-                        // Frames 0..4 (windup)
-                        _frameIndex = Mathf.Clamp((int)(_combat.StartupProgress * 4.99f), 0, 4);
+                    {
+                        // Anticipation / windup: Frames 0..4
+                        float p = _combat.StartupProgress;
+                        _frameIndex = Mathf.Clamp((int)(p * 5f), 0, 4);
                         break;
+                    }
                     case AttackPhase.Active:
-                        // Frames 5..8 (slash strike)
-                        _frameIndex = 6;
+                    {
+                        // Explosive strike: Frames 5..8 smoothly advancing across active window
+                        float activeDuration = def != null ? def.Active : 0.07f;
+                        float p = activeDuration > 0f ? Mathf.Clamp01(_attackPhaseElapsed / activeDuration) : 1f;
+                        _frameIndex = Mathf.Clamp(5 + (int)(p * 4f), 5, 8);
                         break;
+                    }
                     case AttackPhase.Recovery:
-                        // Frames 9..15 (recovery)
-                        _frameTimer += dt * _currentClip.Fps;
-                        int recoveryFrame = 9 + (int)_frameTimer;
-                        _frameIndex = Mathf.Clamp(recoveryFrame, 9, _currentClip.FrameCount - 1);
+                    {
+                        // Follow-through & return to guard: Frames 9..15 across recovery duration
+                        float recoveryDuration = def != null ? def.Recovery : 0.17f;
+                        float p = recoveryDuration > 0f ? Mathf.Clamp01(_attackPhaseElapsed / recoveryDuration) : 1f;
+                        _frameIndex = Mathf.Clamp(9 + (int)(p * 7f), 9, 15);
                         break;
+                    }
                 }
             }
             else
