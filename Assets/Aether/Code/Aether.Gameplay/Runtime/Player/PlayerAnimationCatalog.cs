@@ -65,9 +65,12 @@ namespace Aether.Gameplay.Player
     {
         private const int Cols = 16;
         private const int Rows = 13;
-        private const int FrameSize = 256;
         private const int TotalFrames = 204;
-        private const float PixelsPerUnit = 160f;
+        // Keep the intended world-space frame size independent of the PNG's imported resolution.
+        // Unity may import the source at 2048x1664 on Android even when the source was authored at
+        // twice that size. Hard-coding 256px then asks Sprite.Create for rectangles outside the
+        // actual texture and aborts the entire region bootstrap.
+        private const float IntendedFrameWorldSize = 1.6f;
         private const string ResourcePath = "Characters/Player/Aether_Hero_SpriteSheet";
 
         private static readonly Dictionary<PlayerAnimationId, PlayerAnimationClip> _clips =
@@ -90,25 +93,84 @@ namespace Aether.Gameplay.Player
             if (_initialized) return;
             _initialized = true;
 
-            var sheet = Resources.Load<Texture2D>(ResourcePath);
             Sprite[] allFrames = null;
+            Texture2D sheet = Resources.Load<Texture2D>(ResourcePath);
 
             if (sheet != null)
             {
-                allFrames = new Sprite[TotalFrames];
-                for (int i = 0; i < TotalFrames; i++)
+                // Derive cell dimensions from the imported texture instead of assuming a fixed
+                // resolution. Reject malformed layouts before Sprite.Create can throw mid-boot.
+                bool validGrid = sheet.width >= Cols && sheet.height >= Rows
+                    && sheet.width % Cols == 0 && sheet.height % Rows == 0;
+                if (validGrid)
                 {
-                    int c = i % Cols;
-                    int r = i / Cols;
-                    // Slicing: row 0 in PIL is at the top of the image; in Unity y=0 is at the bottom.
-                    int unityY = (Rows - 1 - r) * FrameSize;
-                    int unityX = c * FrameSize;
-                    var rect = new Rect(unityX, unityY, FrameSize, FrameSize);
-                    var sprite = Sprite.Create(sheet, rect, new Vector2(0.5f, 0.5f), PixelsPerUnit);
-                    sprite.name = $"Hero_Frame_{i:000}";
-                    sprite.hideFlags = HideFlags.HideAndDontSave;
-                    allFrames[i] = sprite;
+                    int frameWidth = sheet.width / Cols;
+                    int frameHeight = sheet.height / Rows;
+                    float pixelsPerUnit = frameWidth / IntendedFrameWorldSize;
+
+                    if (frameWidth == frameHeight && pixelsPerUnit > 0f)
+                    {
+                        var created = new List<Sprite>(TotalFrames);
+                        try
+                        {
+                            allFrames = new Sprite[TotalFrames];
+                            for (int i = 0; i < TotalFrames; i++)
+                            {
+                                int c = i % Cols;
+                                int r = i / Cols;
+                                // Row 0 in image files is at the top; Unity's texture origin is bottom-left.
+                                int unityY = (Rows - 1 - r) * frameHeight;
+                                int unityX = c * frameWidth;
+                                var rect = new Rect(unityX, unityY, frameWidth, frameHeight);
+
+                                // Defensive bounds check: never allow a bad imported texture to crash
+                                // the level-start sequence.
+                                if (rect.xMin < 0f || rect.yMin < 0f
+                                    || rect.xMax > sheet.width || rect.yMax > sheet.height)
+                                    throw new System.InvalidOperationException(
+                                        $"Animation frame {i} rect {rect} exceeds imported sheet {sheet.width}x{sheet.height}.");
+
+                                Sprite sprite = Sprite.Create(sheet, rect, new Vector2(0.5f, 0.5f), pixelsPerUnit);
+                                if (sprite == null)
+                                    throw new System.InvalidOperationException($"Unity failed to create animation frame {i}.");
+                                sprite.name = $"Hero_Frame_{i:000}";
+                                sprite.hideFlags = HideFlags.HideAndDontSave;
+                                allFrames[i] = sprite;
+                                created.Add(sprite);
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            for (int i = 0; i < created.Count; i++)
+                            {
+                                if (created[i] != null) Object.Destroy(created[i]);
+                            }
+                            allFrames = null;
+                            Debug.LogError(
+                                $"[player-animation] Sprite sheet '{ResourcePath}' ({sheet.width}x{sheet.height}) " +
+                                $"could not be sliced safely; using the guaranteed fallback sprite. {ex.GetType().Name}: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError(
+                            $"[player-animation] Invalid frame grid in '{ResourcePath}': " +
+                            $"{sheet.width}x{sheet.height} produces {frameWidth}x{frameHeight} cells; " +
+                            "expected square cells. Using the guaranteed fallback sprite.");
+                    }
                 }
+                else
+                {
+                    Debug.LogError(
+                        $"[player-animation] Invalid sheet dimensions for '{ResourcePath}': " +
+                        $"{sheet.width}x{sheet.height} cannot be divided into {Cols}x{Rows} cells. " +
+                        "Using the guaranteed fallback sprite.");
+                }
+            }
+            else
+            {
+                Debug.LogError(
+                    $"[player-animation] Resource '{ResourcePath}' was not found. Using the guaranteed fallback sprite.");
             }
 
             RegisterClip(PlayerAnimationId.Idle, "Hero_Idle", allFrames, 0, 24, 12f, true);
